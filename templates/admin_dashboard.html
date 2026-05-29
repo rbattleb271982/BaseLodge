@@ -1,226 +1,165 @@
 {% extends "admin_console.html" %}
-{% block title %}Dashboard{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
+{% block title %}Executive Dashboard{% endblock %}
+{% block page_title %}Executive Dashboard{% endblock %}
 
 {% block head_styles %}
-  /* ── KPI grid — always 2 columns ── */
-  .ad-kpi-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+  /* ── Updated timestamp ── */
+  .ad-updated {
+    font-size: 11px; color: #9E958A;
+    margin-bottom: 16px; overflow-wrap: break-word; word-break: break-word;
   }
 
-  /* ── KPI cards ── */
+  /* ── Row label (section divider above each KPI row) ── */
+  .ad-row-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #9E958A;
+    margin: 20px 0 8px;
+  }
+  .ad-row-label:first-of-type { margin-top: 0; }
+
+  /* ── KPI grid — 4 col desktop / 2 col mobile ── */
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  @media (max-width: 700px) { .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ── KPI card ── */
   .ad-card {
-    background: #FFFFFF;
-    border: 1px solid #E4DDD2;
-    border-radius: 9px;
-    padding: 12px 14px 10px;
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 9px; padding: 12px 14px 10px; min-width: 0;
   }
   .ad-card--link {
-    display: block;
-    text-decoration: none;
-    color: inherit;
+    display: block; text-decoration: none; color: inherit;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.12s ease, border-color 0.12s ease;
+    transition: background 0.12s, border-color 0.12s;
   }
   .ad-card--link:hover  { background: #FAF7F2; border-color: #C9BFB2; }
   .ad-card--link:active { background: #F3EDE3; }
+  .ad-card--alert { border-color: #B71C1C !important; }
+  .ad-card--alert .ad-card-value { color: #B71C1C !important; }
 
   .ad-card-label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-    color: #4E473F;
-    margin-bottom: 5px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #6B6157; margin-bottom: 5px;
   }
   .ad-card-value {
-    font-size: 30px;
-    font-weight: 700;
-    color: #5C1219;
-    line-height: 1;
-    font-family: Georgia, serif;
-    letter-spacing: -0.02em;
+    font-size: 26px; font-weight: 700; color: #5C1219;
+    line-height: 1; font-family: Georgia, serif; letter-spacing: -0.02em;
   }
   .ad-card-value--zero { color: #B0A99F; }
-  .ad-card-sub {
-    font-size: 11px;
-    color: #6B665A;
-    margin-top: 3px;
-  }
-
-  /* ── Trend indicators ── */
-  .ad-trend {
-    font-size: 11px;
-    font-weight: 500;
-    margin-top: 4px;
-    line-height: 1.3;
-    color: #9A9186;
-  }
+  .ad-card-sub  { font-size: 11px; color: #9E958A; margin-top: 3px; }
+  .ad-trend     { font-size: 11px; font-weight: 500; margin-top: 4px; color: #9A9186; line-height: 1.3; }
   .ad-trend--pos  { color: #16A34A; }
   .ad-trend--neg  { color: #DC2626; }
   .ad-trend--flat { color: #9A9186; }
 
-  /* ── Sparklines ── */
-  .ad-spark {
-    display: block;
-    margin-top: 6px;
-    overflow: visible;
+  /* ── Sparkline ── */
+  .ad-spark { display: block; margin-top: 6px; overflow: visible; }
+
+  /* ── Alert badge on KPI card ── */
+  .ad-badge-alert {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 3px;
+    background: #FFEBEE; color: #B71C1C; margin-top: 4px;
   }
 
-  /* ── Timestamp ── */
-  .ad-updated {
-    font-size: 11px;
-    color: #6B665A;
-    margin-bottom: 12px;
-    overflow-wrap: break-word;
-    word-break: break-word;
+  /* ── Executive Insights ── */
+  .ex-insights { margin: 24px 0 0; }
+  .ex-insights-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 10px;
   }
+  .ex-insight-row {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: #FAF7F2; border: 1px solid #E4DDD2;
+    border-left: 3px solid #5C1219;
+    border-radius: 9px; padding: 12px 14px;
+    margin-bottom: 8px; text-decoration: none; color: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .ex-insight-row:hover { background: #F3EDE3; border-color: #C9BFB2; }
+  .ex-insight-row--alert { border-left-color: #B71C1C; }
+  .ex-insight-row--alert .ex-insight-row:hover { background: #FFF5F5; }
 
-  /* ── Mobile scale-up (≤ 540px) ── */
-  @media (max-width: 540px) {
-    .ad-kpi-grid        { gap: 10px; }
-    .ad-card            { padding: 12px 14px 10px; }
-    .ad-card-label      {
-      font-size: 15px;
-      letter-spacing: 0.04em;
-      margin-bottom: 4px;
-    }
-    .ad-card-value      {
-      font-size: 44px;
-      line-height: 1;
-    }
-    .ad-card-sub        { font-size: 16px; margin-top: 3px; }
-    .ad-trend           { font-size: 14px; margin-top: 4px; }
-    .ad-spark           { margin-top: 7px; }
-    .ad-updated         { font-size: 12px; margin-bottom: 14px; }
+  .ex-insight-body { flex: 1; min-width: 0; }
+  .ex-insight-tag {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 4px;
+  }
+  .ex-insight-tag--alert { color: #B71C1C; }
+  .ex-insight-text {
+    font-size: 13px; color: #1C1917; line-height: 1.5;
+    font-style: italic; font-family: Georgia, serif;
+  }
+  .ex-insight-link {
+    font-size: 11px; font-weight: 600; color: #5C1219;
+    white-space: nowrap; padding-top: 2px; flex-shrink: 0;
   }
 
   /* ── Hub sections ── */
-  .hub-section         { margin-top: 28px; }
+  .hub-section { margin-top: 28px; }
   .hub-section-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    color: #6B6157;
-    margin-bottom: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #6B6157; margin-bottom: 10px;
   }
+
+  /* Intelligence hub — 3 or 4 col grid */
+  .hub-grid-intel {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+  }
+  @media (max-width: 700px) { .hub-grid-intel { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 380px) { .hub-grid-intel { grid-template-columns: 1fr; } }
+
+  /* Standard 2-col hub grid */
   .hub-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
   }
-  @media (max-width: 480px) { .hub-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 380px) { .hub-grid { grid-template-columns: 1fr; } }
 
   .hub-card {
-    display: block;
-    background: #fff;
-    border: 1px solid #E4DDD2;
-    border-radius: 9px;
-    padding: 13px 15px 11px;
-    text-decoration: none;
-    color: inherit;
+    display: block; background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 9px; padding: 12px 14px 10px;
+    text-decoration: none; color: inherit; min-width: 0;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.12s, border-color 0.12s;
-    min-width: 0;
   }
   .hub-card:hover  { background: #FAF7F2; border-color: #C9BFB2; }
   .hub-card:active { background: #F3EDE3; }
 
   .hub-card-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1C1917;
-    margin-bottom: 3px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .hub-card-desc {
-    font-size: 11px;
-    color: #9E958A;
-    line-height: 1.4;
-    margin-bottom: 6px;
+    font-size: 12px; font-weight: 700; color: #1C1917;
+    margin-bottom: 2px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
   }
   .hub-card-kpi {
-    font-size: 20px;
-    font-weight: 700;
-    color: #5C1219;
-    font-family: Georgia, serif;
-    letter-spacing: -0.01em;
-    line-height: 1;
-    margin-bottom: 5px;
+    font-size: 18px; font-weight: 700; color: #5C1219;
+    font-family: Georgia, serif; letter-spacing: -0.01em;
+    line-height: 1; margin: 5px 0 4px;
   }
-  .hub-card-kpi--small {
-    font-size: 15px;
-    font-family: inherit;
-    font-weight: 700;
-    color: #5C1219;
-    margin-bottom: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .hub-card-kpi--sm {
+    font-size: 13px; font-weight: 700; color: #5C1219;
+    margin: 5px 0 4px; line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .hub-card-cta {
-    font-size: 11px;
-    font-weight: 600;
-    color: #5C1219;
-    letter-spacing: 0.04em;
-  }
-
-  /* ── Insight panel ── */
-  .hub-insight {
-    margin-top: 28px;
-    background: #F5F1E8;
-    border: 1px solid #E4DDD2;
-    border-left: 3px solid #5C1219;
-    border-radius: 9px;
-    padding: 13px 16px;
-  }
-  .hub-insight-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.11em;
-    text-transform: uppercase;
-    color: #5C1219;
-    margin-bottom: 5px;
-  }
-  .hub-insight-text {
-    font-size: 13px;
-    color: #1C1917;
-    line-height: 1.6;
-  }
+  .hub-card-cta { font-size: 11px; font-weight: 600; color: #5C1219; }
 
   /* ── Quick actions ── */
-  .hub-actions { margin-top: 28px; }
+  .hub-actions { margin-top: 24px; }
   .hub-actions-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    color: #6B6157;
-    margin-bottom: 10px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #6B6157; margin-bottom: 8px;
   }
-  .hub-actions-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
+  .hub-actions-row { display: flex; flex-wrap: wrap; gap: 7px; }
   .hub-action-link {
-    display: inline-block;
-    font-size: 12px;
-    font-weight: 600;
-    color: #5C1219;
-    background: #fff;
-    border: 1px solid #E4DDD2;
-    border-radius: 6px;
-    padding: 6px 12px;
-    text-decoration: none;
+    display: inline-block; font-size: 12px; font-weight: 600;
+    color: #5C1219; background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 6px; padding: 6px 12px; text-decoration: none;
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.1s, border-color 0.1s;
-    white-space: nowrap;
+    transition: background 0.1s, border-color 0.1s; white-space: nowrap;
   }
   .hub-action-link:hover  { background: #FAF7F2; border-color: #C9BFB2; }
   .hub-action-link:active { background: #F3EDE3; }
@@ -228,34 +167,34 @@
 
 {% block content %}
 
+{#- ── Macros ───────────────────────────────────────────────── -#}
 {%- macro trend(t) -%}
 {%- if t -%}<div class="ad-trend {{ t[1] }}">{{ t[0] }}</div>{%- endif -%}
 {%- endmacro -%}
 
-{#- sparkline(series) — compact 14-point inline SVG polyline -#}
 {%- macro sparkline(series) -%}
-{%- if series -%}
-{%- set _max = series | max -%}
+{%- if series -%}{%- set _max = series | max -%}
 {%- if _max > 0 -%}
-{%- set ns  = namespace(pts='') -%}
-{%- set W   = 60 -%}
-{%- set H   = 24 -%}
-{%- set n   = series | length -%}
+{%- set ns = namespace(pts='') -%}{%- set W = 60 -%}{%- set H = 22 -%}{%- set n = series | length -%}
 {%- for v in series -%}
   {%- set x = ((loop.index0 / (n - 1)) * W) | round(1) -%}
   {%- set y = (H - (v / _max * (H * 0.82) + H * 0.09)) | round(1) -%}
   {%- set ns.pts = ns.pts ~ ' ' ~ x ~ ',' ~ y -%}
 {%- endfor -%}
-<svg class="ad-spark" width="{{ W }}" height="{{ H }}" viewBox="0 0 {{ W }} {{ H }}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><polyline points="{{ ns.pts | trim }}" fill="none" stroke="#C4A882" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-{%- endif -%}
-{%- endif -%}
+<svg class="ad-spark" width="{{ W }}" height="{{ H }}" viewBox="0 0 {{ W }} {{ H }}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <polyline points="{{ ns.pts | trim }}" fill="none" stroke="#C4A882" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+{%- endif -%}{%- endif -%}
 {%- endmacro -%}
 
 <div class="ad-updated">Live data · {{ now }}</div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ROW 1 — BUSINESS HEALTH                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label">Business Health</div>
 <div class="ad-kpi-grid">
 
-  <!-- Row 1: Total Users | New This Month -->
   <a href="/admin/user-insights" class="ad-card ad-card--link">
     <div class="ad-card-label">Total Users</div>
     <div class="ad-card-value{% if total_users == 0 %} ad-card-value--zero{% endif %}">{{ total_users }}</div>
@@ -263,15 +202,13 @@
     {{ sparkline(total_users_series) }}
   </a>
 
-  <a href="/admin/user-insights" class="ad-card ad-card--link">
-    <div class="ad-card-label">New This Month</div>
-    <div class="ad-card-value{% if new_users_month == 0 %} ad-card-value--zero{% endif %}">{{ new_users_month }}</div>
-    <div class="ad-card-sub">{{ month_label }}</div>
-    {{ trend(trend_new_users) }}
+  <a href="/admin/growth-intel" class="ad-card ad-card--link">
+    <div class="ad-card-label">New L30</div>
+    <div class="ad-card-value{% if new_users_l30 == 0 %} ad-card-value--zero{% endif %}">{{ new_users_l30 }}</div>
+    <div class="ad-card-sub">joined last 30 days</div>
     {{ sparkline(new_users_series) }}
   </a>
 
-  <!-- Row 2: WAU | MAU -->
   <a href="/admin/user-insights" class="ad-card ad-card--link">
     <div class="ad-card-label">WAU</div>
     <div class="ad-card-value{% if wau == 0 %} ad-card-value--zero{% endif %}">{{ wau }}</div>
@@ -288,148 +225,216 @@
     {{ sparkline(mau_series) }}
   </a>
 
-  <!-- Row 3: Trips L7 | Trips L30 -->
-  <a href="/admin/trips" class="ad-card ad-card--link">
-    <div class="ad-card-label">Trips L7</div>
-    <div class="ad-card-value{% if trips_week == 0 %} ad-card-value--zero{% endif %}">{{ trips_week }}</div>
-    <div class="ad-card-sub">new trips</div>
-    {{ trend(trend_trips_week) }}
-    {{ sparkline(trips_series[-7:]) }}
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ROW 2 — ACTIVATION & NETWORK                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label">Activation &amp; Network</div>
+<div class="ad-kpi-grid">
+
+  <a href="/admin/activation-intel" class="ad-card ad-card--link">
+    <div class="ad-card-label">Activation Rate</div>
+    <div class="ad-card-value{% if activation_pct == 0 %} ad-card-value--zero{% endif %}">{{ activation_pct }}%</div>
+    <div class="ad-card-sub">non-seeded users activated</div>
   </a>
+
+  <a href="/admin/growth-intel" class="ad-card ad-card--link">
+    <div class="ad-card-label">Connected Rate</div>
+    <div class="ad-card-value{% if connected_user_rate == 0 %} ad-card-value--zero{% endif %}">{{ connected_user_rate }}%</div>
+    <div class="ad-card-sub">have ≥1 friend</div>
+  </a>
+
+  <a href="/admin/messaging" class="ad-card ad-card--link">
+    <div class="ad-card-label">Invite Accept</div>
+    <div class="ad-card-value{% if invite_redemption_pct == 0 %} ad-card-value--zero{% endif %}">{{ invite_redemption_pct }}%</div>
+    <div class="ad-card-sub">invites redeemed</div>
+  </a>
+
+  <a href="/admin/crm-intel" class="ad-card ad-card--link">
+    <div class="ad-card-label">Reachable Users</div>
+    <div class="ad-card-value{% if reachable_users == 0 %} ad-card-value--zero{% endif %}">{{ reachable_users }}</div>
+    <div class="ad-card-sub">active push tokens</div>
+  </a>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ROW 3 — PRODUCT HEALTH                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label">Product Health</div>
+<div class="ad-kpi-grid">
 
   <a href="/admin/trips" class="ad-card ad-card--link">
     <div class="ad-card-label">Trips L30</div>
     <div class="ad-card-value{% if trips_30d == 0 %} ad-card-value--zero{% endif %}">{{ trips_30d }}</div>
-    <div class="ad-card-sub">rolling 30 days</div>
+    <div class="ad-card-sub">new trips created</div>
     {{ trend(trend_trips_30d) }}
     {{ sparkline(trips_series) }}
   </a>
 
-  <!-- Row 4: Mountain Page Views | Avg. Friends / User -->
-  <a href="/admin/resorts" class="ad-card ad-card--link">
-    <div class="ad-card-label">Mtn Page Views</div>
-    <div class="ad-card-value{% if mtn_views_30d == 0 %} ad-card-value--zero{% endif %}">{{ mtn_views_30d }}</div>
-    <div class="ad-card-sub">L30 views</div>
-    {{ trend(trend_mtn_views) }}
+  <a href="/admin/growth-intel" class="ad-card ad-card--link">
+    <div class="ad-card-label">Connections</div>
+    <div class="ad-card-value{% if friend_connections == 0 %} ad-card-value--zero{% endif %}">{{ friend_connections }}</div>
+    <div class="ad-card-sub">unique friend pairs</div>
   </a>
 
-  <a href="/admin/growth" class="ad-card ad-card--link">
-    <div class="ad-card-label">Avg. Friends</div>
+  <a href="/admin/growth-intel" class="ad-card ad-card--link">
+    <div class="ad-card-label">Avg Friends</div>
     <div class="ad-card-value{% if avg_friends_per_user == 0 %} ad-card-value--zero{% endif %}">{{ avg_friends_per_user }}</div>
     <div class="ad-card-sub">per user</div>
   </a>
 
+  <a href="/admin/messaging" class="ad-card ad-card--link{% if push_fail_rate >= 20 %} ad-card--alert{% endif %}">
+    <div class="ad-card-label">Push Failure</div>
+    <div class="ad-card-value{% if push_fail_rate == 0 %} ad-card-value--zero{% endif %}">{{ push_fail_rate }}%</div>
+    <div class="ad-card-sub">{{ push_fail_failed }} of {{ push_fail_attempted }} (L30)</div>
+    {% if push_fail_rate >= 20 %}
+    <div class="ad-badge-alert">alert</div>
+    {% endif %}
+  </a>
+
 </div>
 
-<!-- ── Section 1: Overview Hub ─────────────────────────────────── -->
-<div class="hub-section">
-  <div class="hub-section-label">Overview</div>
-  <div class="hub-grid">
-    <a href="/admin/dashboard#dash-users" class="hub-card">
-      <div class="hub-card-name">Dashboard</div>
-      <div class="hub-card-desc">Your executive snapshot.</div>
-      <div class="hub-card-kpi">{{ total_users }}</div>
-      <div class="hub-card-cta">Total Users &rarr;</div>
-    </a>
-    <a href="/admin/growth" class="hub-card">
-      <div class="hub-card-name">Growth</div>
-      <div class="hub-card-desc">How many users are arriving?</div>
-      <div class="hub-card-kpi">{{ new_users_month }}</div>
-      <div class="hub-card-cta">New This Month &rarr;</div>
-    </a>
-    <a href="/admin/activation" class="hub-card">
-      <div class="hub-card-name">Activation</div>
-      <div class="hub-card-desc">Are users reaching value?</div>
-      <div class="hub-card-kpi">{{ activation_pct }}%</div>
-      <div class="hub-card-cta">Activation Rate &rarr;</div>
-    </a>
-    <a href="/admin/retention" class="hub-card">
-      <div class="hub-card-name">Retention</div>
-      <div class="hub-card-desc">Are users coming back?</div>
-      <div class="hub-card-kpi">{{ mau }}</div>
-      <div class="hub-card-cta">MAU &rarr;</div>
-    </a>
-  </div>
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- EXECUTIVE INSIGHTS                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ex-insights">
+  <div class="ex-insights-label">Executive Insights</div>
+
+  {% if push_fail_rate >= 20 %}
+  <a href="/admin/messaging" class="ex-insight-row ex-insight-row--alert" style="border-left-color:#B71C1C;">
+    <div class="ex-insight-body">
+      <div class="ex-insight-tag ex-insight-tag--alert">Operational Alert</div>
+      <div class="ex-insight-text">"Push failure rate is {{ push_fail_rate }}% — {{ push_fail_failed }} of {{ push_fail_attempted }} push attempts failed."</div>
+    </div>
+    <div class="ex-insight-link">Messaging &rarr;</div>
+  </a>
+  {% endif %}
+
+  {% if pass_no_avail_count > 0 %}
+  <a href="/admin/crm-intel" class="ex-insight-row">
+    <div class="ex-insight-body">
+      <div class="ex-insight-tag">CRM Gap</div>
+      <div class="ex-insight-text">"{{ pass_no_avail_count }} users have a pass but no availability set — the biggest planning gap."</div>
+    </div>
+    <div class="ex-insight-link">CRM &rarr;</div>
+  </a>
+  {% elif connected_user_rate > 0 %}
+  <a href="/admin/growth-intel" class="ex-insight-row">
+    <div class="ex-insight-body">
+      <div class="ex-insight-tag">Network</div>
+      <div class="ex-insight-text">"{{ connected_user_rate }}% of users have at least one friend connection."</div>
+    </div>
+    <div class="ex-insight-link">Growth &rarr;</div>
+  </a>
+  {% endif %}
+
+  {% if active_users_total > 0 %}
+  <a href="/admin/crm-intel#ci-reachability" class="ex-insight-row">
+    <div class="ex-insight-body">
+      <div class="ex-insight-tag">Reachability</div>
+      <div class="ex-insight-text">"Only {{ active_users_reachable }} of {{ active_users_total }} active users {% if active_users_reachable == 1 %}is{% else %}are{% endif %} reachable by push."</div>
+    </div>
+    <div class="ex-insight-link">Reachability &rarr;</div>
+  </a>
+  {% endif %}
+
 </div>
 
-<!-- ── Section 2: Intelligence Hub ─────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- INTELLIGENCE HUB                                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <div class="hub-section">
   <div class="hub-section-label">Intelligence</div>
-  <div class="hub-grid">
-    <a href="/admin/user-intelligence" class="hub-card">
-      <div class="hub-card-name">User Intelligence</div>
-      <div class="hub-card-desc">Who your users are.</div>
-      {% if top_state and top_state_pct %}
-      <div class="hub-card-kpi--small">{{ top_state_pct }}% from {{ top_state }}</div>
-      {% endif %}
-      <div class="hub-card-cta">View User Intelligence &rarr;</div>
+  <div class="hub-grid-intel">
+
+    <a href="/admin/activation-intel" class="hub-card">
+      <div class="hub-card-name">Activation</div>
+      <div class="hub-card-kpi">{{ activation_pct }}%</div>
+      <div class="hub-card-cta">Activated &rarr;</div>
     </a>
+
+    <a href="/admin/growth-intel" class="hub-card">
+      <div class="hub-card-name">Growth</div>
+      <div class="hub-card-kpi">{{ new_users_l30 }}</div>
+      <div class="hub-card-cta">New L30 &rarr;</div>
+    </a>
+
+    <a href="/admin/crm-intel" class="hub-card">
+      <div class="hub-card-name">CRM</div>
+      <div class="hub-card-kpi">{{ reachable_users }}</div>
+      <div class="hub-card-cta">Reachable &rarr;</div>
+    </a>
+
+    <a href="/admin/user-intelligence" class="hub-card">
+      <div class="hub-card-name">User Intel</div>
+      {% if top_state and top_state_pct %}
+      <div class="hub-card-kpi--sm">{{ top_state_pct }}% {{ top_state }}</div>
+      {% endif %}
+      <div class="hub-card-cta">View &rarr;</div>
+    </a>
+
     <a href="/admin/product" class="hub-card">
       <div class="hub-card-name">Product</div>
-      <div class="hub-card-desc">What features users adopt.</div>
       <div class="hub-card-kpi">{{ avg_product_score }}</div>
-      <div class="hub-card-cta">Avg Product Score &rarr;</div>
+      <div class="hub-card-cta">Avg Score &rarr;</div>
     </a>
+
     <a href="/admin/resort-intelligence" class="hub-card">
-      <div class="hub-card-name">Resort Intelligence</div>
-      <div class="hub-card-desc">Which destinations show demand.</div>
+      <div class="hub-card-name">Resort Intel</div>
       <div class="hub-card-kpi">{{ total_active_resorts }}</div>
-      <div class="hub-card-cta">Active Resorts &rarr;</div>
+      <div class="hub-card-cta">Active &rarr;</div>
     </a>
+
     <a href="/admin/messaging" class="hub-card">
       <div class="hub-card-name">Messaging</div>
-      <div class="hub-card-desc">How invites and messaging perform.</div>
       <div class="hub-card-kpi">{{ invite_redemption_pct }}%</div>
-      <div class="hub-card-cta">Invite Redemption &rarr;</div>
+      <div class="hub-card-cta">Redeemed &rarr;</div>
     </a>
+
   </div>
 </div>
 
-<!-- ── Section 3: Operations Hub ────────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- OPERATIONS HUB                                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <div class="hub-section">
   <div class="hub-section-label">Operations</div>
   <div class="hub-grid">
     <a href="/admin/trips" class="hub-card">
       <div class="hub-card-name">Trips</div>
-      <div class="hub-card-desc">Review planned trips and group coordination.</div>
+      <div class="hub-card-kpi">{{ total_trips }}</div>
       <div class="hub-card-cta">View Trips &rarr;</div>
     </a>
     <a href="/admin/resorts" class="hub-card">
       <div class="hub-card-name">Mountains</div>
-      <div class="hub-card-desc">Manage resort and mountain data.</div>
+      <div class="hub-card-kpi">{{ total_active_resorts }}</div>
       <div class="hub-card-cta">View Mountains &rarr;</div>
     </a>
     <a href="/admin/user-insights" class="hub-card">
       <div class="hub-card-name">User Insights</div>
-      <div class="hub-card-desc">Review users and account patterns.</div>
-      <div class="hub-card-cta">View User Insights &rarr;</div>
+      <div class="hub-card-cta">Review Users &rarr;</div>
     </a>
     <a href="/admin/message-events" class="hub-card">
-      <div class="hub-card-name">Tools</div>
-      <div class="hub-card-desc">Diagnostics, logs, and admin utilities.</div>
-      <div class="hub-card-cta">Message Log &rarr;</div>
+      <div class="hub-card-name">Message Log</div>
+      <div class="hub-card-cta">View Log &rarr;</div>
     </a>
   </div>
 </div>
 
-<!-- ── Section 4: Admin Insight ──────────────────────────────────── -->
-{% if top_state and top_state_pct >= 30 %}
-<div class="hub-insight">
-  <div class="hub-insight-label">Insight</div>
-  <div class="hub-insight-text">
-    {{ top_state_pct }}% of users with a home state are based in {{ top_state }}.
-  </div>
-</div>
-{% endif %}
-
-<!-- ── Section 5: Quick Actions ──────────────────────────────────── -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- QUICK ACTIONS                                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <div class="hub-actions">
   <div class="hub-actions-label">Quick Actions</div>
   <div class="hub-actions-row">
+    <a href="/admin/activation-intel" class="hub-action-link">Activation Intel</a>
+    <a href="/admin/growth-intel"     class="hub-action-link">Growth Intel</a>
+    <a href="/admin/crm-intel"        class="hub-action-link">CRM Intel</a>
     <a href="/admin/user-insights"    class="hub-action-link">View Users</a>
     <a href="/admin/trips"            class="hub-action-link">View Trips</a>
     <a href="/admin/resorts"          class="hub-action-link">View Mountains</a>
-    <a href="/admin/push-diagnostics" class="hub-action-link">Push Diagnostics</a>
     <a href="/admin/message-events"   class="hub-action-link">Message Log</a>
     <a href="/admin/resorts-audit"    class="hub-action-link">Resort Audit</a>
   </div>

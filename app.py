@@ -15810,6 +15810,73 @@ def admin_dashboard():
     pass_on_file_pct = round(pass_on_file_count / total_users * 100) if total_users else 0
 
 
+    # ── New L30 (rolling, not MTD) ───────────────────────────────────────────
+    new_users_l30 = User.query.filter(User.created_at >= thirty_ago).count()
+
+    # ── Connected user rate ───────────────────────────────────────────────────
+    _connected_n        = db.session.query(Friend.user_id.distinct()).count()
+    connected_user_rate = round(_connected_n / total_users * 100) if total_users else 0
+
+    # ── Reachable users (alias of push-token distinct already computed above) ─
+    reachable_users = _users_with_push
+
+    # ── Friend connections (unique pairs = bidirectional rows / 2) ────────────
+    friend_connections = Friend.query.count() // 2
+
+    # ── Push failure rate from MEL ────────────────────────────────────────────
+    _mel_push = db.session.execute(db.text(
+        "SELECT "
+        "  COUNT(*) FILTER (WHERE delivery_status='sent'),  "
+        "  COUNT(*) FILTER (WHERE delivery_status='failed') "
+        "FROM message_event_log WHERE channel='push'"
+    )).fetchone()
+    _mel_sent        = _mel_push[0] or 0
+    _mel_failed      = _mel_push[1] or 0
+    push_fail_rate   = round(_mel_failed / (_mel_sent + _mel_failed) * 100) \
+                       if (_mel_sent + _mel_failed) else 0
+    push_fail_attempted = _mel_sent + _mel_failed
+    push_fail_failed    = _mel_failed
+
+    # ── Pass without availability (for Insight 2) ─────────────────────────────
+    import json as _json_dash
+    _no_pass_d = {'no_pass', 'no_pass_yet', 'none', ''}
+
+    def _dash_has_pass(pt):
+        for s in (pt or '').split(','):
+            if s.strip().lower() not in _no_pass_d:
+                return True
+        return False
+
+    def _dash_has_avail(od):
+        if od is None:
+            return False
+        if isinstance(od, list):
+            return len(od) > 0
+        if isinstance(od, str):
+            try:
+                p = _json_dash.loads(od)
+                return isinstance(p, list) and len(p) > 0
+            except Exception:
+                return False
+        return False
+
+    pass_no_avail_count = sum(
+        1 for (pt, od) in db.session.execute(
+            db.text('SELECT pass_type, open_dates FROM "user"')
+        ).fetchall()
+        if _dash_has_pass(pt) and not _dash_has_avail(od)
+    )
+
+    # ── Active users reachable by push (for Insight 3) ────────────────────────
+    _active_ids_dash = {r[0] for r in db.session.execute(
+        db.text("SELECT id FROM \"user\" WHERE lifecycle_stage = 'active'")
+    ).fetchall()}
+    _push_ids_dash = {r[0] for r in db.session.execute(
+        db.text("SELECT DISTINCT user_id FROM push_device_token WHERE active = true")
+    ).fetchall()}
+    active_users_reachable = len(_active_ids_dash & _push_ids_dash)
+    active_users_total     = len(_active_ids_dash)
+
     # ── 14-day daily series (for sparklines) ─────────────────────────────────
     from sqlalchemy import func as _func
 
@@ -15994,6 +16061,7 @@ def admin_dashboard():
         total_users        = total_users,
         mau                = mau,
         new_users_month    = new_users_month,
+        new_users_l30      = new_users_l30,
         total_trips        = total_trips,
         trips_week         = trips_week,
         trips_month        = trips_month,
@@ -16004,7 +16072,7 @@ def admin_dashboard():
         email_rate         = email_rate,
         pass_on_file_count = pass_on_file_count,
         pass_on_file_pct   = pass_on_file_pct,
-        total_active_resorts = total_active_resorts,
+        total_active_resorts  = total_active_resorts,
         mtn_pass_coverage_pct = mtn_pass_coverage_pct,
         trend_new_users    = trend_new_users,
         trend_mau          = trend_mau,
@@ -16023,14 +16091,24 @@ def admin_dashboard():
         avg_friends_per_user = avg_friends_per_user,
         trend_wau            = trend_wau,
         trend_trips_week     = trend_trips_week,
-        trend_trips_30d       = trend_trips_30d,
-        trend_mtn_views       = trend_mtn_views,
-        mtn_views_30d         = mtn_views_30d,
-        activation_pct        = activation_pct,
+        trend_trips_30d      = trend_trips_30d,
+        trend_mtn_views      = trend_mtn_views,
+        mtn_views_30d        = mtn_views_30d,
+        activation_pct       = activation_pct,
         invite_redemption_pct = invite_redemption_pct,
-        top_state             = top_state,
-        top_state_pct         = top_state_pct,
-        avg_product_score     = avg_product_score,
+        top_state            = top_state,
+        top_state_pct        = top_state_pct,
+        avg_product_score    = avg_product_score,
+        # ── Executive Dashboard additions ──────────────────────────────
+        connected_user_rate    = connected_user_rate,
+        reachable_users        = reachable_users,
+        friend_connections     = friend_connections,
+        push_fail_rate         = push_fail_rate,
+        push_fail_attempted    = push_fail_attempted,
+        push_fail_failed       = push_fail_failed,
+        pass_no_avail_count    = pass_no_avail_count,
+        active_users_reachable = active_users_reachable,
+        active_users_total     = active_users_total,
     )
 
 

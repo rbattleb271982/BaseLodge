@@ -1,0 +1,286 @@
+PUT THIS IN AGENT
+
+#173B - Executive Dashboard Upgrade
+
+Build the approved Executive Dashboard upgrade.
+
+Do NOT create a new page.
+
+Do NOT create a new route.
+
+Upgrade the existing:
+
+/admin/dashboard
+
+The goal is to make this the single page a founder opens daily.
+
+Dashboard = orientation
+
+Intelligence pages = investigation
+
+---
+
+## ROUTE CHANGES (app.py)
+
+Add only the minimum new calculations required.
+
+Reuse existing values wherever possible.
+
+Add:
+
+1. Connected User Rate
+
+Source:
+
+Friend table
+
+Formula:
+
+connected_users / total_users * 100
+
+2. Reachable Users
+
+Reuse existing push-token calculation already used in CRM Intel.
+
+3. Push Failure Rate
+
+Reuse the same MessageEventLog query already used in CRM Intel.
+
+Do NOT create duplicate logic.
+
+4. Pass Without Availability Count
+
+Reuse the same CRM audience calculation:
+
+has_pass = true
+has_availability = false
+
+Used only for executive insights.
+
+5. Active Users Reachable By Push
+
+Reuse CRM reachability logic.
+
+No new models.
+No migrations.
+No external APIs.
+
+---
+
+## EXECUTIVE KPI GRID
+
+Replace the current KPI layout.
+
+Desktop:
+
+3 rows × 4 columns
+
+Mobile:
+
+2 columns
+
+---
+
+## ROW 1 — BUSINESS HEALTH
+
+* Total Users
+* New Users L30
+* WAU
+* MAU
+
+Keep existing trend logic where applicable.
+
+---
+
+## ROW 2 — ACTIVATION & NETWORK
+
+* Activation Rate
+* Connected User Rate
+* Invite Acceptance Rate
+* Reachable Users
+
+Use existing Activation, Growth, and CRM calculations.
+
+---
+
+## ROW 3 — PRODUCT HEALTH
+
+* Trips L30
+* Friend Connections
+* Avg Friends
+* Push Failure Rate
+
+Push Failure Rate:
+
+Alert styling when >= 20%.
+
+---
+
+## RETIRED KPI CARDS
+
+Remove from the KPI grid:
+
+* Trips L7
+* Mountain Page Views
+
+Do not delete underlying calculations if used elsewhere.
+
+---
+
+## EXECUTIVE INSIGHTS
+
+Replace the existing state-based insight block entirely.
+
+Create a new Executive Insights section directly below KPI rows.
+
+Render 3 ranked insight rows.
+
+Insight 1 — Operational Alert
+
+IF push_failure_rate >= 20%
+
+Show:
+
+"Push failure rate is {X}% — {N} of {M} push attempts failed."
+
+Source tag:
+
+Messaging →
+
+Link:
+
+/admin/messaging
+
+---
+
+Insight 2 — Largest CRM Gap
+
+Show:
+
+"{N} users have a pass but no availability set — the biggest planning gap."
+
+Source tag:
+
+CRM →
+
+Link:
+
+/admin/crm-intel
+
+---
+
+Insight 3 — Reachability Inversion
+
+Show:
+
+"Only {N} of {M} active users is reachable by push."
+
+Source tag:
+
+Reachability →
+
+Link:
+
+/admin/crm-intel
+
+---
+
+Fallback:
+
+If any source data is unavailable:
+
+"{X}% of users have at least one friend connection."
+
+---
+
+## INTELLIGENCE HUB
+
+Expand Intelligence section.
+
+Current cards:
+
+* User Intelligence
+* Product
+* Resort Intelligence
+* Messaging
+
+Add:
+
+* Activation Intelligence
+* Growth Intelligence
+* CRM Intelligence
+
+Result:
+
+7 cards total
+
+Show a small KPI preview on each card.
+
+Examples:
+
+Activation Intel:
+{activation_rate}% activated
+
+Growth Intel:
+{new_users_l30} new users
+
+CRM Intel:
+{reachable_users} reachable
+
+Messaging:
+{invite_acceptance_rate}% redeemed
+
+---
+
+## QUICK ACTIONS
+
+Add links:
+
+* Activation Intelligence
+* Growth Intelligence
+* CRM Intelligence
+
+Remove:
+
+* Push Diagnostics
+
+Push Diagnostics remains accessible via URL but should not occupy dashboard real estate.
+
+---
+
+## MOBILE REQUIREMENTS
+
+Must work on:
+
+* iPhone 15 Pro
+
+Requirements:
+
+* 2-column KPI grid
+* Insight rows stack vertically
+* Hub cards wrap cleanly
+* No clipped content
+* No horizontal overflow
+
+---
+
+## TESTING REQUIREMENTS
+
+Verify:
+
+* /admin/dashboard returns 200
+* KPI counts match source dashboards
+* Activation Rate matches Activation Intel
+* Connected User Rate matches Growth Intel
+* Reachable Users matches CRM Intel
+* Push Failure Rate matches CRM Intel
+* Insights compute correctly
+* Hub links work
+* Mobile layout works
+* No overflow
+* No raw Jinja
+* No None leakage
+
+Use checkpoints sparingly.
+
+Do not finish until all tests pass.
