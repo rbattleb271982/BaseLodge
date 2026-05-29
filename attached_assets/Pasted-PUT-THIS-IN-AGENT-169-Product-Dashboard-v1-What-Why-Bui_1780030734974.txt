@@ -1,0 +1,287 @@
+PUT THIS IN AGENT
+
+#169 - Product Dashboard v1
+
+What & Why
+
+Build a new admin page at /admin/product focused on feature adoption, user behavior, and product usage patterns.
+
+Growth tells us if users arrive.
+
+Activation tells us if they reach value.
+
+Retention tells us if they come back.
+
+Product tells us what they actually use.
+
+Goal:
+
+Answer:
+
+- Which features are being used?
+- Which features are being ignored?
+- What actions correlate with activation?
+- What actions correlate with retention?
+- Where should we invest product effort?
+
+Use existing production data only.
+
+Do not add:
+
+- New database tables
+- New tracking vendors
+- New event systems
+
+Before implementation, perform a feasibility audit and report findings.
+
+--------------------------------------------------
+PHASE 1 — FEASIBILITY AUDIT
+--------------------------------------------------
+
+Do not build yet.
+
+Audit the following product signals:
+
+1. Pass Added
+2. Availability Added
+3. Wishlist Usage
+4. Trip Creation
+5. Group Trip Creation
+6. Friend Connections
+7. Equipment Setup Completion
+8. Profile Completion
+9. Resort Detail Views
+10. Home Feed Usage
+11. Invite Usage
+12. Notification Usage
+
+For each metric classify:
+
+GREEN
+Directly measurable from production data with no assumptions.
+
+YELLOW
+Measurable using a reasonable proxy or approximation.
+
+RED
+Cannot be measured reliably from current production data.
+
+Do not classify a metric as GREEN unless the underlying data is already persisted and queryable.
+
+Provide:
+
+- Classification (GREEN / YELLOW / RED)
+- Source model(s)
+- Query approach
+- Data quality concerns
+- Current counts
+- Recommendation (use / modify / exclude)
+
+--------------------------------------------------
+SECTION 0 — PRODUCT KPIs
+--------------------------------------------------
+
+Show:
+
+- Activated Users %
+- Profile Completion %
+- Pass Adoption %
+- Availability Adoption %
+- Wishlist Adoption %
+- Friend Connection %
+
+All based on non-seeded users.
+
+--------------------------------------------------
+SECTION 1 — FEATURE ADOPTION
+--------------------------------------------------
+
+Table:
+
+Feature
+Users
+%
+Progress Bar
+
+Features:
+
+Profile
+Pass
+Availability
+Wishlist
+Trip
+Friend
+Equipment
+Group Trip
+
+Sort by adoption rate descending.
+
+--------------------------------------------------
+SECTION 2 — ACTIVATION DRIVERS
+--------------------------------------------------
+
+Show activation rate among:
+
+- Users with Availability
+- Users without Availability
+
+- Users with Wishlist
+- Users without Wishlist
+
+- Users with Equipment
+- Users without Equipment
+
+- Users with Friends
+- Users without Friends
+
+Display:
+
+Feature
+Activation Rate
+Lift vs Baseline
+
+Goal:
+
+Identify which features correlate most strongly with activation.
+
+Reuse activation definitions already used elsewhere in the admin suite.
+
+--------------------------------------------------
+SECTION 3 — PRODUCT JOURNEY
+--------------------------------------------------
+
+Show:
+
+Total Users
+↓
+Onboarding Complete
+↓
+Has Real Pass
+↓
+Availability Added
+↓
+Wishlist Added
+↓
+Activated User
+
+Reuse existing Activation Dashboard definitions whenever possible.
+
+This is a diagnostic view, not a replacement.
+
+--------------------------------------------------
+SECTION 4 — UNDERUSED FEATURES
+--------------------------------------------------
+
+Identify bottom 5 adopted features.
+
+Display:
+
+Feature
+Adoption %
+
+Highlight opportunities.
+
+--------------------------------------------------
+SECTION 5 — POWER USERS
+--------------------------------------------------
+
+Product Score:
+
+1 point:
+- Pass
+- Availability
+- Wishlist
+- Equipment
+- Friend
+
+2 points:
+- Trip
+
+3 points:
+- Group Trip
+
++1 point:
+- Created 2+ trips
+
+Show:
+
+Average Product Score
+
+Distribution:
+
+0–2
+3–5
+6–8
+9+
+
+--------------------------------------------------
+SECTION 6 — PRODUCT INSIGHT
+--------------------------------------------------
+
+Generate one dynamic insight.
+
+Examples:
+
+"Availability users activate 3.2x more often."
+
+"Only 19% of users have added availability."
+
+"Friend-connected users create trips at twice the rate."
+
+Hide if insufficient data.
+
+--------------------------------------------------
+SECTION 7 — PRODUCT STATUS
+--------------------------------------------------
+
+Display:
+
+- Tracked Features
+- Features With Meaningful Adoption
+- Data Confidence
+
+Confidence:
+
+- Low
+- Growing
+- High
+
+Use same visual treatment as Activation, Retention, Messaging, Growth, and Resort Intelligence.
+
+--------------------------------------------------
+MOBILE REQUIREMENTS
+--------------------------------------------------
+
+Must work on:
+
+- iPhone 15
+
+Requirements:
+
+- KPI cards collapse cleanly
+- Tables scroll cleanly
+- Progress bars remain readable
+- No clipped content
+- No overflow
+
+--------------------------------------------------
+DELIVERABLE BEFORE BUILDING
+--------------------------------------------------
+
+Provide audit findings first.
+
+For every metric indicate:
+
+- GREEN
+- YELLOW
+- RED
+
+Then provide:
+
+- Recommended Product KPIs
+- Recommended Product Insight
+- Recommended Product Score Formula
+
+Do not build until audit is complete.
+
+Use checkpoints sparingly.
