@@ -16378,5 +16378,163 @@ def admin_growth():
     )
 
 
+@app.route("/admin/activation")
+@login_required
+@admin_required
+def admin_activation():
+    """Activation Dashboard v1 — 8-step funnel from signup to first group trip."""
+    from services.pass_utils import normalize_pass
+
+    _no_pass_slugs = frozenset({"no_pass", "no_pass_yet"})
+    now_dt = datetime.utcnow()
+
+    # ── Base cohort: non-seeded users ─────────────────────────────────────────
+    total = db.session.query(User.id).filter(User.is_seeded == False).count()
+
+    def _pct(n, d):
+        if not d:
+            return 0
+        return round(n / d * 100)
+
+    # ── Step 1: Total Users ───────────────────────────────────────────────────
+    s1 = total
+
+    # ── Step 2: Onboarding Completed ─────────────────────────────────────────
+    s2 = db.session.query(User.id).filter(
+        User.is_seeded == False,
+        User.onboarding_completed_at.isnot(None),
+    ).count()
+
+    # ── Step 3: Pass Added ────────────────────────────────────────────────────
+    s3 = 0
+    for (pt,) in db.session.query(User.pass_type).filter(User.is_seeded == False).all():
+        if not pt:
+            continue
+        for raw in str(pt).split(","):
+            raw = raw.strip()
+            if not raw:
+                continue
+            norm = normalize_pass(raw)
+            if norm and norm not in _no_pass_slugs:
+                s3 += 1
+                break
+
+    # ── Step 4: Availability Added ────────────────────────────────────────────
+    s4 = db.session.query(UserAvailability.user_id.distinct()).filter(
+        UserAvailability.user_id.in_(
+            db.session.query(User.id).filter(User.is_seeded == False)
+        )
+    ).count()
+
+    # ── Step 5: Wishlist Added ────────────────────────────────────────────────
+    s5 = 0
+    for (wl,) in db.session.query(User.wish_list_resorts).filter(User.is_seeded == False).all():
+        try:
+            if isinstance(wl, list) and len(wl) > 0:
+                s5 += 1
+        except Exception:
+            pass
+
+    # ── Step 6: First Trip Created ────────────────────────────────────────────
+    s6 = db.session.query(User.id).filter(
+        User.is_seeded == False,
+        User.first_trip_created_at.isnot(None),
+    ).count()
+
+    # ── Step 7: First Friend Added ────────────────────────────────────────────
+    s7 = db.session.query(Friend.user_id.distinct()).filter(
+        Friend.user_id.in_(
+            db.session.query(User.id).filter(User.is_seeded == False)
+        )
+    ).count()
+
+    # ── Step 8: First Group Trip ──────────────────────────────────────────────
+    # Owners of group trips
+    owner_ids = set(
+        r[0] for r in db.session.query(SkiTrip.user_id).filter(
+            SkiTrip.is_group_trip == True,
+            SkiTrip.user_id.in_(
+                db.session.query(User.id).filter(User.is_seeded == False)
+            ),
+        ).all()
+    )
+    # Accepted participants of group trips
+    participant_ids = set(
+        r[0] for r in db.session.query(SkiTripParticipant.user_id).join(
+            SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id
+        ).filter(
+            SkiTrip.is_group_trip == True,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.user_id.in_(
+                db.session.query(User.id).filter(User.is_seeded == False)
+            ),
+        ).all()
+    )
+    group_trip_user_ids = owner_ids | participant_ids
+    s8 = len(group_trip_user_ids)
+
+    # ── Build funnel steps ────────────────────────────────────────────────────
+    raw_steps = [
+        ("Total Users",           s1),
+        ("Onboarding Completed",  s2),
+        ("Pass Added",            s3),
+        ("Availability Added",    s4),
+        ("Wishlist Added",        s5),
+        ("First Trip Created",    s6),
+        ("First Friend Added",    s7),
+        ("First Group Trip",      s8),
+    ]
+
+    funnel_steps = []
+    for i, (name, count) in enumerate(raw_steps):
+        vs_total = _pct(count, total)
+        if i == 0:
+            vs_prev = 100
+        else:
+            prev_count = raw_steps[i - 1][1]
+            if not prev_count:
+                vs_prev = 0
+            else:
+                vs_prev = min(100, round(count / prev_count * 100))
+        funnel_steps.append({
+            "name":     name,
+            "count":    count,
+            "vs_prev":  vs_prev,
+            "vs_total": vs_total,
+        })
+
+    # ── Biggest Dropoff ───────────────────────────────────────────────────────
+    dropoff = None
+    worst_drop = 0
+    for i in range(1, len(funnel_steps)):
+        drop = funnel_steps[i]["vs_prev"] - 100   # negative if dropped
+        if drop < worst_drop:
+            worst_drop = drop
+            dropoff = {
+                "from_step": funnel_steps[i - 1]["name"],
+                "to_step":   funnel_steps[i]["name"],
+                "delta":     drop,
+            }
+
+    # ── KPI cards ─────────────────────────────────────────────────────────────
+    kpis = {
+        "activation_rate":   _pct(s8, total),
+        "onboarding_pct":    _pct(s2, total),
+        "availability_pct":  _pct(s4, total),
+        "first_trip_pct":    _pct(s6, total),
+        "first_friend_pct":  _pct(s7, total),
+    }
+
+    return render_template(
+        "admin_activation.html",
+        active_tab   = "activation",
+        now          = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        funnel_steps = funnel_steps,
+        kpis         = kpis,
+        dropoff      = dropoff,
+        total        = total,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

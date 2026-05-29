@@ -1,0 +1,231 @@
+PUT THIS IN AGENT
+
+#160 - Activation Dashboard v1
+
+What & Why
+Build a new admin page at /admin/activation that visualizes how users move from signup through full activation. This gives the founder one place to see where users drop off in the activation funnel, with KPI cards and a "Biggest Dropoff" callout.
+
+All data must come from existing production models. Do not add new tables, event tracking columns, or analytics vendors.
+
+Done looks like
+- /admin/activation loads without errors and extends admin_console.html with active_tab='activation'
+- Sidebar shows a new "Activation" nav entry under Console that highlights when active
+- Activation nav entry includes anchor sub-links for #act-funnel and #act-kpis
+- An 8-step funnel is displayed:
+  1. Total Users
+  2. Onboarding Completed
+  3. Pass Added
+  4. Availability Added
+  5. Wishlist Added
+  6. First Trip Created
+  7. First Friend Added
+  8. First Group Trip
+- Each row shows:
+  - Step name
+  - Count
+  - Conversion from previous step
+  - Conversion from total users
+- Horizontal bar fills proportionally to conversion from total users
+- Conversion percentages should be rounded integers
+- If a later step count is higher than the previous step, cap the displayed step-to-step conversion at 100% and do not show a positive dropoff
+- 5 KPI cards render in a grid:
+  - Activation Rate
+  - Onboarding Completion %
+  - Availability Completion %
+  - First Trip %
+  - First Friend %
+- A "Biggest Dropoff" callout banner identifies the steepest step-to-step drop, for example:
+  "Biggest dropoff: Availability Added → First Trip Created (-42%)"
+- Desktop-first layout
+- iPhone 15 mobile view is readable and usable:
+  - KPI grid should collapse cleanly
+  - Funnel table should not overflow the viewport
+  - Horizontal scroll is acceptable for the table if needed
+  - Text must be legible without zooming
+  - Cards should not feel cramped or clipped
+- Existing dashboard pages remain untouched:
+  - /admin/growth
+  - /admin/dashboard
+  - /admin/trips
+  - /admin/resorts
+  - /admin/messaging
+
+Out of scope
+- New database tables
+- New event-tracking columns
+- Third-party analytics vendors
+- Cohort-level or time-sliced breakdowns
+- Editing or modifying existing admin pages beyond adding the Activation nav entry to admin_console.html
+- Changing existing dashboard metrics
+
+Implementation steps
+
+1. Add Activation nav entry to templates/admin_console.html
+
+Insert a new nav item under the Console section after Growth and before Tools.
+
+Use:
+- active_tab == 'activation'
+- anchor sub-links:
+  - #act-funnel
+  - #act-kpis
+
+This is the only change to the shared base template.
+
+2. Add route GET /admin/activation in app.py
+
+Decorate with:
+- @login_required
+- @admin_required
+
+Query each funnel step using existing models.
+
+Exclude seeded users consistently:
+- User.is_seeded == False
+
+Funnel step definitions:
+
+Step 1 Total Users:
+- Count non-seeded users
+
+Step 2 Onboarding Completed:
+- Non-seeded users where onboarding_completed_at IS NOT NULL
+
+Step 3 Pass Added:
+- Non-seeded users where pass_type is non-empty and not in:
+  - no_pass
+  - no_pass_yet
+- Use the same normalize_pass() approach already used elsewhere in the admin/dashboard codebase if available
+
+Step 4 Availability Added:
+- Distinct user_id count from UserAvailability joined to non-seeded users
+
+Step 5 Wishlist Added:
+- Non-seeded users where wish_list_resorts is a non-empty JSON list
+- Guard safely for None, empty list, invalid value, or non-list values
+
+Step 6 First Trip Created:
+- Non-seeded users where first_trip_created_at IS NOT NULL
+
+Step 7 First Friend Added:
+- Distinct non-seeded user_id values appearing in Friend.user_id
+- This means at least one friendship row
+
+Step 8 First Group Trip:
+- Distinct non-seeded users associated with a group trip
+- Include:
+  - SkiTrip owner / organizer IDs for trips where SkiTrip.is_group_trip == True
+  - SkiTripParticipant.user_id where participant status is accepted and the related SkiTrip.is_group_trip == True
+- Use a union/set in Python if simpler and safer than SQL union
+
+Computations:
+- For each step calculate:
+  - count
+  - conversion from previous step
+  - conversion from total users
+- Round percentages to whole integers
+- Avoid divide-by-zero errors
+- Cap step-to-step conversion display at 100% if a later step count exceeds a previous step count
+- Biggest dropoff should use the largest negative drop between adjacent steps
+- Do not treat a step-to-step increase as a dropoff
+
+Build KPI dict:
+- activation_rate = Step 8 / total users
+- onboarding_pct = Step 2 / total users
+- availability_pct = Step 4 / total users
+- first_trip_pct = Step 6 / total users
+- first_friend_pct = Step 7 / total users
+
+Render:
+- templates/admin_activation.html
+- Pass:
+  - funnel_steps
+  - kpis
+  - dropoff
+  - now
+
+3. Build templates/admin_activation.html
+
+Extend:
+- admin_console.html
+
+Set:
+- active_tab = 'activation'
+
+Use the CSS namespace and component patterns from admin_growth.html.
+
+Use or mirror:
+- .ad-section
+- .ad-section-label
+- .ad-card
+- .ad-card-label
+- .ad-card-value
+- .ad-card-sub
+- .ad-kpi-grid
+- .gr-funnel-table
+- .gr-bar-wrap
+- .gr-bar
+
+Sections:
+
+Section 1:
+- id="act-funnel"
+- Funnel table with columns:
+  - Stage
+  - Count
+  - vs Prev
+  - vs Total
+  - Progress
+- Include a horizontal bar visualizing vs-total
+- Last row, First Group Trip, should get a subtle accent treatment
+
+Biggest Dropoff callout:
+- Place below the table
+- Use a bordeaux-tinted box
+- Bold the two step names
+- Show the negative percentage delta
+
+Section 2:
+- id="act-kpis"
+- 5-card KPI grid:
+  - Activation Rate
+  - Onboarding Completion %
+  - Availability %
+  - First Trip %
+  - First Friend %
+- Each card should include a progress bar
+
+Mobile requirements:
+- At max-width 700px:
+  - KPI grid should collapse to 2 columns where possible, then 1 column if needed
+  - Table should sit inside a horizontal scroll wrapper
+  - Font sizes should remain readable on iPhone 15
+  - Cards should have enough padding
+  - No clipped text
+  - No layout overflow beyond the viewport
+
+Relevant files
+- app.py
+- models.py
+- templates/admin_console.html
+- templates/admin_growth.html
+- templates/admin_dashboard.html
+- services/pass_utils.py
+
+Testing requirements
+- Run the app locally in Replit
+- Confirm /admin/activation returns 200 for an admin user
+- Confirm non-admin users cannot access it
+- Confirm existing admin pages still load:
+  - /admin/dashboard
+  - /admin/growth
+  - /admin/trips
+  - /admin/resorts
+  - /admin/messaging
+- Test responsive layout using iPhone 15 viewport width
+- Confirm no console errors
+- Confirm no template errors
+- Confirm seeded users are excluded from all counts
+
+Do not finish until you have fully tested the feature and confirmed the above routes and mobile layout work correctly.
+Use checkpoints sparingly. Only create one if absolutely necessary.

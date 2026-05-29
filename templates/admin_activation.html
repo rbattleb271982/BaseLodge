@@ -1,0 +1,310 @@
+{% extends "admin_console.html" %}
+{% block title %}Activation{% endblock %}
+{% block page_title %}Activation Dashboard{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 32px; }
+
+  .ad-updated {
+    font-size: 11px;
+    color: #9E958A;
+    margin-bottom: 20px;
+  }
+
+  /* ── KPI grid ── */
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 900px) {
+    .ad-kpi-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 700px) {
+    .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── KPI card ── */
+  .ad-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    min-width: 0;
+  }
+  .ad-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 6px;
+  }
+  .ad-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .ad-card-sub {
+    font-size: 12px;
+    color: #9E958A;
+    margin-top: 4px;
+  }
+
+  /* ── Progress bar ── */
+  .gr-bar-wrap {
+    background: #F5F1E8;
+    border-radius: 4px;
+    height: 5px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .gr-bar {
+    height: 100%;
+    background: #5C1219;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+
+  /* ── Funnel table ── */
+  .act-funnel-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 9px;
+  }
+  .act-funnel-table {
+    width: 100%;
+    min-width: 560px;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .act-funnel-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    text-align: left;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6;
+    white-space: nowrap;
+  }
+  .act-funnel-table th.th-right { text-align: right; }
+  .act-funnel-table td {
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .act-funnel-table tr:last-child td { border-bottom: none; }
+  .act-funnel-table td.td-count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: #1C1917;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .act-funnel-table td.td-pct {
+    text-align: right;
+    white-space: nowrap;
+    color: #6B6560;
+    font-size: 12px;
+  }
+  .act-funnel-table td.td-bar { width: 120px; min-width: 80px; }
+  .act-step-name {
+    font-weight: 500;
+    color: #1C1917;
+  }
+  .act-step-num {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    text-align: center;
+    background: #F5F1E8;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9E958A;
+    margin-right: 8px;
+    flex-shrink: 0;
+  }
+  .act-step-cell {
+    display: flex;
+    align-items: center;
+  }
+
+  /* Accent last row */
+  .act-funnel-table tr.act-row--accent td {
+    background: #FDFAF6;
+  }
+  .act-funnel-table tr.act-row--accent .act-step-name {
+    color: #5C1219;
+    font-weight: 600;
+  }
+  .act-funnel-table tr.act-row--accent .act-step-num {
+    background: rgba(92,18,25,0.08);
+    color: #5C1219;
+  }
+  .act-funnel-table tr.act-row--accent .gr-bar {
+    background: #5C1219;
+  }
+
+  /* Prev pct colour cues */
+  .act-pct--healthy { color: #4A7C59; }
+  .act-pct--warn    { color: #B07D2E; }
+  .act-pct--drop    { color: #9B3A3A; }
+
+  /* ── Biggest Dropoff callout ── */
+  .act-dropoff {
+    margin-top: 12px;
+    background: rgba(92,18,25,0.05);
+    border: 1px solid rgba(92,18,25,0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .act-dropoff-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .act-dropoff-text {
+    font-size: 13px;
+    color: #3B0D13;
+    line-height: 1.5;
+  }
+  .act-dropoff-text strong { font-weight: 700; }
+  .act-dropoff-delta {
+    margin-left: auto;
+    font-size: 18px;
+    font-weight: 700;
+    color: #5C1219;
+    white-space: nowrap;
+  }
+  @media (max-width: 500px) {
+    .act-dropoff-delta { margin-left: 0; }
+  }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }} &mdash; seeded users excluded from all counts</div>
+
+<!-- ── 1. Activation Funnel ─────────────────────────────────────────────── -->
+<div class="ad-section" id="act-funnel">
+  <div class="ad-section-label">Activation Funnel</div>
+
+  <div class="act-funnel-scroll">
+    <table class="act-funnel-table">
+      <thead>
+        <tr>
+          <th>Stage</th>
+          <th class="th-right">Users</th>
+          <th class="th-right">vs Prev</th>
+          <th class="th-right">vs Total</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for step in funnel_steps %}
+        <tr class="{{ 'act-row--accent' if loop.last else '' }}">
+          <td>
+            <div class="act-step-cell">
+              <span class="act-step-num">{{ loop.index }}</span>
+              <span class="act-step-name">{{ step.name }}</span>
+            </div>
+          </td>
+          <td class="td-count">{{ step.count }}</td>
+          <td class="td-pct">
+            {% if loop.first %}
+              <span style="color:#9E958A;">—</span>
+            {% else %}
+              {% set vp = step.vs_prev %}
+              <span class="{{ 'act-pct--healthy' if vp >= 75 else ('act-pct--warn' if vp >= 50 else 'act-pct--drop') }}">
+                {{ vp }}%
+              </span>
+            {% endif %}
+          </td>
+          <td class="td-pct">{{ step.vs_total }}%</td>
+          <td class="td-bar">
+            <div class="gr-bar-wrap" style="margin-top:0;">
+              <div class="gr-bar" style="width:{{ step.vs_total }}%;"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if dropoff %}
+  <div class="act-dropoff">
+    <span class="act-dropoff-icon">&#9660;</span>
+    <span class="act-dropoff-text">
+      Biggest dropoff: <strong>{{ dropoff.from_step }}</strong> &rarr; <strong>{{ dropoff.to_step }}</strong>
+    </span>
+    <span class="act-dropoff-delta">{{ dropoff.delta }}%</span>
+  </div>
+  {% else %}
+  <div class="act-dropoff" style="background:rgba(74,124,89,0.05);border-color:rgba(74,124,89,0.2);">
+    <span class="act-dropoff-icon" style="color:#4A7C59;">&#10003;</span>
+    <span class="act-dropoff-text" style="color:#1C4A2E;">No significant dropoff detected.</span>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── 2. KPI Cards ────────────────────────────────────────────────────── -->
+<div class="ad-section" id="act-kpis">
+  <div class="ad-section-label">Key Activation KPIs</div>
+
+  <div class="ad-kpi-grid">
+    <div class="ad-card">
+      <div class="ad-card-label">Activation Rate</div>
+      <div class="ad-card-value">{{ kpis.activation_rate }}%</div>
+      <div class="ad-card-sub">signed up &rarr; first group trip</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.activation_rate }}%;"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Onboarding</div>
+      <div class="ad-card-value">{{ kpis.onboarding_pct }}%</div>
+      <div class="ad-card-sub">completed setup flow</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.onboarding_pct }}%;"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Availability</div>
+      <div class="ad-card-value">{{ kpis.availability_pct }}%</div>
+      <div class="ad-card-sub">added open dates</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.availability_pct }}%;"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">First Trip</div>
+      <div class="ad-card-value">{{ kpis.first_trip_pct }}%</div>
+      <div class="ad-card-sub">created at least one trip</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.first_trip_pct }}%;"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">First Friend</div>
+      <div class="ad-card-value">{{ kpis.first_friend_pct }}%</div>
+      <div class="ad-card-sub">connected with a friend</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.first_friend_pct }}%;"></div></div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
