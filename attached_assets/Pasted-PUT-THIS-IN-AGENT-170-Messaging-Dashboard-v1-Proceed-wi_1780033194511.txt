@@ -1,0 +1,291 @@
+PUT THIS IN AGENT
+
+#170 - Messaging Dashboard v1
+
+Proceed with implementation.
+
+Use the audit findings exactly as approved.
+
+--------------------------------------------------
+IMPLEMENTATION ADJUSTMENTS
+--------------------------------------------------
+
+The audit discovered that BaseLodge does NOT have a traditional friend-request system.
+
+Friend growth is driven by InviteToken share links.
+
+Do not build friend-request KPIs or funnels that imply a request/accept workflow exists.
+
+Build only from validated GREEN/YELLOW signals.
+
+--------------------------------------------------
+SECTION 0 — MESSAGING KPIs
+--------------------------------------------------
+
+Show:
+
+- Invitations Sent
+- Invitations Accepted
+- Acceptance Rate
+- Friendships Formed
+- Push Reach
+- Push Opt-Out Rate
+
+Definitions:
+
+Invitations Sent
+= Invite Links Generated + Direct Trip Invites
+
+Invitations Accepted
+= Invite Links Redeemed + Accepted Trip Invites
+
+Acceptance Rate
+= Accepted / Sent
+
+Friendships Formed
+= Friend table unique friendships
+
+Push Reach
+= Users with PushDeviceToken
+
+Push Opt-Out Rate
+= push_notifications_enabled=False
+
+Display caveat icon on Push Opt-Out Rate because the field defaults to True.
+
+--------------------------------------------------
+SECTION 1 — MESSAGE VOLUME
+--------------------------------------------------
+
+Table:
+
+Action
+Volume
+Accepted
+Conversion
+
+Include:
+
+- Invite Links Generated
+- Invite Links Redeemed
+- Trip Invites Sent
+- Trip Invites Accepted
+- Friendships Formed
+- Push Reach
+
+Sort descending by volume.
+
+Exclude:
+
+- Product Push Sent
+- Product Push Delivered
+- Product Push Opened
+- Marketing Push
+- Email metrics
+
+Those are RED.
+
+--------------------------------------------------
+SECTION 2 — INVITE LINK FUNNEL
+--------------------------------------------------
+
+Primary funnel:
+
+Invite Links Generated
+↓
+Invite Links Redeemed
+↓
+Friendships Formed
+
+Display:
+
+- Counts
+- Step conversion %
+- Overall conversion %
+
+Add footnote:
+
+"Friendship attribution is approximate because invite redemption is not linked to a specific friendship record."
+
+--------------------------------------------------
+SECTION 3 — FRIEND GROWTH
+--------------------------------------------------
+
+Replace the originally proposed Friend Request Funnel.
+
+Show:
+
+Users Who Generated Invite Links
+↓
+Invite Links Generated
+↓
+Invite Links Redeemed
+↓
+Friendships Formed
+
+Display:
+
+- Counts
+- Conversion rates
+
+This reflects actual product behavior.
+
+--------------------------------------------------
+SECTION 4 — TRIP INVITE FUNNEL
+--------------------------------------------------
+
+Show:
+
+Trip Invites Sent
+↓
+Accepted
+↓
+Pending
+↓
+Cancelled
+
+Display:
+
+- Counts
+- Acceptance %
+- Pending %
+- Cancellation %
+
+Use Invitation + SkiTripParticipant validation.
+
+--------------------------------------------------
+SECTION 5 — MESSAGE EFFECTIVENESS
+--------------------------------------------------
+
+Rank conversion rates:
+
+- Invite Link Redemption Rate
+- Trip Invite Acceptance Rate
+- Friendship Formation Rate
+
+Display:
+
+Action
+Conversion %
+
+Sort descending.
+
+Only use metrics with meaningful sample size.
+
+Avoid tiny-sample winners.
+
+--------------------------------------------------
+SECTION 6 — UNDERUSED CHANNELS
+--------------------------------------------------
+
+Use only measurable channels.
+
+Display lowest adoption/usage actions:
+
+- Trip Invites
+- Push Reach
+- Invite Links
+- Friend Growth
+
+Do not fabricate channels.
+
+--------------------------------------------------
+SECTION 7 — MESSAGING INSIGHT
+--------------------------------------------------
+
+Calculate all valid insights.
+
+Candidates:
+
+- Invite redemption rate
+- Push reach rate
+- Trip invite acceptance rate
+
+Display the strongest insight.
+
+Default expected winner:
+
+"40% of invite links are redeemed — 27 of 67 generated links converted."
+
+Hide if insufficient data.
+
+--------------------------------------------------
+SECTION 8 — MESSAGING STATUS
+--------------------------------------------------
+
+Display:
+
+- Tracked Signals
+- Reliable Signals
+- Data Confidence
+
+Confidence should initially render:
+
+Growing
+
+Include note:
+
+"7 messaging signals excluded due to missing tracking or inactive systems."
+
+--------------------------------------------------
+EXCLUDED SIGNALS
+--------------------------------------------------
+
+Do not display:
+
+- Friend Requests Sent
+- Product Push Sent
+- Product Push Delivered
+- Product Push Opened
+- Marketing Push Sent
+- Marketing Push Delivered
+- Marketing Push Opened
+- Email Opens
+- Email Clicks
+
+These were classified RED.
+
+Email Sends may appear only in the status section as:
+
+"Tracking available, currently inactive."
+
+--------------------------------------------------
+DESIGN REQUIREMENTS
+--------------------------------------------------
+
+Match:
+
+- Growth
+- Activation
+- Retention
+- Product
+- Resort Intelligence
+
+Maintain:
+
+- Mobile-first design
+- 2-column KPI grid
+- Compact KPI cards
+- Horizontal table scrolling
+- Funnel cards matching existing admin style
+- No clipped content
+- No overflow
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Verify:
+
+- Non-seeded users only
+- Counts reconcile to audit
+- Acceptance calculations reconcile
+- Funnel conversions calculate correctly
+- No divide-by-zero errors
+- Empty-state handling for sparse datasets
+- Mobile rendering on iPhone 15
+- No template errors
+
+Use checkpoints sparingly.
+
+Do not stop until implementation is complete and fully tested.

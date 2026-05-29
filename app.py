@@ -13271,387 +13271,15 @@ def admin_trips():
 
 
 # ============================================================================
-# ADMIN MESSAGING PAGE
+# ADMIN RESORTS CURATION PAGE (messaging route moved to intelligence suite)
 # ============================================================================
 
-@app.route("/admin/messaging")
+@app.route("/admin/resorts_placeholder_removed")
 @login_required
 @admin_required
-def admin_messaging():
-    """Admin Messaging dashboard — push health, email preferences, delivery health,
-    audience reachability, lifecycle events, and message velocity."""
-    from collections import defaultdict as _dd
-
-    now       = datetime.utcnow()
-    ago_24h   = now - timedelta(hours=24)
-    ago_7d    = now - timedelta(days=7)
-    ago_14d   = now - timedelta(days=14)
-    ago_30d   = now - timedelta(days=30)
-    ago_60d   = now - timedelta(days=60)
-
-    total_users = User.query.count() or 1  # avoid div-by-zero
-
-    # ── Push Health ───────────────────────────────────────────────────────────
-    try:
-        active_tokens      = PushDeviceToken.query.filter_by(active=True).count()
-        push_token_users   = db.session.query(
-            func.count(func.distinct(PushDeviceToken.user_id))
-        ).filter(PushDeviceToken.active == True).scalar() or 0
-
-        push_opt_in        = User.query.filter_by(push_notifications_enabled=True).count()
-        push_disabled      = User.query.filter_by(push_notifications_enabled=False).count()
-        push_opt_in_pct    = round(push_opt_in / total_users * 100)
-
-        _plat_rows = (
-            db.session.query(PushDeviceToken.platform, func.count(PushDeviceToken.id))
-            .filter(PushDeviceToken.active == True)
-            .group_by(PushDeviceToken.platform).all()
-        )
-        platform_breakdown = {r[0]: r[1] for r in _plat_rows}
-
-        # Push-enabled users with NO active token (silent failure risk)
-        _token_user_ids = db.session.query(
-            PushDeviceToken.user_id
-        ).filter(PushDeviceToken.active == True).distinct()
-        push_enabled_no_token = db.session.query(func.count(User.id)).filter(
-            User.push_notifications_enabled == True,
-            ~User.id.in_(_token_user_ids)
-        ).scalar() or 0
-
-        # Users with multiple active tokens
-        _multi_rows = (
-            db.session.query(PushDeviceToken.user_id, func.count(PushDeviceToken.id).label("cnt"))
-            .filter(PushDeviceToken.active == True)
-            .group_by(PushDeviceToken.user_id)
-            .having(func.count(PushDeviceToken.id) > 1).all()
-        )
-        multi_token_users = len(_multi_rows)
-
-        # ── Trend context: period-over-period new registrations ───────────────
-        # Active Tokens — new tokens registered in each window
-        _tok_7d       = PushDeviceToken.query.filter(
-            PushDeviceToken.created_at >= ago_7d).count()
-        _tok_prev7d   = PushDeviceToken.query.filter(
-            PushDeviceToken.created_at >= ago_14d,
-            PushDeviceToken.created_at <  ago_7d).count()
-        tokens_delta_7d  = _tok_7d - _tok_prev7d
-
-        _tok_30d      = PushDeviceToken.query.filter(
-            PushDeviceToken.created_at >= ago_30d).count()
-        _tok_prev30d  = PushDeviceToken.query.filter(
-            PushDeviceToken.created_at >= ago_60d,
-            PushDeviceToken.created_at <  ago_30d).count()
-        tokens_delta_30d = _tok_30d - _tok_prev30d
-
-        # Users w/ Token — distinct users who registered a token in each window
-        _tu_30d = db.session.query(
-            func.count(func.distinct(PushDeviceToken.user_id))
-        ).filter(PushDeviceToken.created_at >= ago_30d).scalar() or 0
-        _tu_prev30d = db.session.query(
-            func.count(func.distinct(PushDeviceToken.user_id))
-        ).filter(
-            PushDeviceToken.created_at >= ago_60d,
-            PushDeviceToken.created_at <  ago_30d,
-        ).scalar() or 0
-        token_users_delta_30d = _tu_30d - _tu_prev30d
-
-        # Push Opt-In — new opted-in users by account creation date (best proxy)
-        _poi_30d = User.query.filter(
-            User.created_at >= ago_30d,
-            User.push_notifications_enabled == True,
-        ).count()
-        _poi_prev30d = User.query.filter(
-            User.created_at >= ago_60d,
-            User.created_at <  ago_30d,
-            User.push_notifications_enabled == True,
-        ).count()
-        push_optin_delta_30d = _poi_30d - _poi_prev30d
-
-        # Format trend strings: (text, sentiment_class)
-        # noun describes WHAT is being counted so wording matches the KPI.
-        def _msg_delta(d, label, noun=""):
-            if d == 0:
-                return f"No change vs {label}", ""
-            s = "+" if d > 0 else ""
-            noun_str = f" {noun}" if noun else ""
-            return f"{s}{d}{noun_str} vs {label}", ("am-trend--pos" if d > 0 else "am-trend--neg")
-
-        # "new registrations" makes clear this counts token creation events,
-        # not the net active-token count (which can't be snapshotted historically).
-        tokens_trend_7d       = _msg_delta(tokens_delta_7d,       "last week",  "new registrations")
-        tokens_trend_30d      = _msg_delta(tokens_delta_30d,      "last month", "new registrations")
-        # "users who registered a token" distinguishes from current active-token holders.
-        token_users_trend_30d = _msg_delta(token_users_delta_30d, "last month", "users registered a token")
-        # Opt-in delta compares new-user cohorts by signup date — label makes that clear.
-        push_optin_trend_30d  = _msg_delta(push_optin_delta_30d,  "last month", "new opted-in signups")
-
-    except Exception:
-        active_tokens = push_token_users = push_opt_in = push_disabled = 0
-        push_opt_in_pct = push_enabled_no_token = multi_token_users = 0
-        platform_breakdown = {}
-        tokens_delta_7d = tokens_delta_30d = token_users_delta_30d = push_optin_delta_30d = 0
-        tokens_trend_7d = tokens_trend_30d = ("", "")
-        token_users_trend_30d = push_optin_trend_30d = ("", "")
-
-    # ── MEL — shared base queries ─────────────────────────────────────────────
-    try:
-        mel_total = MessageEventLog.query.count()
-
-        mel_24h   = MessageEventLog.query.filter(MessageEventLog.created_at >= ago_24h).count()
-        mel_7d    = MessageEventLog.query.filter(MessageEventLog.created_at >= ago_7d).count()
-
-        push_24h  = MessageEventLog.query.filter(
-            MessageEventLog.created_at >= ago_24h,
-            MessageEventLog.channel == Channel.PUSH,
-        ).count()
-        failed_24h = MessageEventLog.query.filter(
-            MessageEventLog.created_at >= ago_24h,
-            MessageEventLog.delivery_status == DeliveryStatus.FAILED,
-        ).count()
-
-        # Delivery status breakdown
-        _ds_rows = (
-            db.session.query(MessageEventLog.delivery_status, func.count(MessageEventLog.id))
-            .group_by(MessageEventLog.delivery_status).all()
-        )
-        ds_map = {r[0]: r[1] for r in _ds_rows}
-        ds_total = mel_total or 1
-        ds_sent    = ds_map.get(DeliveryStatus.SENT,    0)
-        ds_failed  = ds_map.get(DeliveryStatus.FAILED,  0)
-        ds_skipped = ds_map.get(DeliveryStatus.SKIPPED, 0)
-        ds_pending = ds_map.get(DeliveryStatus.PENDING, 0)
-        ds_sent_pct    = round(ds_sent    / ds_total * 100) if mel_total else 0
-        ds_failed_pct  = round(ds_failed  / ds_total * 100) if mel_total else 0
-        ds_skipped_pct = round(ds_skipped / ds_total * 100) if mel_total else 0
-        ds_pending_pct = round(ds_pending / ds_total * 100) if mel_total else 0
-
-        # Suppression reason breakdown
-        _sr_rows = (
-            db.session.query(MessageEventLog.suppression_reason, func.count(MessageEventLog.id).label("cnt"))
-            .filter(MessageEventLog.suppression_reason.isnot(None))
-            .group_by(MessageEventLog.suppression_reason)
-            .order_by(func.count(MessageEventLog.id).desc()).limit(8).all()
-        )
-        suppression_breakdown = [{"reason": r[0], "count": r[1]} for r in _sr_rows]
-        _sr_max = max((r["count"] for r in suppression_breakdown), default=1)
-        for r in suppression_breakdown:
-            r["pct"] = round(r["count"] / _sr_max * 100)
-
-        # Retry stats
-        retry_rows_count = MessageEventLog.query.filter(MessageEventLog.retry_count > 0).count()
-
-        # Recent failures (last 10, no PII)
-        _rf_rows = (
-            MessageEventLog.query
-            .filter(MessageEventLog.delivery_status == DeliveryStatus.FAILED)
-            .order_by(MessageEventLog.created_at.desc()).limit(10).all()
-        )
-        recent_failures = [
-            {"event": r.event_name, "channel": r.channel or "—", "provider": r.provider or "—",
-             "error": (r.error_message or "")[:80], "ts": r.created_at}
-            for r in _rf_rows
-        ]
-
-        # Recent suppressions (last 10)
-        _rsk_rows = (
-            MessageEventLog.query
-            .filter(MessageEventLog.delivery_status == DeliveryStatus.SKIPPED)
-            .order_by(MessageEventLog.created_at.desc()).limit(10).all()
-        )
-        recent_suppressions = [
-            {"event": r.event_name, "channel": r.channel or "—",
-             "reason": r.suppression_reason or "—", "ts": r.created_at}
-            for r in _rsk_rows
-        ]
-
-        # Category breakdown
-        _cat_rows = (
-            db.session.query(MessageEventLog.category, func.count(MessageEventLog.id).label("cnt"))
-            .filter(MessageEventLog.category.isnot(None))
-            .group_by(MessageEventLog.category)
-            .order_by(func.count(MessageEventLog.id).desc()).all()
-        )
-        category_breakdown = [{"name": r[0], "count": r[1]} for r in _cat_rows]
-        _cat_max = max((c["count"] for c in category_breakdown), default=1)
-        for c in category_breakdown:
-            c["pct"] = round(c["count"] / _cat_max * 100)
-
-        # Top event names (top 8)
-        _en_rows = (
-            db.session.query(MessageEventLog.event_name, func.count(MessageEventLog.id).label("cnt"))
-            .group_by(MessageEventLog.event_name)
-            .order_by(func.count(MessageEventLog.id).desc()).limit(8).all()
-        )
-        top_event_names = [{"name": r[0], "count": r[1]} for r in _en_rows]
-        _en_max = max((e["count"] for e in top_event_names), default=1)
-        for e in top_event_names:
-            e["pct"] = round(e["count"] / _en_max * 100)
-
-        # Channel breakdown
-        _ch_rows = (
-            db.session.query(MessageEventLog.channel, func.count(MessageEventLog.id).label("cnt"))
-            .filter(MessageEventLog.channel.isnot(None))
-            .group_by(MessageEventLog.channel)
-            .order_by(func.count(MessageEventLog.id).desc()).all()
-        )
-        channel_breakdown = [{"name": r[0], "count": r[1]} for r in _ch_rows]
-
-        # Provider breakdown
-        _pv_rows = (
-            db.session.query(MessageEventLog.provider, func.count(MessageEventLog.id).label("cnt"))
-            .filter(MessageEventLog.provider.isnot(None))
-            .group_by(MessageEventLog.provider)
-            .order_by(func.count(MessageEventLog.id).desc()).all()
-        )
-        provider_breakdown = [{"name": r[0], "count": r[1]} for r in _pv_rows]
-
-        # Lifecycle event specifics
-        _lc_counts = {}
-        for en in [EventName.FRIEND_REQUEST_CREATED, EventName.FRIEND_REQUEST_ACCEPTED,
-                   EventName.TRIP_INVITE_CREATED, EventName.TRIP_INVITE_ACCEPTED]:
-            _lc_counts[en] = MessageEventLog.query.filter_by(event_name=en).count()
-        lifecycle_counts = {
-            "friend_req_sent":     _lc_counts.get(EventName.FRIEND_REQUEST_CREATED, 0),
-            "friend_req_accepted": _lc_counts.get(EventName.FRIEND_REQUEST_ACCEPTED, 0),
-            "trip_invite_sent":    _lc_counts.get(EventName.TRIP_INVITE_CREATED, 0),
-            "trip_invite_accepted":_lc_counts.get(EventName.TRIP_INVITE_ACCEPTED, 0),
-        }
-
-        # Recent broadcast / test pushes (last 10)
-        _bc_rows = (
-            MessageEventLog.query
-            .filter(MessageEventLog.event_name.in_([
-                EventName.PUSH_TEST_SENT, EventName.PUSH_BROADCAST_SENT
-            ]))
-            .order_by(MessageEventLog.created_at.desc()).limit(10).all()
-        )
-        recent_broadcasts = [
-            {"event": r.event_name, "channel": r.channel or "—",
-             "provider": r.provider or "—", "status": r.delivery_status,
-             "category": r.category or "—", "ts": r.created_at}
-            for r in _bc_rows
-        ]
-
-    except Exception:
-        mel_total = mel_24h = mel_7d = push_24h = failed_24h = 0
-        ds_sent = ds_failed = ds_skipped = ds_pending = 0
-        ds_sent_pct = ds_failed_pct = ds_skipped_pct = ds_pending_pct = 0
-        ds_total = 1
-        retry_rows_count = 0
-        suppression_breakdown = []
-        recent_failures = []
-        recent_suppressions = []
-        category_breakdown = []
-        top_event_names = []
-        channel_breakdown = []
-        provider_breakdown = []
-        lifecycle_counts = {"friend_req_sent": 0, "friend_req_accepted": 0,
-                            "trip_invite_sent": 0, "trip_invite_accepted": 0}
-        recent_broadcasts = []
-
-    # ── Email Preferences ─────────────────────────────────────────────────────
-    try:
-        email_opt_in_count      = User.query.filter_by(email_opt_in=True).count()
-        email_transactional_cnt = User.query.filter_by(email_transactional=True).count()
-        email_social_cnt        = User.query.filter_by(email_social=True).count()
-        email_digest_cnt        = User.query.filter_by(email_digest=True).count()
-        email_opt_out_count     = User.query.filter_by(email_opt_in=False).count()
-        email_opt_in_pct        = round(email_opt_in_count / total_users * 100)
-
-        # Email-only reachable: email opted in, push disabled
-        email_only_reachable = db.session.query(func.count(User.id)).filter(
-            User.email_opt_in == True,
-            User.push_notifications_enabled == False,
-        ).scalar() or 0
-    except Exception:
-        email_opt_in_count = email_transactional_cnt = email_social_cnt = 0
-        email_digest_cnt = email_opt_out_count = email_only_reachable = 0
-        email_opt_in_pct = 0
-
-    # ── Audience Reachability ─────────────────────────────────────────────────
-    try:
-        reach_both = db.session.query(func.count(User.id)).filter(
-            User.push_notifications_enabled == True,
-            User.email_opt_in == True,
-        ).scalar() or 0
-        reach_push_only = db.session.query(func.count(User.id)).filter(
-            User.push_notifications_enabled == True,
-            User.email_opt_in == False,
-        ).scalar() or 0
-        reach_email_only = db.session.query(func.count(User.id)).filter(
-            User.push_notifications_enabled == False,
-            User.email_opt_in == True,
-        ).scalar() or 0
-        reach_neither = db.session.query(func.count(User.id)).filter(
-            User.push_notifications_enabled == False,
-            User.email_opt_in == False,
-        ).scalar() or 0
-
-        reach_both_pct       = round(reach_both       / total_users * 100)
-        reach_push_only_pct  = round(reach_push_only  / total_users * 100)
-        reach_email_only_pct = round(reach_email_only / total_users * 100)
-        reach_neither_pct    = round(reach_neither    / total_users * 100)
-    except Exception:
-        reach_both = reach_push_only = reach_email_only = reach_neither = 0
-        reach_both_pct = reach_push_only_pct = reach_email_only_pct = reach_neither_pct = 0
-
-    return render_template('admin_messaging.html',
-        active_tab='messaging',
-        total_users=total_users,
-        # Push Health
-        active_tokens=active_tokens,
-        push_token_users=push_token_users,
-        push_opt_in=push_opt_in,
-        push_disabled=push_disabled,
-        push_opt_in_pct=push_opt_in_pct,
-        platform_breakdown=platform_breakdown,
-        push_enabled_no_token=push_enabled_no_token,
-        multi_token_users=multi_token_users,
-        # Push Health trends
-        tokens_trend_7d=tokens_trend_7d,
-        tokens_trend_30d=tokens_trend_30d,
-        token_users_trend_30d=token_users_trend_30d,
-        push_optin_trend_30d=push_optin_trend_30d,
-        # Message velocity
-        mel_total=mel_total,
-        mel_24h=mel_24h,
-        mel_7d=mel_7d,
-        push_24h=push_24h,
-        failed_24h=failed_24h,
-        # Delivery health
-        ds_sent=ds_sent, ds_failed=ds_failed, ds_skipped=ds_skipped, ds_pending=ds_pending,
-        ds_sent_pct=ds_sent_pct, ds_failed_pct=ds_failed_pct,
-        ds_skipped_pct=ds_skipped_pct, ds_pending_pct=ds_pending_pct,
-        suppression_breakdown=suppression_breakdown,
-        retry_rows_count=retry_rows_count,
-        recent_failures=recent_failures,
-        recent_suppressions=recent_suppressions,
-        # Lifecycle Events
-        category_breakdown=category_breakdown,
-        top_event_names=top_event_names,
-        channel_breakdown=channel_breakdown,
-        provider_breakdown=provider_breakdown,
-        lifecycle_counts=lifecycle_counts,
-        recent_broadcasts=recent_broadcasts,
-        # Email Preferences
-        email_opt_in_count=email_opt_in_count,
-        email_opt_in_pct=email_opt_in_pct,
-        email_opt_out_count=email_opt_out_count,
-        email_transactional_cnt=email_transactional_cnt,
-        email_social_cnt=email_social_cnt,
-        email_digest_cnt=email_digest_cnt,
-        email_only_reachable=email_only_reachable,
-        # Audience Reachability
-        reach_both=reach_both,
-        reach_push_only=reach_push_only,
-        reach_email_only=reach_email_only,
-        reach_neither=reach_neither,
-        reach_both_pct=reach_both_pct,
-        reach_push_only_pct=reach_push_only_pct,
-        reach_email_only_pct=reach_email_only_pct,
-        reach_neither_pct=reach_neither_pct,
-    )
-
+def admin_messaging_old_placeholder():
+    """Old messaging route stub — body removed; see /admin/messaging in the intelligence suite."""
+    return redirect('/admin/messaging')
 
 # ============================================================================
 # ADMIN RESORTS CURATION PAGE
@@ -16937,6 +16565,208 @@ def admin_product():
         power          = power,
         insight        = insight,
         status         = status,
+    )
+
+
+@app.route("/admin/messaging")
+@login_required
+@admin_required
+def admin_messaging():
+    """Messaging Dashboard v1 — invite links, trip invites, push reach, friend growth."""
+    from collections import Counter
+
+    now_dt = datetime.utcnow()
+
+    # ── Base population: non-seeded users ───────────────────────────────
+    ns_ids = [r[0] for r in db.session.query(User.id).filter(User.is_seeded == False).all()]
+    total  = len(ns_ids)
+
+    def pct(n, d):
+        return round(n / d * 100) if d else 0
+
+    # ── InviteToken (friend invite links) ───────────────────────────────
+    it_generated = db.session.query(InviteToken.id).filter(
+        InviteToken.inviter_id.in_(ns_ids)
+    ).count()
+    it_redeemed = db.session.query(InviteToken.id).filter(
+        InviteToken.inviter_id.in_(ns_ids),
+        InviteToken.used_at != None
+    ).count()
+    it_users = db.session.query(InviteToken.inviter_id.distinct()).filter(
+        InviteToken.inviter_id.in_(ns_ids)
+    ).count()
+
+    # ── Trip Invites (Invitation where trip_id IS NOT NULL) + TripInviteToken ─
+    ti_rows = db.session.query(
+        Invitation.status, db.func.count(Invitation.id)
+    ).filter(
+        Invitation.sender_id.in_(ns_ids),
+        Invitation.trip_id != None
+    ).group_by(Invitation.status).all()
+    ti_status = {s: n for s, n in ti_rows}
+    ti_direct_sent     = sum(ti_status.values())
+    ti_direct_accepted = ti_status.get('accepted', 0)
+    ti_direct_pending  = ti_status.get('pending', 0)
+    ti_direct_cancelled= ti_status.get('cancelled', 0)
+
+    from models import TripInviteToken
+    ti_link_sent = db.session.query(TripInviteToken.id).filter(
+        TripInviteToken.inviter_user_id.in_(ns_ids)
+    ).count()
+
+    ti_total_sent     = ti_direct_sent + ti_link_sent
+    ti_total_accepted = ti_direct_accepted   # links don't have per-recipient status
+
+    # ── SkiTripParticipant corroboration ────────────────────────────────
+    stp_rows = db.session.query(
+        SkiTripParticipant.status, db.func.count(SkiTripParticipant.id)
+    ).filter(
+        SkiTripParticipant.user_id.in_(ns_ids),
+        SkiTripParticipant.role != ParticipantRole.OWNER
+    ).group_by(SkiTripParticipant.status).all()
+    stp_status = {(s.value if hasattr(s, 'value') else s): n for s, n in stp_rows}
+
+    # ── Friendships formed (Friend table, bidirectional) ─────────────────
+    friend_rows = db.session.query(Friend.id).filter(
+        Friend.user_id.in_(ns_ids)
+    ).count()
+    friendships_formed = friend_rows // 2 if friend_rows else 0
+
+    # ── Push reach ───────────────────────────────────────────────────────
+    push_users = db.session.query(PushDeviceToken.user_id.distinct()).filter(
+        PushDeviceToken.user_id.in_(ns_ids)
+    ).count()
+    push_disabled = db.session.query(User.id).filter(
+        User.id.in_(ns_ids),
+        User.push_notifications_enabled == False
+    ).count()
+
+    # ── Section 0: Messaging KPIs ────────────────────────────────────────
+    invitations_sent     = it_generated + ti_total_sent
+    invitations_accepted = it_redeemed  + ti_total_accepted
+    acceptance_rate      = pct(invitations_accepted, invitations_sent)
+    push_reach_pct       = pct(push_users, total)
+    push_optout_pct      = pct(push_disabled, total)
+
+    kpis = dict(
+        invitations_sent     = invitations_sent,
+        invitations_accepted = invitations_accepted,
+        acceptance_rate      = acceptance_rate,
+        friendships_formed   = friendships_formed,
+        push_reach_pct       = push_reach_pct,
+        push_reach_n         = push_users,
+        push_optout_pct      = push_optout_pct,
+        push_optout_n        = push_disabled,
+    )
+
+    # ── Section 1: Message Volume Table ─────────────────────────────────
+    volume_rows = [
+        dict(action='Invite Links Generated', volume=it_generated,       accepted=None,          conv=None),
+        dict(action='Invite Links Redeemed',  volume=it_redeemed,        accepted=None,          conv=pct(it_redeemed, it_generated)),
+        dict(action='Friendships Formed',     volume=friendships_formed,  accepted=None,          conv=pct(friendships_formed, it_redeemed) if it_redeemed else None),
+        dict(action='Push Reach',             volume=push_users,          accepted=None,          conv=pct(push_users, total)),
+        dict(action='Trip Invites Sent',      volume=ti_total_sent,       accepted=ti_total_accepted, conv=pct(ti_total_accepted, ti_direct_sent) if ti_direct_sent else None),
+        dict(action='Trip Invites Accepted',  volume=ti_total_accepted,   accepted=None,          conv=None),
+    ]
+    volume_rows = sorted(volume_rows, key=lambda r: r['volume'], reverse=True)
+
+    # ── Section 2: Invite Link Funnel ────────────────────────────────────
+    invite_funnel = [
+        dict(label='Invite Links Generated', n=it_generated,       step_pct=100,
+             step_conv=None, note=''),
+        dict(label='Invite Links Redeemed',  n=it_redeemed,        step_pct=pct(it_redeemed, it_generated),
+             step_conv=pct(it_redeemed, it_generated), note='redemption rate'),
+        dict(label='Friendships Formed',     n=friendships_formed, step_pct=pct(friendships_formed, it_generated),
+             step_conv=pct(friendships_formed, it_redeemed) if it_redeemed else None, note='est. from redeemed'),
+    ]
+    invite_overall_conv = pct(friendships_formed, it_generated)
+
+    # ── Section 3: Friend Growth ──────────────────────────────────────────
+    friend_growth = [
+        dict(label='Users Who Generated Invite Links', n=it_users,         pct_of_total=pct(it_users, total)),
+        dict(label='Invite Links Generated',           n=it_generated,     pct_of_total=None),
+        dict(label='Invite Links Redeemed',            n=it_redeemed,      pct_of_total=pct(it_redeemed, it_generated)),
+        dict(label='Friendships Formed',               n=friendships_formed, pct_of_total=pct(friendships_formed, it_redeemed) if it_redeemed else 0),
+    ]
+
+    # ── Section 4: Trip Invite Funnel ─────────────────────────────────────
+    trip_funnel = dict(
+        sent      = ti_direct_sent,
+        link_sent = ti_link_sent,
+        accepted  = ti_direct_accepted,
+        pending   = ti_direct_pending,
+        cancelled = ti_direct_cancelled,
+        accept_pct  = pct(ti_direct_accepted, ti_direct_sent),
+        pending_pct = pct(ti_direct_pending,  ti_direct_sent),
+        cancel_pct  = pct(ti_direct_cancelled,ti_direct_sent),
+    )
+
+    # ── Section 5: Message Effectiveness ─────────────────────────────────
+    effectiveness = []
+    if it_generated >= 5:
+        effectiveness.append(dict(action='Invite Link Redemption', conv=pct(it_redeemed, it_generated), n=it_generated))
+    if ti_direct_sent >= 3:
+        effectiveness.append(dict(action='Trip Invite Acceptance', conv=pct(ti_direct_accepted, ti_direct_sent), n=ti_direct_sent))
+    if it_redeemed >= 3:
+        effectiveness.append(dict(action='Redemption → Friendship', conv=pct(friendships_formed, it_redeemed), n=it_redeemed))
+    effectiveness = sorted(effectiveness, key=lambda r: r['conv'], reverse=True)
+    eff_max = max((r['conv'] for r in effectiveness), default=1) or 1
+
+    # ── Section 6: Underused Channels ────────────────────────────────────
+    underused_channels = [
+        dict(channel='Trip Invites',   usage_n=ti_total_sent,   usage_pct=pct(ti_total_sent,   total), note='users who sent any trip invite'),
+        dict(channel='Invite Links',   usage_n=it_users,        usage_pct=pct(it_users,         total), note='users who generated a link'),
+        dict(channel='Push Reach',     usage_n=push_users,      usage_pct=push_reach_pct,        note='users with push token registered'),
+        dict(channel='Friend Growth',  usage_n=friendships_formed, usage_pct=pct(friendships_formed, total), note='unique friendships vs user count'),
+    ]
+    underused_channels = sorted(underused_channels, key=lambda r: r['usage_pct'])
+
+    # ── Section 7: Messaging Insight ─────────────────────────────────────
+    insight = None
+    candidates = []
+    if it_generated >= 5:
+        candidates.append((pct(it_redeemed, it_generated),
+            f"{pct(it_redeemed, it_generated)}% of invite links are redeemed — "
+            f"{it_redeemed} of {it_generated} generated links converted."))
+    if push_reach_pct > 0:
+        candidates.append((push_reach_pct,
+            f"{push_reach_pct}% of users have granted push notification permissions ({push_users} of {total})."))
+    if ti_direct_sent >= 3:
+        candidates.append((pct(ti_direct_accepted, ti_direct_sent),
+            f"Trip invites convert at {pct(ti_direct_accepted, ti_direct_sent)}% — "
+            f"{ti_direct_accepted} of {ti_direct_sent} direct invites accepted."))
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        insight = candidates[0][1]
+
+    # ── Section 8: Messaging Status ──────────────────────────────────────
+    tracked_signals  = 10   # total signals audited and attempted
+    reliable_signals = 6    # GREEN: InviteToken gen/redeemed, Trip sent/accepted, FriendTable, Push reach
+    confidence       = 'Growing'
+
+    status = dict(
+        tracked_signals  = tracked_signals,
+        reliable_signals = reliable_signals,
+        confidence       = confidence,
+        total_users      = total,
+    )
+
+    return render_template(
+        "admin_messaging.html",
+        active_tab        = "messaging",
+        now               = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        total             = total,
+        kpis              = kpis,
+        volume_rows       = volume_rows,
+        invite_funnel     = invite_funnel,
+        invite_overall_conv = invite_overall_conv,
+        friend_growth     = friend_growth,
+        trip_funnel       = trip_funnel,
+        effectiveness     = effectiveness,
+        eff_max           = eff_max,
+        underused_channels= underused_channels,
+        insight           = insight,
+        status            = status,
     )
 
 

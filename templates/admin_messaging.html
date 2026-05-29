@@ -1,9 +1,8 @@
 {% extends "admin_console.html" %}
-{% block title %}Messaging{% endblock %}
-{% block page_title %}Messaging{% endblock %}
+{% block title %}Messaging Dashboard{% endblock %}
+{% block page_title %}Messaging Dashboard{% endblock %}
 
 {% block head_styles %}
-  /* ── KPI grid + cards ── */
   .ad-section-label {
     font-size: 10px;
     font-weight: 700;
@@ -12,849 +11,531 @@
     color: #6B6157;
     margin: 0 0 10px;
   }
-  .ad-section { margin-bottom: 36px; }
-  .ad-kpi-grid {
+  .ad-section { margin-bottom: 32px; }
+  .ad-updated { font-size: 11px; color: #9E958A; margin-bottom: 8px; }
+
+  /* ── KPI grid ── */
+  .ms-kpi-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
-    margin-bottom: 10px;
   }
-  @media (max-width: 900px) { .ad-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 480px) { .ad-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
-  .ad-kpi-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  @media (max-width: 640px) { .ad-kpi-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .ad-card {
-    background: #FFFFFF;
+  @media (max-width: 700px) { .ms-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ms-card {
+    background: #fff;
     border: 1px solid #E4DDD2;
     border-radius: 9px;
     padding: 14px 16px 12px;
     min-width: 0;
+    position: relative;
   }
-  .ad-card-label {
+  .ms-card-label {
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.07em;
     text-transform: uppercase;
     color: #9E958A;
-    margin-bottom: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    margin-bottom: 5px;
   }
-  .ad-card-value {
-    font-size: 28px;
+  .ms-card-value {
+    font-size: 26px;
     font-weight: 700;
-    color: #5C1219;
+    color: #1C1917;
     line-height: 1;
-    font-family: Georgia, serif;
-    letter-spacing: -0.02em;
   }
-  .ad-card-sub {
-    font-size: 12px;
-    color: #9E958A;
+  .ms-card-sub {
+    font-size: 11px;
+    color: #B0A69B;
     margin-top: 4px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-  .ad-card--warn .ad-card-value { color: #B45309; }
-  .ad-card--ok   .ad-card-value { color: #15803D; }
-  .ad-card--muted .ad-card-value { color: #9E958A; font-size: 22px; }
+  .ms-caveat-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 10px;
+    color: #B07D2E;
+    background: rgba(176,125,46,0.1);
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-weight: 600;
+  }
 
-  /* ── Section heading row ── */
-  .am-section-head {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
-  }
-  .am-section-title {
+  /* ── Generic table ── */
+  .ms-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 9px; }
+  .ms-table {
+    width: 100%;
+    min-width: 380px;
+    border-collapse: collapse;
     font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #2E2922;
-  }
-  .am-section-sub {
-    font-size: 12px;
-    color: #9E958A;
-  }
-
-  /* ── Bar chart ── */
-  .am-bar-list  { list-style: none; padding: 0; margin: 0; }
-  .am-bar-row   { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 13px; }
-  .am-bar-name  { flex: 0 0 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #3A3028; font-size: 12px; }
-  .am-bar-track { flex: 1; background: #EAE4D8; border-radius: 3px; height: 8px; min-width: 30px; overflow: hidden; }
-  .am-bar-fill  { height: 8px; border-radius: 3px; background: #5C1219; transition: width .3s; }
-  .am-bar-fill--blue   { background: #2563EB; }
-  .am-bar-fill--amber  { background: #D97706; }
-  .am-bar-fill--green  { background: #16A34A; }
-  .am-bar-fill--gray   { background: #9E958A; }
-  .am-bar-count { flex: 0 0 36px; text-align: right; font-size: 12px; color: #6B6157; }
-
-  /* ── Pill chips ── */
-  .am-pill-row  { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-  .am-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #F5F1E8;
-    border: 1px solid #E4DDD2;
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 12px;
-    color: #3A3028;
-    white-space: nowrap;
-  }
-  .am-pill strong { color: #5C1219; font-weight: 700; }
-  .am-pill--push  { border-color: #BFDBFE; background: #EFF6FF; }
-  .am-pill--push strong { color: #1D4ED8; }
-  .am-pill--email { border-color: #BBF7D0; background: #F0FDF4; }
-  .am-pill--email strong { color: #15803D; }
-  .am-pill--warn  { border-color: #FDE68A; background: #FFFBEB; }
-  .am-pill--warn strong { color: #92400E; }
-  .am-pill--none  { border-color: #FECACA; background: #FEF2F2; }
-  .am-pill--none strong { color: #991B1B; }
-
-  /* ── Reachability matrix ── */
-  .am-reach-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  @media (max-width: 480px) { .am-reach-grid { grid-template-columns: 1fr; } }
-  .am-reach-cell {
-    background: #FFFFFF;
+    background: #fff;
     border: 1px solid #E4DDD2;
     border-radius: 9px;
-    padding: 16px;
-    text-align: center;
+    overflow: hidden;
   }
-  .am-reach-cell--both  { border-color: #BBF7D0; }
-  .am-reach-cell--push  { border-color: #BFDBFE; }
-  .am-reach-cell--email { border-color: #DDD6FE; }
-  .am-reach-cell--none  { border-color: #FECACA; }
-  .am-reach-label {
-    font-size: 11px;
+  .ms-table th {
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.09em;
     text-transform: uppercase;
     color: #9E958A;
-    margin-bottom: 8px;
+    text-align: left;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6;
+    white-space: nowrap;
   }
-  .am-reach-count {
-    font-size: 32px;
+  .ms-table th.th-right { text-align: right; }
+  .ms-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .ms-table tr:last-child td { border-bottom: none; }
+  .ms-table td.td-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #4A4238;
+    white-space: nowrap;
+  }
+  .ms-table td.td-conv {
+    text-align: right;
     font-weight: 700;
-    font-family: Georgia, serif;
-    line-height: 1;
-    margin-bottom: 4px;
+    white-space: nowrap;
   }
-  .am-reach-cell--both  .am-reach-count  { color: #15803D; }
-  .am-reach-cell--push  .am-reach-count  { color: #1D4ED8; }
-  .am-reach-cell--email .am-reach-count  { color: #6D28D9; }
-  .am-reach-cell--none  .am-reach-count  { color: #DC2626; }
-  .am-reach-pct  { font-size: 13px; color: #9E958A; }
-  .am-reach-desc { font-size: 11px; color: #B9AFA6; margin-top: 4px; }
+  .ms-conv--high { color: #4A7C59; }
+  .ms-conv--mid  { color: #B07D2E; }
+  .ms-conv--low  { color: #9E958A; }
 
-  /* ── Deferred callout ── */
-  .am-deferred {
-    background: #FFFBEB;
-    border: 1px solid #FDE68A;
-    border-radius: 8px;
-    padding: 12px 14px;
+  /* ── Funnel card ── */
+  .ms-funnel {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .ms-funnel-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid #F0EBE3;
+  }
+  .ms-funnel-row:last-child { border-bottom: none; }
+  .ms-funnel-label {
     font-size: 12px;
-    color: #78350F;
-    margin-bottom: 12px;
+    color: #4A4238;
+    width: 200px;
+    flex-shrink: 0;
+  }
+  .ms-funnel-n {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1C1917;
+    width: 36px;
+    text-align: right;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .ms-funnel-bar-wrap {
+    flex: 1;
+    background: #F5F1E8;
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .ms-funnel-bar        { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ms-funnel-bar--mid   { height: 100%; background: #8B6340; border-radius: 3px; }
+  .ms-funnel-bar--light { height: 100%; background: #C4B8AC; border-radius: 3px; }
+  .ms-funnel-conv {
+    font-size: 11px;
+    font-weight: 600;
+    color: #9E958A;
+    width: 44px;
+    text-align: right;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .ms-funnel-arrow {
+    height: 14px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+  }
+  .ms-funnel-arrow-line {
+    width: 1px;
+    height: 14px;
+    background: #E4DDD2;
+    margin-left: 212px;
+  }
+  .ms-funnel-note {
+    font-size: 11px;
+    color: #9E958A;
+    font-style: italic;
+    padding: 8px 16px 10px;
+    border-top: 1px solid #F0EBE3;
     line-height: 1.5;
   }
-  .am-deferred strong { font-weight: 700; }
+  .ms-funnel-overall {
+    font-size: 12px;
+    color: #5C1219;
+    font-weight: 600;
+    padding: 6px 16px 0;
+  }
 
-  /* ── Table ── */
-  .am-table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+  /* ── Trip invite status grid ── */
+  .ms-trip-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  @media (max-width: 600px) { .ms-trip-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ms-trip-stat {
+    background: #fff;
     border: 1px solid #E4DDD2;
     border-radius: 8px;
-    background: #FFFFFF;
+    padding: 10px 12px;
+    text-align: center;
   }
-  .am-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    min-width: 480px;
+  .ms-trip-stat-val   { font-size: 22px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .ms-trip-stat-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-top: 4px;
   }
-  .am-table th {
-    background: #F5F1E8;
-    padding: 9px 12px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #6B6157;
-    border-bottom: 1px solid #E4DDD2;
-    white-space: nowrap;
-  }
-  .am-table td {
-    padding: 9px 12px;
-    border-bottom: 1px solid #F0EAE0;
-    color: #3A3028;
-    vertical-align: top;
-  }
-  .am-table tr:last-child td { border-bottom: none; }
-  .am-table tr:hover td { background: #FAF8F4; }
-  .am-tag {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-  }
-  .am-tag--sent    { background: #DCFCE7; color: #15803D; }
-  .am-tag--failed  { background: #FEE2E2; color: #DC2626; }
-  .am-tag--skipped { background: #FEF9C3; color: #854D0E; }
-  .am-tag--pending { background: #E0F2FE; color: #0369A1; }
-  .am-tag--test    { background: #F3E8FF; color: #7E22CE; }
+  .ms-trip-stat-pct { font-size: 11px; color: #B0A69B; margin-top: 2px; }
 
-  /* ── Two-column layout ── */
-  .am-two-col {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+  /* ── Effectiveness rows ── */
+  .ms-eff-table { background: #fff; border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ms-eff-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid #F0EBE3;
   }
-  @media (max-width: 640px) { .am-two-col { grid-template-columns: 1fr; } }
+  .ms-eff-row:last-child { border-bottom: none; }
+  .ms-eff-action { font-size: 12px; color: #4A4238; width: 220px; flex-shrink: 0; }
+  .ms-eff-bar-wrap { flex: 1; background: #F5F1E8; border-radius: 3px; height: 6px; overflow: hidden; }
+  .ms-eff-bar  { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ms-eff-conv { font-size: 14px; font-weight: 700; color: #5C1219; width: 44px; text-align: right; flex-shrink: 0; }
+  .ms-eff-n    { font-size: 11px; color: #B0A69B; width: 52px; text-align: right; flex-shrink: 0; }
 
-  /* ── Section divider ── */
-  .am-divider {
-    border: none;
-    border-top: 1px solid #EAE4D8;
-    margin: 32px 0;
+  /* ── Underused channels ── */
+  .ms-underused-table { background: #fff; border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ms-underused-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-bottom: 1px solid #F0EBE3;
   }
+  .ms-underused-row:last-child { border-bottom: none; }
+  .ms-underused-channel { font-size: 12px; font-weight: 500; color: #1C1917; width: 130px; flex-shrink: 0; }
+  .ms-underused-note    { font-size: 11px; color: #B0A69B; flex: 1; font-style: italic; }
+  .ms-underused-pct     { font-size: 14px; font-weight: 700; color: #9B3A3A; width: 40px; text-align: right; flex-shrink: 0; }
 
-  /* ── Alert banner ── */
-  .am-alert {
-    background: #FEF2F2;
-    border: 1px solid #FECACA;
+  /* ── Insight ── */
+  .ms-insight {
+    background: rgba(92,18,25,0.05);
+    border: 1px solid rgba(92,18,25,0.15);
     border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12px;
-    color: #991B1B;
-    margin-bottom: 12px;
+    padding: 12px 16px;
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; color: #3B0D13; line-height: 1.6;
   }
-  .am-alert-ok {
-    background: #F0FDF4;
-    border: 1px solid #BBF7D0;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 12px;
-    color: #15803D;
-    margin-bottom: 12px;
-  }
+  .ms-insight-icon { font-size: 15px; flex-shrink: 0; margin-top: 1px; }
 
-  /* ── Trend context ── */
-  .am-trend {
-    font-size: 11px;
-    color: #9E958A;
-    margin-top: 4px;
-    line-height: 1.4;
+  /* ── Status ── */
+  .ms-status {
+    background: #FDFAF6; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 12px 16px; display: flex; gap: 24px; flex-wrap: wrap;
   }
-  .am-trend--pos { color: #16A34A; }
-  .am-trend--neg { color: #DC2626; }
-
-  /* ── Mono text ── */
-  .am-mono { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #6B6157; }
+  .ms-status-item  { display: flex; flex-direction: column; gap: 2px; }
+  .ms-status-key   { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #9E958A; }
+  .ms-status-val   { font-size: 14px; font-weight: 600; color: #1C1917; }
+  .ms-conf--growing { color: #B07D2E; }
+  .ms-conf--high    { color: #4A7C59; }
+  .ms-conf--low     { color: #9B3A3A; }
 
   /* ── Empty state ── */
-  .am-empty {
-    text-align: center;
-    padding: 24px 16px;
-    color: #B9AFA6;
-    font-size: 13px;
+  .ms-empty {
+    background: #FDFAF6; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 18px 16px; font-size: 13px; color: #6B6560; line-height: 1.6;
   }
+  .ms-empty strong { color: #1C1917; display: block; margin-bottom: 3px; }
 {% endblock %}
 
 {% block content %}
-<div class="ac-content-area">
+<div class="ad-updated">Loaded {{ now }} &middot; {{ total }} non-seeded users</div>
 
-  <!-- ══ PUSH HEALTH ══════════════════════════════════════════════════════ -->
-  <div id="msg-push-health" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Push Health</span>
-      <span class="am-section-sub">Active tokens · Opt-in rate · Platform split</span>
-    </div>
+<!-- ── Section 0: Messaging KPIs ─────────────────────────────────────── -->
+<div class="ad-section" id="ms-kpis">
+  <div class="ad-section-label">Messaging KPIs</div>
+  <div class="ms-kpi-grid">
 
-    <div class="ad-kpi-grid" style="margin-bottom:12px;">
-      <div class="ad-card">
-        <div class="ad-card-label">Active Tokens</div>
-        <div class="ad-card-value">{{ active_tokens }}</div>
-        <div class="ad-card-sub">across all platforms</div>
-        {% if tokens_trend_7d[0] %}<div class="am-trend {{ tokens_trend_7d[1] }}">{{ tokens_trend_7d[0] }}</div>{% endif %}
-        {% if tokens_trend_30d[0] %}<div class="am-trend {{ tokens_trend_30d[1] }}">{{ tokens_trend_30d[0] }}</div>{% endif %}
-        <button class="ad-def-btn" data-def-id="def-active-tokens" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-active-tokens" aria-hidden="true">
-          <div class="ad-def-text">Push tokens currently marked active in the system. Trend shows new tokens registered vs the prior equivalent window.</div>
-        </div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Users w/ Token</div>
-        <div class="ad-card-value">{{ push_token_users }}</div>
-        <div class="ad-card-sub">(U)Users</div>
-        {% if token_users_trend_30d[0] %}<div class="am-trend {{ token_users_trend_30d[1] }}">{{ token_users_trend_30d[0] }}</div>{% endif %}
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Push Opt-In</div>
-        <div class="ad-card-value">{{ push_opt_in_pct }}%</div>
-        <div class="ad-card-sub">{{ push_opt_in }} of {{ total_users }} users</div>
-        {% if push_optin_trend_30d[0] %}<div class="am-trend {{ push_optin_trend_30d[1] }}">{{ push_optin_trend_30d[0] }}</div>{% endif %}
-        <button class="ad-def-btn" data-def-id="def-push-opt-in" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-push-opt-in" aria-hidden="true">
-          <div class="ad-def-text">Users who have push notifications enabled in app preferences. Trend compares new opted-in users by signup date vs prior period.</div>
-        </div>
-      </div>
-      <div class="ad-card {% if push_disabled > 0 %}ad-card--warn{% endif %}">
-        <div class="ad-card-label">Push Disabled</div>
-        <div class="ad-card-value">{{ push_disabled }}</div>
-        <div class="ad-card-sub">users opted out</div>
-      </div>
+    <div class="ms-card">
+      <div class="ms-card-label">Invitations Sent</div>
+      <div class="ms-card-value">{{ kpis.invitations_sent }}</div>
+      <div class="ms-card-sub">invite links + trip invites</div>
     </div>
 
-    <!-- Platform breakdown -->
-    {% if platform_breakdown %}
-    <div class="am-pill-row" style="margin-bottom:14px;">
-      {% for plat, cnt in platform_breakdown.items() %}
-      <div class="am-pill am-pill--push">
-        <strong>{{ cnt }}</strong> {{ plat }}
-      </div>
-      {% endfor %}
+    <div class="ms-card">
+      <div class="ms-card-label">Invitations Accepted</div>
+      <div class="ms-card-value">{{ kpis.invitations_accepted }}</div>
+      <div class="ms-card-sub">links redeemed + trip invites accepted</div>
     </div>
-    {% endif %}
 
-    <!-- MEL push delivery summary -->
-    {% if ds_sent + ds_failed + ds_skipped + ds_pending > 0 %}
-    <div class="am-section-head" style="margin-top:8px;">
-      <span class="am-section-title" style="font-size:11px;">Push Delivery from MEL</span>
+    <div class="ms-card">
+      <div class="ms-card-label">Acceptance Rate</div>
+      <div class="ms-card-value">{{ kpis.acceptance_rate }}%</div>
+      <div class="ms-card-sub">accepted / sent</div>
     </div>
-    <div class="ad-kpi-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
-      <div class="ad-card ad-card--ok">
-        <div class="ad-card-label">Sent</div>
-        <div class="ad-card-value">{{ ds_sent_pct }}%</div>
-        <div class="ad-card-sub">{{ ds_sent }} events</div>
-      </div>
-      <div class="ad-card {% if ds_failed > 0 %}ad-card--warn{% endif %}">
-        <div class="ad-card-label">Failed</div>
-        <div class="ad-card-value">{{ ds_failed_pct }}%</div>
-        <div class="ad-card-sub">{{ ds_failed }} events</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Skipped</div>
-        <div class="ad-card-value">{{ ds_skipped_pct }}%</div>
-        <div class="ad-card-sub">{{ ds_skipped }} events</div>
-        <button class="ad-def-btn" data-def-id="def-skipped" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-skipped" aria-hidden="true">
-          <div class="ad-def-text">Messages intentionally not sent due to suppression rules, missing tokens, or opt-out settings.</div>
-        </div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Pending</div>
-        <div class="ad-card-value">{{ ds_pending_pct }}%</div>
-        <div class="ad-card-sub">{{ ds_pending }} events</div>
-      </div>
+
+    <div class="ms-card">
+      <div class="ms-card-label">Friendships Formed</div>
+      <div class="ms-card-value">{{ kpis.friendships_formed }}</div>
+      <div class="ms-card-sub">unique bidirectional connections</div>
     </div>
-    {% else %}
-    <div class="am-empty">No MessageEventLog data yet.</div>
-    {% endif %}
+
+    <div class="ms-card">
+      <div class="ms-card-label">Push Reach</div>
+      <div class="ms-card-value">{{ kpis.push_reach_pct }}%</div>
+      <div class="ms-card-sub">{{ kpis.push_reach_n }}/{{ total }} users with push token</div>
+    </div>
+
+    <div class="ms-card">
+      <span class="ms-caveat-badge">default true</span>
+      <div class="ms-card-label">Push Opt-Out Rate</div>
+      <div class="ms-card-value">{{ kpis.push_optout_pct }}%</div>
+      <div class="ms-card-sub">{{ kpis.push_optout_n }} opted out — field defaults to enabled</div>
+    </div>
+
   </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ EMAIL PREFERENCES ════════════════════════════════════════════════ -->
-  <div id="msg-email-prefs" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Email Preferences</span>
-      <span class="am-section-sub">User opt-in signals from User model — live data</span>
-    </div>
-
-    <div class="ad-kpi-grid" style="margin-bottom:12px;">
-      <div class="ad-card ad-card--ok">
-        <div class="ad-card-label">Email Opt-In</div>
-        <div class="ad-card-value">{{ email_opt_in_pct }}%</div>
-        <div class="ad-card-sub">{{ email_opt_in_count }} of {{ total_users }} users</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Opt-Out</div>
-        <div class="ad-card-value">{{ email_opt_out_count }}</div>
-        <div class="ad-card-sub">email_opt_in = false</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Transactional On</div>
-        <div class="ad-card-value">{{ email_transactional_cnt }}</div>
-        <div class="ad-card-sub">email_transactional = true</div>
-        <button class="ad-def-btn" data-def-id="def-transactional" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-transactional" aria-hidden="true">
-          <div class="ad-def-text">Users opted into operational and account-related emails such as password reset or critical service communication.</div>
-        </div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Email-Only Reach</div>
-        <div class="ad-card-value">{{ email_only_reachable }}</div>
-        <div class="ad-card-sub">push off, email opt-in on</div>
-      </div>
-    </div>
-
-    <div class="am-pill-row">
-      <div class="am-pill am-pill--email">
-        <strong>{{ email_social_cnt }}</strong> social email enabled
-      </div>
-      <div class="am-pill am-pill--email">
-        <strong>{{ email_digest_cnt }}</strong> digest email enabled
-      </div>
-    </div>
-    <p style="font-size:11px;color:#9E958A;margin-top:6px;line-height:1.5;">
-      Note: email_transactional, email_social, email_digest flags exist on User but are not yet enforced before sending.
-      email_social and email_digest default to false. Password reset sends regardless of opt-in status.
-    </p>
-  </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ EMAIL DELIVERY ═══════════════════════════════════════════════════ -->
-  <div id="msg-email-delivery" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Email Delivery</span>
-      <span class="am-section-sub">Volume metrics — partially deferred</span>
-    </div>
-
-    <div class="am-deferred">
-      <strong>Deferred metrics below.</strong>
-      These require EmailLog instrumentation (writing to <code>email_log</code> on each send)
-      and/or SendGrid delivery webhook setup. Currently <code>EmailLog</code> is never written to in production.
-      Only send/error status at call time is available. Metrics are shown as placeholders until instrumentation is added.
-    </div>
-
-    <div class="ad-kpi-grid" style="margin-bottom:12px;">
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">Total Sent</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">EmailLog not instrumented</div>
-      </div>
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">L7</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">deferred</div>
-      </div>
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">L30</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">deferred</div>
-      </div>
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">Success %</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">deferred</div>
-      </div>
-    </div>
-
-    <div class="ad-kpi-grid">
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">Failed %</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">deferred</div>
-      </div>
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">Password Reset Sent</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">deferred</div>
-      </div>
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">Reset Failures</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">deferred</div>
-      </div>
-      <div class="ad-card ad-card--muted">
-        <div class="ad-card-label">Newsletter Sent</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">not yet implemented</div>
-      </div>
-    </div>
-
-    <p style="font-size:11px;color:#9E958A;margin-top:10px;line-height:1.5;">
-      Active SendGrid call sites: <code>forgot_password()</code> (app.py ~:2524) and
-      <code>feedback()</code> (app.py ~:8173). Both use sg.send() but write no EmailLog rows.
-      Delivery confirmation requires SendGrid inbound webhook setup (not yet configured).
-    </p>
-  </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ AUDIENCE REACHABILITY ════════════════════════════════════════════ -->
-  <div id="msg-audience" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Audience Reachability</span>
-      <span class="am-section-sub">Push + email channel overlap across {{ total_users }} users</span>
-    </div>
-
-    <div class="am-reach-grid">
-      <div class="am-reach-cell am-reach-cell--both">
-        <div class="am-reach-label">Both Push + Email</div>
-        <div class="am-reach-count">{{ reach_both }}</div>
-        <div class="am-reach-pct">{{ reach_both_pct }}% of users</div>
-        <div class="am-reach-desc">push enabled · email opted in</div>
-      </div>
-      <div class="am-reach-cell am-reach-cell--push">
-        <div class="am-reach-label">Push Only</div>
-        <div class="am-reach-count">{{ reach_push_only }}</div>
-        <div class="am-reach-pct">{{ reach_push_only_pct }}% of users</div>
-        <div class="am-reach-desc">push enabled · email opted out</div>
-        <button class="ad-def-btn" data-def-id="def-push-only" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-push-only" aria-hidden="true">
-          <div class="ad-def-text">Users reachable through push notifications but not opted into email communication.</div>
-        </div>
-      </div>
-      <div class="am-reach-cell am-reach-cell--email">
-        <div class="am-reach-label">Email Only</div>
-        <div class="am-reach-count">{{ reach_email_only }}</div>
-        <div class="am-reach-pct">{{ reach_email_only_pct }}% of users</div>
-        <div class="am-reach-desc">push disabled · email opted in</div>
-      </div>
-      <div class="am-reach-cell am-reach-cell--none">
-        <div class="am-reach-label">Unreachable</div>
-        <div class="am-reach-count">{{ reach_neither }}</div>
-        <div class="am-reach-pct">{{ reach_neither_pct }}% of users</div>
-        <div class="am-reach-desc">push disabled · email opted out</div>
-        <button class="ad-def-btn" data-def-id="def-unreachable" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-unreachable" aria-hidden="true">
-          <div class="ad-def-text">Users currently unreachable by both push notifications and email preferences.</div>
-        </div>
-      </div>
-    </div>
-
-    {% if push_enabled_no_token > 0 %}
-    <div class="am-alert" style="margin-top:14px;">
-      <strong>Silent failure risk:</strong>
-      {{ push_enabled_no_token }} user{{ 's' if push_enabled_no_token != 1 else '' }}
-      have push enabled but no active device token — pushes will fail silently.
-    </div>
-    {% else %}
-    <div class="am-alert-ok" style="margin-top:14px;">
-      All push-enabled users have at least one active device token registered.
-    </div>
-    {% endif %}
-
-    {% if multi_token_users > 0 %}
-    <div class="am-pill am-pill--warn" style="margin-top:6px;">
-      <strong>{{ multi_token_users }}</strong>
-      user{{ 's' if multi_token_users != 1 else '' }} with multiple active tokens
-    </div>
-    {% endif %}
-  </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ MESSAGE VELOCITY ═════════════════════════════════════════════════ -->
-  <div id="msg-velocity" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Message Velocity</span>
-      <span class="am-section-sub">MEL event throughput over time</span>
-    </div>
-
-    <div class="ad-kpi-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
-      <div class="ad-card">
-        <div class="ad-card-label">MEL Events 24h</div>
-        <div class="ad-card-value">{{ mel_24h }}</div>
-        <div class="ad-card-sub">all channels</div>
-        <button class="ad-def-btn" data-def-id="def-mel-24h" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-mel-24h" aria-hidden="true">
-          <div class="ad-def-text">Total MessageEventLog activity recorded in the last 24 hours across supported communication channels.</div>
-        </div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">MEL Events 7d</div>
-        <div class="ad-card-value">{{ mel_7d }}</div>
-        <div class="ad-card-sub">all channels</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Push 24h</div>
-        <div class="ad-card-value">{{ push_24h }}</div>
-        <div class="ad-card-sub">channel = push</div>
-      </div>
-      <div class="ad-card {% if failed_24h > 0 %}ad-card--warn{% endif %}">
-        <div class="ad-card-label">Failed 24h</div>
-        <div class="ad-card-value">{{ failed_24h }}</div>
-        <div class="ad-card-sub">delivery_status = failed</div>
-      </div>
-    </div>
-
-    <div class="ad-kpi-grid ad-kpi-grid--3" style="margin-top:10px;">
-      <div class="ad-card">
-        <div class="ad-card-label">Total MEL Rows</div>
-        <div class="ad-card-value">{{ mel_total }}</div>
-        <div class="ad-card-sub">all time</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Rows w/ Retries</div>
-        <div class="ad-card-value">{{ retry_rows_count }}</div>
-        <div class="ad-card-sub">retry_count > 0</div>
-        <button class="ad-def-btn" data-def-id="def-retries" aria-expanded="false">What this means &#9662;</button>
-        <div class="ad-def-panel" id="def-retries" aria-hidden="true">
-          <div class="ad-def-text">Message events that encountered issues and required one or more retry attempts.</div>
-        </div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Stale Tokens</div>
-        <div class="ad-card-value">—</div>
-        <div class="ad-card-sub">no last_used_at column</div>
-      </div>
-    </div>
-  </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ DELIVERY HEALTH ══════════════════════════════════════════════════ -->
-  <div id="msg-delivery" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Delivery Health</span>
-      <span class="am-section-sub">MessageEventLog status breakdown · suppressions · recent failures</span>
-    </div>
-
-    <!-- Suppression reasons -->
-    {% if suppression_breakdown %}
-    <p class="ad-section-label" style="margin-top:4px;">Suppression Reasons</p>
-    <ul class="am-bar-list" style="margin-bottom:20px;">
-      {% for r in suppression_breakdown %}
-      <li class="am-bar-row">
-        <span class="am-bar-name am-mono">{{ r.reason }}</span>
-        <span class="am-bar-track"><span class="am-bar-fill am-bar-fill--amber" style="width:{{ r.pct }}%"></span></span>
-        <span class="am-bar-count">{{ r.count }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    <div class="am-two-col">
-      <!-- Recent failures -->
-      <div>
-        <p class="ad-section-label">Recent Failures</p>
-        {% if recent_failures %}
-        <div class="am-table-wrap">
-          <table class="am-table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Channel</th>
-                <th>Provider</th>
-                <th>Error</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for r in recent_failures %}
-              <tr>
-                <td class="am-mono">{{ r.event }}</td>
-                <td>{{ r.channel }}</td>
-                <td>{{ r.provider }}</td>
-                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#991B1B;">{{ r.error or '—' }}</td>
-                <td class="am-mono" style="white-space:nowrap;">{{ r.ts.strftime('%m/%d %H:%M') if r.ts else '—' }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div class="am-empty">No failed events.</div>
-        {% endif %}
-      </div>
-
-      <!-- Recent suppressions -->
-      <div>
-        <p class="ad-section-label">Recent Suppressions</p>
-        {% if recent_suppressions %}
-        <div class="am-table-wrap">
-          <table class="am-table">
-            <thead>
-              <tr>
-                <th>Event</th>
-                <th>Channel</th>
-                <th>Reason</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for r in recent_suppressions %}
-              <tr>
-                <td class="am-mono">{{ r.event }}</td>
-                <td>{{ r.channel }}</td>
-                <td class="am-mono">{{ r.reason }}</td>
-                <td class="am-mono" style="white-space:nowrap;">{{ r.ts.strftime('%m/%d %H:%M') if r.ts else '—' }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% else %}
-        <div class="am-empty">No suppressed events.</div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ LIFECYCLE EVENTS ═════════════════════════════════════════════════ -->
-  <div id="msg-lifecycle" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Lifecycle Events</span>
-      <span class="am-section-sub">Category · event name · channel · provider breakdown</span>
-    </div>
-
-    <!-- Key lifecycle KPIs -->
-    <div class="ad-kpi-grid" style="margin-bottom:16px;">
-      <div class="ad-card">
-        <div class="ad-card-label">Friend Req. Sent</div>
-        <div class="ad-card-value">{{ lifecycle_counts.friend_req_sent }}</div>
-        <div class="ad-card-sub">friend.request.created</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Friend Req. Accepted</div>
-        <div class="ad-card-value">{{ lifecycle_counts.friend_req_accepted }}</div>
-        <div class="ad-card-sub">friend.request.accepted</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Trip Invites Sent</div>
-        <div class="ad-card-value">{{ lifecycle_counts.trip_invite_sent }}</div>
-        <div class="ad-card-sub">trip.invite.created</div>
-      </div>
-      <div class="ad-card">
-        <div class="ad-card-label">Trip Inv. Accepted</div>
-        <div class="ad-card-value">{{ lifecycle_counts.trip_invite_accepted }}</div>
-        <div class="ad-card-sub">trip.invite.accepted</div>
-      </div>
-    </div>
-
-    <div class="am-two-col">
-      <!-- Category breakdown -->
-      <div>
-        <p class="ad-section-label">By Category</p>
-        {% if category_breakdown %}
-        <ul class="am-bar-list">
-          {% for c in category_breakdown %}
-          <li class="am-bar-row">
-            <span class="am-bar-name am-mono">{{ c.name }}</span>
-            <span class="am-bar-track"><span class="am-bar-fill" style="width:{{ c.pct }}%"></span></span>
-            <span class="am-bar-count">{{ c.count }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <div class="am-empty">No data yet.</div>
-        {% endif %}
-      </div>
-
-      <!-- Top event names -->
-      <div>
-        <p class="ad-section-label">Top Event Names</p>
-        {% if top_event_names %}
-        <ul class="am-bar-list">
-          {% for e in top_event_names %}
-          <li class="am-bar-row">
-            <span class="am-bar-name am-mono">{{ e.name }}</span>
-            <span class="am-bar-track"><span class="am-bar-fill am-bar-fill--blue" style="width:{{ e.pct }}%"></span></span>
-            <span class="am-bar-count">{{ e.count }}</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <div class="am-empty">No data yet.</div>
-        {% endif %}
-      </div>
-    </div>
-
-    <!-- Channel + Provider pills -->
-    {% if channel_breakdown or provider_breakdown %}
-    <div class="am-pill-row" style="margin-top:16px;">
-      {% for c in channel_breakdown %}
-      <div class="am-pill">
-        <strong>{{ c.count }}</strong> {{ c.name }}
-      </div>
-      {% endfor %}
-      {% for p in provider_breakdown %}
-      <div class="am-pill am-pill--push">
-        <strong>{{ p.count }}</strong> {{ p.name }}
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Recent broadcasts / test pushes -->
-    {% if recent_broadcasts %}
-    <p class="ad-section-label" style="margin-top:20px;">Recent Broadcasts &amp; Test Pushes</p>
-    <div class="am-table-wrap">
-      <table class="am-table">
-        <thead>
-          <tr>
-            <th>Event</th>
-            <th>Channel</th>
-            <th>Provider</th>
-            <th>Status</th>
-            <th>Category</th>
-            <th>Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in recent_broadcasts %}
-          <tr>
-            <td class="am-mono">{{ r.event }}</td>
-            <td>{{ r.channel }}</td>
-            <td>{{ r.provider }}</td>
-            <td>
-              <span class="am-tag am-tag--{{ r.status }}">{{ r.status }}</span>
-            </td>
-            <td class="am-mono">{{ r.category }}</td>
-            <td class="am-mono" style="white-space:nowrap;">{{ r.ts.strftime('%m/%d %H:%M') if r.ts else '—' }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endif %}
-  </div>
-
-  <hr class="am-divider">
-
-  <!-- ══ MESSAGE LOG ══════════════════════════════════════════════════════ -->
-  <div id="msg-log" class="ad-section">
-    <div class="am-section-head">
-      <span class="am-section-title">Message Log</span>
-      <span class="am-section-sub">Full raw console at <a href="/admin/message-events" style="color:#5C1219;">/admin/message-events</a></span>
-    </div>
-
-    <div class="am-pill-row" style="margin-bottom:14px;">
-      <div class="am-pill am-pill--email">
-        <strong>{{ mel_total }}</strong> total MEL rows
-      </div>
-      <div class="am-pill am-pill--email">
-        <strong>{{ ds_sent }}</strong> sent
-      </div>
-      <div class="am-pill am-pill--warn">
-        <strong>{{ ds_failed }}</strong> failed
-      </div>
-      <div class="am-pill">
-        <strong>{{ ds_skipped }}</strong> skipped
-      </div>
-      <div class="am-pill">
-        <strong>{{ ds_pending }}</strong> pending
-      </div>
-    </div>
-
-    <p style="font-size:12px;color:#9E958A;line-height:1.5;">
-      The full debug console (last 200 rows, status filters, test event creator) is available at
-      <a href="/admin/message-events" style="color:#5C1219;text-decoration:underline;">/admin/message-events</a>.
-      It is preserved as a standalone tool and not removed.
-    </p>
-  </div>
-
 </div>
+
+<!-- ── Section 1: Message Volume ─────────────────────────────────────── -->
+<div class="ad-section" id="ms-volume">
+  <div class="ad-section-label">Message Volume</div>
+  <div class="ms-table-wrap">
+    <table class="ms-table">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th class="th-right">Volume</th>
+          <th class="th-right">Accepted</th>
+          <th class="th-right">Conversion</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in volume_rows %}
+        <tr>
+          <td style="font-weight:500;">{{ row.action }}</td>
+          <td class="td-num">{{ row.volume }}</td>
+          <td class="td-num">
+            {% if row.accepted is not none %}{{ row.accepted }}{% else %}<span style="color:#E0DAD3;">—</span>{% endif %}
+          </td>
+          <td class="td-conv">
+            {% if row.conv is not none %}
+              <span class="{{ 'ms-conv--high' if row.conv >= 50 else ('ms-conv--mid' if row.conv >= 25 else 'ms-conv--low') }}">{{ row.conv }}%</span>
+            {% else %}
+              <span style="color:#E0DAD3;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Section 2: Invite Link Funnel ─────────────────────────────────── -->
+<div class="ad-section" id="ms-invite-funnel">
+  <div class="ad-section-label">Invite Link Funnel</div>
+  {% if invite_funnel and invite_funnel[0].n > 0 %}
+  {% set funnel_max = invite_funnel[0].n %}
+  <div class="ms-funnel">
+    {% for step in invite_funnel %}
+    <div class="ms-funnel-row">
+      <span class="ms-funnel-label">{{ step.label }}</span>
+      <span class="ms-funnel-n">{{ step.n }}</span>
+      <div class="ms-funnel-bar-wrap">
+        {% set bar_w = (step.n / funnel_max * 100)|int if funnel_max else 0 %}
+        {% if loop.first %}
+          <div class="ms-funnel-bar" style="width:{{ bar_w }}%;"></div>
+        {% elif loop.index == 2 %}
+          <div class="ms-funnel-bar--mid" style="width:{{ bar_w }}%;"></div>
+        {% else %}
+          <div class="ms-funnel-bar--light" style="width:{{ bar_w }}%;"></div>
+        {% endif %}
+      </div>
+      <span class="ms-funnel-conv">
+        {% if step.step_conv is not none and not loop.first %}{{ step.step_conv }}%{% endif %}
+      </span>
+    </div>
+    {% if not loop.last %}
+    <div class="ms-funnel-arrow"><div class="ms-funnel-arrow-line"></div></div>
+    {% endif %}
+    {% endfor %}
+    {% if invite_overall_conv is not none %}
+    <div class="ms-funnel-overall">Overall: {{ invite_overall_conv }}% of generated links result in a friendship</div>
+    {% endif %}
+    <div class="ms-funnel-note">
+      Friendship attribution is approximate — invite redemption is not linked to a specific friendship record.
+    </div>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No invite links generated yet.</strong></div>
+  {% endif %}
+</div>
+
+<!-- ── Section 3: Friend Growth ──────────────────────────────────────── -->
+<div class="ad-section" id="ms-friend-growth">
+  <div class="ad-section-label">Friend Growth</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    BaseLodge uses link-based friend growth — no direct friend request flow exists.
+  </div>
+  {% if friend_growth %}
+  {% set fg_max = friend_growth[0].n if friend_growth[0].n > 0 else 1 %}
+  <div class="ms-funnel">
+    {% for step in friend_growth %}
+    <div class="ms-funnel-row">
+      <span class="ms-funnel-label">{{ step.label }}</span>
+      <span class="ms-funnel-n">{{ step.n }}</span>
+      <div class="ms-funnel-bar-wrap">
+        {% set bar_w = (step.n / fg_max * 100)|int if fg_max else 0 %}
+        {% if loop.first or loop.index == 2 %}
+          <div class="ms-funnel-bar" style="width:{{ bar_w }}%;"></div>
+        {% elif loop.index == 3 %}
+          <div class="ms-funnel-bar--mid" style="width:{{ bar_w }}%;"></div>
+        {% else %}
+          <div class="ms-funnel-bar--light" style="width:{{ bar_w }}%;"></div>
+        {% endif %}
+      </div>
+      <span class="ms-funnel-conv">
+        {% if step.pct_of_total is not none %}{{ step.pct_of_total }}%{% endif %}
+      </span>
+    </div>
+    {% if not loop.last %}
+    <div class="ms-funnel-arrow"><div class="ms-funnel-arrow-line"></div></div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No friend growth data.</strong></div>
+  {% endif %}
+</div>
+
+<!-- ── Section 4: Trip Invite Funnel ─────────────────────────────────── -->
+<div class="ad-section" id="ms-trip-funnel">
+  <div class="ad-section-label">Trip Invite Funnel</div>
+  {% if trip_funnel.sent > 0 or trip_funnel.link_sent > 0 %}
+  <div style="font-size:11px;color:#9E958A;margin-bottom:10px;">
+    Direct invites: {{ trip_funnel.sent }} &middot; Link-based trip tokens: {{ trip_funnel.link_sent }}
+    &middot; Acceptance % calculated from direct invites only (link tokens have no per-recipient status).
+  </div>
+  <div class="ms-trip-grid">
+    <div class="ms-trip-stat">
+      <div class="ms-trip-stat-val">{{ trip_funnel.sent + trip_funnel.link_sent }}</div>
+      <div class="ms-trip-stat-label">Sent</div>
+      <div class="ms-trip-stat-pct">total</div>
+    </div>
+    <div class="ms-trip-stat">
+      <div class="ms-trip-stat-val" style="color:#4A7C59;">{{ trip_funnel.accepted }}</div>
+      <div class="ms-trip-stat-label">Accepted</div>
+      <div class="ms-trip-stat-pct">{{ trip_funnel.accept_pct }}% of direct</div>
+    </div>
+    <div class="ms-trip-stat">
+      <div class="ms-trip-stat-val" style="color:#B07D2E;">{{ trip_funnel.pending }}</div>
+      <div class="ms-trip-stat-label">Pending</div>
+      <div class="ms-trip-stat-pct">{{ trip_funnel.pending_pct }}% of direct</div>
+    </div>
+    <div class="ms-trip-stat">
+      <div class="ms-trip-stat-val" style="color:#9E958A;">{{ trip_funnel.cancelled }}</div>
+      <div class="ms-trip-stat-label">Cancelled</div>
+      <div class="ms-trip-stat-pct">{{ trip_funnel.cancel_pct }}% of direct</div>
+    </div>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No trip invites sent yet.</strong> This section will populate once users send trip invitations.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 5: Message Effectiveness ──────────────────────────────── -->
+<div class="ad-section" id="ms-effectiveness">
+  <div class="ad-section-label">Message Effectiveness</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Conversion rates for messaging actions with sufficient sample size (n ≥ 3).</div>
+  {% if effectiveness %}
+  <div class="ms-eff-table">
+    {% for row in effectiveness %}
+    <div class="ms-eff-row">
+      <span class="ms-eff-action">{{ row.action }}</span>
+      <div class="ms-eff-bar-wrap">
+        <div class="ms-eff-bar" style="width:{{ (row.conv / eff_max * 100)|int }}%;"></div>
+      </div>
+      <span class="ms-eff-conv">{{ row.conv }}%</span>
+      <span class="ms-eff-n">n={{ row.n }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>Not enough data yet.</strong> Effectiveness rankings appear once messaging actions reach minimum sample size.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 6: Underused Channels ─────────────────────────────────── -->
+<div class="ad-section" id="ms-underused">
+  <div class="ad-section-label">Underused Channels</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Sorted by lowest adoption — highest opportunity for growth investment.</div>
+  {% if underused_channels %}
+  <div class="ms-underused-table">
+    {% for row in underused_channels %}
+    <div class="ms-underused-row">
+      <span class="ms-underused-channel">{{ row.channel }}</span>
+      <span class="ms-underused-note">{{ row.note }}</span>
+      <span class="ms-underused-pct">{{ row.usage_pct }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>No channel data.</strong></div>
+  {% endif %}
+</div>
+
+<!-- ── Section 7: Messaging Insight ──────────────────────────────────── -->
+<div class="ad-section" id="ms-insight">
+  <div class="ad-section-label">Messaging Insight</div>
+  {% if insight %}
+  <div class="ms-insight">
+    <span class="ms-insight-icon">&#9654;</span>
+    <span>{{ insight }}</span>
+  </div>
+  {% else %}
+  <div class="ms-empty"><strong>Not enough data yet.</strong> Insight will appear once messaging signals have sufficient volume.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 8: Messaging Status ───────────────────────────────────── -->
+<div class="ad-section" id="ms-status">
+  <div class="ad-section-label">Messaging Status</div>
+  <div class="ms-status">
+    <div class="ms-status-item">
+      <span class="ms-status-key">Tracked Signals</span>
+      <span class="ms-status-val">{{ status.tracked_signals }}</span>
+    </div>
+    <div class="ms-status-item">
+      <span class="ms-status-key">Reliable Signals</span>
+      <span class="ms-status-val">{{ status.reliable_signals }}</span>
+    </div>
+    <div class="ms-status-item">
+      <span class="ms-status-key">Data Confidence</span>
+      <span class="ms-status-val ms-conf--{{ status.confidence | lower }}">{{ status.confidence }}</span>
+    </div>
+    <div class="ms-status-item">
+      <span class="ms-status-key">Non-Seeded Users</span>
+      <span class="ms-status-val">{{ status.total_users }}</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#9E958A;margin-top:8px;">
+    7 messaging signals excluded due to missing tracking or inactive systems.
+    <code>EmailLog</code> model is available but currently inactive — 0 emails logged.
+  </div>
+</div>
+
 {% endblock %}
