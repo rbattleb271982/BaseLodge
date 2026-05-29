@@ -1,0 +1,191 @@
+PUT THIS IN AGENT
+
+#166 - Activation Dashboard v2 Data Corrections
+
+Goal:
+
+Correct the activation funnel so it reflects the actual BaseLodge onboarding and activation model.
+
+The onboarding audit is complete.
+
+The current dashboard is using the wrong source of truth for onboarding and activation.
+
+Do not redesign the page.
+
+Do not change styling.
+
+Only correct the data model and funnel logic.
+
+--------------------------------------------------
+APPROVED SOURCE OF TRUTH
+--------------------------------------------------
+
+Onboarding Complete
+
+Use:
+
+is_core_profile_complete
+
+Current count:
+23 of 27 users
+
+This represents completion of the mandatory onboarding gate.
+
+--------------------------------------------------
+
+Activated User
+
+Use:
+
+is_active_user
+
+Current count:
+6 of 27 users
+
+Definition:
+
+is_core_profile_complete
+AND
+has_started_planning
+
+Do NOT use:
+
+lifecycle_stage
+
+It is stale and undercounting.
+
+--------------------------------------------------
+FUNNEL CHANGES
+--------------------------------------------------
+
+Current funnel:
+
+Total Users
+Onboarding Completed
+Pass Added
+Availability Added
+Wishlist Added
+First Trip Created
+First Friend Added
+First Group Trip
+
+Replace with:
+
+1. Total Users
+2. Onboarding Complete
+3. Has Real Pass
+4. Availability Added
+5. Wishlist Added
+6. Activated User
+
+Move these out of the sequential funnel:
+
+- Friend Connected
+- Group Trip
+
+--------------------------------------------------
+SECTION A — CORE ACTIVATION FUNNEL
+--------------------------------------------------
+
+Display:
+
+Total Users
+↓
+Onboarding Complete
+↓
+Has Real Pass
+↓
+Availability Added
+↓
+Wishlist Added
+↓
+Activated User
+
+Definitions:
+
+Onboarding Complete:
+is_core_profile_complete
+
+Has Real Pass:
+pass_type not in:
+- no_pass
+- no_pass_yet
+- none
+
+Availability:
+open_dates populated
+
+Wishlist:
+wish_list_resorts populated
+
+Activated User:
+is_active_user
+
+Maintain:
+
+- counts
+- conversion %
+- progress bars
+- biggest dropoff callout
+
+--------------------------------------------------
+SECTION B — SOCIAL SIGNALS
+--------------------------------------------------
+
+Create a separate section below the funnel.
+
+Do NOT include these in funnel conversion calculations.
+
+Show KPI cards:
+
+Friend Connected
+
+Definition:
+has ≥1 Friend row
+
+Group Trip Participant
+
+Definition:
+accepted TripGuest participation
+excluding trip owner
+
+Show:
+
+count
+% of total users
+
+--------------------------------------------------
+SECTION C — ACTIVATION INSIGHT
+--------------------------------------------------
+
+Add a small callout.
+
+Example:
+
+"85% of users complete onboarding, but only 22% reach activation."
+
+Calculate dynamically.
+
+--------------------------------------------------
+DELIVERABLE
+--------------------------------------------------
+
+Before making changes:
+
+Output:
+
+Current funnel counts
+
+Proposed funnel counts
+
+Current activation rate
+
+New activation rate
+
+Then implement.
+
+Do not redesign the page.
+
+Keep existing mobile behavior and styling.
+
+Use checkpoints sparingly.

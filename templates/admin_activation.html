@@ -280,14 +280,20 @@
     <div class="ad-card">
       <div class="ad-card-label">Activation Rate</div>
       <div class="ad-card-value">{{ kpis.activation_rate }}%</div>
-      <div class="ad-card-sub">signed up &rarr; first group trip</div>
+      <div class="ad-card-sub">signed up &rarr; activated user</div>
       <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.activation_rate }}%;"></div></div>
     </div>
     <div class="ad-card">
       <div class="ad-card-label">Onboarding</div>
       <div class="ad-card-value">{{ kpis.onboarding_pct }}%</div>
-      <div class="ad-card-sub">completed setup flow</div>
+      <div class="ad-card-sub">passed mandatory setup gate</div>
       <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.onboarding_pct }}%;"></div></div>
+    </div>
+    <div class="ad-card">
+      <div class="ad-card-label">Real Pass</div>
+      <div class="ad-card-value">{{ kpis.real_pass_pct }}%</div>
+      <div class="ad-card-sub">committed pass holder</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.real_pass_pct }}%;"></div></div>
     </div>
     <div class="ad-card">
       <div class="ad-card-label">Availability</div>
@@ -296,16 +302,46 @@
       <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.availability_pct }}%;"></div></div>
     </div>
     <div class="ad-card">
-      <div class="ad-card-label">First Trip</div>
-      <div class="ad-card-value">{{ kpis.first_trip_pct }}%</div>
-      <div class="ad-card-sub">created at least one trip</div>
-      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.first_trip_pct }}%;"></div></div>
+      <div class="ad-card-label">Wishlist</div>
+      <div class="ad-card-value">{{ kpis.wishlist_pct }}%</div>
+      <div class="ad-card-sub">saved at least one resort</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.wishlist_pct }}%;"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 3. Activation Insight ──────────────────────────────────────────── -->
+{% if activation_insight %}
+<div class="ad-section">
+  <div class="act-dropoff" style="background:rgba(92,18,25,0.04);border-color:rgba(92,18,25,0.12);">
+    <span class="act-dropoff-icon" style="color:#5C1219;">&#9654;</span>
+    <span class="act-dropoff-text">
+      <strong>{{ activation_insight.onboarding_pct }}%</strong> of users complete onboarding,
+      but only <strong>{{ activation_insight.activation_pct }}%</strong> reach activation.
+    </span>
+    <span class="act-dropoff-delta" style="font-size:14px;color:#9E958A;font-weight:500;">
+      {{ activation_insight.onboarding_pct - activation_insight.activation_pct }}pt gap
+    </span>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── 4. Social Signals ───────────────────────────────────────────────── -->
+<div class="ad-section">
+  <div class="ad-section-label">Social Signals</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Not included in funnel conversion — shown as independent engagement signals.</div>
+  <div class="ad-kpi-grid" style="grid-template-columns:repeat(2,1fr);max-width:420px;">
+    <div class="ad-card">
+      <div class="ad-card-label">Friend Connected</div>
+      <div class="ad-card-value">{{ social.friend_count }}</div>
+      <div class="ad-card-sub">{{ social.friend_pct }}% of users &mdash; has &ge;1 friend</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ social.friend_pct }}%;"></div></div>
     </div>
     <div class="ad-card">
-      <div class="ad-card-label">First Friend</div>
-      <div class="ad-card-value">{{ kpis.first_friend_pct }}%</div>
-      <div class="ad-card-sub">connected with a friend</div>
-      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ kpis.first_friend_pct }}%;"></div></div>
+      <div class="ad-card-label">Group Trip Participant</div>
+      <div class="ad-card-value">{{ social.group_trip_count }}</div>
+      <div class="ad-card-sub">{{ social.group_trip_pct }}% of users &mdash; accepted non-owner</div>
+      <div class="gr-bar-wrap"><div class="gr-bar" style="width:{{ social.group_trip_pct }}%;"></div></div>
     </div>
   </div>
 </div>

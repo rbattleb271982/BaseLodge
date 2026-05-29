@@ -16385,11 +16385,16 @@ def admin_activation():
     """Activation Dashboard v1 — 8-step funnel from signup to first group trip."""
     from services.pass_utils import normalize_pass
 
-    _no_pass_slugs = frozenset({"no_pass", "no_pass_yet"})
+    # no_pass slugs: excludes "none" in addition to legacy no_pass variants
+    _no_pass_slugs = frozenset({"no_pass", "no_pass_yet", "none"})
     now_dt = datetime.utcnow()
 
     # ── Base cohort: non-seeded users ─────────────────────────────────────────
-    total = db.session.query(User.id).filter(User.is_seeded == False).count()
+    # Load all users so Python-computed properties (is_core_profile_complete,
+    # is_active_user) can be evaluated without replicating complex SQL.
+    all_users = User.query.filter(User.is_seeded == False).all()
+    total = len(all_users)
+    ns_ids = [u.id for u in all_users]
 
     def _pct(n, d):
         if not d:
@@ -16399,98 +16404,80 @@ def admin_activation():
     # ── Step 1: Total Users ───────────────────────────────────────────────────
     s1 = total
 
-    # ── Step 2: Onboarding Completed ─────────────────────────────────────────
-    # Source of truth: lifecycle_stage = 'active' (onboarding_completed_at is never written)
-    s2 = db.session.query(User.id).filter(
-        User.is_seeded == False,
-        User.lifecycle_stage == 'active',
-    ).count()
+    # ── Step 2: Onboarding Complete ───────────────────────────────────────────
+    # Source of truth: is_core_profile_complete (the mandatory onboarding gate).
+    # lifecycle_stage is NOT used — it is stale for users whose state has changed
+    # since the last explicit update_lifecycle_stage() call.
+    s2 = sum(1 for u in all_users if u.is_core_profile_complete)
 
-    # ── Step 3: Pass Added ────────────────────────────────────────────────────
+    # ── Step 3: Has Real Pass ─────────────────────────────────────────────────
+    # Subset of onboarded users who hold a committed pass (not no_pass/none).
     s3 = 0
-    for (pt,) in db.session.query(User.pass_type).filter(User.is_seeded == False).all():
+    for u in all_users:
+        pt = u.pass_type
         if not pt:
             continue
         for raw in str(pt).split(","):
-            raw = raw.strip()
+            raw = raw.strip().lower()
             if not raw:
                 continue
             norm = normalize_pass(raw)
-            if norm and norm not in _no_pass_slugs:
+            slug = norm if norm else raw
+            if slug not in _no_pass_slugs:
                 s3 += 1
                 break
 
     # ── Step 4: Availability Added ────────────────────────────────────────────
-    # Source of truth: open_dates JSON column (UserAvailability table has 0 rows;
-    # the /add-open-dates route writes to open_dates, matching the service fallback)
-    s4 = 0
-    for (od,) in db.session.query(User.open_dates).filter(User.is_seeded == False).all():
-        try:
-            if isinstance(od, list) and len(od) > 0:
-                s4 += 1
-        except Exception:
-            pass
+    # Source of truth: open_dates JSON column (UserAvailability table has 0 rows)
+    s4 = sum(
+        1 for u in all_users
+        if isinstance(u.open_dates, list) and len(u.open_dates) > 0
+    )
 
     # ── Step 5: Wishlist Added ────────────────────────────────────────────────
-    s5 = 0
-    for (wl,) in db.session.query(User.wish_list_resorts).filter(User.is_seeded == False).all():
-        try:
-            if isinstance(wl, list) and len(wl) > 0:
-                s5 += 1
-        except Exception:
-            pass
-
-    # ── Step 6: First Trip Created ────────────────────────────────────────────
-    # Source of truth: distinct ski_trip.user_id (first_trip_created_at was never
-    # backfilled for existing users and returns 0 for all current accounts)
-    s6 = db.session.query(SkiTrip.user_id.distinct()).filter(
-        SkiTrip.user_id.in_(
-            db.session.query(User.id).filter(User.is_seeded == False)
-        )
-    ).count()
-
-    # ── Step 7: First Friend Added ────────────────────────────────────────────
-    s7 = db.session.query(Friend.user_id.distinct()).filter(
-        Friend.user_id.in_(
-            db.session.query(User.id).filter(User.is_seeded == False)
-        )
-    ).count()
-
-    # ── Step 8: First Group Trip ──────────────────────────────────────────────
-    # Owners of group trips
-    owner_ids = set(
-        r[0] for r in db.session.query(SkiTrip.user_id).filter(
-            SkiTrip.is_group_trip == True,
-            SkiTrip.user_id.in_(
-                db.session.query(User.id).filter(User.is_seeded == False)
-            ),
-        ).all()
+    s5 = sum(
+        1 for u in all_users
+        if isinstance(u.wish_list_resorts, list) and len(u.wish_list_resorts) > 0
     )
-    # Accepted participants of group trips
-    participant_ids = set(
+
+    # ── Step 6: Activated User ────────────────────────────────────────────────
+    # Source of truth: is_active_user = is_core_profile_complete AND has_started_planning.
+    # lifecycle_stage is NOT used — it undercounts due to stale writes.
+    s6 = sum(1 for u in all_users if u.is_active_user)
+
+    # ── Social signals (shown separately, not in funnel conversion) ───────────
+    friend_count = db.session.query(Friend.user_id.distinct()).filter(
+        Friend.user_id.in_(ns_ids)
+    ).count()
+
+    # Accepted group-trip participants who are not the trip owner
+    group_trip_participant_ids = set(
         r[0] for r in db.session.query(SkiTripParticipant.user_id).join(
             SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id
         ).filter(
             SkiTrip.is_group_trip == True,
             SkiTripParticipant.status == GuestStatus.ACCEPTED,
-            SkiTripParticipant.user_id.in_(
-                db.session.query(User.id).filter(User.is_seeded == False)
-            ),
+            SkiTripParticipant.role != ParticipantRole.OWNER,
+            SkiTripParticipant.user_id.in_(ns_ids),
         ).all()
     )
-    group_trip_user_ids = owner_ids | participant_ids
-    s8 = len(group_trip_user_ids)
+    group_trip_count = len(group_trip_participant_ids)
+
+    social = {
+        "friend_count":      friend_count,
+        "friend_pct":        _pct(friend_count, total),
+        "group_trip_count":  group_trip_count,
+        "group_trip_pct":    _pct(group_trip_count, total),
+    }
 
     # ── Build funnel steps ────────────────────────────────────────────────────
     raw_steps = [
-        ("Total Users",           s1),
-        ("Onboarding Completed",  s2),
-        ("Pass Added",            s3),
-        ("Availability Added",    s4),
-        ("Wishlist Added",        s5),
-        ("First Trip Created",    s6),
-        ("First Friend Added",    s7),
-        ("First Group Trip",      s8),
+        ("Total Users",         s1),
+        ("Onboarding Complete", s2),
+        ("Has Real Pass",       s3),
+        ("Availability Added",  s4),
+        ("Wishlist Added",      s5),
+        ("Activated User",      s6),
     ]
 
     funnel_steps = []
@@ -16500,10 +16487,7 @@ def admin_activation():
             vs_prev = 100
         else:
             prev_count = raw_steps[i - 1][1]
-            if not prev_count:
-                vs_prev = 0
-            else:
-                vs_prev = min(100, round(count / prev_count * 100))
+            vs_prev = 0 if not prev_count else min(100, round(count / prev_count * 100))
         funnel_steps.append({
             "name":     name,
             "count":    count,
@@ -16515,7 +16499,7 @@ def admin_activation():
     dropoff = None
     worst_drop = 0
     for i in range(1, len(funnel_steps)):
-        drop = funnel_steps[i]["vs_prev"] - 100   # negative if dropped
+        drop = funnel_steps[i]["vs_prev"] - 100
         if drop < worst_drop:
             worst_drop = drop
             dropoff = {
@@ -16526,21 +16510,29 @@ def admin_activation():
 
     # ── KPI cards ─────────────────────────────────────────────────────────────
     kpis = {
-        "activation_rate":   _pct(s8, total),
+        "activation_rate":   _pct(s6, total),
         "onboarding_pct":    _pct(s2, total),
         "availability_pct":  _pct(s4, total),
-        "first_trip_pct":    _pct(s6, total),
-        "first_friend_pct":  _pct(s7, total),
+        "real_pass_pct":     _pct(s3, total),
+        "wishlist_pct":      _pct(s5, total),
     }
+
+    # ── Activation Insight ────────────────────────────────────────────────────
+    activation_insight = {
+        "onboarding_pct":  _pct(s2, total),
+        "activation_pct":  _pct(s6, total),
+    } if total > 0 else None
 
     return render_template(
         "admin_activation.html",
-        active_tab   = "activation",
-        now          = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
-        funnel_steps = funnel_steps,
-        kpis         = kpis,
-        dropoff      = dropoff,
-        total        = total,
+        active_tab         = "activation",
+        now                = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        funnel_steps       = funnel_steps,
+        kpis               = kpis,
+        dropoff            = dropoff,
+        total              = total,
+        social             = social,
+        activation_insight = activation_insight,
     )
 
 
