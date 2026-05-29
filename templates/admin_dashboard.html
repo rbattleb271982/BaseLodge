@@ -3,6 +3,95 @@
 {% block page_title %}Executive Dashboard{% endblock %}
 
 {% block head_styles %}
+  /* ══════════════════════════════════════════════════════════
+     FOUNDER PULSE — today metrics strip
+     All classes prefixed fp- to avoid conflicts with ad-*
+  ══════════════════════════════════════════════════════════ */
+
+  /* Section wrapper */
+  .fp-section {
+    margin-bottom: 20px;
+  }
+
+  /* Header row: "Founder Pulse" title + timestamp */
+  .fp-header {
+    display: flex; align-items: baseline; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .fp-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #5C1219;
+  }
+  .fp-time {
+    font-size: 10px; color: #9E958A;
+  }
+
+  /* ── DESKTOP strip (≥700px) ── */
+  .fp-strip {
+    display: flex; align-items: center; gap: 0;
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 8px; overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .fp-strip-item {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center;
+    padding: 10px 16px; min-width: 80px; flex: 1;
+    border-right: 1px solid #F0EAE1;
+  }
+  .fp-strip-item:last-child { border-right: none; }
+  .fp-strip-label {
+    font-size: 10px; color: #9E958A; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    white-space: nowrap; margin-bottom: 2px;
+  }
+  .fp-strip-val {
+    font-size: 20px; font-weight: 700; color: #1C1917;
+    font-family: Georgia, serif; letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .fp-strip-delta {
+    font-size: 10px; margin-top: 3px; white-space: nowrap;
+  }
+
+  /* ── MOBILE grid (< 700px) ── */
+  .fp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+  .fp-card {
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 8px; padding: 9px 11px 8px;
+    min-width: 0;
+  }
+  .fp-card-label {
+    font-size: 10px; font-weight: 700; color: #9E958A;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .fp-card-val {
+    font-size: 22px; font-weight: 700; color: #1C1917;
+    font-family: Georgia, serif; letter-spacing: -0.01em;
+    line-height: 1;
+  }
+  .fp-card-delta {
+    font-size: 10px; margin-top: 3px;
+  }
+
+  /* Delta colour helpers */
+  .fp-trend--pos  { color: #2D7A3A; }
+  .fp-trend--flat { color: #9E958A; }
+
+  /* Responsive visibility */
+  .fp-strip { display: flex; }
+  .fp-grid  { display: none; }
+  @media (max-width: 699px) {
+    .fp-strip { display: none; }
+    .fp-grid  { display: grid; }
+  }
+
   /* ── Updated timestamp ── */
   .ad-updated {
     font-size: 11px; color: #9E958A;
@@ -186,6 +275,104 @@
 </svg>
 {%- endif -%}{%- endif -%}
 {%- endmacro -%}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FOUNDER PULSE — today metrics strip                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="fp-section">
+  <div class="fp-header">
+    <span class="fp-title">Founder Pulse</span>
+    <span class="fp-time">Updated {{ pulse_time }}</span>
+  </div>
+
+  {# ── Desktop horizontal strip ── #}
+  <div class="fp-strip">
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Active</div>
+      <div class="fp-strip-val">{{ pulse.active[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.active[1][1] }}">{{ pulse.active[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Sessions</div>
+      <div class="fp-strip-val">{{ pulse.sessions[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.sessions[1][1] }}">{{ pulse.sessions[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">New</div>
+      <div class="fp-strip-val">{{ pulse.new_users[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.new_users[1][1] }}">{{ pulse.new_users[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Trips</div>
+      <div class="fp-strip-val">{{ pulse.trips[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.trips[1][1] }}">{{ pulse.trips[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Views</div>
+      <div class="fp-strip-val">{{ pulse.mtn_views[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.mtn_views[1][1] }}">{{ pulse.mtn_views[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Friends</div>
+      <div class="fp-strip-val">{{ pulse.friends[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.friends[1][1] }}">{{ pulse.friends[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Invites</div>
+      <div class="fp-strip-val">{{ pulse.invites[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.invites[1][1] }}">{{ pulse.invites[1][0] }}</div>
+    </div>
+    <div class="fp-strip-item">
+      <div class="fp-strip-label">Pushes</div>
+      <div class="fp-strip-val">{{ pulse.pushes[0] }}</div>
+      <div class="fp-strip-delta {{ pulse.pushes[1][1] }}">{{ pulse.pushes[1][0] }}</div>
+    </div>
+  </div>
+
+  {# ── Mobile 2-column card grid ── #}
+  <div class="fp-grid">
+    <div class="fp-card">
+      <div class="fp-card-label">Active Today</div>
+      <div class="fp-card-val">{{ pulse.active[0] }}</div>
+      <div class="fp-card-delta {{ pulse.active[1][1] }}">{{ pulse.active[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">Sessions Today</div>
+      <div class="fp-card-val">{{ pulse.sessions[0] }}</div>
+      <div class="fp-card-delta {{ pulse.sessions[1][1] }}">{{ pulse.sessions[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">New Users</div>
+      <div class="fp-card-val">{{ pulse.new_users[0] }}</div>
+      <div class="fp-card-delta {{ pulse.new_users[1][1] }}">{{ pulse.new_users[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">Trips Created</div>
+      <div class="fp-card-val">{{ pulse.trips[0] }}</div>
+      <div class="fp-card-delta {{ pulse.trips[1][1] }}">{{ pulse.trips[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">Mtn Views</div>
+      <div class="fp-card-val">{{ pulse.mtn_views[0] }}</div>
+      <div class="fp-card-delta {{ pulse.mtn_views[1][1] }}">{{ pulse.mtn_views[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">Friends Made</div>
+      <div class="fp-card-val">{{ pulse.friends[0] }}</div>
+      <div class="fp-card-delta {{ pulse.friends[1][1] }}">{{ pulse.friends[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">Invites Sent</div>
+      <div class="fp-card-val">{{ pulse.invites[0] }}</div>
+      <div class="fp-card-delta {{ pulse.invites[1][1] }}">{{ pulse.invites[1][0] }}</div>
+    </div>
+    <div class="fp-card">
+      <div class="fp-card-label">Pushes Sent</div>
+      <div class="fp-card-val">{{ pulse.pushes[0] }}</div>
+      <div class="fp-card-delta {{ pulse.pushes[1][1] }}">{{ pulse.pushes[1][0] }}</div>
+    </div>
+  </div>
+</div>
 
 <div class="ad-updated">Live data · {{ now }}</div>
 

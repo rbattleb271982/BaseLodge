@@ -1,0 +1,163 @@
+PUT THIS IN PLAN FIRST
+
+# Founder Dashboard Strip (Today Metrics)
+
+What & Why
+
+Add a new "Founder Pulse" section ABOVE the existing Admin Dashboard KPIs. This is a real-time founder view focused only on what is happening TODAY. The goal is to answer: "How is BaseLodge doing right now?" in under 5 seconds.
+
+This should be the first thing visible when opening /admin/dashboard.
+
+IMPORTANT:
+- Reuse existing models and analytics data where possible
+- Do not remove or modify any existing dashboard KPIs below
+- This is a new section added above the current dashboard
+- Use mobile-first design
+- Use checkpoints sparingly
+
+--------------------------------------------------
+METRICS TO DISPLAY
+--------------------------------------------------
+
+1. Active Today
+Users who have opened or interacted with the app today.
+
+2. Sessions Today
+Total sessions today.
+
+3. New Users Today
+Users created today.
+
+4. Trips Created Today
+Trips created today.
+
+5. Mountain Views Today
+Total mountain detail page views today.
+
+6. Friend Connections Today
+Friend requests accepted today.
+
+7. Invites Sent Today
+Friend invites + trip invites sent today.
+
+8. Pushes Delivered Today
+Successfully delivered push notifications today.
+
+--------------------------------------------------
+LAYOUT
+--------------------------------------------------
+
+MOBILE (<768px)
+
+Display as compact KPI cards using the existing dashboard card style.
+
+2-column grid.
+
+Row 1:
+Active Today | Sessions Today
+
+Row 2:
+New Users Today | Trips Created Today
+
+Row 3:
+Mountain Views Today | Friend Connections Today
+
+Row 4:
+Invites Sent Today | Pushes Delivered Today
+
+Cards should be slightly shorter than current dashboard cards.
+
+Each card contains:
+- Metric label
+- Large metric value
+- Small delta line underneath
+
+Examples:
+
+27
+Active Today
++8 vs yesterday
+
+84
+Sessions Today
++12 vs yesterday
+
+3
+New Users Today
+Flat vs yesterday
+
+--------------------------------------------------
+DESKTOP (>=768px)
+--------------------------------------------------
+
+Instead of cards, show a horizontal Founder Pulse strip above the dashboard.
+
+Title:
+
+Founder Pulse
+
+Subtext:
+
+Updated {current server time}
+
+Display all 8 metrics on a single row.
+
+Example:
+
+Active 27 | Sessions 84 | New 3 | Trips 6 | Views 145 | Friends 4 | Invites 12 | Pushes 37
+
+Use existing admin styling and color palette.
+
+Keep it clean and compact.
+
+--------------------------------------------------
+DELTA LOGIC
+--------------------------------------------------
+
+For all 8 metrics:
+
+Compare today's value versus yesterday's value.
+
+Display:
+
++12 vs yesterday
+
++2 vs yesterday
+
+Flat vs yesterday
+
+Use green for positive change.
+
+Use muted gray for flat.
+
+Do not use red styling.
+
+--------------------------------------------------
+IMPLEMENTATION NOTES
+--------------------------------------------------
+
+Use local server date.
+
+If a metric has no historical comparison available:
+show "—"
+
+Avoid expensive queries.
+
+Reuse existing analytics/event tables whenever possible.
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+✓ Founder Pulse appears above existing dashboard content
+✓ Mobile shows 8 KPI cards in a 2-column grid
+✓ Desktop shows a compact horizontal founder strip
+✓ All metrics are calculated from real data
+✓ Delta lines compare today vs yesterday
+✓ Existing dashboard remains unchanged below
+✓ No layout overflow on iPhone or desktop
+✓ /admin/dashboard loads cleanly
+✓ No console errors
+✓ All tests pass
+
+Use checkpoints sparingly.

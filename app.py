@@ -16131,6 +16131,125 @@ def admin_dashboard():
     _hub_scores       = [_hub_score(u) for u in _ns_users]
     avg_product_score = round(sum(_hub_scores) / len(_hub_scores), 1) if _hub_scores else 0
 
+    # ── Founder Pulse — today vs yesterday ───────────────────────────────────
+    _pulse_today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    _pulse_yest_start  = _pulse_today_start - timedelta(days=1)
+    _pulse_yest_end    = _pulse_today_start
+
+    def _pulse_delta(today_val, yest_val):
+        """Return (text, css_class) for an absolute today-vs-yesterday delta."""
+        if yest_val is None:
+            return "—", "fp-trend--flat"
+        diff = today_val - yest_val
+        if diff == 0:
+            return "Flat vs yesterday", "fp-trend--flat"
+        sign = "+" if diff > 0 else ""
+        cls  = "fp-trend--pos" if diff > 0 else "fp-trend--flat"
+        return f"{sign}{diff} vs yesterday", cls
+
+    # 1. Active Today — users who touched the app today
+    p_active_today = User.query.filter(User.last_active_at >= _pulse_today_start).count()
+    p_active_yest  = User.query.filter(
+        User.last_active_at >= _pulse_yest_start,
+        User.last_active_at <  _pulse_yest_end,
+    ).count()
+
+    # 2. Sessions Today — Activity rows as proxy for total in-app events
+    p_sessions_today = Activity.query.filter(Activity.created_at >= _pulse_today_start).count()
+    p_sessions_yest  = Activity.query.filter(
+        Activity.created_at >= _pulse_yest_start,
+        Activity.created_at <  _pulse_yest_end,
+    ).count()
+
+    # 3. New Users Today
+    p_new_users_today = User.query.filter(User.created_at >= _pulse_today_start).count()
+    p_new_users_yest  = User.query.filter(
+        User.created_at >= _pulse_yest_start,
+        User.created_at <  _pulse_yest_end,
+    ).count()
+
+    # 4. Trips Created Today
+    p_trips_today = SkiTrip.query.filter(SkiTrip.created_at >= _pulse_today_start).count()
+    p_trips_yest  = SkiTrip.query.filter(
+        SkiTrip.created_at >= _pulse_yest_start,
+        SkiTrip.created_at <  _pulse_yest_end,
+    ).count()
+
+    # 5. Mountain Views Today
+    p_mtn_views_today = MountainPageView.query.filter(
+        MountainPageView.viewed_at >= _pulse_today_start
+    ).count()
+    p_mtn_views_yest  = MountainPageView.query.filter(
+        MountainPageView.viewed_at >= _pulse_yest_start,
+        MountainPageView.viewed_at <  _pulse_yest_end,
+    ).count()
+
+    # 6. Friend Connections Today
+    # Friend table is bidirectional (A→B + B→A rows per pair); divide by 2.
+    p_friends_today = Friend.query.filter(Friend.created_at >= _pulse_today_start).count() // 2
+    p_friends_yest  = Friend.query.filter(
+        Friend.created_at >= _pulse_yest_start,
+        Friend.created_at <  _pulse_yest_end,
+    ).count() // 2
+
+    # 7. Invites Sent Today — friend Invitations + SkiTripParticipant INVITED rows
+    p_finv_today = Invitation.query.filter(
+        Invitation.created_at >= _pulse_today_start
+    ).count()
+    p_finv_yest  = Invitation.query.filter(
+        Invitation.created_at >= _pulse_yest_start,
+        Invitation.created_at <  _pulse_yest_end,
+    ).count()
+    p_tinv_today = SkiTripParticipant.query.filter(
+        SkiTripParticipant.created_at >= _pulse_today_start,
+        SkiTripParticipant.status == GuestStatus.INVITED,
+    ).count()
+    p_tinv_yest  = SkiTripParticipant.query.filter(
+        SkiTripParticipant.created_at >= _pulse_yest_start,
+        SkiTripParticipant.created_at <  _pulse_yest_end,
+        SkiTripParticipant.status == GuestStatus.INVITED,
+    ).count()
+    p_invites_today = p_finv_today + p_tinv_today
+    p_invites_yest  = p_finv_yest  + p_tinv_yest
+
+    # 8. Pushes Delivered Today — channel='push', delivery_status='sent'
+    # sent_at is nullable; fall back to created_at for rows that lack it.
+    p_pushes_today = MessageEventLog.query.filter(
+        MessageEventLog.channel == 'push',
+        MessageEventLog.delivery_status == 'sent',
+        db.or_(
+            MessageEventLog.sent_at >= _pulse_today_start,
+            db.and_(
+                MessageEventLog.sent_at == None,
+                MessageEventLog.created_at >= _pulse_today_start,
+            ),
+        ),
+    ).count()
+    p_pushes_yest = MessageEventLog.query.filter(
+        MessageEventLog.channel == 'push',
+        MessageEventLog.delivery_status == 'sent',
+        db.or_(
+            db.and_(MessageEventLog.sent_at >= _pulse_yest_start,
+                    MessageEventLog.sent_at <  _pulse_yest_end),
+            db.and_(MessageEventLog.sent_at == None,
+                    MessageEventLog.created_at >= _pulse_yest_start,
+                    MessageEventLog.created_at <  _pulse_yest_end),
+        ),
+    ).count()
+
+    # Assemble pulse dict — each key: (today_value, (delta_text, delta_css_class))
+    pulse = dict(
+        active    = (p_active_today,    _pulse_delta(p_active_today,    p_active_yest)),
+        sessions  = (p_sessions_today,  _pulse_delta(p_sessions_today,  p_sessions_yest)),
+        new_users = (p_new_users_today, _pulse_delta(p_new_users_today, p_new_users_yest)),
+        trips     = (p_trips_today,     _pulse_delta(p_trips_today,     p_trips_yest)),
+        mtn_views = (p_mtn_views_today, _pulse_delta(p_mtn_views_today, p_mtn_views_yest)),
+        friends   = (p_friends_today,   _pulse_delta(p_friends_today,   p_friends_yest)),
+        invites   = (p_invites_today,   _pulse_delta(p_invites_today,   p_invites_yest)),
+        pushes    = (p_pushes_today,    _pulse_delta(p_pushes_today,    p_pushes_yest)),
+    )
+    pulse_time = now.strftime("%H:%M UTC")
+
     return render_template(
         "admin_dashboard.html",
         active_tab         = "dashboard",
@@ -16187,6 +16306,8 @@ def admin_dashboard():
         pass_no_avail_count    = pass_no_avail_count,
         active_users_reachable = active_users_reachable,
         active_users_total     = active_users_total,
+        pulse                  = pulse,
+        pulse_time             = pulse_time,
     )
 
 

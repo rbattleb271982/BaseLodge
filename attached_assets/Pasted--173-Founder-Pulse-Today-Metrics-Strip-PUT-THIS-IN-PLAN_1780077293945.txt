@@ -1,0 +1,287 @@
+#173 - Founder Pulse — Today Metrics Strip
+
+PUT THIS IN PLAN FIRST
+
+What & Why
+
+Add a "Founder Pulse" section at the very top of /admin/dashboard — a real-time, today-only view of the 8 operational signals a founder needs in under 5 seconds. Existing KPI cards below stay completely untouched.
+
+Done looks like
+
+✓ /admin/dashboard loads with "Founder Pulse" visibly above all existing content
+
+✓ Mobile (<768px): 8 KPI cards in a 2-column grid, slightly more compact than existing .ad-card height
+
+✓ Desktop (≥768px): a single horizontal strip — title "Founder Pulse", timestamp "Updated HH:MM UTC", then all 8 metrics inline:
+
+Active 27 | Sessions 84 | New 3 | Trips 6 | Views 145 | Friends 4 | Invites 12 | Pushes 37
+
+✓ Each metric shows a delta line:
++8 vs yesterday (green)
+Flat vs yesterday (muted gray)
+No red styling
+
+✓ All 8 values come from real data
+
+✓ If no prior-day data exists, delta shows —
+
+✓ Existing dashboard KPIs below render identically to today
+
+Out of scope
+
+- New database tables or migrations
+- PostHog or external analytics integration
+- Auto-refresh / polling
+- Any change to existing KPI cards below the pulse strip
+
+--------------------------------------------------
+STEP 1 — COMPUTE TODAY METRICS
+--------------------------------------------------
+
+In the admin_dashboard route:
+
+Define:
+
+today_start = UTC midnight today
+
+yesterday_start = today_start - 1 day
+
+yesterday_end = today_start
+
+Compute BOTH today's and yesterday's values for:
+
+1. Active Today
+Users with last_active_at >= today_start
+
+2. Sessions Today
+Activity rows created today
+(proxy for total in-app activity/events)
+
+3. New Users Today
+Users created today
+
+4. Trips Created Today
+SkiTrip rows created today
+
+5. Mountain Views Today
+MountainPageView rows viewed today
+
+6. Friend Connections Today
+Friend records created today
+
+IMPORTANT:
+Inspect the Friend model first.
+If friendships are stored as mirrored/bidirectional rows, normalize the count appropriately.
+Do not assume divide-by-2 without verifying.
+
+7. Invites Sent Today
+Friend invitations +
+Trip invitations/tokens created today
+
+Use existing invite-related models already in the codebase.
+
+8. Pushes Delivered Today
+MessageEventLog rows where:
+
+delivery_status = "sent"
+
+and
+
+sent_at >= today_start
+
+--------------------------------------------------
+STEP 2 — DELTA HELPER
+--------------------------------------------------
+
+Create a small helper inside the route:
+
+_pulse_delta(today_val, yesterday_val)
+
+Returns:
+
+("+N vs yesterday", "fp-trend--pos")
+
+("Flat vs yesterday", "fp-trend--flat")
+
+("—", "fp-trend--flat")
+
+Rules:
+
+- Use absolute counts
+- Do NOT use percentages
+- No red styling
+- Positive changes only use green
+- Zero difference = Flat
+
+Pass all values and delta tuples to the template.
+
+--------------------------------------------------
+STEP 3 — TEMPLATE
+--------------------------------------------------
+
+File:
+
+templates/admin_dashboard.html
+
+At the VERY TOP of:
+
+{% block content %}
+
+Insert Founder Pulse before ALL existing dashboard content.
+
+--------------------------------------------------
+DESKTOP VIEW
+--------------------------------------------------
+
+Visible >= existing desktop breakpoint.
+
+Structure:
+
+Founder Pulse
+
+Updated HH:MM UTC
+
+Active 27 | Sessions 84 | New 3 | Trips 6 | Views 145 | Friends 4 | Invites 12 | Pushes 37
+
+Requirements:
+
+- Single horizontal strip
+- Compact
+- Matches admin styling
+- Clean spacing
+- Horizontal scrolling allowed if needed
+- No wrapping that breaks layout
+
+--------------------------------------------------
+MOBILE VIEW
+--------------------------------------------------
+
+Visible below desktop breakpoint.
+
+2-column grid.
+
+8 cards:
+
+Row 1
+Active Today | Sessions Today
+
+Row 2
+New Users Today | Trips Created Today
+
+Row 3
+Mountain Views Today | Friend Connections Today
+
+Row 4
+Invites Sent Today | Pushes Delivered Today
+
+Each card contains:
+
+Metric label
+
+Large metric value
+
+Delta line
+
+Example:
+
+27
+Active Today
++8 vs yesterday
+
+Cards should be slightly shorter than existing dashboard KPI cards.
+
+--------------------------------------------------
+STEP 4 — CSS
+--------------------------------------------------
+
+Add all new styles inside:
+
+{% block head_styles %}
+
+Prefix ALL classes with:
+
+fp-
+
+Examples:
+
+fp-section
+
+fp-header
+
+fp-strip
+
+fp-grid
+
+fp-card
+
+fp-trend--pos
+
+fp-trend--flat
+
+Avoid conflicts with existing ad-* classes.
+
+Responsive behavior:
+
+Desktop strip visible at same breakpoint used by current dashboard.
+
+Mobile cards visible below that breakpoint.
+
+Strip may use:
+
+overflow-x: auto
+
+to prevent layout overflow.
+
+--------------------------------------------------
+IMPORTANT IMPLEMENTATION RULES
+--------------------------------------------------
+
+Before making changes:
+
+Inspect all relevant models and route logic.
+
+Verify actual field names.
+
+Verify invite model names.
+
+Verify activity model names.
+
+Verify friendship storage logic.
+
+Do not assume any schema details from this prompt if the codebase differs.
+
+Avoid expensive queries.
+
+Reuse existing models and analytics data.
+
+Gracefully handle empty tables.
+
+Dashboard must never error if a table has zero rows.
+
+--------------------------------------------------
+TESTING REQUIRED
+--------------------------------------------------
+
+Do not finish until you have fully tested:
+
+✓ /admin/dashboard returns 200
+
+✓ Founder Pulse renders above all existing dashboard content
+
+✓ Desktop strip renders correctly
+
+✓ Mobile 2-column grid renders correctly
+
+✓ Delta calculations work
+
+✓ Empty-table scenarios do not crash
+
+✓ Existing dashboard KPI cards below remain visually unchanged
+
+✓ No console errors
+
+✓ No template errors
+
+✓ No route errors
+
+Use checkpoints sparingly.
