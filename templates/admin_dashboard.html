@@ -96,6 +96,134 @@
     .ad-spark           { margin-top: 7px; }
     .ad-updated         { font-size: 12px; margin-bottom: 14px; }
   }
+
+  /* ── Hub sections ── */
+  .hub-section         { margin-top: 28px; }
+  .hub-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin-bottom: 10px;
+  }
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 480px) { .hub-grid { grid-template-columns: 1fr; } }
+
+  .hub-card {
+    display: block;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 13px 15px 11px;
+    text-decoration: none;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s, border-color 0.12s;
+    min-width: 0;
+  }
+  .hub-card:hover  { background: #FAF7F2; border-color: #C9BFB2; }
+  .hub-card:active { background: #F3EDE3; }
+
+  .hub-card-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1917;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hub-card-desc {
+    font-size: 11px;
+    color: #9E958A;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  .hub-card-kpi {
+    font-size: 20px;
+    font-weight: 700;
+    color: #5C1219;
+    font-family: Georgia, serif;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+  .hub-card-kpi--small {
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 700;
+    color: #5C1219;
+    margin-bottom: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .hub-card-cta {
+    font-size: 11px;
+    font-weight: 600;
+    color: #5C1219;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Insight panel ── */
+  .hub-insight {
+    margin-top: 28px;
+    background: #F5F1E8;
+    border: 1px solid #E4DDD2;
+    border-left: 3px solid #5C1219;
+    border-radius: 9px;
+    padding: 13px 16px;
+  }
+  .hub-insight-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #5C1219;
+    margin-bottom: 5px;
+  }
+  .hub-insight-text {
+    font-size: 13px;
+    color: #1C1917;
+    line-height: 1.6;
+  }
+
+  /* ── Quick actions ── */
+  .hub-actions { margin-top: 28px; }
+  .hub-actions-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin-bottom: 10px;
+  }
+  .hub-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .hub-action-link {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #5C1219;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 6px;
+    padding: 6px 12px;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.1s, border-color 0.1s;
+    white-space: nowrap;
+  }
+  .hub-action-link:hover  { background: #FAF7F2; border-color: #C9BFB2; }
+  .hub-action-link:active { background: #F3EDE3; }
 {% endblock %}
 
 {% block content %}
@@ -191,6 +319,120 @@
     <div class="ad-card-sub">per user</div>
   </a>
 
+</div>
+
+<!-- ── Section 1: Overview Hub ─────────────────────────────────── -->
+<div class="hub-section">
+  <div class="hub-section-label">Overview</div>
+  <div class="hub-grid">
+    <a href="/admin/dashboard#dash-users" class="hub-card">
+      <div class="hub-card-name">Dashboard</div>
+      <div class="hub-card-desc">Your executive snapshot.</div>
+      <div class="hub-card-kpi">{{ total_users }}</div>
+      <div class="hub-card-cta">Total Users &rarr;</div>
+    </a>
+    <a href="/admin/growth" class="hub-card">
+      <div class="hub-card-name">Growth</div>
+      <div class="hub-card-desc">How many users are arriving?</div>
+      <div class="hub-card-kpi">{{ new_users_month }}</div>
+      <div class="hub-card-cta">New This Month &rarr;</div>
+    </a>
+    <a href="/admin/activation" class="hub-card">
+      <div class="hub-card-name">Activation</div>
+      <div class="hub-card-desc">Are users reaching value?</div>
+      <div class="hub-card-kpi">{{ activation_pct }}%</div>
+      <div class="hub-card-cta">Activation Rate &rarr;</div>
+    </a>
+    <a href="/admin/retention" class="hub-card">
+      <div class="hub-card-name">Retention</div>
+      <div class="hub-card-desc">Are users coming back?</div>
+      <div class="hub-card-kpi">{{ mau }}</div>
+      <div class="hub-card-cta">MAU &rarr;</div>
+    </a>
+  </div>
+</div>
+
+<!-- ── Section 2: Intelligence Hub ─────────────────────────────── -->
+<div class="hub-section">
+  <div class="hub-section-label">Intelligence</div>
+  <div class="hub-grid">
+    <a href="/admin/user-intelligence" class="hub-card">
+      <div class="hub-card-name">User Intelligence</div>
+      <div class="hub-card-desc">Who your users are.</div>
+      {% if top_state and top_state_pct %}
+      <div class="hub-card-kpi--small">{{ top_state_pct }}% from {{ top_state }}</div>
+      {% endif %}
+      <div class="hub-card-cta">View User Intelligence &rarr;</div>
+    </a>
+    <a href="/admin/product" class="hub-card">
+      <div class="hub-card-name">Product</div>
+      <div class="hub-card-desc">What features users adopt.</div>
+      <div class="hub-card-kpi">{{ avg_product_score }}</div>
+      <div class="hub-card-cta">Avg Product Score &rarr;</div>
+    </a>
+    <a href="/admin/resort-intelligence" class="hub-card">
+      <div class="hub-card-name">Resort Intelligence</div>
+      <div class="hub-card-desc">Which destinations show demand.</div>
+      <div class="hub-card-kpi">{{ total_active_resorts }}</div>
+      <div class="hub-card-cta">Active Resorts &rarr;</div>
+    </a>
+    <a href="/admin/messaging" class="hub-card">
+      <div class="hub-card-name">Messaging</div>
+      <div class="hub-card-desc">How invites and messaging perform.</div>
+      <div class="hub-card-kpi">{{ invite_redemption_pct }}%</div>
+      <div class="hub-card-cta">Invite Redemption &rarr;</div>
+    </a>
+  </div>
+</div>
+
+<!-- ── Section 3: Operations Hub ────────────────────────────────── -->
+<div class="hub-section">
+  <div class="hub-section-label">Operations</div>
+  <div class="hub-grid">
+    <a href="/admin/trips" class="hub-card">
+      <div class="hub-card-name">Trips</div>
+      <div class="hub-card-desc">Review planned trips and group coordination.</div>
+      <div class="hub-card-cta">View Trips &rarr;</div>
+    </a>
+    <a href="/admin/resorts" class="hub-card">
+      <div class="hub-card-name">Mountains</div>
+      <div class="hub-card-desc">Manage resort and mountain data.</div>
+      <div class="hub-card-cta">View Mountains &rarr;</div>
+    </a>
+    <a href="/admin/user-insights" class="hub-card">
+      <div class="hub-card-name">User Insights</div>
+      <div class="hub-card-desc">Review users and account patterns.</div>
+      <div class="hub-card-cta">View User Insights &rarr;</div>
+    </a>
+    <a href="/admin/message-events" class="hub-card">
+      <div class="hub-card-name">Tools</div>
+      <div class="hub-card-desc">Diagnostics, logs, and admin utilities.</div>
+      <div class="hub-card-cta">Message Log &rarr;</div>
+    </a>
+  </div>
+</div>
+
+<!-- ── Section 4: Admin Insight ──────────────────────────────────── -->
+{% if top_state and top_state_pct >= 30 %}
+<div class="hub-insight">
+  <div class="hub-insight-label">Insight</div>
+  <div class="hub-insight-text">
+    {{ top_state_pct }}% of users with a home state are based in {{ top_state }}.
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Section 5: Quick Actions ──────────────────────────────────── -->
+<div class="hub-actions">
+  <div class="hub-actions-label">Quick Actions</div>
+  <div class="hub-actions-row">
+    <a href="/admin/user-insights"    class="hub-action-link">View Users</a>
+    <a href="/admin/trips"            class="hub-action-link">View Trips</a>
+    <a href="/admin/resorts"          class="hub-action-link">View Mountains</a>
+    <a href="/admin/push-diagnostics" class="hub-action-link">Push Diagnostics</a>
+    <a href="/admin/message-events"   class="hub-action-link">Message Log</a>
+    <a href="/admin/resorts-audit"    class="hub-action-link">Resort Audit</a>
+  </div>
 </div>
 
 {% endblock %}

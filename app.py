@@ -15632,6 +15632,64 @@ def admin_dashboard():
         unit="pct", label="prior MTD",
     )
 
+    # ── Hub section computations (command center additions) ───────────────
+    from collections import Counter as _Counter
+    _ns_users = User.query.filter(User.is_seeded == False).all()
+    _ns_ids   = [u.id for u in _ns_users]
+    _ns_total = len(_ns_ids) or 1
+
+    # activation_pct — non-seeded users who have activated
+    _act_n         = sum(1 for u in _ns_users if u.is_active_user)
+    activation_pct = round(_act_n / _ns_total * 100)
+
+    # invite_redemption_pct — InviteToken redeemed / generated (non-seeded)
+    _it_gen = db.session.query(InviteToken.id).filter(
+        InviteToken.inviter_id.in_(_ns_ids)).count()
+    _it_red = db.session.query(InviteToken.id).filter(
+        InviteToken.inviter_id.in_(_ns_ids),
+        InviteToken.used_at != None).count()
+    invite_redemption_pct = round(_it_red / _it_gen * 100) if _it_gen else 0
+
+    # top_state / top_state_pct — most common home state among non-seeded
+    _state_ctr   = _Counter(u.home_state for u in _ns_users if u.home_state)
+    _state_total = sum(_state_ctr.values())
+    top_state    = _state_ctr.most_common(1)[0][0] if _state_ctr else None
+    top_state_pct = round(_state_ctr[top_state] / _state_total * 100) \
+                    if (top_state and _state_total) else 0
+
+    # avg_product_score — identical formula to Product Dashboard
+    _no_pass_s = {'no_pass', 'no_pass_yet', 'none', ''}
+    def _hub_has_pass(u):
+        pt = u.pass_type or ''
+        return any(r.strip().lower() not in _no_pass_s
+                   for r in str(pt).split(',') if r.strip())
+    def _hub_has_avail(u): return isinstance(u.open_dates, list) and len(u.open_dates) > 0
+    def _hub_has_wl(u):    return isinstance(u.wish_list_resorts, list) and len(u.wish_list_resorts) > 0
+    _hub_equip = set(r[0] for r in db.session.query(EquipmentSetup.user_id.distinct())
+                     .filter(EquipmentSetup.user_id.in_(_ns_ids)).all())
+    _hub_fr    = set(r[0] for r in db.session.query(Friend.user_id.distinct())
+                     .filter(Friend.user_id.in_(_ns_ids)).all())
+    _hub_tc    = {r[0]: r[1] for r in db.session.query(
+                     SkiTrip.user_id, db.func.count(SkiTrip.id))
+                  .filter(SkiTrip.user_id.in_(_ns_ids))
+                  .group_by(SkiTrip.user_id).all()}
+    _hub_gt    = set(r[0] for r in db.session.query(SkiTrip.user_id.distinct())
+                     .filter(SkiTrip.user_id.in_(_ns_ids),
+                             SkiTrip.is_group_trip == True).all())
+    def _hub_score(u):
+        s, tc = 0, _hub_tc.get(u.id, 0)
+        if _hub_has_pass(u):   s += 1
+        if _hub_has_avail(u):  s += 1
+        if _hub_has_wl(u):     s += 1
+        if u.id in _hub_equip: s += 1
+        if u.id in _hub_fr:    s += 1
+        s += tc * 2
+        if u.id in _hub_gt:    s += 3
+        if tc >= 2:            s += 1
+        return s
+    _hub_scores       = [_hub_score(u) for u in _ns_users]
+    avg_product_score = round(sum(_hub_scores) / len(_hub_scores), 1) if _hub_scores else 0
+
     return render_template(
         "admin_dashboard.html",
         active_tab         = "dashboard",
@@ -15669,9 +15727,14 @@ def admin_dashboard():
         avg_friends_per_user = avg_friends_per_user,
         trend_wau            = trend_wau,
         trend_trips_week     = trend_trips_week,
-        trend_trips_30d      = trend_trips_30d,
-        trend_mtn_views      = trend_mtn_views,
-        mtn_views_30d        = mtn_views_30d,
+        trend_trips_30d       = trend_trips_30d,
+        trend_mtn_views       = trend_mtn_views,
+        mtn_views_30d         = mtn_views_30d,
+        activation_pct        = activation_pct,
+        invite_redemption_pct = invite_redemption_pct,
+        top_state             = top_state,
+        top_state_pct         = top_state_pct,
+        avg_product_score     = avg_product_score,
     )
 
 
