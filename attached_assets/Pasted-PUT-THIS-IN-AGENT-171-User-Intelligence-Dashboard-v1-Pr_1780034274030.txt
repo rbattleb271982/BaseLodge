@@ -1,0 +1,307 @@
+PUT THIS IN AGENT
+
+#171 - User Intelligence Dashboard v1
+
+Proceed with implementation.
+
+Use the audit findings exactly as approved.
+
+--------------------------------------------------
+IMPLEMENTATION ADJUSTMENTS
+--------------------------------------------------
+
+Build only from validated GREEN/YELLOW signals.
+
+Do not invent country, pass, rider, or equipment metrics beyond what exists in production.
+
+--------------------------------------------------
+SECTION 0 — USER KPIs
+--------------------------------------------------
+
+Show:
+
+- Total Users
+- Avg Friends
+- Avg Trips
+- Avg Wishlist Size
+- Avg Planned Resorts
+- Avg Product Score
+
+Use non-seeded users only.
+
+--------------------------------------------------
+SECTION 1 — USER PROFILE
+--------------------------------------------------
+
+Top States
+
+Display:
+
+State
+Users
+%
+
+Sort descending.
+
+Top Countries
+
+Display:
+
+Country
+Users
+%
+
+Country is derived from state mapping.
+
+Add footnote:
+
+"Country is derived from available state data."
+
+--------------------------------------------------
+SECTION 2 — PASS INTELLIGENCE
+--------------------------------------------------
+
+Display:
+
+Pass
+Users
+%
+
+Use:
+
+- Epic
+- Ikon
+- Other Passes
+- No Pass
+
+Group all non-Epic / non-Ikon passes into:
+
+Other Passes
+
+Reason:
+
+Production data contains only:
+
+- Epic (11)
+- Ikon (1)
+
+Everything else is effectively zero.
+
+Sort descending.
+
+--------------------------------------------------
+SECTION 3 — RIDER PROFILE
+--------------------------------------------------
+
+Use rider_types.
+
+Important:
+
+Do not treat "Social" as a rider discipline.
+
+Display:
+
+- Skiers
+- Snowboarders
+- Telemark
+- Cross-Country
+- Multi-Discipline
+
+Show:
+
+Count
+%
+
+Include note:
+
+"Social is treated as a preference tag rather than a riding discipline."
+
+--------------------------------------------------
+SECTION 4 — DESTINATION INTELLIGENCE
+--------------------------------------------------
+
+Two tables:
+
+Most Wishlisted Resorts
+
+Most Planned Resorts
+
+Display:
+
+Resort
+Users
+Trips
+
+Sort descending.
+
+Use distinct-user counts where appropriate.
+
+--------------------------------------------------
+SECTION 5 — SOCIAL GRAPH
+--------------------------------------------------
+
+Show:
+
+- Avg Friends
+- Median Friends
+- Users With 0 Friends
+- Users With 5+ Friends
+
+Add distribution visualization:
+
+0
+1–4
+5+
+
+--------------------------------------------------
+SECTION 6 — ACTIVATION CORRELATES
+--------------------------------------------------
+
+Show activation rate by:
+
+- Epic vs No Pass
+- Equipment vs No Equipment
+- Friends vs No Friends
+- Availability vs No Availability
+- Wishlist vs No Wishlist
+- Skier vs Non-Skier
+
+Display:
+
+Segment
+Activation Rate
+Lift vs Baseline
+
+Sort descending by lift.
+
+Highlight strongest signal.
+
+--------------------------------------------------
+SECTION 7 — POWER USER PROFILE
+--------------------------------------------------
+
+Definition:
+
+Product Score >= 6
+
+Reuse Product Dashboard scoring exactly.
+
+Compare:
+
+All Users
+vs
+Power Users
+
+Display:
+
+- Avg Friends
+- Avg Trips
+- Avg Wishlist Size
+- Availability Adoption
+- Equipment Adoption
+
+Highlight largest differences.
+
+--------------------------------------------------
+SECTION 8 — USER INSIGHT
+--------------------------------------------------
+
+Calculate all valid insights.
+
+Candidates include:
+
+- Colorado concentration
+- Skier activation lift
+- Power user friend density
+
+Display strongest insight.
+
+Default expected winner:
+
+"61% of users are based in Colorado."
+
+Hide if insufficient data.
+
+--------------------------------------------------
+SECTION 9 — USER STATUS
+--------------------------------------------------
+
+Display:
+
+- Tracked Attributes
+- Reliable Attributes
+- Data Confidence
+
+Confidence should initially render:
+
+Growing
+
+Include note:
+
+"Country data is derived from state information."
+
+--------------------------------------------------
+EXCLUDED / CAVEATED SIGNALS
+--------------------------------------------------
+
+Equipment Ownership
+
+Do NOT use:
+
+User.equipment_status
+
+for ownership rates.
+
+Reason:
+
+Field defaults to "have_own_equipment".
+
+Use EquipmentSetup rows as the behavioral signal.
+
+Country
+
+Display as:
+
+"Derived Country"
+
+not canonical country.
+
+--------------------------------------------------
+DESIGN REQUIREMENTS
+--------------------------------------------------
+
+Match:
+
+- Growth
+- Activation
+- Retention
+- Product
+- Messaging
+- Resort Intelligence
+
+Maintain:
+
+- Mobile-first design
+- Compact KPI cards
+- Horizontal table scrolling
+- No clipped content
+- No overflow
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Verify:
+
+- Non-seeded users only
+- Counts reconcile to audit
+- Power User totals reconcile to Product Dashboard
+- Activation rates reconcile to Activation Dashboard
+- No divide-by-zero errors
+- Empty-state handling
+- Mobile rendering on iPhone 15
+- No template errors
+
+Use checkpoints sparingly.
+
+Do not stop until implementation is complete and fully tested.

@@ -16970,5 +16970,369 @@ def admin_retention():
     )
 
 
+@app.route("/admin/user-intelligence")
+@login_required
+@admin_required
+def admin_user_intelligence():
+    """User Intelligence Dashboard v1 — demographics, pass, rider, destination, social, activation."""
+    from collections import Counter, defaultdict
+    from utils.countries import STATE_ABBR_MAP
+
+    now_dt = datetime.utcnow()
+
+    # ── Base population: non-seeded users ───────────────────────────────
+    ns_users = User.query.filter(User.is_seeded == False).all()
+    ns_ids   = [u.id for u in ns_users]
+    total    = len(ns_users)
+
+    def pct(n, d):
+        return round(n / d * 100) if d else 0
+
+    # ── Pass helpers ─────────────────────────────────────────────────────
+    no_pass_slugs = {'no_pass', 'no_pass_yet', 'none', ''}
+
+    def _has_real_pass(u):
+        pt = u.pass_type or ''
+        for raw in str(pt).split(','):
+            if raw.strip().lower() not in no_pass_slugs:
+                return True
+        return False
+
+    def _pass_slugs(u):
+        pt = u.pass_type or ''
+        return [r.strip().lower() for r in str(pt).split(',') if r.strip().lower() not in no_pass_slugs]
+
+    def _has_avail(u):
+        return isinstance(u.open_dates, list) and len(u.open_dates) > 0
+
+    def _has_wl(u):
+        return isinstance(u.wish_list_resorts, list) and len(u.wish_list_resorts) > 0
+
+    # ── Pre-compute feature sets ─────────────────────────────────────────
+    equip_user_ids = set(
+        r[0] for r in db.session.query(EquipmentSetup.user_id.distinct())
+        .filter(EquipmentSetup.user_id.in_(ns_ids)).all()
+    )
+    friend_user_ids = set(
+        r[0] for r in db.session.query(Friend.user_id.distinct())
+        .filter(Friend.user_id.in_(ns_ids)).all()
+    )
+    trip_rows = db.session.query(
+        SkiTrip.user_id, db.func.count(SkiTrip.id).label('n')
+    ).filter(SkiTrip.user_id.in_(ns_ids)).group_by(SkiTrip.user_id).all()
+    trip_count_map = {r.user_id: r.n for r in trip_rows}
+
+    gt_owner_ids = set(
+        r[0] for r in db.session.query(SkiTrip.user_id.distinct())
+        .filter(SkiTrip.user_id.in_(ns_ids), SkiTrip.is_group_trip == True).all()
+    )
+
+    # ── Product Score (identical to Product Dashboard) ──────────────────
+    def product_score(u):
+        s = 0
+        if _has_real_pass(u):        s += 1
+        if _has_avail(u):            s += 1
+        if _has_wl(u):               s += 1
+        if u.id in equip_user_ids:   s += 1
+        if u.id in friend_user_ids:  s += 1
+        tc = trip_count_map.get(u.id, 0)
+        s += tc * 2
+        if u.id in gt_owner_ids:     s += 3
+        if tc >= 2:                  s += 1
+        return s
+
+    scores       = [product_score(u) for u in ns_users]
+    avg_score    = round(sum(scores) / len(scores), 1) if scores else 0
+    power_ids    = set(u.id for u, s in zip(ns_users, scores) if s >= 6)
+    power_users  = [u for u in ns_users if u.id in power_ids]
+
+    # ── Friend count map ─────────────────────────────────────────────────
+    fr_count_map = defaultdict(int)
+    for r in db.session.query(Friend.user_id, db.func.count(Friend.id).label('n'))\
+            .filter(Friend.user_id.in_(ns_ids)).group_by(Friend.user_id).all():
+        fr_count_map[r.user_id] = r.n
+
+    # ── Section 0: User KPIs ─────────────────────────────────────────────
+    friend_counts   = [fr_count_map.get(u.id, 0) for u in ns_users]
+    trip_counts     = [trip_count_map.get(u.id, 0) for u in ns_users]
+    wl_sizes        = [len(u.wish_list_resorts) if _has_wl(u) else 0 for u in ns_users]
+
+    # Distinct resorts planned per user
+    resort_rows = db.session.query(SkiTrip.user_id, SkiTrip.resort_id)\
+        .filter(SkiTrip.user_id.in_(ns_ids), SkiTrip.resort_id != None).all()
+    user_resort_sets = defaultdict(set)
+    for uid, rid in resort_rows:
+        user_resort_sets[uid].add(rid)
+    planned_sizes = [len(user_resort_sets.get(u.id, set())) for u in ns_users]
+
+    avg_friends         = round(sum(friend_counts) / total, 1) if total else 0
+    avg_trips           = round(sum(trip_counts) / total, 1) if total else 0
+    avg_wishlist        = round(sum(wl_sizes) / total, 1) if total else 0
+    avg_planned_resorts = round(sum(planned_sizes) / total, 1) if total else 0
+
+    kpis = dict(
+        total               = total,
+        avg_friends         = avg_friends,
+        avg_trips           = avg_trips,
+        avg_wishlist        = avg_wishlist,
+        avg_planned_resorts = avg_planned_resorts,
+        avg_score           = avg_score,
+    )
+
+    # ── Section 1: User Profile — Top States ────────────────────────────
+    # Canadian province abbreviations (common ones)
+    CA_PROVINCES = {'AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'}
+
+    def state_to_country(abbr):
+        if not abbr:
+            return 'Unknown'
+        if abbr.upper() in STATE_ABBR_MAP:
+            return 'United States'
+        if abbr.upper() in CA_PROVINCES:
+            return 'Canada'
+        return 'Other'
+
+    state_counter   = Counter(u.home_state for u in ns_users if u.home_state)
+    country_counter = Counter()
+    for u in ns_users:
+        if u.home_state:
+            country_counter[state_to_country(u.home_state)] += 1
+
+    top_states = [
+        dict(state=abbr, name=STATE_ABBR_MAP.get(abbr, abbr), users=n, pct=pct(n, total))
+        for abbr, n in state_counter.most_common(10)
+    ]
+    top_countries = [
+        dict(country=country, users=n, pct=pct(n, total))
+        for country, n in country_counter.most_common()
+    ]
+    state_coverage = pct(sum(1 for u in ns_users if u.home_state), total)
+
+    # ── Section 2: Pass Intelligence ─────────────────────────────────────
+    epic_n  = sum(1 for u in ns_users if 'epic' in _pass_slugs(u))
+    ikon_n  = sum(1 for u in ns_users if 'ikon' in _pass_slugs(u))
+    other_n = sum(
+        1 for u in ns_users
+        if any(s not in ('epic', 'ikon') for s in _pass_slugs(u)) and _has_real_pass(u)
+        and not any(s in ('epic', 'ikon') for s in _pass_slugs(u))
+    )
+    none_n  = sum(1 for u in ns_users if not _has_real_pass(u))
+
+    pass_table = sorted([
+        dict(label='Epic',         users=epic_n,  pct=pct(epic_n,  total)),
+        dict(label='Ikon',         users=ikon_n,  pct=pct(ikon_n,  total)),
+        dict(label='Other Passes', users=other_n, pct=pct(other_n, total)),
+        dict(label='No Pass',      users=none_n,  pct=pct(none_n,  total)),
+    ], key=lambda r: r['users'], reverse=True)
+
+    # ── Section 3: Rider Profile ─────────────────────────────────────────
+    DISCIPLINES = {'Skier', 'Snowboarder', 'Telemark', 'Cross-Country'}
+
+    def _disciplines(u):
+        if not u.rider_types:
+            return set()
+        tags = u.rider_types if isinstance(u.rider_types, list) else [u.rider_types]
+        return {str(t) for t in tags} & DISCIPLINES
+
+    skiers     = sum(1 for u in ns_users if 'Skier' in _disciplines(u))
+    boarders   = sum(1 for u in ns_users if 'Snowboarder' in _disciplines(u))
+    telemark   = sum(1 for u in ns_users if 'Telemark' in _disciplines(u))
+    xc         = sum(1 for u in ns_users if 'Cross-Country' in _disciplines(u))
+    multi      = sum(1 for u in ns_users if len(_disciplines(u)) > 1)
+    unknown_rt = sum(1 for u in ns_users if not _disciplines(u))
+
+    rider_table = [
+        dict(label='Skiers',          users=skiers,   pct=pct(skiers,   total)),
+        dict(label='Snowboarders',     users=boarders, pct=pct(boarders, total)),
+        dict(label='Multi-Discipline', users=multi,    pct=pct(multi,    total)),
+        dict(label='Telemark',         users=telemark, pct=pct(telemark, total)),
+        dict(label='Cross-Country',    users=xc,       pct=pct(xc,       total)),
+    ]
+
+    # ── Section 4: Destination Intelligence ──────────────────────────────
+    # Wishlisted
+    wl_resort_counter = Counter()
+    wl_user_counter   = Counter()
+    for u in ns_users:
+        if _has_wl(u):
+            seen = set()
+            for rid in u.wish_list_resorts:
+                wl_resort_counter[rid] += 1
+                if rid not in seen:
+                    wl_user_counter[rid] += 1
+                    seen.add(rid)
+
+    # Planned (trips per resort, distinct users per resort)
+    planned_trip_counter = Counter(r[1] for r in resort_rows if r[1])
+    planned_user_counter = Counter()
+    for uid, rid in resort_rows:
+        planned_user_counter[rid] += 1  # note: may double-count if same user has 2 trips at same resort
+    # Distinct users per resort
+    user_resort_resort = defaultdict(set)
+    for uid, rid in resort_rows:
+        if rid:
+            user_resort_resort[rid].add(uid)
+    planned_uniq_users = {rid: len(uids) for rid, uids in user_resort_resort.items()}
+
+    # Resolve resort names
+    top_wl_ids      = [rid for rid, _ in wl_user_counter.most_common(5)]
+    top_plan_ids    = [rid for rid, _ in Counter(planned_trip_counter).most_common(5)]
+    all_resort_ids  = list(set(top_wl_ids + top_plan_ids))
+    resort_name_map = {r.id: r.name for r in Resort.query.filter(Resort.id.in_(all_resort_ids)).all()} if all_resort_ids else {}
+
+    top_wishlisted = [
+        dict(name=resort_name_map.get(rid, str(rid)),
+             users=wl_user_counter[rid],
+             trips=wl_resort_counter[rid])
+        for rid in top_wl_ids
+    ]
+    top_planned = [
+        dict(name=resort_name_map.get(rid, str(rid)),
+             users=planned_uniq_users.get(rid, 0),
+             trips=planned_trip_counter[rid])
+        for rid in top_plan_ids
+    ]
+
+    # ── Section 5: Social Graph ───────────────────────────────────────────
+    sorted_friends  = sorted(friend_counts)
+    median_friends  = sorted_friends[len(sorted_friends) // 2] if sorted_friends else 0
+    zero_friends_n  = sum(1 for c in friend_counts if c == 0)
+    five_plus_n     = sum(1 for c in friend_counts if c >= 5)
+    one_to_four_n   = sum(1 for c in friend_counts if 1 <= c <= 4)
+
+    social = dict(
+        avg_friends   = avg_friends,
+        median        = median_friends,
+        zero_n        = zero_friends_n,
+        zero_pct      = pct(zero_friends_n, total),
+        one_four_n    = one_to_four_n,
+        one_four_pct  = pct(one_to_four_n, total),
+        five_plus_n   = five_plus_n,
+        five_plus_pct = pct(five_plus_n, total),
+        dist_max      = max(zero_friends_n, one_to_four_n, five_plus_n, 1),
+    )
+
+    # ── Section 6: Activation Correlates ─────────────────────────────────
+    baseline_act = sum(1 for u in ns_users if u.is_active_user)
+    baseline_pct_val = pct(baseline_act, total)
+
+    def correlate(label, with_ids_set):
+        with_u  = [u for u in ns_users if u.id in with_ids_set]
+        with_n  = len(with_u)
+        act_n   = sum(1 for u in with_u if u.is_active_user)
+        act_pct = pct(act_n, with_n)
+        lift    = round(act_pct / baseline_pct_val, 2) if baseline_pct_val else 0
+        return dict(
+            segment = label,
+            with_n  = with_n,
+            act_n   = act_n,
+            act_pct = act_pct,
+            lift    = lift,
+        )
+
+    epic_ids   = set(u.id for u in ns_users if 'epic' in _pass_slugs(u))
+    skier_ids  = set(u.id for u in ns_users if 'Skier' in _disciplines(u))
+    avail_ids  = set(u.id for u in ns_users if _has_avail(u))
+    wl_ids     = set(u.id for u in ns_users if _has_wl(u))
+
+    correlates_raw = [
+        correlate('Epic Pass',         epic_ids),
+        correlate('Equipment Setup',   equip_user_ids),
+        correlate('Friends',           friend_user_ids),
+        correlate('Availability Set',  avail_ids),
+        correlate('Wishlist',          wl_ids),
+        correlate('Skier',             skier_ids),
+    ]
+    correlates = sorted(correlates_raw, key=lambda r: r['lift'], reverse=True)
+    corr_max   = max((r['act_pct'] for r in correlates), default=1) or 1
+
+    # ── Section 7: Power User Profile ────────────────────────────────────
+    regular_users = [u for u in ns_users if u.id not in power_ids]
+
+    def _avg(users, fn):
+        vals = [fn(u) for u in users]
+        return round(sum(vals) / len(vals), 1) if vals else 0
+
+    power_profile = dict(
+        power_n           = len(power_users),
+        regular_n         = len(regular_users),
+        total             = total,
+        # All users
+        all_avg_friends   = avg_friends,
+        all_avg_trips     = avg_trips,
+        all_avg_wl        = avg_wishlist,
+        all_avail_pct     = pct(len(avail_ids), total),
+        all_equip_pct     = pct(len(equip_user_ids), total),
+        # Power users
+        pow_avg_friends   = _avg(power_users, lambda u: fr_count_map.get(u.id, 0)),
+        pow_avg_trips     = _avg(power_users, lambda u: trip_count_map.get(u.id, 0)),
+        pow_avg_wl        = _avg(power_users, lambda u: len(u.wish_list_resorts) if _has_wl(u) else 0),
+        pow_avail_pct     = pct(sum(1 for u in power_users if _has_avail(u)), max(len(power_users), 1)),
+        pow_equip_pct     = pct(sum(1 for u in power_users if u.id in equip_user_ids), max(len(power_users), 1)),
+    )
+
+    # ── Section 8: User Insight ───────────────────────────────────────────
+    insight = None
+    # Candidate 1: Colorado concentration
+    co_n = state_counter.get('CO', 0)
+    co_pct_val = pct(co_n, sum(state_counter.values()))
+    if co_pct_val >= 50 and co_n >= 5:
+        insight = (
+            f"{co_pct_val}% of users with a home state are based in Colorado "
+            f"({co_n} of {sum(state_counter.values())} users with location data)."
+        )
+    # Candidate 2: Skier activation lift (override if stronger)
+    skier_corr = next((r for r in correlates if r['segment'] == 'Skier'), None)
+    if skier_corr and skier_corr['with_n'] >= 5 and skier_corr['lift'] >= 1.5:
+        lift_disp = f"{skier_corr['lift']}×"
+        skier_insight = (
+            f"Skiers activate at {skier_corr['act_pct']}% vs {baseline_pct_val}% baseline "
+            f"— {lift_disp} the rate of other rider types."
+        )
+        if insight is None:
+            insight = skier_insight
+    # Candidate 3: Power user density (fallback)
+    if insight is None and len(power_users) >= 2:
+        insight = (
+            f"Power users maintain {power_profile['pow_avg_friends']}× more friend connections "
+            f"on average ({power_profile['pow_avg_friends']} vs {avg_friends} overall)."
+        )
+
+    # ── Section 9: User Status ────────────────────────────────────────────
+    status = dict(
+        tracked_attributes  = 10,
+        reliable_n          = 8,   # Green: state, pass, rider, wl, planned, avail, friends, trips
+        confidence          = 'Growing',
+        caveats             = [
+            'Country is derived from state information — no canonical country field exists.',
+            'Equipment ownership uses EquipmentSetup rows (behavioral signal). '
+            'User.equipment_status excluded — defaults to "have own equipment".',
+        ],
+    )
+
+    return render_template(
+        "admin_user_intelligence.html",
+        active_tab          = "user-intelligence",
+        now                 = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        kpis                = kpis,
+        top_states          = top_states,
+        top_countries       = top_countries,
+        state_coverage      = state_coverage,
+        pass_table          = pass_table,
+        rider_table         = rider_table,
+        unknown_rt          = unknown_rt,
+        top_wishlisted      = top_wishlisted,
+        top_planned         = top_planned,
+        social              = social,
+        correlates          = correlates,
+        corr_max            = corr_max,
+        baseline_pct        = baseline_pct_val,
+        baseline_act        = baseline_act,
+        power_profile       = power_profile,
+        insight             = insight,
+        status              = status,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

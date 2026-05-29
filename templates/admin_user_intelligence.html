@@ -1,0 +1,645 @@
+{% extends "admin_console.html" %}
+{% block title %}User Intelligence{% endblock %}
+{% block page_title %}User Intelligence{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 32px; }
+  .ad-updated { font-size: 11px; color: #9E958A; margin-bottom: 8px; }
+  .ad-footnote {
+    font-size: 11px;
+    color: #9E958A;
+    font-style: italic;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  /* ── KPI grid ── */
+  .ui-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 700px) { .ui-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ui-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    min-width: 0;
+  }
+  .ui-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 5px;
+  }
+  .ui-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .ui-card-sub {
+    font-size: 11px;
+    color: #B0A69B;
+    margin-top: 4px;
+  }
+
+  /* ── Generic table ── */
+  .ui-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 9px; }
+  .ui-table {
+    width: 100%;
+    min-width: 320px;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .ui-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    text-align: left;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6;
+    white-space: nowrap;
+  }
+  .ui-table th.th-right { text-align: right; }
+  .ui-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .ui-table tr:last-child td { border-bottom: none; }
+  .ui-table td.td-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #4A4238;
+    white-space: nowrap;
+  }
+  .ui-table td.td-muted { color: #9E958A; font-size: 12px; }
+  .ui-strong { font-weight: 700; color: #5C1219; }
+
+  /* ── Bar rows (pass, rider) ── */
+  .ui-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    background: #fff;
+  }
+  .ui-bar-row:first-child { border-radius: 9px 9px 0 0; }
+  .ui-bar-row:last-child  { border-bottom: none; border-radius: 0 0 9px 9px; }
+  .ui-bar-rows { border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ui-bar-label { font-size: 13px; color: #1C1917; width: 160px; flex-shrink: 0; }
+  .ui-bar-n     { font-size: 15px; font-weight: 700; color: #1C1917; width: 28px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .ui-bar-wrap  { flex: 1; background: #F5F1E8; border-radius: 3px; height: 7px; overflow: hidden; }
+  .ui-bar       { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ui-bar-pct   { font-size: 11px; font-weight: 600; color: #9E958A; width: 36px; text-align: right; flex-shrink: 0; }
+
+  /* ── Two-column layout for profile tables ── */
+  .ui-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .ui-two-col { grid-template-columns: 1fr; } }
+
+  /* ── Social Graph ── */
+  .ui-social-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 640px) { .ui-social-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ui-social-stat {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .ui-social-val   { font-size: 24px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .ui-social-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-top: 4px;
+  }
+
+  /* ── Activation correlates ── */
+  .ui-corr-table { background: #fff; border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ui-corr-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+  }
+  .ui-corr-row:last-child { border-bottom: none; }
+  .ui-corr-row--winner { background: #FDF7F0; }
+  .ui-corr-segment { font-size: 12px; color: #4A4238; width: 140px; flex-shrink: 0; }
+  .ui-corr-n       { font-size: 12px; color: #9E958A; width: 50px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+  .ui-corr-bar-wrap { flex: 1; background: #F5F1E8; border-radius: 3px; height: 6px; overflow: hidden; }
+  .ui-corr-bar     { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ui-corr-pct     { font-size: 13px; font-weight: 700; color: #1C1917; width: 40px; text-align: right; flex-shrink: 0; }
+  .ui-corr-lift    { font-size: 11px; font-weight: 600; width: 44px; text-align: right; flex-shrink: 0; white-space: nowrap; }
+  .ui-corr-lift--high { color: #4A7C59; }
+  .ui-corr-lift--mid  { color: #B07D2E; }
+  .ui-corr-lift--low  { color: #9E958A; }
+  .ui-winner-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: #5C1219;
+    color: #fff;
+    border-radius: 3px;
+    padding: 1px 5px;
+    margin-left: 5px;
+    vertical-align: middle;
+  }
+  .ui-baseline-row {
+    padding: 7px 16px;
+    border-top: 1px solid #E4DDD2;
+    background: #FDFAF6;
+    font-size: 11px;
+    color: #9E958A;
+  }
+
+  /* ── Power User Comparison ── */
+  .ui-power-table { background: #fff; border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden; }
+  .ui-power-row {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    font-size: 13px;
+  }
+  .ui-power-row:last-child { border-bottom: none; }
+  .ui-power-header {
+    display: grid;
+    grid-template-columns: 1fr 80px 80px;
+    padding: 8px 16px 7px;
+    background: #FDFAF6;
+    border-bottom: 1px solid #E4DDD2;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+  }
+  .ui-power-metric { color: #4A4238; }
+  .ui-power-val    { text-align: right; font-variant-numeric: tabular-nums; }
+  .ui-power-val--all { color: #9E958A; }
+  .ui-power-val--pow { color: #5C1219; font-weight: 700; }
+  .ui-power-row--highlight { background: #FDF7F0; }
+
+  /* ── Insight block ── */
+  .ui-insight {
+    background: #F5F1E8;
+    border: 1px solid #E4DDD2;
+    border-left: 3px solid #5C1219;
+    border-radius: 9px;
+    padding: 14px 18px;
+    font-size: 14px;
+    color: #1C1917;
+    line-height: 1.6;
+  }
+  .ui-insight-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #5C1219;
+    margin-bottom: 6px;
+  }
+
+  /* ── Status section ── */
+  .ui-status-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 600px) { .ui-status-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ui-status-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 12px 14px;
+    text-align: center;
+  }
+  .ui-status-val   { font-size: 22px; font-weight: 700; color: #1C1917; }
+  .ui-status-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-top: 3px;
+  }
+  .ui-conf-growing { color: #B07D2E; }
+
+  .ui-caveat-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 12px;
+    color: #9E958A;
+    line-height: 1.7;
+  }
+  .ui-caveat-list li::before { content: "· "; }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Updated {{ now }}</div>
+
+<!-- ── Section 0: User KPIs ─────────────────────────────────────────── -->
+<div class="ad-section" id="ui-kpis">
+  <div class="ad-section-label">User KPIs</div>
+  <div class="ui-kpi-grid">
+    <div class="ui-card">
+      <div class="ui-card-label">Total Users</div>
+      <div class="ui-card-value">{{ kpis.total }}</div>
+      <div class="ui-card-sub">non-seeded</div>
+    </div>
+    <div class="ui-card">
+      <div class="ui-card-label">Avg Friends</div>
+      <div class="ui-card-value">{{ kpis.avg_friends }}</div>
+      <div class="ui-card-sub">per user</div>
+    </div>
+    <div class="ui-card">
+      <div class="ui-card-label">Avg Trips</div>
+      <div class="ui-card-value">{{ kpis.avg_trips }}</div>
+      <div class="ui-card-sub">per user</div>
+    </div>
+    <div class="ui-card">
+      <div class="ui-card-label">Avg Wishlist</div>
+      <div class="ui-card-value">{{ kpis.avg_wishlist }}</div>
+      <div class="ui-card-sub">resorts per user</div>
+    </div>
+    <div class="ui-card">
+      <div class="ui-card-label">Avg Planned Resorts</div>
+      <div class="ui-card-value">{{ kpis.avg_planned_resorts }}</div>
+      <div class="ui-card-sub">distinct per user</div>
+    </div>
+    <div class="ui-card">
+      <div class="ui-card-label">Avg Product Score</div>
+      <div class="ui-card-value">{{ kpis.avg_score }}</div>
+      <div class="ui-card-sub">engagement score</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 1: User Profile ──────────────────────────────────────── -->
+<div class="ad-section" id="ui-profile">
+  <div class="ad-section-label">User Profile</div>
+  <div class="ui-two-col">
+    <!-- Top States -->
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6157;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Top States</div>
+      {% if top_states %}
+      <div class="ui-bar-rows">
+        {% set state_max = top_states[0].users if top_states else 1 %}
+        {% for row in top_states %}
+        <div class="ui-bar-row">
+          <div class="ui-bar-label">{{ row.name }}</div>
+          <div class="ui-bar-n">{{ row.users }}</div>
+          <div class="ui-bar-wrap">
+            <div class="ui-bar" style="width:{{ ((row.users / state_max) * 100)|int }}%"></div>
+          </div>
+          <div class="ui-bar-pct">{{ row.pct }}%</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="ad-footnote">{{ state_coverage }}% of users have location data.</div>
+      {% else %}
+      <div class="ad-footnote">No state data available.</div>
+      {% endif %}
+    </div>
+
+    <!-- Top Countries -->
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6157;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Derived Country</div>
+      {% if top_countries %}
+      <div class="ui-bar-rows">
+        {% set country_max = top_countries[0].users if top_countries else 1 %}
+        {% for row in top_countries %}
+        <div class="ui-bar-row">
+          <div class="ui-bar-label">{{ row.country }}</div>
+          <div class="ui-bar-n">{{ row.users }}</div>
+          <div class="ui-bar-wrap">
+            <div class="ui-bar" style="width:{{ ((row.users / country_max) * 100)|int }}%"></div>
+          </div>
+          <div class="ui-bar-pct">{{ row.pct }}%</div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="ad-footnote">Country is derived from available state data.</div>
+      {% else %}
+      <div class="ad-footnote">No location data to derive country from.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: Pass Intelligence ─────────────────────────────────── -->
+<div class="ad-section" id="ui-pass">
+  <div class="ad-section-label">Pass Intelligence</div>
+  {% if pass_table %}
+  <div class="ui-bar-rows">
+    {% set pass_max = pass_table[0].users if pass_table else 1 %}
+    {% for row in pass_table %}
+    <div class="ui-bar-row">
+      <div class="ui-bar-label">{{ row.label }}</div>
+      <div class="ui-bar-n">{{ row.users }}</div>
+      <div class="ui-bar-wrap">
+        <div class="ui-bar" style="width:{{ ((row.users / pass_max) * 100)|int if pass_max else 0 }}%"></div>
+      </div>
+      <div class="ui-bar-pct">{{ row.pct }}%</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">Pass data from User.pass_type field. Only Epic and Ikon present in current production data.</div>
+  {% else %}
+  <div class="ad-footnote">No pass data available.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 3: Rider Profile ─────────────────────────────────────── -->
+<div class="ad-section" id="ui-rider">
+  <div class="ad-section-label">Rider Profile</div>
+  {% if rider_table %}
+  <div class="ui-bar-rows">
+    {% set rider_max = rider_table | map(attribute='users') | max %}
+    {% for row in rider_table %}
+    {% if row.users > 0 %}
+    <div class="ui-bar-row">
+      <div class="ui-bar-label">{{ row.label }}</div>
+      <div class="ui-bar-n">{{ row.users }}</div>
+      <div class="ui-bar-wrap">
+        <div class="ui-bar" style="width:{{ ((row.users / rider_max) * 100)|int if rider_max else 0 }}%"></div>
+      </div>
+      <div class="ui-bar-pct">{{ row.pct }}%</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% if unknown_rt > 0 %}
+    <div class="ui-bar-row">
+      <div class="ui-bar-label" style="color:#9E958A;">Unknown</div>
+      <div class="ui-bar-n" style="color:#9E958A;">{{ unknown_rt }}</div>
+      <div class="ui-bar-wrap">
+        <div class="ui-bar" style="width:{{ ((unknown_rt / rider_max) * 100)|int if rider_max else 0 }}%; background:#C4B8AC;"></div>
+      </div>
+      <div class="ui-bar-pct" style="color:#B0A69B;">{{ ((unknown_rt / kpis.total) * 100)|int if kpis.total else 0 }}%</div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="ad-footnote">Multi-Discipline = users who selected more than one riding discipline. "Social" is treated as a preference tag rather than a riding discipline and is excluded from counts.</div>
+  {% else %}
+  <div class="ad-footnote">No rider type data available.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 4: Destination Intelligence ──────────────────────────── -->
+<div class="ad-section" id="ui-destination">
+  <div class="ad-section-label">Destination Intelligence</div>
+  <div class="ui-two-col">
+    <!-- Wishlisted -->
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6157;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Most Wishlisted</div>
+      {% if top_wishlisted %}
+      <div class="ui-table-wrap">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Resort</th>
+              <th class="th-right">Users</th>
+              <th class="th-right">Saves</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in top_wishlisted %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td class="td-num">{{ row.users }}</td>
+              <td class="td-num">{{ row.trips }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="ad-footnote">No wishlist data available.</div>
+      {% endif %}
+    </div>
+
+    <!-- Planned -->
+    <div>
+      <div style="font-size:11px;font-weight:600;color:#6B6157;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Most Planned</div>
+      {% if top_planned %}
+      <div class="ui-table-wrap">
+        <table class="ui-table">
+          <thead>
+            <tr>
+              <th>Resort</th>
+              <th class="th-right">Users</th>
+              <th class="th-right">Trips</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in top_planned %}
+            <tr>
+              <td>{{ row.name }}</td>
+              <td class="td-num">{{ row.users }}</td>
+              <td class="td-num">{{ row.trips }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="ad-footnote">No trip resort data available.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 5: Social Graph ───────────────────────────────────────── -->
+<div class="ad-section" id="ui-social">
+  <div class="ad-section-label">Social Graph</div>
+  <div class="ui-social-grid">
+    <div class="ui-social-stat">
+      <div class="ui-social-val">{{ social.avg_friends }}</div>
+      <div class="ui-social-label">Avg Friends</div>
+    </div>
+    <div class="ui-social-stat">
+      <div class="ui-social-val">{{ social.median }}</div>
+      <div class="ui-social-label">Median Friends</div>
+    </div>
+    <div class="ui-social-stat">
+      <div class="ui-social-val">{{ social.zero_n }}</div>
+      <div class="ui-social-label">0 Friends</div>
+    </div>
+    <div class="ui-social-stat">
+      <div class="ui-social-val">{{ social.five_plus_n }}</div>
+      <div class="ui-social-label">5+ Friends</div>
+    </div>
+  </div>
+  <!-- Distribution bar -->
+  <div style="font-size:11px;font-weight:600;color:#6B6157;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Friend Count Distribution</div>
+  <div class="ui-bar-rows">
+    <div class="ui-bar-row">
+      <div class="ui-bar-label">0 friends</div>
+      <div class="ui-bar-n">{{ social.zero_n }}</div>
+      <div class="ui-bar-wrap">
+        <div class="ui-bar" style="width:{{ ((social.zero_n / social.dist_max) * 100)|int if social.dist_max else 0 }}%; background:#C4B8AC;"></div>
+      </div>
+      <div class="ui-bar-pct">{{ social.zero_pct }}%</div>
+    </div>
+    <div class="ui-bar-row">
+      <div class="ui-bar-label">1–4 friends</div>
+      <div class="ui-bar-n">{{ social.one_four_n }}</div>
+      <div class="ui-bar-wrap">
+        <div class="ui-bar" style="width:{{ ((social.one_four_n / social.dist_max) * 100)|int if social.dist_max else 0 }}%"></div>
+      </div>
+      <div class="ui-bar-pct">{{ social.one_four_pct }}%</div>
+    </div>
+    <div class="ui-bar-row">
+      <div class="ui-bar-label">5+ friends</div>
+      <div class="ui-bar-n">{{ social.five_plus_n }}</div>
+      <div class="ui-bar-wrap">
+        <div class="ui-bar" style="width:{{ ((social.five_plus_n / social.dist_max) * 100)|int if social.dist_max else 0 }}%; background:#4A7C59;"></div>
+      </div>
+      <div class="ui-bar-pct">{{ social.five_plus_pct }}%</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 6: Activation Correlates ────────────────────────────── -->
+<div class="ad-section" id="ui-correlates">
+  <div class="ad-section-label">Activation Correlates</div>
+  {% if correlates %}
+  <div class="ui-corr-table">
+    <div style="display:grid;grid-template-columns:140px 50px 1fr 40px 44px;padding:8px 16px 7px;background:#FDFAF6;border-bottom:1px solid #E4DDD2;font-size:10px;font-weight:700;letter-spacing:0.09em;text-transform:uppercase;color:#9E958A;gap:10px;">
+      <div>Segment</div>
+      <div style="text-align:right;">Users</div>
+      <div></div>
+      <div style="text-align:right;">Rate</div>
+      <div style="text-align:right;">Lift</div>
+    </div>
+    {% for row in correlates %}
+    {% set is_winner = loop.first %}
+    <div class="ui-corr-row {{ 'ui-corr-row--winner' if is_winner else '' }}">
+      <div class="ui-corr-segment">
+        {{ row.segment }}
+        {% if is_winner %}<span class="ui-winner-badge">Top</span>{% endif %}
+      </div>
+      <div class="ui-corr-n">{{ row.with_n }} users</div>
+      <div class="ui-corr-bar-wrap">
+        <div class="ui-corr-bar" style="width:{{ ((row.act_pct / corr_max) * 100)|int if corr_max else 0 }}%"></div>
+      </div>
+      <div class="ui-corr-pct">{{ row.act_pct }}%</div>
+      <div class="ui-corr-lift {{ 'ui-corr-lift--high' if row.lift >= 1.5 else ('ui-corr-lift--mid' if row.lift >= 1.1 else 'ui-corr-lift--low') }}">
+        {{ row.lift }}×
+      </div>
+    </div>
+    {% endfor %}
+    <div class="ui-baseline-row">
+      Baseline activation: {{ baseline_act }} of {{ kpis.total }} users ({{ baseline_pct }}%). Lift = segment activation ÷ baseline.
+    </div>
+  </div>
+  {% else %}
+  <div class="ad-footnote">Insufficient data to compute activation correlates.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 7: Power User Profile ────────────────────────────────── -->
+<div class="ad-section" id="ui-power">
+  <div class="ad-section-label">Power User Profile</div>
+  <div style="font-size:12px;color:#6B6157;margin-bottom:10px;">
+    Power users = Product Score ≥ 6 &nbsp;·&nbsp;
+    <strong style="color:#5C1219;">{{ power_profile.power_n }}</strong> of {{ power_profile.total }} users
+    ({{ ((power_profile.power_n / power_profile.total * 100)|int) if power_profile.total else 0 }}%)
+  </div>
+  <div class="ui-power-table">
+    <div class="ui-power-header">
+      <div>Attribute</div>
+      <div style="text-align:right;">All Users</div>
+      <div style="text-align:right;">Power Users</div>
+    </div>
+    {% set rows = [
+      ('Avg Friends',          power_profile.all_avg_friends, power_profile.pow_avg_friends),
+      ('Avg Trips',            power_profile.all_avg_trips,   power_profile.pow_avg_trips),
+      ('Avg Wishlist Size',    power_profile.all_avg_wl,      power_profile.pow_avg_wl),
+      ('Availability (%)',     power_profile.all_avail_pct,   power_profile.pow_avail_pct),
+      ('Equipment Setup (%)',  power_profile.all_equip_pct,   power_profile.pow_equip_pct),
+    ] %}
+    {% for label, all_val, pow_val in rows %}
+    {% set ratio = (pow_val / all_val) if all_val else 0 %}
+    <div class="ui-power-row {{ 'ui-power-row--highlight' if ratio >= 2 else '' }}">
+      <div class="ui-power-metric">{{ label }}</div>
+      <div class="ui-power-val ui-power-val--all">{{ all_val }}</div>
+      <div class="ui-power-val ui-power-val--pow">
+        {{ pow_val }}
+        {% if ratio >= 2 %}
+          <span style="font-size:10px;color:#4A7C59;font-weight:700;"> ({{ "%.1f"|format(ratio) }}×)</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">Highlighted rows show 2× or greater difference between power users and all users.</div>
+</div>
+
+<!-- ── Section 8: User Insight ───────────────────────────────────────── -->
+{% if insight %}
+<div class="ad-section" id="ui-insight">
+  <div class="ad-section-label">User Insight</div>
+  <div class="ui-insight">
+    <div class="ui-insight-label">Insight</div>
+    {{ insight }}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Section 9: User Status ────────────────────────────────────────── -->
+<div class="ad-section" id="ui-status">
+  <div class="ad-section-label">User Intelligence Status</div>
+  <div class="ui-status-grid">
+    <div class="ui-status-card">
+      <div class="ui-status-val">{{ status.tracked_attributes }}</div>
+      <div class="ui-status-label">Tracked Attributes</div>
+    </div>
+    <div class="ui-status-card">
+      <div class="ui-status-val">{{ status.reliable_n }}</div>
+      <div class="ui-status-label">Reliable Attributes</div>
+    </div>
+    <div class="ui-status-card">
+      <div class="ui-status-val ui-conf-growing">{{ status.confidence }}</div>
+      <div class="ui-status-label">Data Confidence</div>
+    </div>
+  </div>
+  {% if status.caveats %}
+  <ul class="ui-caveat-list">
+    {% for c in status.caveats %}
+    <li>{{ c }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endblock %}
