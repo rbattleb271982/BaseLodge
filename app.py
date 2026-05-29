@@ -16536,6 +16536,185 @@ def admin_activation():
     )
 
 
+@app.route("/admin/resort-intelligence")
+@login_required
+@admin_required
+def admin_resort_intelligence():
+    """Resort Intelligence v1 — destination demand from wishlist, trips, and page views."""
+    from collections import defaultdict
+    from datetime import timedelta
+    from sqlalchemy import func
+
+    now_dt = datetime.utcnow()
+    VIEW_TRACKING_LAUNCH = datetime(2026, 5, 27)
+    tracking_age_days = (now_dt - VIEW_TRACKING_LAUNCH).days
+
+    # ── Non-seeded user base ─────────────────────────────────────────────────
+    all_users = User.query.filter(User.is_seeded == False).all()
+    ns_ids    = [u.id for u in all_users]
+    total_users = len(all_users)
+
+    # ── Per-resort signals ────────────────────────────────────────────────────
+    # Wishlist: User.wish_list_resorts (JSON list of resort IDs)
+    wl_count  = defaultdict(int)   # resort_id → wishlist count
+    wl_users  = defaultdict(set)   # resort_id → set of user_ids (for conversion)
+    for u in all_users:
+        for rid in (u.wish_list_resorts or []):
+            wl_count[rid]  += 1
+            wl_users[rid].add(u.id)
+
+    # Trips: SkiTrip grouped by resort_id
+    trip_rows = db.session.query(
+        SkiTrip.resort_id,
+        func.count(SkiTrip.id).label("trips"),
+        func.sum(db.cast(SkiTrip.is_group_trip, db.Integer)).label("group_trips"),
+    ).filter(
+        SkiTrip.user_id.in_(ns_ids),
+        SkiTrip.resort_id != None,
+    ).group_by(SkiTrip.resort_id).all()
+
+    trip_count  = {r.resort_id: r.trips       for r in trip_rows}
+    gt_count    = {r.resort_id: r.group_trips  for r in trip_rows}
+
+    # Trip user sets (for wishlist → trip conversion)
+    trip_user_rows = db.session.query(SkiTrip.resort_id, SkiTrip.user_id).filter(
+        SkiTrip.user_id.in_(ns_ids), SkiTrip.resort_id != None
+    ).all()
+    trip_users = defaultdict(set)
+    for row in trip_user_rows:
+        trip_users[row.resort_id].add(row.user_id)
+
+    # Page views
+    view_rows = db.session.query(
+        MountainPageView.resort_id,
+        func.count(MountainPageView.id).label("views"),
+    ).group_by(MountainPageView.resort_id).all()
+    view_count = {r.resort_id: r.views for r in view_rows}
+
+    # ── All resort IDs with any signal ───────────────────────────────────────
+    all_active_ids = set(wl_count) | set(trip_count) | set(view_count)
+
+    # ── Fetch resort names in one query ──────────────────────────────────────
+    resort_map = {}
+    if all_active_ids:
+        for r in Resort.query.filter(Resort.id.in_(all_active_ids)).all():
+            resort_map[r.id] = r.name
+
+    # ── Build unified per-resort rows ─────────────────────────────────────────
+    rows = []
+    for rid in all_active_ids:
+        wl  = wl_count.get(rid, 0)
+        tr  = trip_count.get(rid, 0)
+        gt  = int(gt_count.get(rid, 0) or 0)
+        vw  = view_count.get(rid, 0)
+        # Wishlist → Trip conversion: % of wishlisters who also tripped here
+        wl_uid = wl_users.get(rid, set())
+        tr_uid = trip_users.get(rid, set())
+        wl_trip_conv = round(len(wl_uid & tr_uid) / len(wl_uid) * 100) if wl_uid else None
+        # Trip → Group %
+        tr_gt_conv = round(gt / tr * 100) if tr else None
+        rows.append({
+            "id":           rid,
+            "name":         resort_map.get(rid, f"Resort {rid}"),
+            "wishlists":    wl,
+            "trips":        tr,
+            "group_trips":  gt,
+            "views":        vw,
+            "wl_trip_conv": wl_trip_conv,
+            "tr_gt_conv":   tr_gt_conv,
+        })
+
+    # ── Section 0: Executive KPIs ─────────────────────────────────────────────
+    total_wishlists   = sum(wl_count.values())
+    total_trips_count = sum(trip_count.values())
+    total_group_trips = sum(int(v or 0) for v in gt_count.values())
+    total_views       = sum(view_count.values())
+    trip_planners     = db.session.query(SkiTrip.user_id.distinct()).filter(
+        SkiTrip.user_id.in_(ns_ids)
+    ).count()
+    resorts_with_activity = len(all_active_ids)
+
+    exec_kpis = dict(
+        resorts_with_activity = resorts_with_activity,
+        trip_planners         = trip_planners,
+        total_wishlists       = total_wishlists,
+        total_group_trips     = total_group_trips,
+        total_views           = total_views,
+    )
+
+    # ── Section 1: Demand table — top 25 by trips DESC ────────────────────────
+    demand_table = sorted(rows, key=lambda r: (-r["trips"], -r["wishlists"]))[:25]
+
+    # ── Section 2: Funnel — resorts with ≥1 trip, top 10 ─────────────────────
+    funnel_rows = sorted(
+        [r for r in rows if r["trips"] > 0],
+        key=lambda r: -r["trips"]
+    )[:10]
+
+    # ── Section 3: Leaderboards ───────────────────────────────────────────────
+    lb_most_wishlisted = sorted(
+        [r for r in rows if r["wishlists"] > 0],
+        key=lambda r: -r["wishlists"]
+    )[:5]
+    lb_most_planned = sorted(
+        [r for r in rows if r["trips"] > 0],
+        key=lambda r: -r["trips"]
+    )[:5]
+    lb_wl_trip_conv = sorted(
+        [r for r in rows if r["wl_trip_conv"] is not None and r["wishlists"] >= 1],
+        key=lambda r: -r["wl_trip_conv"]
+    )[:5]
+
+    leaderboards = dict(
+        most_wishlisted = lb_most_wishlisted,
+        most_planned    = lb_most_planned,
+        wl_trip_conv    = lb_wl_trip_conv,
+    )
+
+    # ── Section 6: Market Insight ─────────────────────────────────────────────
+    top_planned    = lb_most_planned[0]  if lb_most_planned    else None
+    top_wishlisted = lb_most_wishlisted[0] if lb_most_wishlisted else None
+    insight = None
+    if top_planned and top_wishlisted:
+        if top_planned["id"] == top_wishlisted["id"]:
+            insight = f"{top_planned['name']} leads both planning and aspiration."
+        else:
+            insight = (
+                f"{top_planned['name']} is the most planned destination. "
+                f"{top_wishlisted['name']} is the most aspirational destination."
+            )
+
+    # ── Section 7: Destination Status ────────────────────────────────────────
+    if tracking_age_days < 30:
+        confidence = "Low"
+    elif tracking_age_days < 180:
+        confidence = "Growing"
+    else:
+        confidence = "High"
+
+    total_resorts = Resort.query.count()
+
+    status = dict(
+        total_resorts          = total_resorts,
+        resorts_with_activity  = resorts_with_activity,
+        confidence             = confidence,
+        tracking_age_days      = tracking_age_days,
+    )
+
+    return render_template(
+        "admin_resort_intelligence.html",
+        active_tab    = "resort_intelligence",
+        now           = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        exec_kpis     = exec_kpis,
+        demand_table  = demand_table,
+        funnel_rows   = funnel_rows,
+        leaderboards  = leaderboards,
+        insight       = insight,
+        status        = status,
+        total_views   = total_views,
+    )
+
+
 @app.route("/admin/retention")
 @login_required
 @admin_required

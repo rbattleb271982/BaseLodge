@@ -1,0 +1,565 @@
+{% extends "admin_console.html" %}
+{% block title %}Resort Intelligence{% endblock %}
+{% block page_title %}Resort Intelligence{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+    color: #6B6157;
+    margin: 0 0 10px;
+  }
+  .ad-section { margin-bottom: 32px; }
+  .ad-updated { font-size: 11px; color: #9E958A; margin-bottom: 8px; }
+
+  /* ── Caveat note ── */
+  .ri-caveat {
+    font-size: 12px;
+    color: #6B6560;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 7px;
+    padding: 9px 14px;
+    margin-bottom: 18px;
+  }
+
+  /* ── KPI grid ── */
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 900px) { .ad-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 700px) { .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  /* ── KPI card ── */
+  .ad-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    min-width: 0;
+  }
+  .ad-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 5px;
+  }
+  .ad-card-value {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1C1917;
+    line-height: 1;
+  }
+  .ad-card-sub {
+    font-size: 11px;
+    color: #B0A69B;
+    margin-top: 4px;
+    font-style: italic;
+  }
+
+  /* ── Progress bar ── */
+  .gr-bar-wrap {
+    background: #F5F1E8;
+    border-radius: 4px;
+    height: 5px;
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .gr-bar { height: 100%; background: #5C1219; border-radius: 4px; }
+  .gr-bar--muted { background: #C4B8AC; }
+
+  /* ── Generic table shell ── */
+  .ri-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 9px;
+  }
+  .ri-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    overflow: hidden;
+  }
+  .ri-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    text-align: left;
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6;
+    white-space: nowrap;
+  }
+  .ri-table th.th-right { text-align: right; }
+  .ri-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid #F0EBE3;
+    color: #1C1917;
+    vertical-align: middle;
+  }
+  .ri-table tr:last-child td { border-bottom: none; }
+  .ri-table td.td-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #4A4238;
+  }
+  .ri-table td.td-muted { text-align: right; color: #B0A69B; font-variant-numeric: tabular-nums; }
+  .ri-table td.td-conv {
+    text-align: right;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .ri-conv--high { color: #4A7C59; }
+  .ri-conv--mid  { color: #B07D2E; }
+  .ri-conv--low  { color: #9E958A; }
+  .ri-resort-name { font-weight: 500; }
+
+  /* ── Funnel rows ── */
+  .ri-funnel-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 700px) { .ri-funnel-grid { grid-template-columns: 1fr; } }
+
+  .ri-funnel-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 12px;
+    min-width: 0;
+  }
+  .ri-funnel-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1C1917;
+    margin-bottom: 10px;
+  }
+  .ri-funnel-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 7px;
+  }
+  .ri-funnel-label {
+    font-size: 11px;
+    color: #9E958A;
+    width: 70px;
+    flex-shrink: 0;
+  }
+  .ri-funnel-val {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1C1917;
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .ri-funnel-bar-wrap {
+    flex: 1;
+    background: #F5F1E8;
+    border-radius: 3px;
+    height: 5px;
+    overflow: hidden;
+  }
+  .ri-funnel-bar { height: 100%; background: #5C1219; border-radius: 3px; }
+  .ri-funnel-bar--mid { background: #8B6340; }
+  .ri-funnel-bar--light { background: #C4B8AC; }
+  .ri-funnel-conv {
+    font-size: 10px;
+    color: #B0A69B;
+    margin-top: 3px;
+    margin-left: 78px;
+    font-style: italic;
+  }
+
+  /* ── Leaderboard columns ── */
+  .ri-lb-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 800px) { .ri-lb-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 500px) { .ri-lb-grid { grid-template-columns: 1fr; } }
+
+  .ri-lb-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 14px 16px 10px;
+  }
+  .ri-lb-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+    margin-bottom: 10px;
+  }
+  .ri-lb-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 7px;
+  }
+  .ri-lb-rank {
+    font-size: 10px;
+    font-weight: 700;
+    color: #B0A69B;
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .ri-lb-name {
+    font-size: 12px;
+    color: #1C1917;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ri-lb-val {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5C1219;
+    white-space: nowrap;
+  }
+
+  /* ── Empty state ── */
+  .ri-empty {
+    background: #FDFAF6;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 20px 18px;
+    font-size: 13px;
+    color: #6B6560;
+    line-height: 1.6;
+  }
+  .ri-empty strong { color: #1C1917; display: block; margin-bottom: 4px; }
+
+  /* ── Status card ── */
+  .ri-status {
+    background: #FDFAF6;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 12px 16px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #4A4238;
+    margin-top: 10px;
+  }
+  .ri-status-item { display: flex; flex-direction: column; gap: 2px; }
+  .ri-status-key {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: #9E958A;
+  }
+  .ri-status-val { font-size: 14px; font-weight: 600; color: #1C1917; }
+  .ri-conf--low     { color: #9B3A3A; }
+  .ri-conf--growing { color: #B07D2E; }
+  .ri-conf--high    { color: #4A7C59; }
+
+  /* ── Insight banner ── */
+  .ri-insight {
+    background: rgba(92,18,25,0.05);
+    border: 1px solid rgba(92,18,25,0.15);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #3B0D13;
+    line-height: 1.5;
+  }
+  .ri-insight-icon { font-size: 16px; flex-shrink: 0; }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }}</div>
+<div class="ri-caveat">
+  Resort demand signals use wishlist, trip planning, and mountain page view data. View tracking launched May 27, 2026 — page view counts will grow over time. Overlaps and view-to-wishlist conversion are deferred to v2.
+</div>
+
+<!-- ── Section 0: Executive KPIs ─────────────────────────────────────── -->
+<div class="ad-section" id="ri-kpis">
+  <div class="ad-section-label">Destination KPIs</div>
+  <div class="ad-kpi-grid">
+
+    <div class="ad-card">
+      <div class="ad-card-label">Resorts With Activity</div>
+      <div class="ad-card-value">{{ exec_kpis.resorts_with_activity }}</div>
+      <div class="ad-card-sub">wishlist, trip, or view signal</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Trip Planners</div>
+      <div class="ad-card-value">{{ exec_kpis.trip_planners }}</div>
+      <div class="ad-card-sub">users with ≥1 planned trip</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Wishlist Adds</div>
+      <div class="ad-card-value">{{ exec_kpis.total_wishlists }}</div>
+      <div class="ad-card-sub">across all users (max 3 each)</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Group Trips</div>
+      <div class="ad-card-value">{{ exec_kpis.total_group_trips }}</div>
+      <div class="ad-card-sub">trips with ≥1 participant</div>
+    </div>
+
+    <div class="ad-card">
+      <div class="ad-card-label">Page Views</div>
+      <div class="ad-card-value">{{ exec_kpis.total_views }}</div>
+      <div class="ad-card-sub">tracking launched May 27, 2026</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Section 1: Resort Demand Table ────────────────────────────────── -->
+<div class="ad-section" id="ri-table">
+  <div class="ad-section-label">Resort Demand Table</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">Top {{ demand_table|length }} resorts with any demand signal. Sorted by trips.</div>
+
+  <div class="ri-table-wrap">
+    <table class="ri-table">
+      <thead>
+        <tr>
+          <th>Resort</th>
+          <th class="th-right">Wishlists</th>
+          <th class="th-right">Trips</th>
+          <th class="th-right">Group Trips</th>
+          <th class="th-right">Page Views</th>
+          <th class="th-right">WL→Trip</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in demand_table %}
+        <tr>
+          <td class="ri-resort-name">{{ row.name }}</td>
+          <td class="td-num">{{ row.wishlists if row.wishlists else '—' }}</td>
+          <td class="td-num" style="font-weight:{% if row.trips > 0 %}600{% else %}400{% endif %};">
+            {{ row.trips if row.trips else '—' }}
+          </td>
+          <td class="td-muted">{{ row.group_trips if row.group_trips else '—' }}</td>
+          <td class="td-muted">{{ row.views if row.views else '—' }}</td>
+          <td class="td-conv">
+            {% if row.wl_trip_conv is not none %}
+              <span class="{{ 'ri-conv--high' if row.wl_trip_conv >= 50 else ('ri-conv--mid' if row.wl_trip_conv >= 20 else 'ri-conv--low') }}">
+                {{ row.wl_trip_conv }}%
+              </span>
+            {% else %}
+              <span style="color:#E4DDD2;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Section 2: Demand Funnel ───────────────────────────────────────── -->
+<div class="ad-section" id="ri-funnel">
+  <div class="ad-section-label">Demand Funnel — Wishlist → Trip → Group Trip</div>
+  {% if funnel_rows %}
+  {% set max_wl = funnel_rows | map(attribute='wishlists') | max %}
+  {% set max_tr = funnel_rows | map(attribute='trips') | max %}
+  <div class="ri-funnel-grid">
+    {% for row in funnel_rows %}
+    <div class="ri-funnel-card">
+      <div class="ri-funnel-name">{{ row.name }}</div>
+
+      <div class="ri-funnel-row">
+        <span class="ri-funnel-label">Wishlisted</span>
+        <span class="ri-funnel-val">{{ row.wishlists }}</span>
+        <div class="ri-funnel-bar-wrap">
+          <div class="ri-funnel-bar ri-funnel-bar--light"
+               style="width:{{ (row.wishlists / max_wl * 100)|int if max_wl else 0 }}%;"></div>
+        </div>
+      </div>
+
+      <div class="ri-funnel-row">
+        <span class="ri-funnel-label">Trip Planned</span>
+        <span class="ri-funnel-val">{{ row.trips }}</span>
+        <div class="ri-funnel-bar-wrap">
+          <div class="ri-funnel-bar ri-funnel-bar--mid"
+               style="width:{{ (row.trips / max_tr * 100)|int if max_tr else 0 }}%;"></div>
+        </div>
+      </div>
+      {% if row.wl_trip_conv is not none %}
+      <div class="ri-funnel-conv">{{ row.wl_trip_conv }}% of wishlisters planned a trip here</div>
+      {% endif %}
+
+      <div class="ri-funnel-row">
+        <span class="ri-funnel-label">Group Trip</span>
+        <span class="ri-funnel-val">{{ row.group_trips }}</span>
+        <div class="ri-funnel-bar-wrap">
+          <div class="ri-funnel-bar"
+               style="width:{{ (row.group_trips / max_tr * 100)|int if max_tr else 0 }}%;"></div>
+        </div>
+      </div>
+      {% if row.tr_gt_conv is not none and row.group_trips > 0 %}
+      <div class="ri-funnel-conv">{{ row.tr_gt_conv }}% of trips became group trips</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ri-empty"><strong>No trip data yet.</strong> This section will populate once users create planned trips.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 3: Leaderboards ────────────────────────────────────────── -->
+<div class="ad-section" id="ri-leaderboards">
+  <div class="ad-section-label">Leaderboards</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">View-based leaderboards deferred until page view tracking matures.</div>
+
+  <div class="ri-lb-grid">
+
+    <!-- Most Wishlisted -->
+    <div class="ri-lb-card">
+      <div class="ri-lb-title">Most Wishlisted</div>
+      {% for row in leaderboards.most_wishlisted %}
+      <div class="ri-lb-row">
+        <span class="ri-lb-rank">{{ loop.index }}</span>
+        <span class="ri-lb-name" title="{{ row.name }}">{{ row.name }}</span>
+        <span class="ri-lb-val">{{ row.wishlists }}</span>
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:#B0A69B;font-style:italic;">No wishlist data yet.</div>
+      {% endfor %}
+    </div>
+
+    <!-- Most Planned -->
+    <div class="ri-lb-card">
+      <div class="ri-lb-title">Most Planned</div>
+      {% for row in leaderboards.most_planned %}
+      <div class="ri-lb-row">
+        <span class="ri-lb-rank">{{ loop.index }}</span>
+        <span class="ri-lb-name" title="{{ row.name }}">{{ row.name }}</span>
+        <span class="ri-lb-val">{{ row.trips }} trips</span>
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:#B0A69B;font-style:italic;">No trip data yet.</div>
+      {% endfor %}
+    </div>
+
+    <!-- Wishlist → Trip Conversion -->
+    <div class="ri-lb-card">
+      <div class="ri-lb-title">Highest WL&rarr;Trip</div>
+      {% for row in leaderboards.wl_trip_conv %}
+      <div class="ri-lb-row">
+        <span class="ri-lb-rank">{{ loop.index }}</span>
+        <span class="ri-lb-name" title="{{ row.name }}">{{ row.name }}</span>
+        <span class="ri-lb-val">{{ row.wl_trip_conv }}%</span>
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:#B0A69B;font-style:italic;">No conversion data yet.</div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Section 4: Fastest Growing ────────────────────────────────────── -->
+<div class="ad-section" id="ri-growing">
+  <div class="ad-section-label">Fastest Growing</div>
+  <div class="ri-empty">
+    <strong>Not enough history yet.</strong>
+    Mountain view tracking launched May 27, 2026. A 30-day vs prior-30-day comparison requires at least 60 days of data.
+  </div>
+</div>
+
+<!-- ── Section 5: Social Destinations ────────────────────────────────── -->
+<div class="ad-section" id="ri-social">
+  <div class="ad-section-label">Social Destinations</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Showing group trips only. Friends Going and Overlap metrics deferred to v2 — not reliably calculable from current data.
+  </div>
+
+  {% set social_rows = demand_table | selectattr('group_trips', 'gt', 0) | sort(attribute='group_trips', reverse=True) | list %}
+  {% if social_rows %}
+  <div class="ri-table-wrap">
+    <table class="ri-table" style="min-width:320px;">
+      <thead>
+        <tr>
+          <th>Resort</th>
+          <th class="th-right">Group Trips</th>
+          <th class="th-right">Total Trips</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in social_rows %}
+        <tr>
+          <td class="ri-resort-name">{{ row.name }}</td>
+          <td class="td-num" style="font-weight:600;color:#5C1219;">{{ row.group_trips }}</td>
+          <td class="td-muted">{{ row.trips }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="ri-empty"><strong>No group trips yet.</strong> Social destination signals will appear once users create group trips.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 6: Market Insight ─────────────────────────────────────── -->
+<div class="ad-section" id="ri-insight">
+  <div class="ad-section-label">Market Insight</div>
+  {% if insight %}
+  <div class="ri-insight">
+    <span class="ri-insight-icon">&#9654;</span>
+    <span>{{ insight }}</span>
+  </div>
+  {% else %}
+  <div class="ri-empty"><strong>Not enough data yet.</strong> Insight will appear once trip and wishlist signals are established.</div>
+  {% endif %}
+</div>
+
+<!-- ── Section 7: Destination Status ─────────────────────────────────── -->
+<div class="ad-section" id="ri-status">
+  <div class="ad-section-label">Destination Status</div>
+  <div class="ri-status">
+    <div class="ri-status-item">
+      <span class="ri-status-key">Tracked Resorts</span>
+      <span class="ri-status-val">{{ status.total_resorts }}</span>
+    </div>
+    <div class="ri-status-item">
+      <span class="ri-status-key">Resorts With Activity</span>
+      <span class="ri-status-val">{{ status.resorts_with_activity }}</span>
+    </div>
+    <div class="ri-status-item">
+      <span class="ri-status-key">Data Confidence</span>
+      <span class="ri-status-val ri-conf--{{ status.confidence | lower }}">{{ status.confidence }}</span>
+    </div>
+    <div class="ri-status-item">
+      <span class="ri-status-key">View Tracking Age</span>
+      <span class="ri-status-val">{{ status.tracking_age_days }} day{{ 's' if status.tracking_age_days != 1 else '' }}</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#9E958A;margin-top:8px;">Mountain page tracking launched May 27, 2026.</div>
+</div>
+
+{% endblock %}
