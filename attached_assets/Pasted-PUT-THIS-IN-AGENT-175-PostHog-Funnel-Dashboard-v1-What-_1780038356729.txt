@@ -1,0 +1,166 @@
+PUT THIS IN AGENT
+
+#175 - PostHog Funnel Dashboard v1
+
+What & Why
+
+PostHog instrumentation is now live through the activation journey.
+
+Build a dedicated admin page:
+
+/admin/posthog-funnels
+
+This page should visualize actual PostHog funnel progression rather than database-derived proxy metrics.
+
+Goal:
+
+Answer:
+
+- Where are users dropping off?
+- Which activation steps are weakest?
+- How long does each step take?
+- Which activation actions correlate with trip creation?
+
+Use existing PostHog implementation only.
+
+Do not add:
+
+- New events
+- New vendors
+- New tracking systems
+
+--------------------------------------------------
+PHASE 1 — FEASIBILITY AUDIT
+--------------------------------------------------
+
+Before building:
+
+Audit whether PostHog events are flowing and available.
+
+Verify availability of:
+
+- signup_started
+- signup_completed
+- onboarding_completed
+- pass_added
+- availability_added
+- wishlist_added
+- trip_created
+- friend_connected
+- invite_generated
+
+For each event provide:
+
+- Event count
+- Earliest timestamp
+- Latest timestamp
+- Data confidence
+
+If insufficient event volume exists:
+
+Recommend delaying implementation.
+
+Do not build if there is not enough data.
+
+--------------------------------------------------
+FUNNEL 1 — ACTIVATION
+--------------------------------------------------
+
+signup_started
+↓
+signup_completed
+↓
+onboarding_completed
+↓
+pass_added
+↓
+availability_added
+↓
+wishlist_added
+↓
+trip_created
+
+Display:
+
+- User count
+- Step conversion %
+- Overall conversion %
+- Largest dropoff
+
+--------------------------------------------------
+FUNNEL 2 — SOCIAL
+--------------------------------------------------
+
+signup_completed
+↓
+friend_connected
+↓
+invite_generated
+
+Display:
+
+- Counts
+- Conversion rates
+
+--------------------------------------------------
+SECTION — TIME TO VALUE
+--------------------------------------------------
+
+Measure:
+
+Median time between:
+
+- signup_completed → onboarding_completed
+- onboarding_completed → pass_added
+- pass_added → availability_added
+- availability_added → trip_created
+
+Display:
+
+Minutes
+Hours
+Days
+
+--------------------------------------------------
+SECTION — ACTIVATION INSIGHT
+--------------------------------------------------
+
+Generate one insight.
+
+Examples:
+
+"Availability remains the largest activation dropoff."
+
+"Only 18% of onboarded users create a trip."
+
+"Users who add availability create trips 4× more often."
+
+--------------------------------------------------
+SECTION — STATUS
+--------------------------------------------------
+
+Display:
+
+- PostHog Events Tracked
+- Events Active
+- Data Confidence
+
+Confidence:
+
+Low
+Growing
+High
+
+--------------------------------------------------
+IMPORTANT
+--------------------------------------------------
+
+If event volume is too low because instrumentation was only recently deployed:
+
+Stop after the audit.
+
+Recommend a waiting period.
+
+Do not fabricate funnel analysis from tiny samples.
+
+Use checkpoints sparingly.

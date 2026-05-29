@@ -1,0 +1,542 @@
+{% extends "admin_console.html" %}
+{% block title %}PostHog Funnels{% endblock %}
+{% block page_title %}PostHog Funnels{% endblock %}
+
+{% block head_styles %}
+  /* ── Section layout ── */
+  .ad-section        { margin-bottom: 32px; }
+  .ad-section-label  {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.11em;
+    text-transform: uppercase; color: #6B6157; margin: 0 0 12px;
+  }
+  .ad-updated {
+    font-size: 11px; color: #9E958A; margin-bottom: 20px;
+  }
+
+  /* ── Confidence banner ── */
+  .ph-banner {
+    border-radius: 9px; padding: 14px 18px; margin-bottom: 24px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .ph-banner--low     { background: #FEF9EC; border: 1px solid #F0D885; }
+  .ph-banner--growing { background: #EFF6FF; border: 1px solid #BFDBFE; }
+  .ph-banner--high    { background: #F0FDF4; border: 1px solid #BBF7D0; }
+  .ph-banner-icon  { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .ph-banner-body  { flex: 1; }
+  .ph-banner-title {
+    font-size: 13px; font-weight: 700; color: #1C1917; margin-bottom: 4px;
+  }
+  .ph-banner-msg   { font-size: 12px; color: #4A4238; line-height: 1.6; }
+  .ph-banner-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; border-radius: 5px; padding: 3px 8px;
+    white-space: nowrap; flex-shrink: 0; align-self: flex-start;
+  }
+  .badge--low     { background: #FEF3C7; color: #92400E; }
+  .badge--growing { background: #DBEAFE; color: #1D4ED8; }
+  .badge--high    { background: #DCFCE7; color: #166534; }
+
+  /* ── Audit table ── */
+  .ph-audit-scroll { overflow-x: auto; border-radius: 9px; -webkit-overflow-scrolling: touch; }
+  .ph-audit-table {
+    width: 100%; min-width: 620px; border-collapse: collapse;
+    font-size: 13px; background: #fff;
+    border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden;
+  }
+  .ph-audit-table th {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #9E958A; text-align: left;
+    padding: 10px 14px 8px; border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6; white-space: nowrap;
+  }
+  .ph-audit-table th.th-r { text-align: right; }
+  .ph-audit-table td {
+    padding: 9px 14px; border-bottom: 1px solid #F0EBE3;
+    color: #1C1917; vertical-align: middle;
+  }
+  .ph-audit-table tr:last-child td { border-bottom: none; }
+  .ph-audit-table td.td-r { text-align: right; font-variant-numeric: tabular-nums; }
+  .ph-audit-table td.td-mono {
+    font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #6B6560;
+  }
+  .ph-ev-name    { font-weight: 600; font-size: 13px; color: #1C1917; }
+  .ph-ev-tag     {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    border-radius: 4px; padding: 2px 6px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  .ph-ev-tag--server { background: rgba(92,18,25,0.08); color: #5C1219; }
+  .ph-ev-tag--auth   { background: #F5F1E8; color: #7A6E65; }
+  .ph-ev-tag--phog   { background: #DCFCE7; color: #166534; }
+  .ph-ev-tag--db     { background: #F5F1E8; color: #7A6E65; }
+  .ph-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .ph-dot--live { background: #22C55E; }
+  .ph-dot--wait { background: #D1D5DB; }
+
+  /* ── Funnel table ── */
+  .ph-funnel-scroll { overflow-x: auto; border-radius: 9px; -webkit-overflow-scrolling: touch; }
+  .ph-funnel-table {
+    width: 100%; min-width: 500px; border-collapse: collapse;
+    font-size: 13px; background: #fff;
+    border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden;
+  }
+  .ph-funnel-table th {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #9E958A; text-align: left;
+    padding: 10px 14px 8px; border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6; white-space: nowrap;
+  }
+  .ph-funnel-table th.th-r { text-align: right; }
+  .ph-funnel-table td {
+    padding: 9px 14px; border-bottom: 1px solid #F0EBE3;
+    color: #1C1917; vertical-align: middle;
+  }
+  .ph-funnel-table tr:last-child td { border-bottom: none; }
+  .ph-funnel-table td.td-r { text-align: right; font-variant-numeric: tabular-nums; }
+  .ph-step-cell { display: flex; align-items: center; }
+  .ph-step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #F5F1E8; font-size: 10px; font-weight: 700;
+    color: #9E958A; margin-right: 9px; flex-shrink: 0;
+  }
+  .ph-step-label { font-weight: 500; }
+  .ph-pct--healthy { color: #4A7C59; }
+  .ph-pct--warn    { color: #B07D2E; }
+  .ph-pct--drop    { color: #9B3A3A; }
+  .ph-pct--na      { color: #9E958A; }
+
+  /* Progress bar */
+  .ph-bar-wrap {
+    background: #F5F1E8; border-radius: 4px; height: 5px; overflow: hidden;
+    min-width: 80px;
+  }
+  .ph-bar { height: 100%; background: #5C1219; border-radius: 4px; transition: width 0.3s ease; }
+
+  /* ── Estimate overlay for when data is growing ── */
+  .ph-estimate-wrap { position: relative; }
+  .ph-estimate-badge {
+    position: absolute; top: -10px; right: 0;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; background: #FEF9EC;
+    border: 1px solid #F0D885; color: #92400E;
+    border-radius: 5px; padding: 2px 7px;
+  }
+
+  /* ── Time to Value ── */
+  .ph-ttv-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  }
+  @media (max-width: 700px) { .ph-ttv-grid { grid-template-columns: 1fr; } }
+  .ph-ttv-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 14px 16px 12px;
+  }
+  .ph-ttv-label  { font-size: 11px; font-weight: 600; color: #9E958A; margin-bottom: 6px; letter-spacing: 0.05em; }
+  .ph-ttv-value  { font-size: 24px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .ph-ttv-unit   { font-size: 12px; color: #9E958A; margin-top: 3px; }
+  .ph-ttv-na     { font-size: 18px; color: #D1D5DB; font-weight: 700; }
+
+  /* ── Insight card ── */
+  .ph-insight {
+    background: rgba(92,18,25,0.04); border: 1px solid rgba(92,18,25,0.15);
+    border-radius: 9px; padding: 16px 18px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .ph-insight-icon { font-size: 18px; flex-shrink: 0; }
+  .ph-insight-text { font-size: 14px; color: #3B0D13; line-height: 1.65; font-style: italic; }
+
+  /* ── Status row ── */
+  .ph-status-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  @media (max-width: 600px) { .ph-status-grid { grid-template-columns: repeat(2, 1fr); } }
+  .ph-status-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 14px 16px 12px;
+  }
+  .ph-status-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #9E958A; margin-bottom: 6px; }
+  .ph-status-val   { font-size: 26px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .ph-status-sub   { font-size: 12px; color: #9E958A; margin-top: 4px; }
+  .ph-status-conf  { font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .ph-conf--low     { color: #B07D2E; }
+  .ph-conf--growing { color: #2563EB; }
+  .ph-conf--high    { color: #4A7C59; }
+
+  /* ── Setup needed state ── */
+  .ph-setup-box {
+    background: #FDFAF6; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 20px 22px; margin-bottom: 18px;
+  }
+  .ph-setup-title { font-size: 14px; font-weight: 700; color: #1C1917; margin-bottom: 6px; }
+  .ph-setup-body  { font-size: 12px; color: #4A4238; line-height: 1.7; }
+  .ph-setup-body code {
+    background: #F0EBE3; border-radius: 4px; padding: 1px 5px;
+    font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: #5C1219;
+  }
+
+  /* ── Two-col layout for funnels ── */
+  .ph-funnel-cols {
+    display: grid; grid-template-columns: 2fr 1fr; gap: 16px; align-items: start;
+  }
+  @media (max-width: 800px) { .ph-funnel-cols { grid-template-columns: 1fr; } }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }} &mdash; seeded users excluded from all counts</div>
+
+{# ── CONFIDENCE BANNER ──────────────────────────────────────────────────────── #}
+{% if confidence == 'low' %}
+<div class="ph-banner ph-banner--low">
+  <span class="ph-banner-icon">&#9888;</span>
+  <div class="ph-banner-body">
+    <div class="ph-banner-title">Waiting Period Recommended</div>
+    <div class="ph-banner-msg">
+      Server-side instrumentation deployed <strong>{{ instrumentation_date }}</strong>
+      ({{ days_live }} day{{ 's' if days_live != 1 else '' }} ago).
+      {% if not has_ph_creds %}
+      PostHog Personal API Key not configured — funnel data requires read access.
+      DB estimates are shown below for reference only.
+      {% else %}
+      PostHog event volume is below the minimum threshold for meaningful funnel analysis
+      ({{ ph_events_active }}/6 activation events live).
+      {% endif %}
+      Come back in <strong>7–14 days</strong> for statistically meaningful results.
+    </div>
+  </div>
+  <span class="ph-banner-badge badge--low">Low Confidence</span>
+</div>
+{% elif confidence == 'growing' %}
+<div class="ph-banner ph-banner--growing">
+  <span class="ph-banner-icon">&#128200;</span>
+  <div class="ph-banner-body">
+    <div class="ph-banner-title">Data Growing — Trends Directionally Valid</div>
+    <div class="ph-banner-msg">
+      Event volume is sufficient for directional analysis. Percentages will stabilize
+      as more users complete each step. Monitor weekly.
+    </div>
+  </div>
+  <span class="ph-banner-badge badge--growing">Growing</span>
+</div>
+{% else %}
+<div class="ph-banner ph-banner--high">
+  <span class="ph-banner-icon">&#10003;</span>
+  <div class="ph-banner-body">
+    <div class="ph-banner-title">High Confidence — Full Analysis Available</div>
+    <div class="ph-banner-msg">
+      Event volume exceeds the confidence threshold. Funnel percentages and
+      time-to-value medians are statistically reliable.
+    </div>
+  </div>
+  <span class="ph-banner-badge badge--high">High Confidence</span>
+</div>
+{% endif %}
+
+{# ── SETUP BOX (no personal API key) ───────────────────────────────────────── #}
+{% if not has_ph_creds %}
+<div class="ph-setup-box">
+  <div class="ph-setup-title">PostHog Personal API Key Required for Live Funnel Queries</div>
+  <div class="ph-setup-body">
+    The project-level <code>POSTHOG_KEY</code> is write-only (capture only). To enable
+    live PostHog funnel queries, add a Personal API Key:<br><br>
+    1. Go to <strong>PostHog → Settings → Personal API Keys</strong> → Create key with
+    <em>Read</em> scope.<br>
+    2. Add it as secret <code>POSTHOG_PERSONAL_API_KEY</code> in Replit → Secrets.<br>
+    3. Reload this page.<br><br>
+    Until then, the audit and estimates below use database-derived proxy counts.
+  </div>
+</div>
+{% elif ph_error %}
+<div class="ph-setup-box" style="border-color: #FCA5A5;">
+  <div class="ph-setup-title" style="color:#9B3A3A;">PostHog Query Error</div>
+  <div class="ph-setup-body"><code>{{ ph_error }}</code></div>
+</div>
+{% endif %}
+
+{# ── PHASE 1 — FEASIBILITY AUDIT ───────────────────────────────────────────── #}
+<div class="ad-section" id="ph-audit">
+  <div class="ad-section-label">Phase 1 — Feasibility Audit</div>
+
+  <div class="ph-audit-scroll">
+    <table class="ph-audit-table">
+      <thead>
+        <tr>
+          <th>Event</th>
+          <th class="th-r">Distinct Users</th>
+          <th class="th-r">Event Count</th>
+          <th>Earliest</th>
+          <th>Latest</th>
+          <th>Source</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in audit_rows %}
+        <tr>
+          <td>
+            <span class="ph-dot {% if row.deployed %}ph-dot--live{% else %}ph-dot--wait{% endif %}"></span>
+            <span class="ph-ev-name">{{ row.label }}</span>
+            {% if row.source == 'posthog' %}
+              <span class="ph-ev-tag ph-ev-tag--phog">PostHog</span>
+            {% else %}
+              <span class="ph-ev-tag ph-ev-tag--db">DB Est.</span>
+            {% endif %}
+            {% if row.name in ['pass_added','availability_added','wishlist_added','trip_created','friend_connected','invite_generated'] %}
+              <span class="ph-ev-tag ph-ev-tag--server">Server-side</span>
+            {% else %}
+              <span class="ph-ev-tag ph-ev-tag--auth">Auth/JS</span>
+            {% endif %}
+          </td>
+          <td class="td-r">
+            {% if row.user_count > 0 %}{{ row.user_count }}{% else %}<span style="color:#D1D5DB;">0</span>{% endif %}
+          </td>
+          <td class="td-r">
+            {% if row.event_count > 0 %}{{ row.event_count }}{% else %}<span style="color:#D1D5DB;">0</span>{% endif %}
+          </td>
+          <td class="td-mono">{{ row.earliest }}</td>
+          <td class="td-mono">{{ row.latest }}</td>
+          <td>
+            {% if row.source == 'posthog' %}
+              <span style="color:#4A7C59;font-size:11px;font-weight:600;">&#10003; Live</span>
+            {% else %}
+              <span style="color:#9E958A;font-size:11px;">DB proxy</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if data_source == 'db_proxy' %}
+  <div style="font-size:11px;color:#9E958A;margin-top:8px;">
+    &#9432;&nbsp; Counts are database-derived estimates, not actual PostHog event totals.
+    {% if has_ph_creds %}Insufficient PostHog volume to use live data.{% else %}Configure <code>POSTHOG_PERSONAL_API_KEY</code> to enable live PostHog queries.{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{# ── FUNNEL 1 — ACTIVATION ─────────────────────────────────────────────────── #}
+<div class="ad-section" id="ph-funnel1">
+  <div class="ad-section-label">Funnel 1 — Activation</div>
+
+  {% set f1 = funnel1 if sufficient_data else db_funnel1 %}
+  {% set is_estimate = not sufficient_data %}
+
+  <div class="ph-estimate-wrap">
+    {% if is_estimate %}<div class="ph-estimate-badge">DB Estimates &mdash; PostHog data pending</div>{% endif %}
+    <div class="ph-funnel-scroll">
+      <table class="ph-funnel-table">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th class="th-r">Users</th>
+            <th class="th-r">vs Prev Step</th>
+            <th class="th-r">Overall %</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set top_count = f1[0].user_count if f1 else 1 %}
+          {% for step in f1 %}
+          <tr>
+            <td>
+              <div class="ph-step-cell">
+                <span class="ph-step-num">{{ loop.index }}</span>
+                <span class="ph-step-label">{{ step.label }}</span>
+              </div>
+            </td>
+            <td class="td-r" style="font-weight:600;">{{ step.user_count }}</td>
+            <td class="td-r">
+              {% if loop.first %}
+                <span class="ph-pct--na">—</span>
+              {% else %}
+                {% set vp = step.vs_prev %}
+                {% if vp is not none %}
+                  <span class="{{ 'ph-pct--healthy' if vp >= 75 else ('ph-pct--warn' if vp >= 50 else 'ph-pct--drop') }}">{{ vp }}%</span>
+                {% else %}
+                  <span class="ph-pct--na">—</span>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td class="td-r" style="color:#6B6560;font-size:12px;">{{ step.pct_of_top }}%</td>
+            <td style="min-width:100px;">
+              <div class="ph-bar-wrap">
+                <div class="ph-bar" style="width:{{ step.pct_of_top }}%;"></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if biggest_drop %}
+  <div style="margin-top:12px;background:rgba(92,18,25,0.05);border:1px solid rgba(92,18,25,0.15);border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+    <span style="font-size:14px;">&#9660;</span>
+    <span style="font-size:13px;color:#3B0D13;">
+      Largest dropoff: <strong>{{ biggest_drop[0] }}</strong> &rarr; <strong>{{ biggest_drop[1] }}</strong>
+    </span>
+    <span style="margin-left:auto;font-size:18px;font-weight:700;color:#5C1219;">{{ biggest_drop[2] }}%</span>
+  </div>
+  {% endif %}
+</div>
+
+{# ── FUNNEL 2 — SOCIAL ─────────────────────────────────────────────────────── #}
+<div class="ad-section" id="ph-funnel2">
+  <div class="ad-section-label">Funnel 2 — Social</div>
+
+  {% set f2 = funnel2 if sufficient_data else db_funnel2 %}
+
+  <div class="ph-estimate-wrap">
+    {% if not sufficient_data %}<div class="ph-estimate-badge">DB Estimates &mdash; PostHog data pending</div>{% endif %}
+    <div class="ph-funnel-scroll">
+      <table class="ph-funnel-table">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th class="th-r">Users</th>
+            <th class="th-r">vs Prev Step</th>
+            <th class="th-r">Overall %</th>
+            <th>Progress</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for step in f2 %}
+          <tr>
+            <td>
+              <div class="ph-step-cell">
+                <span class="ph-step-num">{{ loop.index }}</span>
+                <span class="ph-step-label">{{ step.label }}</span>
+              </div>
+            </td>
+            <td class="td-r" style="font-weight:600;">{{ step.user_count }}</td>
+            <td class="td-r">
+              {% if loop.first %}
+                <span class="ph-pct--na">—</span>
+              {% else %}
+                {% set vp = step.vs_prev %}
+                {% if vp is not none %}
+                  <span class="{{ 'ph-pct--healthy' if vp >= 75 else ('ph-pct--warn' if vp >= 50 else 'ph-pct--drop') }}">{{ vp }}%</span>
+                {% else %}
+                  <span class="ph-pct--na">—</span>
+                {% endif %}
+              {% endif %}
+            </td>
+            <td class="td-r" style="color:#6B6560;font-size:12px;">{{ step.pct_of_top }}%</td>
+            <td style="min-width:100px;">
+              <div class="ph-bar-wrap">
+                <div class="ph-bar" style="width:{{ step.pct_of_top }}%;"></div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ── TIME TO VALUE ─────────────────────────────────────────────────────────── #}
+<div class="ad-section" id="ph-ttv">
+  <div class="ad-section-label">Time to Value</div>
+
+  {% if sufficient_data and ttv %}
+  <div class="ph-ttv-grid">
+    {% for row in ttv %}
+    <div class="ph-ttv-card">
+      <div class="ph-ttv-label">{{ row.label }}</div>
+      {% if row.median_min is not none %}
+        {% set med = row.median_min | int %}
+        {% if med < 60 %}
+          <div class="ph-ttv-value">{{ med }}</div>
+          <div class="ph-ttv-unit">minutes (median)</div>
+        {% elif med < 1440 %}
+          <div class="ph-ttv-value">{{ (med / 60) | round(1) }}</div>
+          <div class="ph-ttv-unit">hours (median)</div>
+        {% else %}
+          <div class="ph-ttv-value">{{ (med / 1440) | round(1) }}</div>
+          <div class="ph-ttv-unit">days (median)</div>
+        {% endif %}
+      {% else %}
+        <div class="ph-ttv-na">—</div>
+        <div class="ph-ttv-unit" style="margin-top:2px;">no data yet</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="ph-ttv-grid">
+    {% for label in ['Signup → Onboarding', 'Onboarding → Pass Added', 'Pass Added → Availability', 'Availability → Trip Created'] %}
+    <div class="ph-ttv-card" style="opacity:0.55;">
+      <div class="ph-ttv-label">{{ label }}</div>
+      <div class="ph-ttv-na">—</div>
+      <div class="ph-ttv-unit" style="margin-top:2px;">awaiting PostHog data</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="font-size:11px;color:#9E958A;margin-top:8px;">
+    Time to Value requires live PostHog event timestamps. Available once confidence reaches Growing.
+  </div>
+  {% endif %}
+</div>
+
+{# ── ACTIVATION INSIGHT ────────────────────────────────────────────────────── #}
+<div class="ad-section" id="ph-insight">
+  <div class="ad-section-label">Activation Insight</div>
+  <div class="ph-insight">
+    <span class="ph-insight-icon">&#128161;</span>
+    <span class="ph-insight-text">
+      {{ insight }}
+      {% if not sufficient_data %}
+      <span style="color:#9E958A;font-style:normal;font-size:11px;display:block;margin-top:4px;">
+        Based on database estimates. Will update with PostHog event data once confidence reaches Growing.
+      </span>
+      {% endif %}
+    </span>
+  </div>
+</div>
+
+{# ── STATUS ────────────────────────────────────────────────────────────────── #}
+<div class="ad-section" id="ph-status">
+  <div class="ad-section-label">Status</div>
+  <div class="ph-status-grid">
+    <div class="ph-status-card">
+      <div class="ph-status-label">Events Tracked</div>
+      <div class="ph-status-val">{{ ph_events_tracked }}</div>
+      <div class="ph-status-sub">across auth + activation journey</div>
+    </div>
+    <div class="ph-status-card">
+      <div class="ph-status-label">Events Active</div>
+      <div class="ph-status-val">{{ ph_events_active }}</div>
+      <div class="ph-status-sub">server-side, deployed {{ instrumentation_date }}</div>
+    </div>
+    <div class="ph-status-card">
+      <div class="ph-status-label">Data Confidence</div>
+      <div class="ph-status-conf ph-conf--{{ confidence }}">
+        {% if confidence == 'low' %}Low{% elif confidence == 'growing' %}Growing{% else %}High{% endif %}
+      </div>
+      <div class="ph-status-sub">
+        {% if confidence == 'low' %}Minimum threshold not yet reached{% elif confidence == 'growing' %}Trends directionally valid{% else %}Statistically reliable{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;font-size:11px;color:#9E958A;line-height:1.7;">
+    <strong>Events tracked:</strong>
+    <code style="font-family:'SF Mono',Menlo,monospace;font-size:11px;background:#F5F1E8;border-radius:4px;padding:1px 4px;">
+      signup_started &bull; signup_completed &bull; onboarding_completed &bull;
+      pass_added &bull; availability_added &bull; wishlist_added &bull;
+      trip_created &bull; friend_connected &bull; invite_generated
+    </code>
+    &nbsp;&bull;&nbsp; Seeded users excluded from all counts.
+    {% if data_source == 'posthog' %}
+    &nbsp;&bull;&nbsp; Data sourced from PostHog (cached 30 min).
+    {% else %}
+    &nbsp;&bull;&nbsp; Funnel estimates sourced from database. Configure <code>POSTHOG_PERSONAL_API_KEY</code> to enable live PostHog queries.
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

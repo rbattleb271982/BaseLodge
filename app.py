@@ -17471,5 +17471,211 @@ def admin_user_intelligence():
     )
 
 
+@app.route("/admin/posthog-funnels")
+@login_required
+@admin_required
+def admin_posthog_funnels():
+    """PostHog Funnels Dashboard v1 — feasibility audit + activation/social funnels."""
+    import services.posthog_query as ph_q
+
+    now_dt       = datetime.utcnow()
+    no_pass_slugs = {"no_pass", "no_pass_yet", "none", ""}
+
+    def _has_real_pass(u):
+        return any(
+            r.strip().lower() not in no_pass_slugs
+            for r in (u.pass_type or "").split(",") if r.strip()
+        )
+
+    # ── DB proxy counts (always available, used for audit + estimates) ────
+    ns_users = User.query.filter(User.is_seeded == False).all()
+    ns_ids   = [u.id for u in ns_users]
+
+    def _distinct_ids(query_obj):
+        return set(r[0] for r in query_obj.all()) if ns_ids else set()
+
+    trip_uids   = _distinct_ids(
+        db.session.query(SkiTrip.user_id.distinct()).filter(SkiTrip.user_id.in_(ns_ids))
+    )
+    friend_uids = _distinct_ids(
+        db.session.query(Friend.user_id.distinct()).filter(Friend.user_id.in_(ns_ids))
+    )
+    invite_uids = _distinct_ids(
+        db.session.query(InviteToken.inviter_id.distinct())
+        .filter(InviteToken.inviter_id.in_(ns_ids))
+    )
+
+    db_counts = {
+        "signup_started":       len(ns_users),
+        "signup_completed":     sum(
+            1 for u in ns_users
+            if (u.login_count or 0) > 0 or u.lifecycle_stage in ("onboarding", "active")
+        ),
+        "onboarding_completed": sum(1 for u in ns_users if u.is_core_profile_complete),
+        "pass_added":           sum(1 for u in ns_users if _has_real_pass(u)),
+        "availability_added":   sum(
+            1 for u in ns_users
+            if isinstance(u.open_dates, list) and len(u.open_dates) > 0
+        ),
+        "wishlist_added":       sum(
+            1 for u in ns_users
+            if isinstance(u.wish_list_resorts, list) and len(u.wish_list_resorts) > 0
+        ),
+        "trip_created":         len(trip_uids),
+        "friend_connected":     len(friend_uids),
+        "invite_generated":     len(invite_uids),
+    }
+
+    # ── PostHog audit (returns quickly; cached 30 min) ────────────────────
+    ph_audit    = ph_q.fetch_event_audit()
+    has_ph_creds = ph_audit["has_credentials"]
+    ph_event_map = {e["name"]: e for e in ph_audit.get("events", [])}
+
+    # ── Build audit rows ──────────────────────────────────────────────────
+    INSTRUMENTATION_DATE = "2026-05-29"
+    SERVER_EVENTS = {
+        "pass_added", "availability_added", "wishlist_added",
+        "trip_created", "friend_connected", "invite_generated",
+    }
+    AUTH_EVENTS = {"signup_started", "signup_completed", "onboarding_completed"}
+    LABEL_MAP = {
+        "signup_started":       "Signup Started",
+        "signup_completed":     "Signup Completed",
+        "onboarding_completed": "Onboarding Completed",
+        "pass_added":           "Pass Added",
+        "availability_added":   "Availability Added",
+        "wishlist_added":       "Wishlist Added",
+        "trip_created":         "Trip Created",
+        "friend_connected":     "Friend Connected",
+        "invite_generated":     "Invite Generated",
+    }
+
+    audit_rows = []
+    for ev in [
+        "signup_started", "signup_completed", "onboarding_completed",
+        "pass_added", "availability_added", "wishlist_added",
+        "trip_created", "friend_connected", "invite_generated",
+    ]:
+        ph_ev = ph_event_map.get(ev)
+        if ph_ev and ph_ev.get("found"):
+            audit_rows.append({
+                "name":        ev,
+                "label":       LABEL_MAP[ev],
+                "user_count":  ph_ev["user_count"],
+                "event_count": ph_ev["event_count"],
+                "earliest":    ph_ev["earliest"],
+                "latest":      ph_ev["latest"],
+                "source":      "posthog",
+                "deployed":    True,
+            })
+        else:
+            audit_rows.append({
+                "name":        ev,
+                "label":       LABEL_MAP[ev],
+                "user_count":  db_counts.get(ev, 0),
+                "event_count": db_counts.get(ev, 0),
+                "earliest":    INSTRUMENTATION_DATE if ev in SERVER_EVENTS else "auth flow",
+                "latest":      INSTRUMENTATION_DATE,
+                "source":      "db_proxy",
+                "deployed":    ev in SERVER_EVENTS or ev in AUTH_EVENTS,
+            })
+
+    # ── Confidence + data gate ────────────────────────────────────────────
+    if has_ph_creds and ph_audit["sufficient_data"]:
+        confidence      = ph_audit["confidence"]
+        sufficient_data = True
+        data_source     = "posthog"
+    else:
+        confidence      = "low"
+        sufficient_data = False
+        data_source     = "db_proxy"
+
+    # ── PostHog funnels (only when data is sufficient) ────────────────────
+    funnel1 = ph_q.fetch_activation_funnel() if sufficient_data else None
+    funnel2 = ph_q.fetch_social_funnel()     if sufficient_data else None
+    ttv     = ph_q.fetch_time_to_value()     if sufficient_data else None
+
+    # ── DB proxy funnels (shown as estimates when PostHog data is thin) ───
+    def _build_proxy_funnel(steps):
+        top = db_counts.get(steps[0][0], 1) or 1
+        result = []
+        prev = None
+        for ev, label in steps:
+            uc = db_counts.get(ev, 0)
+            result.append({
+                "label":      label,
+                "user_count": uc,
+                "pct_of_top": round(uc / top * 100) if top else 0,
+                "vs_prev":    round(uc / prev * 100) if prev else None,
+            })
+            prev = uc or 1
+        return result
+
+    db_funnel1 = _build_proxy_funnel([
+        ("signup_started",       "Signup Started"),
+        ("signup_completed",     "Signup Completed"),
+        ("onboarding_completed", "Onboarding Completed"),
+        ("pass_added",           "Pass Added"),
+        ("availability_added",   "Availability Added"),
+        ("wishlist_added",       "Wishlist Added"),
+        ("trip_created",         "Trip Created"),
+    ])
+    db_funnel2 = _build_proxy_funnel([
+        ("signup_completed",  "Signup Completed"),
+        ("friend_connected",  "Friend Connected"),
+        ("invite_generated",  "Invite Generated"),
+    ])
+
+    # ── Biggest dropoff (from DB proxy funnel) ────────────────────────────
+    biggest_drop = None
+    biggest_delta = 0
+    for i in range(1, len(db_funnel1)):
+        prev_uc = db_funnel1[i - 1]["user_count"] or 1
+        curr_uc = db_funnel1[i]["user_count"]
+        delta = round((prev_uc - curr_uc) / prev_uc * 100) if prev_uc else 0
+        if delta > biggest_delta:
+            biggest_delta = delta
+            biggest_drop  = (db_funnel1[i - 1]["label"], db_funnel1[i]["label"], delta)
+
+    # ── Activation Insight ────────────────────────────────────────────────
+    if biggest_drop:
+        _f, _t, _d = biggest_drop
+        insight = (
+            f'"{_f} → {_t}" is the largest activation dropoff, '
+            f"losing {_d}% of users at that step."
+        )
+    else:
+        insight = "Insufficient data to generate an activation insight yet."
+
+    # Days since instrumentation deployed
+    from datetime import date as _date
+    _deploy = _date(2026, 5, 29)
+    days_live = (now_dt.date() - _deploy).days
+
+    return render_template(
+        "admin_posthog_funnels.html",
+        active_tab           = "posthog_funnels",
+        now                  = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        audit_rows           = audit_rows,
+        confidence           = confidence,
+        sufficient_data      = sufficient_data,
+        data_source          = data_source,
+        has_ph_creds         = has_ph_creds,
+        ph_error             = ph_audit.get("error"),
+        funnel1              = funnel1,
+        funnel2              = funnel2,
+        ttv                  = ttv,
+        db_funnel1           = db_funnel1,
+        db_funnel2           = db_funnel2,
+        insight              = insight,
+        biggest_drop         = biggest_drop,
+        ph_events_tracked    = 9,
+        ph_events_active     = len(SERVER_EVENTS),
+        instrumentation_date = INSTRUMENTATION_DATE,
+        total_users          = len(ns_users),
+        days_live            = days_live,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
