@@ -17747,7 +17747,7 @@ def admin_mountain_intelligence():
         resort_user_trip_counts[row[0]].append(row[2])
     for rid, counts in resort_user_trip_counts.items():
         total = sum(counts)
-        if total > 0 and max(counts) / total > 0.5:
+        if total >= 3 and max(counts) / total > 0.5:
             concentration_flags.add(rid)
 
     # ── Signal 1: Page views per resort ──────────────────────────────────
