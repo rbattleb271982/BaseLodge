@@ -1,0 +1,223 @@
+PUT THIS IN AGENT
+
+#172B - CRM & Lifecycle Intelligence Build
+
+Build the CRM & Lifecycle Intelligence page based on the approved audit.
+
+Create:
+
+* Route: /admin/crm-intel
+* Template: templates/admin_crm_intel.html
+* Sidebar entry under Intelligence
+
+Reuse existing admin console patterns.
+
+Do not add:
+
+* New analytics vendors
+* New databases
+* New tracking systems
+* New models
+* New migrations
+* PostHog API calls
+
+Use DB-backed calculations only.
+
+---
+
+## SECTIONS TO BUILD
+
+1. CRM KPIs
+2. Reachability
+3. Lifecycle Segments
+4. CRM Audiences
+5. Dormancy
+6. Power Users
+7. Dynamic Insight
+8. Status
+
+---
+
+## SECTION 0 — CRM KPIs
+
+Show:
+
+* Reachable Users
+* Unreachable Users
+* Activated Users
+* Engaged Users
+* Power Users
+* Untracked Users
+* Pass Users
+* Connected Users
+* Push Failure Rate
+
+Use audited counts and confidence classifications.
+
+---
+
+## SECTION 1 — REACHABILITY
+
+Show:
+
+* Active push tokens
+* No active token
+* Push reach rate
+* Active users with push
+* New users with push
+* Push failure rate
+
+Explicitly surface the finding:
+
+"Only 1 of 11 active users is reachable by push."
+
+Label push failure metrics as recent-period metrics.
+
+---
+
+## SECTION 2 — LIFECYCLE SEGMENTS
+
+Show:
+
+* New
+* Onboarding
+* Activated
+* Engaged
+* Power
+* Untracked
+
+Include:
+
+* Counts
+* Criteria
+* Confidence
+
+---
+
+## SECTION 3 — CRM AUDIENCES
+
+Display all recommended audiences.
+
+Add:
+
+* Audience Size
+* Opportunity Description
+* Priority
+
+Priority rules:
+
+High:
+
+* Pass, No Availability
+* Connected, No Trip
+* Reachable, No Trip
+
+Medium:
+
+* Reachable, No Pass
+* Wishlist, No Trip
+
+Low:
+
+* Activated, No Friends
+* Trip, No Friends
+
+Sort by Priority then Size.
+
+---
+
+## SECTION 4 — DORMANCY
+
+Do NOT label NULL users as dormant.
+
+Show:
+
+* Untracked Users
+* Recently Inactive Users
+
+Clearly explain:
+
+"Users with NULL last_active_at are treated as untracked, not dormant."
+
+---
+
+## SECTION 5 — POWER USERS
+
+Show:
+
+* Most Friends
+* Most Trips
+* Most Invites
+
+Include:
+
+* Rank
+* Score
+* Friend Count
+* Trip Count
+* Invite Count
+
+Use the composite scoring approach from the audit.
+
+---
+
+## SECTION 6 — DYNAMIC INSIGHT
+
+Default insight:
+
+"18 users have a pass but no availability set — the biggest planning gap."
+
+Compute dynamically from live data.
+
+---
+
+## SECTION 7 — STATUS
+
+Show:
+
+CRM Signals:
+
+* Audited: 18
+* GREEN: 10
+* YELLOW: 6
+* RED: 2
+
+Retention Signals:
+
+* Audited: 10
+* GREEN: 1
+* YELLOW: 7
+* RED: 2
+
+Confidence:
+
+Growing
+
+Include caveats:
+
+* Push enabled field not reliable
+* login_count not reliable
+* Dormancy limited by NULL last_active_at
+* Retention dashboard intentionally deferred
+
+---
+
+## TESTING REQUIREMENTS
+
+Verify:
+
+* /admin/crm-intel returns 200
+* Sidebar link works
+* KPI counts match DB
+* Reachability counts match DB
+* Audience counts match DB
+* Priority ordering works
+* Dynamic insight computes correctly
+* Mobile layout works on iPhone 15 Pro
+* No overflow
+* No raw Jinja
+* No None leakage
+
+Use checkpoints sparingly.
+
+Do not finish until all tests pass.

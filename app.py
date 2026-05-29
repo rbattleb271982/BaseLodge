@@ -18850,5 +18850,330 @@ def admin_growth_intel():
     )
 
 
+@app.route("/admin/crm-intel")
+@login_required
+@admin_required
+def admin_crm_intel():
+    """CRM & Lifecycle Intelligence v1 — reachability, segments, audiences, power users."""
+    import json as _json
+    from datetime import datetime as _dt, timedelta
+    from collections import defaultdict
+
+    now_str = datetime.utcnow().strftime("%b %d, %Y at %H:%M UTC")
+    now = _dt.utcnow()
+
+    def pct(n, d):
+        return round(n / d * 100) if d else 0
+
+    _no_pass = {'no_pass', 'no_pass_yet', 'none', ''}
+
+    def _real_pass(pt):
+        for s in (pt or '').split(','):
+            if s.strip().lower() not in _no_pass:
+                return True
+        return False
+
+    def _nonempty(val):
+        if val is None:
+            return False
+        if isinstance(val, list):
+            return len(val) > 0
+        if isinstance(val, str):
+            try:
+                p = _json.loads(val)
+                return isinstance(p, list) and len(p) > 0
+            except Exception:
+                return False
+        return False
+
+    # ── Q1: all users (all CRM fields) ───────────────────────────────────
+    user_rows = db.session.execute(db.text(
+        'SELECT id, lifecycle_stage, pass_type, open_dates, wish_list_resorts, '
+        'last_active_at, created_at, invited_by_user_id, push_notifications_enabled '
+        'FROM "user"'
+    )).fetchall()
+    total = len(user_rows)
+
+    # ── Q2: push device tokens (active) ──────────────────────────────────
+    push_rows = db.session.execute(db.text(
+        "SELECT user_id, active FROM push_device_token"
+    )).fetchall()
+    push_active_ids = {r[0] for r in push_rows if r[1]}
+
+    # MEL push delivery stats
+    mel_push = db.session.execute(db.text(
+        "SELECT "
+        "  COUNT(*) FILTER (WHERE delivery_status='sent'),  "
+        "  COUNT(*) FILTER (WHERE delivery_status='failed') "
+        "FROM message_event_log WHERE channel='push'"
+    )).fetchone()
+    mel_sent   = mel_push[0] or 0
+    mel_failed = mel_push[1] or 0
+    push_fail_rate = pct(mel_failed, mel_sent + mel_failed) if (mel_sent + mel_failed) else 0
+
+    # ── Q3: friend counts per user ────────────────────────────────────────
+    friend_counts = {r[0]: r[1] for r in db.session.execute(db.text(
+        "SELECT user_id, COUNT(*) FROM friend GROUP BY user_id"
+    ))}
+    friend_ids = set(friend_counts.keys())
+
+    # ── Q4: trip ownership + participation ───────────────────────────────
+    trip_owner_ids = {r[0] for r in db.session.execute(
+        db.text("SELECT DISTINCT user_id FROM ski_trip")
+    )}
+    trip_part_ids = {r[0] for r in db.session.execute(
+        db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status='accepted'")
+    )}
+    has_trip_ids = trip_owner_ids | trip_part_ids
+
+    trip_counts_map = {r[0]: r[1] for r in db.session.execute(
+        db.text("SELECT user_id, COUNT(*) FROM ski_trip GROUP BY user_id")
+    )}
+
+    # ── Q5: invite generators + counts ───────────────────────────────────
+    invite_counts_map = {r[0]: r[1] for r in db.session.execute(
+        db.text("SELECT inviter_id, COUNT(*) FROM invite_token GROUP BY inviter_id")
+    )}
+    trip_invite_counts = {r[0]: r[1] for r in db.session.execute(
+        db.text("SELECT inviter_user_id, COUNT(*) FROM trip_invite_token GROUP BY inviter_user_id")
+    )}
+    for uid, ct in trip_invite_counts.items():
+        invite_counts_map[uid] = invite_counts_map.get(uid, 0) + ct
+    invite_ids = set(invite_counts_map.keys())
+
+    # ── Derive per-user signal sets ───────────────────────────────────────
+    pass_ids     = set()
+    avail_ids    = set()
+    wishlist_ids = set()
+    all_ids      = set()
+    lc_map       = {}
+
+    for r in user_rows:
+        uid, ls = r[0], r[1]
+        all_ids.add(uid)
+        lc_map[uid] = ls or 'new'
+        if _real_pass(r[2]):   pass_ids.add(uid)
+        if _nonempty(r[3]):    avail_ids.add(uid)
+        if _nonempty(r[4]):    wishlist_ids.add(uid)
+
+    # Engagement score per user (max 5)
+    def _score(uid):
+        return sum([uid in pass_ids, uid in avail_ids, uid in wishlist_ids,
+                    uid in has_trip_ids, uid in friend_ids])
+
+    # Segment counts
+    seg = {'new': 0, 'onboarding': 0, 'activated': 0, 'engaged': 0, 'power': 0, 'untracked': 0}
+    untracked_ids = set()
+    for r in user_rows:
+        uid, ls, la = r[0], r[1] or 'new', r[5]
+        if la is None:
+            untracked_ids.add(uid)
+        sc = _score(uid)
+        if ls == 'active':
+            if sc >= 4:   seg['power']     += 1
+            elif sc >= 2: seg['engaged']   += 1
+            else:         seg['activated'] += 1
+        elif ls == 'onboarding':
+            seg['onboarding'] += 1
+        else:
+            seg['new'] += 1
+    seg['untracked'] = len(untracked_ids)
+
+    n_activated = seg['activated']
+    n_engaged   = seg['engaged']
+    n_power     = seg['power']
+    n_push_active = len(push_active_ids)
+    n_no_push     = total - n_push_active
+
+    # Lifecycle × reachability
+    active_ids_lc     = {r[0] for r in user_rows if (r[1] or 'new') == 'active'}
+    new_ids_lc        = {r[0] for r in user_rows if (r[1] or 'new') == 'new'}
+    onboard_ids_lc    = {r[0] for r in user_rows if (r[1] or 'new') == 'onboarding'}
+
+    active_push  = len(active_ids_lc & push_active_ids)
+    new_push     = len(new_ids_lc & push_active_ids)
+    onboard_push = len(onboard_ids_lc & push_active_ids)
+
+    # ── Section 0: CRM KPIs ──────────────────────────────────────────────
+    kpis = [
+        {'label': 'Reachable Users',    'value': n_push_active,
+         'sub': f'{pct(n_push_active, total)}% have active push'},
+        {'label': 'Unreachable Users',  'value': n_no_push,
+         'sub': 'no active device token'},
+        {'label': 'Activated Users',    'value': seg['activated'] + seg['engaged'] + seg['power'],
+         'sub': 'lifecycle = active',   'highlight': True},
+        {'label': 'Engaged Users',      'value': n_engaged,
+         'sub': '2–3 milestones',       'conf': 'yellow'},
+        {'label': 'Power Users',        'value': n_power,
+         'sub': '4–5 milestones',       'conf': 'yellow'},
+        {'label': 'Untracked',          'value': seg['untracked'],
+         'sub': 'no session history'},
+        {'label': 'Pass Users',         'value': len(pass_ids),
+         'sub': f'{pct(len(pass_ids), total)}% of all users'},
+        {'label': 'Connected Users',    'value': len(friend_ids),
+         'sub': f'{pct(len(friend_ids), total)}% of all users'},
+        {'label': 'Push Failure Rate',  'value': f'{push_fail_rate}%',
+         'sub': f'{mel_failed} failed / {mel_sent+mel_failed} (May 2026)', 'conf': 'yellow',
+         'alert': push_fail_rate >= 20},
+    ]
+
+    # ── Section 2: Lifecycle segments ────────────────────────────────────
+    lifecycle_segments = [
+        {'label': 'New',        'n': seg['new'],        'pct': pct(seg['new'], total),
+         'criteria': 'lifecycle_stage = new', 'conf': 'green'},
+        {'label': 'Onboarding', 'n': seg['onboarding'], 'pct': pct(seg['onboarding'], total),
+         'criteria': 'lifecycle_stage = onboarding', 'conf': 'green'},
+        {'label': 'Activated',  'n': seg['activated'],  'pct': pct(seg['activated'], total),
+         'criteria': 'active, 0–1 milestones', 'conf': 'yellow'},
+        {'label': 'Engaged',    'n': seg['engaged'],    'pct': pct(seg['engaged'], total),
+         'criteria': 'active, 2–3 milestones', 'conf': 'yellow'},
+        {'label': 'Power',      'n': seg['power'],      'pct': pct(seg['power'], total),
+         'criteria': 'active, 4–5 milestones', 'conf': 'yellow'},
+        {'label': 'Untracked',  'n': seg['untracked'],  'pct': pct(seg['untracked'], total),
+         'criteria': 'last_active_at IS NULL', 'conf': 'yellow'},
+    ]
+
+    # ── Section 3: CRM Audiences ──────────────────────────────────────────
+    aud_pass_no_avail       = len(pass_ids - avail_ids)
+    aud_connected_no_trip   = len(friend_ids - has_trip_ids)
+    aud_reachable_no_trip   = len(push_active_ids - has_trip_ids)
+    aud_reachable_no_pass   = len(push_active_ids - pass_ids)
+    aud_wishlist_no_trip    = len(wishlist_ids - has_trip_ids)
+    aud_invite_no_friend    = len(invite_ids - friend_ids)
+    aud_activated_no_friend = len(active_ids_lc - friend_ids)
+    aud_trip_no_friend      = len(has_trip_ids - friend_ids)
+
+    crm_audiences = [
+        # High priority
+        {'label': 'Pass, No Availability',      'size': aud_pass_no_avail,
+         'priority': 'high',
+         'opp': 'Pass holders who haven\'t set open dates — convert planners'},
+        {'label': 'Connected, No Trip',          'size': aud_connected_no_trip,
+         'priority': 'high',
+         'opp': 'Have friends but no trip — social nudge to plan together'},
+        {'label': 'Reachable, No Trip',          'size': aud_reachable_no_trip,
+         'priority': 'high',
+         'opp': 'Push-reachable users who have never planned'},
+        # Medium priority
+        {'label': 'Reachable, No Pass',          'size': aud_reachable_no_pass,
+         'priority': 'medium',
+         'opp': 'Push-reachable users missing a pass — pass selection nudge'},
+        {'label': 'Wishlist, No Trip',           'size': aud_wishlist_no_trip,
+         'priority': 'medium',
+         'opp': 'Have intent (wishlist) but no planned trip'},
+        {'label': 'Invite Generated, No Friend', 'size': aud_invite_no_friend,
+         'priority': 'medium',
+         'opp': 'Sent invites but no friend connection made yet'},
+        # Low priority
+        {'label': 'Activated, No Friends',       'size': aud_activated_no_friend,
+         'priority': 'low',
+         'opp': 'Active users who are isolated — friend discovery nudge'},
+        {'label': 'Trip, No Friends',            'size': aud_trip_no_friend,
+         'priority': 'low',
+         'opp': 'Planning solo — potential for social conversion'},
+    ]
+    priority_order = {'high': 0, 'medium': 1, 'low': 2}
+    crm_audiences.sort(key=lambda x: (priority_order[x['priority']], -x['size']))
+
+    # ── Section 4: Dormancy ───────────────────────────────────────────────
+    l30_cutoff = now - timedelta(days=30)
+    l60_cutoff = now - timedelta(days=60)
+    recently_inactive_30 = sum(
+        1 for r in user_rows
+        if r[5] is not None and r[5] < l30_cutoff
+    )
+    recently_inactive_60 = sum(
+        1 for r in user_rows
+        if r[5] is not None and r[5] < l60_cutoff
+    )
+    dormancy = {
+        'untracked':          seg['untracked'],
+        'recently_inactive_30': recently_inactive_30,
+        'recently_inactive_60': recently_inactive_60,
+    }
+
+    # ── Section 5: Power users ────────────────────────────────────────────
+    scored_users = []
+    for uid in all_ids:
+        fc = friend_counts.get(uid, 0)
+        tc = trip_counts_map.get(uid, 0)
+        ic = invite_counts_map.get(uid, 0)
+        # Composite: normalise each to max, sum ranks
+        scored_users.append({'uid': uid, 'friends': fc, 'trips': tc, 'invites': ic,
+                              'composite': fc + tc + ic})
+    scored_users.sort(key=lambda x: -x['composite'])
+
+    # Fetch names for top 5
+    top5_ids = [u['uid'] for u in scored_users[:5]]
+    name_map = {}
+    if top5_ids:
+        name_rows = db.session.execute(
+            db.text('SELECT id, first_name, last_name FROM "user" WHERE id = ANY(:ids)'),
+            {'ids': top5_ids}
+        ).fetchall()
+        name_map = {r[0]: f"{r[1]} {r[2]}" for r in name_rows}
+
+    power_users = []
+    for rank, u in enumerate(scored_users[:5], 1):
+        power_users.append({
+            'rank':     rank,
+            'name':     name_map.get(u['uid'], f"User {u['uid']}"),
+            'friends':  u['friends'],
+            'trips':    u['trips'],
+            'invites':  u['invites'],
+            'score':    u['composite'],
+        })
+
+    # ── Section 6: Dynamic Insight ────────────────────────────────────────
+    # Ordered preference: largest actionable gap
+    if aud_pass_no_avail >= 10:
+        insight = (f"{aud_pass_no_avail} users have a pass but no availability set "
+                   f"— the biggest planning gap.")
+    elif aud_connected_no_trip >= 10:
+        insight = (f"{aud_connected_no_trip} connected users haven't planned a trip together yet.")
+    elif aud_reachable_no_trip >= 5:
+        insight = (f"{aud_reachable_no_trip} push-reachable users have never planned a trip.")
+    else:
+        insight = f"{pct(len(friend_ids), total)}% of users are connected with friends."
+
+    # ── Section 7: Status ────────────────────────────────────────────────
+    status = {
+        'crm_audited': 18, 'crm_green': 10, 'crm_yellow': 6, 'crm_red': 2,
+        'ret_audited': 10, 'ret_green':  1, 'ret_yellow': 7, 'ret_red': 2,
+        'confidence': 'Growing',
+        'caveats': [
+            'push_notifications_enabled defaults to true for all users — not a reliable opt-in signal',
+            'login_count has not been backfilled — 30 of 36 users show 0 logins',
+            'Dormancy signals limited by NULL last_active_at (9 untracked accounts)',
+            'Retention Intelligence dashboard intentionally deferred — signals too noisy at current scale',
+        ],
+    }
+
+    return render_template(
+        "admin_crm_intel.html",
+        active_tab         = 'crm_intel',
+        now                = now_str,
+        total              = total,
+        kpis               = kpis,
+        n_push_active      = n_push_active,
+        n_no_push          = n_no_push,
+        active_push        = active_push,
+        new_push           = new_push,
+        onboard_push       = onboard_push,
+        n_active_lc        = len(active_ids_lc),
+        n_new_lc           = len(new_ids_lc),
+        n_onboard_lc       = len(onboard_ids_lc),
+        mel_sent           = mel_sent,
+        mel_failed         = mel_failed,
+        push_fail_rate     = push_fail_rate,
+        lifecycle_segments = lifecycle_segments,
+        crm_audiences      = crm_audiences,
+        dormancy           = dormancy,
+        power_users        = power_users,
+        insight            = insight,
+        status             = status,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

@@ -1,0 +1,491 @@
+{% extends "admin_console.html" %}
+{% block title %}CRM & Lifecycle Intelligence{% endblock %}
+{% block page_title %}CRM & Lifecycle Intelligence{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.11em;
+    text-transform: uppercase; color: #6B6157; margin: 0 0 10px;
+  }
+  .ad-section  { margin-bottom: 32px; }
+  .ad-updated  { font-size: 11px; color: #9E958A; margin-bottom: 14px; }
+  .ad-footnote {
+    font-size: 11px; color: #9E958A;
+    font-style: italic; margin-top: 8px; line-height: 1.5;
+  }
+
+  /* ── KPI grid ── */
+  .ci-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px; margin-bottom: 4px;
+  }
+  @media (max-width: 900px) { .ci-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 500px) { .ci-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .ci-card {
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 9px; padding: 12px 14px 10px; min-width: 0;
+  }
+  .ci-card-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 5px;
+  }
+  .ci-card-value {
+    font-size: 22px; font-weight: 700; color: #1C1917; line-height: 1;
+  }
+  .ci-card-sub   { font-size: 11px; color: #B0A69B; margin-top: 3px; }
+  .ci-card--highlight { border-color: #5C1219; }
+  .ci-card--highlight .ci-card-value { color: #5C1219; }
+  .ci-card--alert { border-color: #B71C1C; }
+  .ci-card--alert .ci-card-value { color: #B71C1C; }
+
+  /* ── Confidence / label badges ── */
+  .ci-badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 1px 5px; border-radius: 3px; margin-top: 4px;
+  }
+  .ci-badge--yellow { background: #FFF8E1; color: #B07D2E; }
+  .ci-badge--green  { background: #E8F5E9; color: #2E7D32; }
+  .ci-badge--red    { background: #FFEBEE; color: #B71C1C; }
+
+  /* ── Priority badges ── */
+  .ci-pri { display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+  .ci-pri--high   { background: #5C1219; color: #fff; }
+  .ci-pri--medium { background: #B07D2E; color: #fff; }
+  .ci-pri--low    { background: #E4DDD2; color: #6B6157; }
+
+  /* ── Reachability stats row ── */
+  .ci-reach-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 500px) { .ci-reach-grid { grid-template-columns: 1fr 1fr; } }
+
+  .ci-stat {
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 9px; padding: 12px 14px;
+  }
+  .ci-stat-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 4px;
+  }
+  .ci-stat-value { font-size: 20px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .ci-stat-sub   { font-size: 11px; color: #B0A69B; margin-top: 3px; }
+  .ci-stat--warn .ci-stat-value { color: #B71C1C; }
+
+  /* ── Alert banner ── */
+  .ci-alert {
+    background: #FFEBEE; border: 1px solid #FFCDD2; border-radius: 9px;
+    padding: 12px 16px; margin-bottom: 14px;
+    font-size: 12px; color: #B71C1C; line-height: 1.5;
+  }
+  .ci-alert strong { font-weight: 700; }
+
+  /* ── Lifecycle segment rows ── */
+  .ci-seg-list { display: flex; flex-direction: column; gap: 6px; }
+  .ci-seg-row {
+    display: grid;
+    grid-template-columns: 90px 32px 1fr 80px 60px;
+    align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid #F5F1E8;
+  }
+  @media (max-width: 500px) {
+    .ci-seg-row { grid-template-columns: 80px 28px 1fr 60px; }
+    .ci-seg-criteria { display: none; }
+  }
+  .ci-seg-label  { font-size: 12px; font-weight: 600; color: #1C1917; }
+  .ci-seg-n      { font-size: 15px; font-weight: 700; color: #5C1219; }
+  .ci-seg-bar-track {
+    height: 6px; background: #F0EBE3; border-radius: 3px; overflow: hidden;
+  }
+  .ci-seg-bar-fill { height: 100%; border-radius: 3px; background: #5C1219; }
+  .ci-seg-criteria { font-size: 10px; color: #9E958A; }
+
+  /* ── CRM Audience table ── */
+  .ci-aud-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ci-aud-table th {
+    text-align: left; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.09em; text-transform: uppercase; color: #9E958A;
+    padding: 6px 10px 6px 0; border-bottom: 1px solid #E4DDD2;
+  }
+  .ci-aud-table td {
+    padding: 10px 10px 10px 0; color: #1C1917;
+    border-bottom: 1px solid #F5F1E8; vertical-align: middle;
+  }
+  .ci-aud-size { font-size: 17px; font-weight: 700; color: #5C1219; }
+  .ci-aud-opp  { font-size: 11px; color: #6B6157; }
+  .ci-tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ── Dormancy ── */
+  .ci-dorm-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 500px) { .ci-dorm-grid { grid-template-columns: 1fr 1fr; } }
+
+  /* ── Power users table ── */
+  .ci-power-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ci-power-table th {
+    text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #9E958A;
+    padding: 6px 10px 6px 0; border-bottom: 1px solid #E4DDD2;
+  }
+  .ci-power-table td {
+    padding: 10px 10px 10px 0; border-bottom: 1px solid #F5F1E8;
+  }
+  .ci-power-rank { font-size: 11px; font-weight: 700; color: #9E958A; }
+  .ci-power-name { font-weight: 600; color: #1C1917; }
+  .ci-power-score { font-size: 15px; font-weight: 700; color: #5C1219; }
+  .ci-power-num   { color: #6B6157; }
+
+  /* ── Insight ── */
+  .ci-insight-block {
+    background: #FAF7F2; border: 1px solid #E4DDD2; border-radius: 10px;
+    padding: 20px 20px 18px;
+  }
+  .ci-insight-eyebrow {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 8px;
+  }
+  .ci-insight-text {
+    font-family: Georgia, serif; font-size: 18px;
+    color: #5C1219; line-height: 1.4; font-style: italic;
+  }
+
+  /* ── Status ── */
+  .ci-status-panels { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .ci-status-panel {
+    flex: 1; min-width: 200px;
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px; padding: 14px 16px;
+  }
+  .ci-status-panel-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #9E958A; margin-bottom: 10px;
+  }
+  .ci-status-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ci-status-chip {
+    background: #F5F1E8; border-radius: 7px;
+    padding: 6px 12px; display: flex; flex-direction: column; align-items: center;
+  }
+  .ci-status-chip-val  { font-size: 18px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .ci-status-chip-lbl  {
+    font-size: 9px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: #9E958A; margin-top: 2px;
+  }
+  .ci-status-chip--g .ci-status-chip-val { color: #2E7D32; }
+  .ci-status-chip--y .ci-status-chip-val { color: #B07D2E; }
+  .ci-status-chip--r .ci-status-chip-val { color: #B71C1C; }
+
+  .ci-caveats { list-style: none; padding: 0; margin: 0; }
+  .ci-caveats li {
+    font-size: 11px; color: #9E958A; padding: 5px 0 5px 14px;
+    border-bottom: 1px solid #F5F1E8; position: relative; line-height: 1.5;
+  }
+  .ci-caveats li::before { content: '–'; position: absolute; left: 0; color: #D4B896; }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Updated {{ now }}</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 0 — CRM KPIs                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-kpis">
+  <div class="ad-section-label">CRM KPIs</div>
+  <div class="ci-kpi-grid">
+    {% for k in kpis %}
+    <div class="ci-card
+      {% if k.get('highlight') %}ci-card--highlight
+      {% elif k.get('alert') %}ci-card--alert{% endif %}">
+      <div class="ci-card-label">{{ k.label }}</div>
+      <div class="ci-card-value">{{ k.value }}</div>
+      <div class="ci-card-sub">{{ k.sub }}</div>
+      {% if k.get('conf') == 'yellow' %}
+        <div class="ci-badge ci-badge--yellow">approx</div>
+      {% endif %}
+      {% if k.get('alert') %}
+        <div class="ci-badge ci-badge--red">alert</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 1 — REACHABILITY                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-reachability">
+  <div class="ad-section-label">Reachability</div>
+
+  {% if push_fail_rate >= 20 %}
+  <div class="ci-alert">
+    <strong>Push failure rate: {{ push_fail_rate }}%</strong>
+    — {{ mel_failed }} of {{ mel_sent + mel_failed }} push attempts failed in May 2026.
+    Stale device tokens may be causing delivery failures.
+  </div>
+  {% endif %}
+
+  <div class="ci-reach-grid">
+    <div class="ci-stat">
+      <div class="ci-stat-label">Active Push Tokens</div>
+      <div class="ci-stat-value">{{ n_push_active }}</div>
+      <div class="ci-stat-sub">{{ (n_push_active / total * 100) | round | int }}% of all users</div>
+    </div>
+    <div class="ci-stat">
+      <div class="ci-stat-label">No Active Token</div>
+      <div class="ci-stat-value">{{ n_no_push }}</div>
+      <div class="ci-stat-sub">unreachable by push</div>
+    </div>
+    <div class="ci-stat {% if push_fail_rate >= 20 %}ci-stat--warn{% endif %}">
+      <div class="ci-stat-label">Push Failure Rate</div>
+      <div class="ci-stat-value">{{ push_fail_rate }}%</div>
+      <div class="ci-stat-sub">{{ mel_failed }} failed / {{ mel_sent + mel_failed }} (May 2026)</div>
+    </div>
+  </div>
+
+  <div class="ad-section-label" style="margin-top:16px;">Push Reachability by Lifecycle</div>
+  <div class="ci-seg-list">
+    <div class="ci-seg-row" style="grid-template-columns:90px 50px 1fr 80px 70px;">
+      <div class="ci-seg-label">Active</div>
+      <div class="ci-seg-n">{{ active_push }}</div>
+      <div class="ci-seg-bar-track">
+        <div class="ci-seg-bar-fill" style="width:{{ (active_push / n_active_lc * 100) | round | int if n_active_lc else 0 }}%"></div>
+      </div>
+      <div class="ci-seg-criteria">of {{ n_active_lc }} active</div>
+      <div><span class="ci-badge ci-badge--red">{{ (active_push / n_active_lc * 100) | round | int if n_active_lc else 0 }}%</span></div>
+    </div>
+    <div class="ci-seg-row" style="grid-template-columns:90px 50px 1fr 80px 70px;">
+      <div class="ci-seg-label">New</div>
+      <div class="ci-seg-n">{{ new_push }}</div>
+      <div class="ci-seg-bar-track">
+        <div class="ci-seg-bar-fill" style="width:{{ (new_push / n_new_lc * 100) | round | int if n_new_lc else 0 }}%"></div>
+      </div>
+      <div class="ci-seg-criteria">of {{ n_new_lc }} new</div>
+      <div><span class="ci-badge ci-badge--green">{{ (new_push / n_new_lc * 100) | round | int if n_new_lc else 0 }}%</span></div>
+    </div>
+    <div class="ci-seg-row" style="grid-template-columns:90px 50px 1fr 80px 70px;">
+      <div class="ci-seg-label">Onboarding</div>
+      <div class="ci-seg-n">{{ onboard_push }}</div>
+      <div class="ci-seg-bar-track">
+        <div class="ci-seg-bar-fill" style="width:{{ (onboard_push / n_onboard_lc * 100) | round | int if n_onboard_lc else 0 }}%"></div>
+      </div>
+      <div class="ci-seg-criteria">of {{ n_onboard_lc }} onboarding</div>
+      <div><span class="ci-badge ci-badge--yellow">{{ (onboard_push / n_onboard_lc * 100) | round | int if n_onboard_lc else 0 }}%</span></div>
+    </div>
+  </div>
+  <div class="ad-footnote">
+    Only 1 of {{ n_active_lc }} active lifecycle users is reachable by push. Active users engage
+    primarily via web; new users arrive on mobile. This inverts the expected pattern.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 2 — LIFECYCLE SEGMENTS                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-segments">
+  <div class="ad-section-label">Lifecycle Segments</div>
+  <div class="ci-seg-list">
+    {% set seg_max = lifecycle_segments | map(attribute='n') | max %}
+    {% for s in lifecycle_segments %}
+    <div class="ci-seg-row">
+      <div class="ci-seg-label">{{ s.label }}</div>
+      <div class="ci-seg-n">{{ s.n }}</div>
+      <div class="ci-seg-bar-track">
+        <div class="ci-seg-bar-fill"
+             style="width:{{ (s.n / seg_max * 100) | round | int if seg_max else 0 }}%"></div>
+      </div>
+      <div class="ci-seg-criteria">{{ s.criteria }}</div>
+      <div>
+        {% if s.conf == 'green' %}
+          <span class="ci-badge ci-badge--green">direct</span>
+        {% else %}
+          <span class="ci-badge ci-badge--yellow">derived</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="ad-footnote">
+    Activated / Engaged / Power are derived from milestone scores (pass, availability, wishlist,
+    trips, friends) applied to lifecycle_stage = 'active' users. Untracked users have no
+    session history recorded — they are not classified as dormant.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 3 — CRM AUDIENCES                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-audiences">
+  <div class="ad-section-label">CRM Audiences</div>
+  <div class="ci-tbl-wrap">
+    <table class="ci-aud-table">
+      <thead>
+        <tr>
+          <th>Audience</th>
+          <th>Size</th>
+          <th>Priority</th>
+          <th>Opportunity</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in crm_audiences %}
+        <tr>
+          <td style="font-weight:600;">{{ a.label }}</td>
+          <td><span class="ci-aud-size">{{ a.size }}</span></td>
+          <td><span class="ci-pri ci-pri--{{ a.priority }}">{{ a.priority }}</span></td>
+          <td><span class="ci-aud-opp">{{ a.opp }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 4 — DORMANCY                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-dormancy">
+  <div class="ad-section-label">Dormancy</div>
+  <div class="ci-dorm-grid">
+    <div class="ci-stat">
+      <div class="ci-stat-label">Untracked</div>
+      <div class="ci-stat-value">{{ dormancy.untracked }}</div>
+      <div class="ci-stat-sub">last_active_at IS NULL</div>
+    </div>
+    <div class="ci-stat">
+      <div class="ci-stat-label">Inactive 30+</div>
+      <div class="ci-stat-value">{{ dormancy.recently_inactive_30 }}</div>
+      <div class="ci-stat-sub">tracked, last seen &gt;30d ago</div>
+    </div>
+    <div class="ci-stat">
+      <div class="ci-stat-label">Inactive 60+</div>
+      <div class="ci-stat-value">{{ dormancy.recently_inactive_60 }}</div>
+      <div class="ci-stat-sub">tracked, last seen &gt;60d ago</div>
+    </div>
+  </div>
+  <div class="ad-footnote">
+    Users with NULL last_active_at are treated as <strong>untracked</strong>, not dormant.
+    These {{ dormancy.untracked }} accounts predate the session heartbeat system (Oct 2024 cohort)
+    and their activity level is unknown. "Inactive" counts only users with a recorded
+    last_active_at that has since gone stale.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 5 — POWER USERS                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-power">
+  <div class="ad-section-label">Power Users</div>
+  <div class="ci-tbl-wrap">
+    <table class="ci-power-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>User</th>
+          <th>Friends</th>
+          <th>Trips</th>
+          <th>Invites</th>
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in power_users %}
+        <tr>
+          <td class="ci-power-rank">{{ u.rank }}</td>
+          <td class="ci-power-name">{{ u.name }}</td>
+          <td class="ci-power-num">{{ u.friends }}</td>
+          <td class="ci-power-num">{{ u.trips }}</td>
+          <td class="ci-power-num">{{ u.invites }}</td>
+          <td class="ci-power-score">{{ u.score }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="ad-footnote">
+    Score = friends + trips created + invites generated (composite, not normalised).
+    Identifies users driving the most growth activity.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 6 — DYNAMIC INSIGHT                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-insight">
+  <div class="ad-section-label">CRM Insight</div>
+  <div class="ci-insight-block">
+    <div class="ci-insight-eyebrow">Top Opportunity</div>
+    <div class="ci-insight-text">"{{ insight }}"</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SECTION 7 — STATUS                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-section" id="ci-status">
+  <div class="ad-section-label">Signal Status</div>
+  <div class="ci-status-panels">
+    <div class="ci-status-panel">
+      <div class="ci-status-panel-title">CRM Signals</div>
+      <div class="ci-status-chips">
+        <div class="ci-status-chip">
+          <div class="ci-status-chip-val">{{ status.crm_audited }}</div>
+          <div class="ci-status-chip-lbl">Audited</div>
+        </div>
+        <div class="ci-status-chip ci-status-chip--g">
+          <div class="ci-status-chip-val">{{ status.crm_green }}</div>
+          <div class="ci-status-chip-lbl">Green</div>
+        </div>
+        <div class="ci-status-chip ci-status-chip--y">
+          <div class="ci-status-chip-val">{{ status.crm_yellow }}</div>
+          <div class="ci-status-chip-lbl">Yellow</div>
+        </div>
+        <div class="ci-status-chip ci-status-chip--r">
+          <div class="ci-status-chip-val">{{ status.crm_red }}</div>
+          <div class="ci-status-chip-lbl">Red</div>
+        </div>
+      </div>
+    </div>
+    <div class="ci-status-panel">
+      <div class="ci-status-panel-title">Retention Signals (audit only)</div>
+      <div class="ci-status-chips">
+        <div class="ci-status-chip">
+          <div class="ci-status-chip-val">{{ status.ret_audited }}</div>
+          <div class="ci-status-chip-lbl">Audited</div>
+        </div>
+        <div class="ci-status-chip ci-status-chip--g">
+          <div class="ci-status-chip-val">{{ status.ret_green }}</div>
+          <div class="ci-status-chip-lbl">Green</div>
+        </div>
+        <div class="ci-status-chip ci-status-chip--y">
+          <div class="ci-status-chip-val">{{ status.ret_yellow }}</div>
+          <div class="ci-status-chip-lbl">Yellow</div>
+        </div>
+        <div class="ci-status-chip ci-status-chip--r">
+          <div class="ci-status-chip-val">{{ status.ret_red }}</div>
+          <div class="ci-status-chip-lbl">Red</div>
+        </div>
+      </div>
+    </div>
+    <div class="ci-status-panel" style="min-width:120px;flex:0 0 auto;">
+      <div class="ci-status-panel-title">Confidence</div>
+      <div class="ci-status-chips">
+        <div class="ci-status-chip ci-status-chip--y">
+          <div class="ci-status-chip-val" style="font-size:13px;">{{ status.confidence }}</div>
+          <div class="ci-status-chip-lbl">Overall</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ad-section-label" style="margin-top:16px;">Data Quality Caveats</div>
+  <ul class="ci-caveats">
+    {% for c in status.caveats %}
+    <li>{{ c }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

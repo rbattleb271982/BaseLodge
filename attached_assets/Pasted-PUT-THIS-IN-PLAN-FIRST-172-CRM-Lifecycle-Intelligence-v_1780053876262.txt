@@ -1,0 +1,310 @@
+PUT THIS IN PLAN FIRST
+
+#172 - CRM & Lifecycle Intelligence v1
+
+What & Why
+
+Growth Intelligence answers:
+
+"Is the network growing?"
+
+CRM & Lifecycle Intelligence should answer:
+
+"Who should we message, who is at risk, and where should we intervene?"
+
+Goal:
+
+Answer:
+
+* Who is reachable?
+* Who is dormant?
+* Who is activated?
+* Who is engaged?
+* Who is a power user?
+* Which users are stuck?
+* Which users need a nudge?
+* Which lifecycle segments are growing?
+* Which CRM audiences should exist today?
+
+Use existing production data only.
+
+Do not add:
+
+* New analytics vendors
+* New databases
+* New tracking systems
+* New models
+* New migrations
+
+Reuse:
+
+* User
+* Friend
+* SkiTrip
+* InviteToken
+* MessageEventLog
+* PushDeviceToken
+* PostHog-backed user properties
+* Existing lifecycle_stage data
+
+---
+
+## PHASE 1 — CRM FEASIBILITY AUDIT
+
+Audit all CRM and lifecycle signals.
+
+Inspect:
+
+1. Push Enabled
+2. Push Disabled
+3. Reachable Users
+4. Unreachable Users
+5. Lifecycle Stage
+6. New Users
+7. Onboarding Users
+8. Activated Users
+9. Engaged Users
+10. Power Users
+11. Dormant Users
+12. Users With Pass
+13. Users With Availability
+14. Users With Wishlist
+15. Users With Trips
+16. Users With Friends
+17. Invite Generators
+18. Message Recipients
+
+For each signal classify:
+
+GREEN
+Directly measurable today
+
+YELLOW
+Approximation available
+
+RED
+Not reliably measurable
+
+Provide:
+
+* Source
+* Query approach
+* Current counts
+* Data quality concerns
+* Recommendation
+
+Do not build until audit is complete.
+
+---
+
+## PHASE 1B — RETENTION FEASIBILITY AUDIT
+
+While auditing CRM, also inspect retention signals.
+
+Audit:
+
+1. WAU
+2. MAU
+3. WAU/MAU Stickiness
+4. Last Active Date
+5. Dormant 30+
+6. Dormant 60+
+7. Dormant 90+
+8. Reactivated Users
+9. Repeat Trip Creators
+10. Returning Users
+
+Classify:
+
+GREEN
+YELLOW
+RED
+
+Provide:
+
+* Source
+* Query approach
+* Current counts
+* Data quality concerns
+* Recommendation
+
+Do NOT build Retention Intelligence yet.
+
+Audit only.
+
+Goal:
+
+Determine whether Retention Intelligence is viable as the next dashboard.
+
+---
+
+## SECTION 0 — CRM KPIs
+
+Recommend reliable KPIs.
+
+Potential examples:
+
+* Reachable Users
+* Push Enabled Users
+* Push Disabled Users
+* Activated Users
+* Engaged Users
+* Power Users
+* Dormant Users
+* CRM Audience Size
+
+Recommend only KPIs supported by production data.
+
+---
+
+## SECTION 1 — REACHABILITY
+
+Audit feasibility of:
+
+* Push Reach Rate
+* Device Registration Rate
+* Reachable Users %
+* Unreachable Users %
+
+Identify the best measure of messaging reach.
+
+---
+
+## SECTION 2 — LIFECYCLE SEGMENTS
+
+Recommend exact segment definitions.
+
+Potential segments:
+
+* New
+* Onboarding
+* Activated
+* Engaged
+* Power
+* Dormant
+
+Provide:
+
+* Criteria
+* Counts
+* Confidence
+
+---
+
+## SECTION 3 — CRM AUDIENCES
+
+Identify actionable audiences.
+
+Examples:
+
+* Activated, No Friends
+* Friends, No Trips
+* Pass, No Availability
+* Availability, No Wishlist
+* Wishlist, No Trip
+* Trip, No Friends
+* Invite Generated, No Friend Connection
+* Connected, No Trip
+
+Recommend:
+
+* Audience size
+* Confidence
+* Messaging opportunity
+
+---
+
+## SECTION 4 — DORMANCY
+
+Audit:
+
+* Dormant 30+
+* Dormant 60+
+* Dormant 90+
+
+Recommend:
+
+* Definitions
+* Counts
+* Reliability
+
+---
+
+## SECTION 5 — POWER USERS
+
+Determine whether we can reliably identify:
+
+* Most connected users
+* Most active users
+* Most trips created
+* Most invites generated
+
+Recommend a scoring approach.
+
+---
+
+## SECTION 6 — LIFECYCLE INSIGHT
+
+Recommend a dynamic insight.
+
+Examples:
+
+"14 activated users have no friends."
+
+"Availability remains the largest CRM opportunity."
+
+"22 users are reachable but have never planned a trip."
+
+Only recommend insights supported by production data.
+
+---
+
+## SECTION 7 — STATUS
+
+Display:
+
+* Tracked Signals
+* Reliable Signals
+* Data Confidence
+
+Confidence:
+
+Low
+Growing
+High
+
+---
+
+## MOBILE REQUIREMENTS
+
+Must work on:
+
+* iPhone 15 Pro
+
+---
+
+## DELIVERABLE BEFORE BUILDING
+
+Provide:
+
+1. Full CRM feasibility audit
+2. Full retention feasibility audit
+3. GREEN / YELLOW / RED classifications
+4. Recommended CRM KPIs
+5. Recommended lifecycle segments
+6. Recommended CRM audiences
+7. Recommended dormancy metrics
+8. Recommended dynamic insight
+9. Recommended implementation approach
+10. Recommendation on whether Retention Intelligence should be built next
+
+STOP AFTER THE AUDIT.
+
+Do not create routes.
+Do not modify templates.
+Do not add models.
+Do not add migrations.
+
+Wait for approval before implementation.
+
+Use checkpoints sparingly.
