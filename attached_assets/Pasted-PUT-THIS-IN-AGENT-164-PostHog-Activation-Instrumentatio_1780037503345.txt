@@ -1,0 +1,265 @@
+PUT THIS IN AGENT
+
+#164 - PostHog Activation Instrumentation
+
+Goal
+
+Instrument 6 post-onboarding activation events so BaseLodge has a complete funnel before any PostHog dashboard is built.
+
+All events must be server-side Python via:
+
+ph_analytics.track()
+
+Do not add:
+
+- New routes
+- Template changes
+- Client-side JS
+- New vendors
+- New databases
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+The following PostHog events are instrumented and firing correctly:
+
+1. pass_added
+2. availability_added
+3. wishlist_added
+4. trip_created
+5. friend_connected
+6. invite_generated
+
+Requirements:
+
+- Events fire exactly once per action
+- No duplicate fires
+- Events fire only after db.session.commit()
+- Existing emit_event() and emit_messaging_event() behavior unchanged
+- Existing application functionality unchanged
+
+--------------------------------------------------
+EVENT SCHEMA
+--------------------------------------------------
+
+1. pass_added
+
+Routes:
+
+- POST /onboarding
+- POST /edit_profile
+- POST /select-pass
+
+Fire after commit.
+
+Only fire when pass is not:
+
+{
+  'no_pass',
+  'no_pass_yet',
+  'none',
+  ''
+}
+
+Properties:
+
+{
+  'pass_type': normalized_pass,
+  'source': 'onboarding' | 'settings' | 'select_pass',
+  'is_first_pass': bool(old_pass was empty/no-pass)
+}
+
+--------------------------------------------------
+2. availability_added
+
+Route:
+
+- POST /add-open-dates
+
+Capture previous dates before overwrite.
+
+Fire after commit.
+
+Only fire when valid dates exist.
+
+Properties:
+
+{
+  'date_count': len(valid_dates),
+  'is_first_time': not bool(previous_dates)
+}
+
+--------------------------------------------------
+3. wishlist_added
+
+Routes:
+
+A.
+
+POST /api/wishlist/add
+
+Only fire when resort is newly added.
+
+Properties:
+
+{
+  'resort_id': resort_id,
+  'total_count': len(ids),
+  'source': 'mountain_page'
+}
+
+B.
+
+POST /settings/wish-list/save
+
+Only fire when wishlist size increases.
+
+Properties:
+
+{
+  'added_count': len(valid_ids) - len(old_ids),
+  'total_count': len(valid_ids),
+  'source': 'settings'
+}
+
+--------------------------------------------------
+4. trip_created
+
+Routes:
+
+- POST /api/trip/create
+- POST /api/group-trip/create
+
+Fire after commit.
+
+Properties:
+
+Standard Trip
+
+{
+  'resort_id': trip.resort_id,
+  'mountain': mountain,
+  'state': state,
+  'is_group': trip.is_group_trip,
+  'has_friend_invited': bool(friend_id),
+  'days': trip_length,
+  'source': 'create_trip_api'
+}
+
+Group Trip
+
+{
+  'trip_type': 'group_trip',
+  'days': trip_length,
+  'source': 'create_group_trip_api'
+}
+
+--------------------------------------------------
+5. friend_connected
+
+Fire from acceptor perspective only.
+
+Locations:
+
+- accept_invitation
+- _connect_pending_inviter
+- connect_add
+
+Properties:
+
+{
+  'source': 'invitation_accept' | 'invite_signup' | 'qr_scan',
+  'is_first_friend': bool(friend_count == 1)
+}
+
+Respect all existing idempotency guards.
+
+Do not fire on already-friends paths.
+
+--------------------------------------------------
+6. invite_generated
+
+Location:
+
+get_or_create_invite_token()
+
+Fire only when a NEW token is created.
+
+Do not fire when existing token is reused.
+
+Properties:
+
+{
+  'source': 'invite_page'
+}
+
+--------------------------------------------------
+IMPLEMENTATION REQUIREMENTS
+--------------------------------------------------
+
+Use existing PostHog infrastructure.
+
+Do not modify:
+
+- analytics.py architecture
+- emit_event()
+- emit_messaging_event()
+- MessageEventLog
+- routing structure
+
+Add only the new ph_analytics.track() calls.
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Verify:
+
+pass_added
+
+- onboarding fires
+- edit profile fires
+- select-pass fires
+- no-pass values do NOT fire
+
+availability_added
+
+- dates added fires
+- empty submission does NOT fire
+
+wishlist_added
+
+- mountain add fires
+- duplicate mountain does NOT fire
+- settings add fires
+- settings removal does NOT fire
+
+trip_created
+
+- standard trip fires
+- group trip fires
+
+friend_connected
+
+- invitation acceptance fires
+- invite signup fires
+- QR connect fires
+- already-friends paths do NOT fire
+
+invite_generated
+
+- new token fires
+- reused token does NOT fire
+
+Global
+
+- All responses remain successful
+- No PostHog events fire before commit
+- No template changes
+- No route changes
+- No regressions
+
+Use checkpoints sparingly.
+
+Do not stop until implementation is complete and fully tested.

@@ -1962,6 +1962,7 @@ def get_or_create_invite_token(user):
     invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at)
     db.session.add(invite)
     db.session.commit()
+    ph_analytics.track(user.id, 'invite_generated', {'source': 'invite_page'})
     return invite
 
 
@@ -2481,6 +2482,12 @@ app.jinja_env.globals['get_seasonal_empty_state'] = get_seasonal_empty_state
 app.jinja_env.globals['is_internal_user'] = ph_analytics.is_internal
 app.jinja_env.globals['POSTHOG_KEY'] = ph_analytics.POSTHOG_KEY
 app.jinja_env.globals['POSTHOG_HOST'] = ph_analytics.POSTHOG_HOST
+
+_PH_NO_PASS_VALS = {'no_pass', 'no_pass_yet', 'none', ''}
+def _ph_is_real_pass(pass_str):
+    """Return True if pass_str contains at least one real (non-placeholder) pass."""
+    return any(s.strip().lower() not in _PH_NO_PASS_VALS
+               for s in (pass_str or '').split(',') if s.strip() or not pass_str)
 app.jinja_env.globals['ONESIGNAL_APP_ID'] = os.environ.get("ONESIGNAL_APP_ID", "")
 app.jinja_env.globals['BL_NAV_DEBUG'] = app.config.get("BL_NAV_DEBUG", False)
 app.jinja_env.globals['STYLES_VERSION']    = STYLES_VERSION
@@ -2865,6 +2872,12 @@ def onboarding():
         ph_analytics.track(current_user.id, 'onboarding_completed', {
             'total_steps': 4
         })
+        if _ph_is_real_pass(normalized_pass):
+            ph_analytics.track(current_user.id, 'pass_added', {
+                'pass_type':    normalized_pass,
+                'source':       'onboarding',
+                'is_first_pass': True,
+            })
 
         # Redirect — invite signups go to friends, others go to home
         next_url = (
@@ -2964,6 +2977,12 @@ def _connect_pending_inviter(user):
     connected = False
     if invite.inviter_id != user.id:
         connected = _apply_invite_token(invite, user)
+        if connected:
+            _isc_count = Friend.query.filter_by(user_id=user.id).count()
+            ph_analytics.track(user.id, 'friend_connected', {
+                'source':          'invite_signup',
+                'is_first_friend': _isc_count == 1,
+            })
 
     session.pop("invite_token", None)
     return connected
@@ -3153,6 +3172,13 @@ def edit_profile():
 
             # Emit profile_completed event
             emit_event('profile_completed', user)
+
+            if _ph_is_real_pass(normalized_passes):
+                ph_analytics.track(user.id, 'pass_added', {
+                    'pass_type':    normalized_passes,
+                    'source':       'settings',
+                    'is_first_pass': not _ph_is_real_pass(_old_pass_ep),
+                })
 
             # ── B3: friend.pass.changed (edit_profile) — centralized dispatch ──
             # One emit per friend → one MEL audit row per recipient.
@@ -4114,7 +4140,16 @@ def create_trip():
         'mountain': mountain,
         'state': state
     })
-    
+    ph_analytics.track(user.id, 'trip_created', {
+        'resort_id':          trip.resort_id,
+        'mountain':           mountain,
+        'state':              state,
+        'is_group':           trip.is_group_trip,
+        'has_friend_invited': bool(friend_id),
+        'days':               (end_date - start_date).days + 1,
+        'source':             'create_trip_api',
+    })
+
     return jsonify({
         "success": True,
         "trip": {
@@ -4515,6 +4550,11 @@ def accept_invitation(invitation_id):
     db.session.add(reverse_friend)
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
     db.session.commit()
+    _fc_count = Friend.query.filter_by(user_id=current_user.id).count()
+    ph_analytics.track(current_user.id, 'friend_connected', {
+        'source':          'invitation_accept',
+        'is_first_friend': _fc_count == 1,
+    })
 
     # Store sender name for the one-time home page "connected" moment (acting user only)
     sender = db.session.get(User, invitation.sender_id)
@@ -7096,6 +7136,11 @@ def connect_add(user_id):
     ).update({'status': 'accepted'}, synchronize_session=False)
 
     db.session.commit()
+    _qr_count = Friend.query.filter_by(user_id=current_user.id).count()
+    ph_analytics.track(current_user.id, 'friend_connected', {
+        'source':          'qr_scan',
+        'is_first_friend': _qr_count == 1,
+    })
     return render_template("connect_success.html", friend=inviter)
 
 @app.route("/invite/<int:user_id>")
@@ -8945,9 +8990,15 @@ def settings_wish_list_save():
         if resort:
             valid_ids.append(rid)
     
+    _old_wl = list(current_user.wish_list_resorts or [])
     current_user.wish_list_resorts = valid_ids
     db.session.commit()
-    
+    if len(valid_ids) > len(_old_wl):
+        ph_analytics.track(current_user.id, 'wishlist_added', {
+            'added_count': len(valid_ids) - len(_old_wl),
+            'total_count': len(valid_ids),
+            'source':      'settings',
+        })
     return jsonify({"success": True, "count": len(valid_ids)})
 
 
@@ -9017,6 +9068,11 @@ def api_wishlist_add():
         ids.append(resort_id)
         current_user.wish_list_resorts = ids
         db.session.commit()
+        ph_analytics.track(current_user.id, 'wishlist_added', {
+            'resort_id':   resort_id,
+            'total_count': len(ids),
+            'source':      'mountain_page',
+        })
     return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 15})
 
 
@@ -9184,11 +9240,18 @@ def add_open_dates():
                 except ValueError:
                     pass
             
+            _prev_open_dates = list(current_user.open_dates or [])
             current_user.open_dates = sorted(set(valid_dates))
         else:
+            _prev_open_dates = list(current_user.open_dates or [])
             current_user.open_dates = []
         
         db.session.commit()
+        if valid_dates:
+            ph_analytics.track(current_user.id, 'availability_added', {
+                'date_count':    len(valid_dates),
+                'is_first_time': not bool(_prev_open_dates),
+            })
         
         # Recompute availability overlap activities for this user
         emit_availability_overlap_activities_for_user(current_user)
@@ -11097,6 +11160,12 @@ def select_pass():
         try:
             db.session.commit()
             session["pass_prompt_skipped"] = False
+            if _ph_is_real_pass(normalized_chosen):
+                ph_analytics.track(current_user.id, 'pass_added', {
+                    'pass_type':    normalized_chosen,
+                    'source':       'select_pass',
+                    'is_first_pass': not _ph_is_real_pass(_old_pass_sp),
+                })
             # ── B3: friend.pass.changed (select_pass) — centralized dispatch ──
             # One emit per friend → one MEL audit row per recipient.
             if _old_pass_sp != normalized_chosen:
@@ -11778,7 +11847,12 @@ def create_group_trip():
     )
     db.session.add(trip)
     db.session.commit()
-    
+    ph_analytics.track(current_user.id, 'trip_created', {
+        'trip_type': 'group_trip',
+        'days':      (end_date - start_date).days + 1,
+        'source':    'create_group_trip_api',
+    })
+
     return jsonify({
         "success": True,
         "trip_id": trip.id,
