@@ -1,0 +1,101 @@
+PUT THIS IN AGENT
+
+#165 - PostHog Event Alignment Fix
+
+Implement the approved PostHog server-side delivery fix and event alignment updates.
+
+Goal:
+
+Make server-side PostHog events appear reliably in PostHog after user actions.
+
+--------------------------------------------------
+WHAT TO FIX
+--------------------------------------------------
+
+1. analytics.py synchronous flush
+
+In analytics.py, inside the ph_analytics.track() function:
+
+- Keep the existing no-op behavior when POSTHOG_KEY is missing
+- After client.capture(), call client.flush()
+- Wrap flush safely so analytics failures never break app requests
+- Do not change the public track() interface
+
+This is required because Flask/Werkzeug debug reload may kill the background PostHog consumer before batches are delivered.
+
+--------------------------------------------------
+2. Google OAuth signup_completed
+
+In app.py, inside auth_google_callback:
+
+- Detect the new-user branch only
+- After the new user is committed, fire:
+
+ph_analytics.track(user.id, 'signup_completed', {
+    'method': 'google',
+    'signup_source': 'invite' if invite/signup token is present else 'organic',
+    'is_invite_signup': bool(invite/signup token is present),
+})
+
+Do not fire this for returning Google users.
+
+Do not fire before db.session.commit().
+
+--------------------------------------------------
+3. Enrich onboarding_completed
+
+In app.py, in the onboarding POST handler:
+
+Update the existing onboarding_completed PostHog event so properties include:
+
+{
+    'total_steps': 4,
+    'has_pass': bool(real pass selected),
+    'has_location': bool(home_state or location field exists),
+    'rider_type_count': len(rider_types or [])
+}
+
+Do not remove onboarding_step_completed.
+
+Do not rename onboarding_completed.
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+Do not:
+
+- Add new dashboards
+- Add new routes
+- Add new vendors
+- Change services/posthog_query.py event names
+- Replace onboarding_step_completed
+- Backfill historical events
+- Change emit_event()
+- Change emit_messaging_event()
+- Change MessageEventLog
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Verify:
+
+- ph_analytics.track() still no-ops safely without POSTHOG_KEY
+- client.flush() is called after capture when key exists
+- analytics failures do not break requests
+- signup_completed fires once for email signup
+- signup_completed fires once for new Google OAuth signup
+- signup_completed does NOT fire for returning Google OAuth login
+- signup_completed does NOT fire on failed signup
+- onboarding_completed fires once after successful onboarding
+- onboarding_completed includes total_steps, has_pass, has_location, rider_type_count
+- onboarding_step_completed remains unchanged
+- No server-side events fire before db.session.commit()
+- /admin/posthog-funnels loads with HTTP 200
+- No template errors
+- No duplicate events
+
+Use checkpoints sparingly.
+
+Do not stop until implementation is complete and fully tested.

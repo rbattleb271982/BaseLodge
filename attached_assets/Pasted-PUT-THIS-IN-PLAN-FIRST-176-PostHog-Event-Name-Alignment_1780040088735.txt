@@ -1,0 +1,175 @@
+PUT THIS IN PLAN FIRST
+
+#176 - PostHog Event Name Alignment Fix
+
+What & Why
+
+PostHog live query connectivity is now working.
+
+The Personal API Key authenticates successfully and HogQL returns 200 OK.
+
+However, the PostHog Funnels page is partially blind because expected event names do not match what is actually present in PostHog.
+
+Current live data shows:
+
+- signup_started: 66 events / 61 users
+- onboarding_step_completed: 110 events
+- app_loaded: 4,572 events
+- $identify: 163 events
+
+But the dashboard is looking for:
+
+- signup_completed
+- onboarding_completed
+- pass_added
+- availability_added
+- wishlist_added
+- trip_created
+- friend_connected
+- invite_generated
+
+Some events are newly instrumented and may need time.
+
+But signup_completed and onboarding_completed should already exist if the naming is aligned.
+
+Goal:
+
+Fix event name alignment and improve the PostHog Funnels page so it accurately reflects what is live today without mislabeling data.
+
+--------------------------------------------------
+IMPORTANT
+--------------------------------------------------
+
+Do not add new dashboards.
+
+Do not add new vendors.
+
+Do not add new routes.
+
+Do not change the core analytics architecture.
+
+This is a targeted PostHog alignment and verification task.
+
+--------------------------------------------------
+PHASE 1 — AUDIT
+--------------------------------------------------
+
+Before changing code, inspect:
+
+- analytics.py
+- static/analytics.js
+- auth.html
+- identity_setup.html
+- app.py
+- services/posthog_query.py
+- admin_posthog_funnels route/template
+
+Report:
+
+1. Where signup_completed is supposed to fire
+2. Whether it fires server-side or client-side
+3. Whether ph_analytics.track() is actually being called
+4. Whether server-side PostHog client flushes events properly
+5. Where onboarding_completed is supposed to fire
+6. Whether the dashboard should use onboarding_completed or onboarding_step_completed
+7. Whether services/posthog_query.py is querying the correct project and time window
+
+Do not implement until audit is complete.
+
+--------------------------------------------------
+PHASE 2 — FIX EVENT ALIGNMENT
+--------------------------------------------------
+
+After audit:
+
+1. Keep signup_started as-is.
+
+2. Ensure signup_completed is tracked consistently.
+
+Preferred:
+
+- Server-side ph_analytics.track(user.id, 'signup_completed', ...)
+- Fire only after user is created and committed
+- Include:
+  - method
+  - signup_source
+  - is_invite_signup
+
+3. Ensure onboarding_completed is tracked consistently.
+
+Preferred:
+
+- Server-side ph_analytics.track(current_user.id, 'onboarding_completed', ...)
+- Fire only after onboarding form is saved and committed
+- Include:
+  - total_steps
+  - has_pass
+  - has_location
+  - rider_type_count
+
+4. Do not replace onboarding_step_completed.
+
+Keep it as a step-level event.
+
+The dashboard should use:
+
+- onboarding_completed for completed onboarding
+- onboarding_step_completed only for step-level diagnostics
+
+--------------------------------------------------
+PHASE 3 — SERVER-SIDE POSTHOG FLUSH CHECK
+--------------------------------------------------
+
+Verify whether ph_analytics.track() events are being sent promptly.
+
+If the PostHog Python client requires flush/shutdown behavior in this environment, add the minimal safe flush behavior after server-side captures.
+
+Do not over-engineer.
+
+Do not break no-op behavior when POSTHOG_KEY is missing.
+
+--------------------------------------------------
+PHASE 4 — DASHBOARD QUERY UPDATE
+--------------------------------------------------
+
+Update services/posthog_query.py only if needed.
+
+The funnel should query:
+
+- signup_started
+- signup_completed
+- onboarding_completed
+- pass_added
+- availability_added
+- wishlist_added
+- trip_created
+- friend_connected
+- invite_generated
+
+Also show onboarding_step_completed separately as diagnostic context, not as a replacement for onboarding_completed.
+
+If an event has 0 PostHog count but a DB proxy exists, label it clearly as DB Estimate.
+
+Do not treat DB estimates as live PostHog events.
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Verify with test client and/or mocked ph_analytics:
+
+- signup_completed fires once after successful signup
+- signup_completed does not fire on failed signup
+- onboarding_completed fires once after successful onboarding completion
+- onboarding_step_completed remains unchanged
+- server-side events do not fire before db.session.commit()
+- no duplicate events fire
+- /admin/posthog-funnels loads
+- live PostHog status still shows correctly
+- DB estimates remain labeled correctly
+- no template errors
+- no route changes
+
+Use checkpoints sparingly.
+
+Stop after the audit if the root cause is unclear.

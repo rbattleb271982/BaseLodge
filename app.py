@@ -2870,7 +2870,10 @@ def onboarding():
 
         db.session.commit()
         ph_analytics.track(current_user.id, 'onboarding_completed', {
-            'total_steps': 4
+            'total_steps': 4,
+            'has_pass': _ph_is_real_pass(normalized_pass),
+            'has_location': bool(home_state),
+            'rider_type_count': len(rider_types) if isinstance(rider_types, list) else (1 if rider_types else 0),
         })
         if _ph_is_real_pass(normalized_pass):
             ph_analytics.track(current_user.id, 'pass_added', {
@@ -10860,6 +10863,7 @@ def auth_google_callback():
 
         user = User.query.filter_by(email=email).first()
 
+        _is_new_google_user = False
         if user:
             if user.auth_provider != "google":
                 user.auth_provider = "google"
@@ -10867,6 +10871,7 @@ def auth_google_callback():
                 user.provider_id = sub
             db.session.commit()
         else:
+            _is_new_google_user = True
             user = User(
                 email=email,
                 first_name=given_name or email.split("@")[0],
@@ -10878,6 +10883,12 @@ def auth_google_callback():
             )
             db.session.add(user)
             db.session.commit()
+            _has_invite = "invite_token" in session or "trip_invite_token" in session
+            ph_analytics.track(user.id, 'signup_completed', {
+                'method': 'google',
+                'signup_source': 'invite' if _has_invite else 'organic',
+                'is_invite_signup': _has_invite,
+            })
 
         user.last_active_at = datetime.utcnow()
         db.session.commit()

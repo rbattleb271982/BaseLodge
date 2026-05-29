@@ -83,6 +83,7 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
         props["$set_once"] = set_once_props
     try:
         client.capture(distinct_id, event, props)
+        client.flush()
     except Exception as exc:
         logger.warning("PostHog track failed: %s", exc)
 
