@@ -1,0 +1,178 @@
+PUT THIS IN AGENT
+
+#162 - Admin Nav Reorganization
+
+What & Why
+
+The admin sidebar has grown organically across several dashboard builds and now has two problems:
+
+1. Structural bug
+The new Messaging and User Intelligence <li> items were appended outside their <ul> wrapper, making them non-functional orphans in the rendered sidebar.
+
+2. No grouping
+10+ pages are listed as a single flat "Console" section, making the sidebar hard to scan.
+
+Reorganize the sidebar into three named sections and fix all structural issues.
+
+No routes, metrics, dashboard logic, Python views, or queries should change.
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+Sidebar has three clearly labeled sections:
+
+- Overview
+- Intelligence
+- Operations
+
+All dashboard links are reachable and load correctly.
+
+Active states and anchor sub-links work on every page.
+
+Old duplicate/orphaned Messaging entry is removed.
+
+New Messaging entry is retained using the ms- anchor IDs.
+
+No route, metric, query, or dashboard logic changes.
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+Do not:
+
+- Change dashboard routes
+- Change Python views
+- Change metric queries
+- Rename URLs
+- Change the visual design system
+- Add new pages
+- Add new features
+
+--------------------------------------------------
+RELEVANT FILE
+--------------------------------------------------
+
+templates/admin_console.html
+
+Primary area:
+
+lines ~333–515
+
+--------------------------------------------------
+NAV GROUPING
+--------------------------------------------------
+
+Replace the single "Console" heading and flat list with three grouped sections.
+
+Overview:
+
+- Dashboard
+- Growth
+- Activation
+- Retention
+
+Intelligence:
+
+- User Intelligence
+- Product
+- Resort Intelligence
+- Messaging
+
+Operations:
+
+- Trips
+- Mountains
+- User Insights
+- Message Log
+- Push Diag
+- Resort Audit
+- Resort Operations
+
+Keep all existing routes.
+
+Keep all existing anchor sub-links unchanged under each page.
+
+--------------------------------------------------
+MESSAGING REQUIREMENTS
+--------------------------------------------------
+
+Remove the old duplicate Messaging entry that uses old msg- anchor IDs, including:
+
+- msg-push-health
+- msg-email-prefs
+- msg-delivery
+- msg-audience
+- msg-velocity
+- msg-lifecycle
+- msg-message-log
+
+Retain only the new Messaging entry using ms- anchor IDs.
+
+Do not remove the actual old tools pages if they still exist elsewhere.
+
+Only clean up the sidebar navigation.
+
+--------------------------------------------------
+STRUCTURAL REQUIREMENTS
+--------------------------------------------------
+
+Ensure every <li> is inside a valid <ul>.
+
+No orphaned <li> elements.
+
+No duplicate Messaging entries.
+
+No broken nested lists.
+
+No unclosed tags.
+
+--------------------------------------------------
+ACTIVE STATE REQUIREMENTS
+--------------------------------------------------
+
+Confirm active_tab conditionals still work after moving links into groups.
+
+Confirm anchor sub-links still render under the active page.
+
+Active states should work for:
+
+- dashboard
+- growth
+- activation
+- retention
+- user_intelligence
+- product
+- resort_intelligence
+- messaging
+- trips
+- mountains
+- user_insights
+- message_log
+- push_diag
+- resort_audit
+- resort_operations
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Use the test client to verify all admin pages return expected responses.
+
+Confirm:
+
+- All 10+ admin pages load
+- Sidebar renders with Overview / Intelligence / Operations
+- No orphaned list elements
+- Active states render correctly
+- Anchor sub-links appear beneath the correct active page
+- Old duplicate Messaging entry is gone
+- New Messaging entry remains
+- No template errors
+- No route changes
+- No metric/query changes
+
+Use checkpoints sparingly.
+
+Do not stop until implementation is complete and fully tested.

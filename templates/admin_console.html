@@ -338,7 +338,7 @@
         <div class="ac-logo-tag">Admin V1</div>
       </div>
 
-      <div class="ac-nav-section">Console</div>
+      <div class="ac-nav-section">Overview</div>
       <ul class="ac-nav">
         <li class="{{ 'ac-active' if active_tab == 'dashboard' else '' }}">
           <a href="/admin/dashboard">Dashboard</a>
@@ -346,52 +346,6 @@
           <ul class="ac-subnav-list">
             <li><a href="/admin/dashboard#dash-users">Users</a></li>
             <li><a href="/admin/dashboard#dash-planning">Planning</a></li>
-          </ul>
-          {% endif %}
-        </li>
-        <li class="{{ 'ac-active' if active_tab == 'user_insights' else '' }}">
-          <a href="/admin/user-insights">User Insights</a>
-          {% if active_tab == 'user_insights' %}
-          <ul class="ac-subnav-list">
-            <li><a href="/admin/user-insights#ui-overview">Overview</a></li>
-            <li><a href="/admin/user-insights#ui-riders">Rider Mix</a></li>
-            <li><a href="/admin/user-insights#ui-passes">Pass Ownership</a></li>
-            <li><a href="/admin/user-insights#ui-equipment">Equipment</a></li>
-          </ul>
-          {% endif %}
-        </li>
-        <li class="{{ 'ac-active' if active_tab == 'trips' else '' }}">
-          <a href="/admin/trips">Trips</a>
-          {% if active_tab == 'trips' %}
-          <ul class="ac-subnav-list">
-            <li><a href="/admin/trips#tr-overview">Overview</a></li>
-            <li><a href="/admin/trips#tr-dest-intel">Dest. Intelligence</a></li>
-            <li><a href="/admin/trips#tr-social">Social &amp; Coordination</a></li>
-          </ul>
-          {% endif %}
-        </li>
-        <li class="{{ 'ac-active' if active_tab == 'mountains' else '' }}">
-          <a href="/admin/resorts">Mountains</a>
-          {% if active_tab == 'mountains' %}
-          <ul class="ac-subnav-list">
-            <li><a href="/admin/resorts#mtn-traffic">Traffic</a></li>
-            <li><a href="/admin/resorts#mtn-demand">Demand</a></li>
-            <li><a href="/admin/resorts#mtn-upcoming">Upcoming</a></li>
-          </ul>
-          {% endif %}
-        </li>
-        <li class="{{ 'ac-active' if active_tab == 'messaging' else '' }}">
-          <a href="/admin/messaging">Messaging</a>
-          {% if active_tab == 'messaging' %}
-          <ul class="ac-subnav-list">
-            <li><a href="/admin/messaging#msg-push-health">Push Health</a></li>
-            <li><a href="/admin/messaging#msg-email-prefs">Email Preferences</a></li>
-            <li><a href="/admin/messaging#msg-email-delivery">Email Delivery</a></li>
-            <li><a href="/admin/messaging#msg-audience">Audience Reach</a></li>
-            <li><a href="/admin/messaging#msg-velocity">Message Velocity</a></li>
-            <li><a href="/admin/messaging#msg-delivery">Delivery Health</a></li>
-            <li><a href="/admin/messaging#msg-lifecycle">Lifecycle Events</a></li>
-            <li><a href="/admin/messaging#msg-log">Message Log</a></li>
           </ul>
           {% endif %}
         </li>
@@ -428,16 +382,22 @@
           </ul>
           {% endif %}
         </li>
-        <li class="{{ 'ac-active' if active_tab == 'resort_intelligence' else '' }}">
-          <a href="/admin/resort-intelligence">Resort Intelligence</a>
-          {% if active_tab == 'resort_intelligence' %}
+      </ul>
+
+      <div class="ac-nav-section">Intelligence</div>
+      <ul class="ac-nav">
+        <li class="{{ 'ac-active' if active_tab == 'user-intelligence' else '' }}">
+          <a href="/admin/user-intelligence">User Intelligence</a>
+          {% if active_tab == 'user-intelligence' %}
           <ul class="ac-subnav-list">
-            <li><a href="/admin/resort-intelligence#ri-kpis">KPIs</a></li>
-            <li><a href="/admin/resort-intelligence#ri-table">Demand Table</a></li>
-            <li><a href="/admin/resort-intelligence#ri-funnel">Funnel</a></li>
-            <li><a href="/admin/resort-intelligence#ri-leaderboards">Leaderboards</a></li>
-            <li><a href="/admin/resort-intelligence#ri-social">Social</a></li>
-            <li><a href="/admin/resort-intelligence#ri-insight">Insight</a></li>
+            <li><a href="/admin/user-intelligence#ui-kpis">KPIs</a></li>
+            <li><a href="/admin/user-intelligence#ui-profile">User Profile</a></li>
+            <li><a href="/admin/user-intelligence#ui-pass">Pass</a></li>
+            <li><a href="/admin/user-intelligence#ui-rider">Rider Profile</a></li>
+            <li><a href="/admin/user-intelligence#ui-destination">Destinations</a></li>
+            <li><a href="/admin/user-intelligence#ui-social">Social Graph</a></li>
+            <li><a href="/admin/user-intelligence#ui-correlates">Activation</a></li>
+            <li><a href="/admin/user-intelligence#ui-power">Power Users</a></li>
           </ul>
           {% endif %}
         </li>
@@ -454,8 +414,19 @@
           </ul>
           {% endif %}
         </li>
-      </ul>
-
+        <li class="{{ 'ac-active' if active_tab == 'resort_intelligence' else '' }}">
+          <a href="/admin/resort-intelligence">Resort Intelligence</a>
+          {% if active_tab == 'resort_intelligence' %}
+          <ul class="ac-subnav-list">
+            <li><a href="/admin/resort-intelligence#ri-kpis">KPIs</a></li>
+            <li><a href="/admin/resort-intelligence#ri-table">Demand Table</a></li>
+            <li><a href="/admin/resort-intelligence#ri-funnel">Funnel</a></li>
+            <li><a href="/admin/resort-intelligence#ri-leaderboards">Leaderboards</a></li>
+            <li><a href="/admin/resort-intelligence#ri-social">Social</a></li>
+            <li><a href="/admin/resort-intelligence#ri-insight">Insight</a></li>
+          </ul>
+          {% endif %}
+        </li>
         <li class="{{ 'ac-active' if active_tab == 'messaging' else '' }}">
           <a href="/admin/messaging">Messaging</a>
           {% if active_tab == 'messaging' %}
@@ -469,25 +440,41 @@
           </ul>
           {% endif %}
         </li>
-        <li class="{{ 'ac-active' if active_tab == 'user-intelligence' else '' }}">
-          <a href="/admin/user-intelligence">User Intelligence</a>
-          {% if active_tab == 'user-intelligence' %}
+      </ul>
+
+      <div class="ac-nav-section">Operations</div>
+      <ul class="ac-nav">
+        <li class="{{ 'ac-active' if active_tab == 'trips' else '' }}">
+          <a href="/admin/trips">Trips</a>
+          {% if active_tab == 'trips' %}
           <ul class="ac-subnav-list">
-            <li><a href="/admin/user-intelligence#ui-kpis">KPIs</a></li>
-            <li><a href="/admin/user-intelligence#ui-profile">User Profile</a></li>
-            <li><a href="/admin/user-intelligence#ui-pass">Pass</a></li>
-            <li><a href="/admin/user-intelligence#ui-rider">Rider Profile</a></li>
-            <li><a href="/admin/user-intelligence#ui-destination">Destinations</a></li>
-            <li><a href="/admin/user-intelligence#ui-social">Social Graph</a></li>
-            <li><a href="/admin/user-intelligence#ui-correlates">Activation</a></li>
-            <li><a href="/admin/user-intelligence#ui-power">Power Users</a></li>
+            <li><a href="/admin/trips#tr-overview">Overview</a></li>
+            <li><a href="/admin/trips#tr-dest-intel">Dest. Intelligence</a></li>
+            <li><a href="/admin/trips#tr-social">Social &amp; Coordination</a></li>
           </ul>
           {% endif %}
         </li>
-      </ul>
-
-      <div class="ac-nav-section">Tools</div>
-      <ul class="ac-nav">
+        <li class="{{ 'ac-active' if active_tab == 'mountains' else '' }}">
+          <a href="/admin/resorts">Mountains</a>
+          {% if active_tab == 'mountains' %}
+          <ul class="ac-subnav-list">
+            <li><a href="/admin/resorts#mtn-traffic">Traffic</a></li>
+            <li><a href="/admin/resorts#mtn-demand">Demand</a></li>
+            <li><a href="/admin/resorts#mtn-upcoming">Upcoming</a></li>
+          </ul>
+          {% endif %}
+        </li>
+        <li class="{{ 'ac-active' if active_tab == 'user_insights' else '' }}">
+          <a href="/admin/user-insights">User Insights</a>
+          {% if active_tab == 'user_insights' %}
+          <ul class="ac-subnav-list">
+            <li><a href="/admin/user-insights#ui-overview">Overview</a></li>
+            <li><a href="/admin/user-insights#ui-riders">Rider Mix</a></li>
+            <li><a href="/admin/user-insights#ui-passes">Pass Ownership</a></li>
+            <li><a href="/admin/user-insights#ui-equipment">Equipment</a></li>
+          </ul>
+          {% endif %}
+        </li>
         <li>
           <a href="/admin/message-events">Message Log</a>
         </li>
