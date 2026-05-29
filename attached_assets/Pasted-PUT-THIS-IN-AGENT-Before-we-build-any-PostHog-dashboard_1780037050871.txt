@@ -1,0 +1,153 @@
+PUT THIS IN AGENT
+
+Before we build any PostHog dashboard work, perform a complete PostHog implementation audit.
+
+Do not make any changes yet.
+
+Goal:
+
+Determine exactly what PostHog tracking already exists in BaseLodge and whether we have enough data to build funnel reporting.
+
+--------------------------------------------------
+AUDIT REQUIREMENTS
+--------------------------------------------------
+
+Inspect the entire codebase and report:
+
+1. Is PostHog installed?
+
+Identify:
+
+- package dependency
+- initialization code
+- environment variables
+- configuration
+
+--------------------------------------------------
+2. What events are currently tracked?
+
+Provide a complete inventory.
+
+For every event include:
+
+- event name
+- where it fires
+- file(s)
+- route(s)
+- properties captured
+
+--------------------------------------------------
+3. Funnel Readiness
+
+Determine whether we can currently measure:
+
+- Signup Started
+- Signup Completed
+- Onboarding Started
+- Onboarding Completed
+- Pass Added
+- Availability Added
+- Wishlist Added
+- Friend Connected
+- Trip Created
+- Group Trip Created
+- Invite Generated
+- Invite Redeemed
+
+For each:
+
+GREEN
+Tracked today
+
+YELLOW
+Can approximate
+
+RED
+Not currently tracked
+
+--------------------------------------------------
+4. User Identification
+
+Audit:
+
+- identify() calls
+- alias() calls
+- user properties
+
+Determine whether users are properly tied together across:
+
+- anonymous
+- authenticated
+- onboarding
+
+--------------------------------------------------
+5. Data Quality Review
+
+Identify:
+
+- duplicate events
+- missing events
+- events firing in multiple places
+- events firing too often
+- events that should be server-side
+- events that should be client-side
+
+--------------------------------------------------
+6. Recommended Funnel
+
+Based on the current implementation, recommend the best initial funnel.
+
+Example:
+
+Signup Started
+↓
+Signup Completed
+↓
+Pass Added
+↓
+Availability Added
+↓
+Wishlist Added
+↓
+Trip Created
+
+Show which steps are already measurable.
+
+--------------------------------------------------
+7. Readiness Score
+
+Provide:
+
+- Instrumentation Coverage %
+- Funnel Readiness %
+- Confidence Level
+
+Confidence:
+
+Low
+Growing
+High
+
+--------------------------------------------------
+DELIVERABLE
+--------------------------------------------------
+
+Do not implement anything.
+
+Provide:
+
+1. Complete PostHog audit
+2. Event inventory
+3. Funnel readiness table
+4. Missing instrumentation list
+5. Recommended implementation plan
+
+Then recommend whether we should:
+
+A. Build a PostHog Funnel Dashboard now
+
+or
+
+B. Instrument additional events first
+
+Use checkpoints sparingly.
