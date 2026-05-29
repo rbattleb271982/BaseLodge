@@ -1,0 +1,171 @@
+PUT THIS IN AGENT
+
+#166 - Fix PostHog Python v7 API Compatibility
+
+What & Why
+
+PostHog connectivity works, but all server-side events are failing because analytics.py is using the old PostHog Python v2 method signatures while the installed package is posthog v7.12.0.
+
+Current broken calls:
+
+client.capture(distinct_id, event, props)
+
+But PostHog v7 requires:
+
+client.capture(
+    event=event,
+    distinct_id=str(distinct_id),
+    properties=props
+)
+
+Also:
+
+client.identify(...)
+
+is no longer valid in v7. Use the supported v7 person-property methods instead.
+
+Goal:
+
+Update analytics.py to use PostHog v7-compatible calls so all server-side events reach PostHog.
+
+--------------------------------------------------
+SCOPE
+--------------------------------------------------
+
+Modify:
+
+- analytics.py only unless absolutely required
+
+Do not modify:
+
+- app.py event call sites
+- event names
+- event properties
+- services/posthog_query.py
+- templates
+- routes
+- dashboards
+
+--------------------------------------------------
+REQUIRED FIXES
+--------------------------------------------------
+
+1. Fix track()
+
+Update ph_analytics.track() so it calls:
+
+client.capture(
+    event=event,
+    distinct_id=str(distinct_id),
+    properties=properties or {}
+)
+
+Then call:
+
+client.flush()
+
+after capture.
+
+Keep exception safety:
+
+- Log warning on failure
+- Never break the app request
+
+Keep no-op behavior when POSTHOG_KEY is missing.
+
+--------------------------------------------------
+2. Fix identify()
+
+PostHog v7 removed the old identify() method.
+
+Update ph_analytics.identify() to use the correct v7-compatible method for setting person properties.
+
+Use the safest supported approach available in the installed library.
+
+Preferred if supported:
+
+client.set(
+    distinct_id=str(user_id),
+    properties=properties or {}
+)
+
+and for set_once properties:
+
+client.set_once(
+    distinct_id=str(user_id),
+    properties=set_once_props or {}
+)
+
+If the installed library uses a different v7 API, inspect it directly and use the actual supported method names.
+
+Do not guess.
+
+Keep exception safety.
+
+Call flush after successful person-property updates if supported.
+
+--------------------------------------------------
+3. Preserve alias()
+
+Keep alias() only if the installed library signature still works.
+
+Audit the installed v7 signature before changing it.
+
+If current alias() is valid, leave it alone.
+
+--------------------------------------------------
+4. Add real-client compatibility test
+
+Add or update QA so MagicMock flexible signatures do not hide this issue again.
+
+Test should verify that track() calls capture using keyword arguments:
+
+- event=
+- distinct_id=
+- properties=
+
+not positional arguments.
+
+Also verify identify() uses the v7-compatible person property method.
+
+--------------------------------------------------
+LIVE VERIFICATION
+--------------------------------------------------
+
+After code changes:
+
+Run a real test capture with a safe diagnostic event name:
+
+posthog_server_test
+
+Properties:
+
+{
+  "source": "server_api_compatibility_check"
+}
+
+Then query PostHog via existing services/posthog_query.py or HogQL to confirm the event appears.
+
+If live querying is not practical in the test environment, report exactly why.
+
+--------------------------------------------------
+QA REQUIREMENTS
+--------------------------------------------------
+
+Verify:
+
+- ph_analytics.track() no-ops safely without POSTHOG_KEY
+- ph_analytics.track() uses PostHog v7 keyword capture signature
+- ph_analytics.track() flushes after capture
+- failures log warnings but do not break requests
+- identify() no longer calls removed client.identify()
+- identify() uses v7-compatible person property API
+- alias() still works or is safely adjusted
+- /admin/posthog-funnels loads with HTTP 200
+- No app.py event call sites changed
+- No event names changed
+- No dashboard logic changed
+
+Use checkpoints sparingly.
+
+Do not stop until implementation and verification are complete.
