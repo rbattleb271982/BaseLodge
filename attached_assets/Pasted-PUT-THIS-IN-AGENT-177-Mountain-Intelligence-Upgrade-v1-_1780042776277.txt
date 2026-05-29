@@ -1,0 +1,99 @@
+PUT THIS IN AGENT
+
+#177 - Mountain Intelligence Upgrade v1 — Build Phase
+
+Build the Mountain Intelligence admin page based on the completed feasibility audit.
+
+Use the audit recommendations exactly.
+
+Create:
+
+* New route: `/admin/mountain-intelligence`
+* New template: `templates/admin_mountain_intelligence.html`
+* Sidebar link under the existing Intelligence section in `templates/admin_console.html`
+
+Reuse existing logic from `/admin/resort-intelligence` wherever possible.
+
+Do not add:
+
+* New tracking vendors
+* New databases
+* New event systems
+* New migrations
+* New models
+
+Build these sections:
+
+1. Mountain KPIs
+2. Attention Leaderboard
+3. Demand Leaderboard
+4. Conversion Funnel with threshold guards
+5. Latent Demand
+6. Overperformers
+7. Social Potential
+8. Partnership Watchlist
+9. Mountain Insight
+10. Status / Data Confidence
+
+Use this partnership score:
+
+Score =
+(1 × Views)
+
+* (5 × Wishlists)
+* (10 × Planned Trips)
+* (15 × Group Trips)
+
+Add a concentration note when a single user_id accounts for more than 50% of a resort’s planned trips.
+
+Use these sample thresholds:
+
+* View → Wishlist %: show only when resort has ≥5 views
+* Wishlist → Trip %: show only when resort has ≥3 wishlist adds
+* Overall funnel %: show only when resort has ≥5 views and ≥1 trip
+* Partnership Watchlist: show all resorts with any signal
+* Attention Leaderboard: show resorts with ≥1 view
+* Latent Demand: show resorts with ≥2 wishlists and 0 trips
+* Overperformers: show resorts with ≥5 trips and views < trips / 2
+* Mountain Insight: show if any insight rule matches
+
+Insight priority order:
+
+1. Aspiration gap: most-wishlisted resort with 0 trips
+2. Conversion leader: highest wishlist-to-trip conversion with ≥2 wishlist users
+3. Trip leader: resort with most trips, but avoid obvious Beaver Creek-style test outlier if concentration note applies
+4. Latent demand: high wishlist plus group trip activity
+5. Attention signal: most-viewed resort
+
+Use caveats for YELLOW metrics:
+
+* Group Trips: small sample size
+* Pass Compatibility: indirect signal
+* Invite Activity: limited to TripInviteToken
+* Resort Page Traffic: tracking is young
+* Friend Activity: do not include unless directly measurable
+* Availability Overlaps: do not include in v1
+
+Mobile requirements:
+
+* Must work on iPhone 15
+* KPI cards collapse cleanly
+* Tables scroll horizontally
+* No clipped content
+* No overflow
+
+Testing requirements:
+
+* `/admin/mountain-intelligence` returns 200
+* Existing `/admin/resort-intelligence` still returns 200
+* Admin sidebar link works
+* Page handles empty data safely
+* Page handles resorts with views but no trips
+* Page handles resorts with trips but no views
+* No seeded users included where user-level filtering applies
+* No template errors
+* No mobile overflow
+
+Use checkpoints sparingly.
+
+Do not finish until you have tested the route, template rendering, sidebar link, empty-state handling, and mobile layout.

@@ -1,0 +1,310 @@
+PUT THIS IN PLAN FIRST
+
+#177 - Mountain Intelligence Upgrade v1
+
+What & Why
+
+Resort Intelligence tells us what users have already done.
+
+Mountain Intelligence should tell us where future demand exists.
+
+Goal:
+
+Answer:
+
+* Which resorts attract attention?
+* Which resorts convert interest into action?
+* Which resorts have latent demand?
+* Which resorts are over-performing?
+* Which resorts are under-performing?
+* Which destinations could become partnership opportunities?
+
+Use existing production data only.
+
+Do not add:
+
+* New tracking vendors
+* New databases
+* New event systems
+
+Inspect and reuse the existing /admin/resort-intelligence implementation where possible.
+
+Do not duplicate logic unnecessarily.
+
+Before implementation, perform a feasibility audit.
+
+---
+
+## PHASE 1 — FEASIBILITY AUDIT
+
+Audit all available mountain-level signals.
+
+At minimum inspect:
+
+1. Resort Detail Views
+2. Wishlist Adds
+3. Planned Trips
+4. Group Trips
+5. Friend Activity
+6. Availability Overlaps
+7. Pass Compatibility
+8. Invite Activity
+9. Resort Page Traffic
+
+For each signal classify:
+
+GREEN
+Directly measurable today
+
+YELLOW
+Approximation available
+
+RED
+Not reliably measurable
+
+Provide:
+
+* Source model
+* Query approach
+* Current counts
+* Data quality concerns
+* Recommendation
+
+Return the audit as a table with:
+
+* Signal
+* Classification
+* Source Model
+* Current Count
+* Confidence
+* Data Quality Concerns
+* Recommendation
+
+Do not build until audit is complete.
+
+---
+
+## SECTION 0 — MOUNTAIN KPIs
+
+Show:
+
+* Resorts With Activity
+* Total Resort Views
+* Total Wishlists
+* Total Planned Trips
+* Total Group Trips
+* Avg Views Per Resort
+
+Use non-seeded users only where applicable.
+
+---
+
+## SECTION 1 — ATTENTION LEADERBOARD
+
+Top resorts by page views.
+
+Display:
+
+Resort
+Views
+Share %
+
+Sort descending.
+
+---
+
+## SECTION 2 — DEMAND LEADERBOARD
+
+Top resorts by:
+
+* Wishlist Users
+* Planned Trips
+
+Display:
+
+Resort
+Wishlists
+Trips
+
+Sort descending.
+
+---
+
+## SECTION 3 — CONVERSION FUNNEL
+
+Per resort:
+
+Views
+↓
+Wishlists
+↓
+Trips
+
+Display:
+
+* View → Wishlist %
+* Wishlist → Trip %
+* Overall %
+
+Only include resorts with meaningful sample size.
+
+Recommend minimum sample thresholds before implementation.
+
+---
+
+## SECTION 4 — LATENT DEMAND
+
+Identify resorts with:
+
+High views
+High wishlists
+Low trips
+
+Display:
+
+Resort
+Views
+Wishlists
+Trips
+
+Goal:
+
+Find destinations users want but are not yet booking.
+
+---
+
+## SECTION 5 — OVERPERFORMERS
+
+Identify resorts with:
+
+Low views
+High trips
+
+Display:
+
+Resort
+Views
+Trips
+
+These are converting exceptionally well.
+
+---
+
+## SECTION 6 — SOCIAL POTENTIAL
+
+Display resorts with:
+
+* Multiple users interested
+* Multiple planned trips
+* Friend activity if measurable
+* Group trip activity
+
+Goal:
+
+Find destinations where community effects could emerge.
+
+Explicitly identify which social signals are GREEN, YELLOW, or RED.
+
+---
+
+## SECTION 7 — PARTNERSHIP WATCHLIST
+
+Recommend a partnership score.
+
+Starting recommendation:
+
+Partnership Score =
+(1 × Views)
+
+* (5 × Wishlists)
+* (10 × Planned Trips)
+* (15 × Group Trips)
+
+Audit current production data and recommend whether weights should change.
+
+Display:
+
+Resort
+Score
+
+This is not a monetization model.
+
+It is a directional signal for future resort outreach.
+
+---
+
+## SECTION 8 — MOUNTAIN INSIGHT
+
+Generate one dynamic insight.
+
+Examples:
+
+"Jackson Hole has 4 wishlists but only 1 trip."
+
+"Beaver Creek leads all resorts with 10 planned trips."
+
+"St. Moritz is attracting attention but not converting."
+
+Hide if insufficient data.
+
+Recommend the insight-generation logic before implementation.
+
+---
+
+## SECTION 9 — STATUS
+
+Display:
+
+* Tracked Signals
+* Reliable Signals
+* Data Confidence
+
+Confidence:
+
+Low
+Growing
+High
+
+Include explicit caveats for any YELLOW metrics.
+
+---
+
+## MOBILE REQUIREMENTS
+
+Must work on:
+
+* iPhone 15
+
+Requirements:
+
+* KPI cards collapse cleanly
+* Tables scroll horizontally
+* No clipped content
+* No overflow
+
+---
+
+## DELIVERABLE BEFORE BUILDING
+
+Provide:
+
+1. Full feasibility audit
+2. GREEN / YELLOW / RED classification
+3. Recommended KPIs
+4. Recommended partnership score
+5. Recommended insight
+6. Recommended sample-size thresholds
+7. Recommended implementation approach
+
+STOP AFTER THE AUDIT.
+
+Do not create routes.
+Do not modify templates.
+Do not add models.
+Do not add migrations.
+
+Return findings and recommendations only.
+
+Wait for approval before implementation.
+
+Use checkpoints sparingly.

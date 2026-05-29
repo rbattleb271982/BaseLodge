@@ -1,0 +1,749 @@
+{% extends "admin_console.html" %}
+{% block title %}Mountain Intelligence{% endblock %}
+{% block page_title %}Mountain Intelligence{% endblock %}
+
+{% block head_styles %}
+  .ad-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.11em;
+    text-transform: uppercase; color: #6B6157; margin: 0 0 10px;
+  }
+  .ad-section  { margin-bottom: 32px; }
+  .ad-updated  { font-size: 11px; color: #9E958A; margin-bottom: 8px; }
+
+  /* ── Caveat / yellow note ── */
+  .mi-caveat {
+    font-size: 12px; color: #6B6560; background: #FEF9EC;
+    border: 1px solid #F0D885; border-radius: 7px;
+    padding: 9px 14px; margin-bottom: 18px;
+  }
+  .mi-caveat strong { color: #92400E; }
+
+  /* ── KPI grid ── */
+  .mi-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+  }
+  @media (max-width: 1000px) { .mi-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px)  { .mi-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .mi-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 14px 16px 12px; min-width: 0;
+  }
+  .mi-card-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 5px;
+  }
+  .mi-card-value { font-size: 26px; font-weight: 700; color: #1C1917; line-height: 1; }
+  .mi-card-sub   { font-size: 11px; color: #B0A69B; margin-top: 4px; font-style: italic; }
+
+  /* ── Generic table shell ── */
+  .mi-table-wrap {
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    border-radius: 9px;
+  }
+  .mi-table {
+    width: 100%; min-width: 400px; border-collapse: collapse;
+    font-size: 13px; background: #fff;
+    border: 1px solid #E4DDD2; border-radius: 9px; overflow: hidden;
+  }
+  .mi-table th {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #9E958A; text-align: left;
+    padding: 10px 16px 8px; border-bottom: 1px solid #E4DDD2;
+    background: #FDFAF6; white-space: nowrap;
+  }
+  .mi-table th.th-r { text-align: right; }
+  .mi-table td {
+    padding: 9px 16px; border-bottom: 1px solid #F0EBE3;
+    color: #1C1917; vertical-align: middle;
+  }
+  .mi-table tr:last-child td { border-bottom: none; }
+  .mi-table td.td-num { text-align: right; font-variant-numeric: tabular-nums; color: #4A4238; }
+  .mi-table td.td-muted { text-align: right; color: #B0A69B; font-variant-numeric: tabular-nums; }
+  .mi-table td.td-score { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: #5C1219; }
+  .mi-resort-name { font-weight: 500; }
+
+  /* ── Progress bar ── */
+  .mi-bar-wrap { background: #F5F1E8; border-radius: 4px; height: 5px; overflow: hidden; min-width: 60px; }
+  .mi-bar      { height: 100%; background: #5C1219; border-radius: 4px; }
+  .mi-bar--mid { background: #8B6340; }
+  .mi-bar--lt  { background: #C4B8AC; }
+
+  /* ── Share badge ── */
+  .mi-share {
+    font-size: 10px; color: #9E958A; font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Conv badges ── */
+  .mi-conv {
+    text-align: right; font-weight: 700; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .mi-conv--high    { color: #4A7C59; }
+  .mi-conv--mid     { color: #B07D2E; }
+  .mi-conv--low     { color: #9E958A; }
+  .mi-conv--na      { color: #D4CCC4; }
+
+  /* ── Concentration badge ── */
+  .mi-conc-badge {
+    display: inline-block; font-size: 9px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    background: #FEF9EC; border: 1px solid #F0D885; color: #92400E;
+    border-radius: 4px; padding: 2px 6px; margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* ── Signal quality badges ── */
+  .mi-sig { display: inline-block; border-radius: 4px; padding: 2px 7px;
+            font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+            text-transform: uppercase; white-space: nowrap; }
+  .mi-sig--green  { background: #DCFCE7; color: #166534; }
+  .mi-sig--yellow { background: #FEF9EC; color: #92400E; }
+  .mi-sig--red    { background: #FEE2E2; color: #991B1B; }
+
+  /* ── Two-column leaderboard ── */
+  .mi-lb-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  }
+  @media (max-width: 600px) { .mi-lb-grid { grid-template-columns: 1fr; } }
+
+  .mi-lb-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 14px 16px 10px;
+  }
+  .mi-lb-title {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; color: #9E958A; margin-bottom: 10px;
+  }
+  .mi-lb-row  { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
+  .mi-lb-rank { font-size: 10px; font-weight: 700; color: #B0A69B; width: 14px; flex-shrink: 0; }
+  .mi-lb-name {
+    font-size: 12px; color: #1C1917; flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mi-lb-val  { font-size: 12px; font-weight: 600; color: #5C1219; white-space: nowrap; }
+
+  /* ── Funnel cards ── */
+  .mi-funnel-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+  }
+  @media (max-width: 600px) { .mi-funnel-grid { grid-template-columns: 1fr; } }
+
+  .mi-funnel-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 14px 16px 12px; min-width: 0;
+  }
+  .mi-funnel-name {
+    font-size: 13px; font-weight: 700; color: #1C1917; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .mi-funnel-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 7px;
+  }
+  .mi-funnel-label {
+    font-size: 11px; color: #9E958A; width: 70px; flex-shrink: 0;
+  }
+  .mi-funnel-val {
+    font-size: 13px; font-weight: 600; color: #1C1917;
+    width: 28px; text-align: right; flex-shrink: 0;
+  }
+  .mi-funnel-bar-wrap { flex: 1; background: #F5F1E8; border-radius: 3px; height: 5px; overflow: hidden; }
+  .mi-funnel-bar      { height: 100%; background: #5C1219; border-radius: 3px; }
+  .mi-funnel-bar--mid { background: #8B6340; }
+  .mi-funnel-bar--lt  { background: #C4B8AC; }
+  .mi-funnel-conv {
+    font-size: 10px; color: #B0A69B; margin-top: 3px; margin-left: 78px;
+    font-style: italic;
+  }
+  .mi-funnel-note {
+    font-size: 10px; color: #B0A69B; margin-top: 6px; font-style: italic;
+  }
+
+  /* ── Social signal list ── */
+  .mi-social-signals {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;
+  }
+
+  /* ── Insight banner ── */
+  .mi-insight {
+    background: rgba(92,18,25,0.05); border: 1px solid rgba(92,18,25,0.15);
+    border-radius: 8px; padding: 14px 18px;
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 14px; color: #3B0D13; line-height: 1.65; font-style: italic;
+  }
+  .mi-insight-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Status card ── */
+  .mi-status {
+    background: #FDFAF6; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 12px 16px; display: flex; gap: 24px; flex-wrap: wrap;
+    font-size: 13px; color: #4A4238;
+  }
+  .mi-status-item  { display: flex; flex-direction: column; gap: 2px; }
+  .mi-status-key   { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #9E958A; }
+  .mi-status-val   { font-size: 14px; font-weight: 600; color: #1C1917; }
+  .mi-conf--low     { color: #9B3A3A; }
+  .mi-conf--growing { color: #B07D2E; }
+  .mi-conf--high    { color: #4A7C59; }
+
+  /* ── Signal quality table (Section 9) ── */
+  .mi-sig-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-top: 14px;
+  }
+  @media (max-width: 700px) { .mi-sig-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 450px) { .mi-sig-grid { grid-template-columns: 1fr; } }
+  .mi-sig-card {
+    background: #fff; border: 1px solid #E4DDD2; border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .mi-sig-card-name  { font-size: 12px; font-weight: 600; color: #1C1917; margin-bottom: 4px; }
+  .mi-sig-card-note  { font-size: 11px; color: #6B6560; line-height: 1.5; }
+
+  /* ── Empty state ── */
+  .mi-empty {
+    background: #FDFAF6; border: 1px solid #E4DDD2; border-radius: 9px;
+    padding: 20px 18px; font-size: 13px; color: #6B6560; line-height: 1.6;
+  }
+  .mi-empty strong { color: #1C1917; display: block; margin-bottom: 4px; }
+{% endblock %}
+
+{% block content %}
+<div class="ad-updated">Loaded {{ now }}</div>
+<div class="mi-caveat">
+  Mountain Intelligence answers where future demand exists — not what users have already done.
+  Signals: <strong>Page Views</strong> (tracking launched May 27, 2026 — growing),
+  <strong>Wishlist</strong> and <strong>Trip Planning</strong> (both reliable).
+  Friend activity and availability overlaps are excluded from v1 — not directly attributable to resorts.
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 0: Mountain KPIs                                                -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-kpis">
+  <div class="ad-section-label">Mountain KPIs</div>
+  <div class="mi-kpi-grid">
+
+    <div class="mi-card">
+      <div class="mi-card-label">Resorts With Activity</div>
+      <div class="mi-card-value">{{ mi_kpis.resorts_with_activity }}</div>
+      <div class="mi-card-sub">any wishlist, trip, or view signal</div>
+    </div>
+
+    <div class="mi-card">
+      <div class="mi-card-label">Total Resort Views</div>
+      <div class="mi-card-value">{{ mi_kpis.total_views }}</div>
+      <div class="mi-card-sub">tracking launched May 27</div>
+    </div>
+
+    <div class="mi-card">
+      <div class="mi-card-label">Total Wishlists</div>
+      <div class="mi-card-value">{{ mi_kpis.total_wishlists }}</div>
+      <div class="mi-card-sub">across all users (max 3 each)</div>
+    </div>
+
+    <div class="mi-card">
+      <div class="mi-card-label">Planned Trips</div>
+      <div class="mi-card-value">{{ mi_kpis.total_planned_trips }}</div>
+      <div class="mi-card-sub">with a resort linked</div>
+    </div>
+
+    <div class="mi-card">
+      <div class="mi-card-label">Group Trips</div>
+      <div class="mi-card-value">{{ mi_kpis.total_group_trips }}</div>
+      <div class="mi-card-sub">trips with participants</div>
+    </div>
+
+    <div class="mi-card">
+      <div class="mi-card-label">Avg Views / Resort</div>
+      <div class="mi-card-value">{{ mi_kpis.avg_views_per_resort }}</div>
+      <div class="mi-card-sub">per resort with any view</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 1: Attention Leaderboard                                        -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-attention">
+  <div class="ad-section-label">Attention Leaderboard</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Top resorts by page traffic. <span class="mi-sig mi-sig--yellow">View tracking is young</span>
+    — counts will grow over time.
+  </div>
+
+  {% if attention_rows %}
+  {% set max_views = attention_rows | map(attribute='views') | max %}
+  <div class="mi-table-wrap">
+    <table class="mi-table" style="min-width:360px;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Resort</th>
+          <th class="th-r">Views</th>
+          <th class="th-r">Share</th>
+          <th style="min-width:80px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in attention_rows %}
+        <tr>
+          <td style="color:#B0A69B;font-size:11px;font-weight:700;width:24px;">{{ loop.index }}</td>
+          <td class="mi-resort-name">
+            {{ row.name }}
+            {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
+          </td>
+          <td class="td-num">{{ row.views }}</td>
+          <td class="mi-share td-num">{{ ((row.views / total_views_sum) * 100) | round(0) | int }}%</td>
+          <td style="padding-right:16px;">
+            <div class="mi-bar-wrap">
+              <div class="mi-bar" style="width:{{ ((row.views / max_views) * 100)|int if max_views else 0 }}%;"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>No page views yet.</strong>
+    View tracking launched May 27, 2026. Counts will appear as users browse resort detail pages.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 2: Demand Leaderboard                                           -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-demand">
+  <div class="ad-section-label">Demand Leaderboard</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Where users are dreaming (wishlist) vs. where they're committing (trips).
+  </div>
+
+  <div class="mi-lb-grid">
+
+    <div class="mi-lb-card">
+      <div class="mi-lb-title">Most Wishlisted</div>
+      {% for row in demand_wish %}
+      <div class="mi-lb-row">
+        <span class="mi-lb-rank">{{ loop.index }}</span>
+        <span class="mi-lb-name" title="{{ row.name }}">{{ row.name }}</span>
+        <span class="mi-lb-val">{{ row.wishlists }}</span>
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:#B0A69B;font-style:italic;">No wishlist data yet.</div>
+      {% endfor %}
+    </div>
+
+    <div class="mi-lb-card">
+      <div class="mi-lb-title">Most Planned Trips</div>
+      {% for row in demand_trips %}
+      <div class="mi-lb-row">
+        <span class="mi-lb-rank">{{ loop.index }}</span>
+        <span class="mi-lb-name" title="{{ row.name }}">
+          {{ row.name }}
+          {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
+        </span>
+        <span class="mi-lb-val">{{ row.trips }}</span>
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:#B0A69B;font-style:italic;">No trip data yet.</div>
+      {% endfor %}
+    </div>
+
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 3: Conversion Funnel                                            -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-funnel">
+  <div class="ad-section-label">Conversion Funnel — Views → Wishlist → Trips</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    View→Wishlist % shown only when resort has ≥5 views.
+    Wishlist→Trip % shown only when resort has ≥3 wishlist adds.
+    Overall % shown only when ≥5 views and ≥1 trip.
+  </div>
+
+  {% if funnel_rows %}
+  {% set max_trips = (funnel_rows | map(attribute='trips') | max) or 1 %}
+  {% set max_wish  = (funnel_rows | map(attribute='wishlists') | max) or 1 %}
+  {% set max_views_f = (funnel_rows | map(attribute='views') | max) or 1 %}
+  <div class="mi-funnel-grid">
+    {% for row in funnel_rows %}
+    <div class="mi-funnel-card">
+      <div class="mi-funnel-name">
+        {{ row.name }}
+        {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
+      </div>
+
+      <!-- Views -->
+      <div class="mi-funnel-row">
+        <span class="mi-funnel-label">Views</span>
+        <span class="mi-funnel-val">{{ row.views }}</span>
+        <div class="mi-funnel-bar-wrap">
+          <div class="mi-funnel-bar mi-funnel-bar--lt"
+               style="width:{{ ((row.views / max_views_f) * 100)|int }}%;"></div>
+        </div>
+      </div>
+
+      <!-- Wishlist -->
+      <div class="mi-funnel-row">
+        <span class="mi-funnel-label">Wishlisted</span>
+        <span class="mi-funnel-val">{{ row.wishlists }}</span>
+        <div class="mi-funnel-bar-wrap">
+          <div class="mi-funnel-bar mi-funnel-bar--mid"
+               style="width:{{ ((row.wishlists / max_wish) * 100)|int }}%;"></div>
+        </div>
+      </div>
+      {% if row.v2w_pct is not none %}
+      <div class="mi-funnel-conv">
+        <span class="{{ 'mi-conv--high' if row.v2w_pct >= 50 else ('mi-conv--mid' if row.v2w_pct >= 20 else 'mi-conv--low') }}">
+          {{ row.v2w_pct }}% view→wishlist
+        </span>
+      </div>
+      {% endif %}
+
+      <!-- Trips -->
+      <div class="mi-funnel-row">
+        <span class="mi-funnel-label">Trip Planned</span>
+        <span class="mi-funnel-val">{{ row.trips }}</span>
+        <div class="mi-funnel-bar-wrap">
+          <div class="mi-funnel-bar"
+               style="width:{{ ((row.trips / max_trips) * 100)|int }}%;"></div>
+        </div>
+      </div>
+      {% if row.w2t_pct is not none %}
+      <div class="mi-funnel-conv">
+        <span class="{{ 'mi-conv--high' if row.w2t_pct >= 50 else ('mi-conv--mid' if row.w2t_pct >= 20 else 'mi-conv--low') }}">
+          {{ row.w2t_pct }}% wishlist→trip
+        </span>
+      </div>
+      {% endif %}
+      {% if row.overall_pct is not none %}
+      <div class="mi-funnel-note">Overall view→trip: {{ row.overall_pct }}%</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>No funnel data yet.</strong>
+    Funnel cards will appear once resorts have wishlist adds or planned trips.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 4: Latent Demand                                                -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-latent">
+  <div class="ad-section-label">Latent Demand</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    High wishlist interest, zero planned trips. Users want these resorts but aren't booking yet.
+    Threshold: ≥2 wishlist adds and 0 trips.
+  </div>
+
+  {% if latent_rows %}
+  <div class="mi-table-wrap">
+    <table class="mi-table" style="min-width:340px;">
+      <thead>
+        <tr>
+          <th>Resort</th>
+          <th class="th-r">Views</th>
+          <th class="th-r">Wishlists</th>
+          <th class="th-r">Trips</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in latent_rows %}
+        <tr>
+          <td class="mi-resort-name">{{ row.name }}</td>
+          <td class="td-muted">{{ row.views if row.views else '—' }}</td>
+          <td class="td-num" style="font-weight:600;color:#5C1219;">{{ row.wishlists }}</td>
+          <td class="td-muted">0</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>No latent demand identified.</strong>
+    Resorts appear here when ≥2 users have wishlisted them but no trips have been planned.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 5: Overperformers                                               -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-overperform">
+  <div class="ad-section-label">Overperformers</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Resorts converting strongly without page traffic — users commit directly without browsing first.
+    Threshold: ≥5 trips and page views &lt; trips ÷ 2.
+  </div>
+
+  {% if overperformer_rows %}
+  <div class="mi-table-wrap">
+    <table class="mi-table" style="min-width:340px;">
+      <thead>
+        <tr>
+          <th>Resort</th>
+          <th class="th-r">Views</th>
+          <th class="th-r">Trips</th>
+          <th class="th-r">Group Trips</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overperformer_rows %}
+        <tr>
+          <td class="mi-resort-name">
+            {{ row.name }}
+            {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
+          </td>
+          <td class="td-muted">{{ row.views if row.views else '—' }}</td>
+          <td class="td-num" style="font-weight:600;color:#5C1219;">{{ row.trips }}</td>
+          <td class="td-muted">{{ row.group_trips if row.group_trips else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>No overperformers yet.</strong>
+    Resorts appear here when they have ≥5 planned trips with fewer page views than half their trip count.
+    This section will activate as trip data grows.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 6: Social Potential                                             -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-social">
+  <div class="ad-section-label">Social Potential</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Destinations where community effects could emerge: group trips, trip invite links, multiple wishlist users.
+  </div>
+
+  <div class="mi-caveat" style="margin-bottom:14px;">
+    <strong>Signal caveats:</strong>
+    <span class="mi-sig mi-sig--yellow">Group Trips</span> small sample.
+    <span class="mi-sig mi-sig--yellow">Trip Invites</span> limited to TripInviteToken (7 total).
+    <span class="mi-sig mi-sig--red">Friend Activity</span> excluded — no resort FK.
+    <span class="mi-sig mi-sig--red">Availability Overlaps</span> excluded — 0 data rows in v1.
+  </div>
+
+  {% if social_rows %}
+  <div class="mi-table-wrap">
+    <table class="mi-table" style="min-width:440px;">
+      <thead>
+        <tr>
+          <th>Resort</th>
+          <th class="th-r">Wishlist Users</th>
+          <th class="th-r">Group Trips</th>
+          <th class="th-r">Trip Invites</th>
+          <th class="th-r">Total Trips</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in social_rows %}
+        <tr>
+          <td class="mi-resort-name">{{ row.name }}</td>
+          <td class="td-num">{{ row.wishlists if row.wishlists else '—' }}</td>
+          <td class="td-num" style="{% if row.group_trips %}font-weight:600;color:#5C1219;{% endif %}">
+            {{ row.group_trips if row.group_trips else '—' }}
+          </td>
+          <td class="td-muted">{{ row.invites if row.invites else '—' }}</td>
+          <td class="td-muted">{{ row.trips if row.trips else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>No social signals yet.</strong>
+    Resorts appear here once group trips form, trip invite links are created, or multiple users wishlist the same destination.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 7: Partnership Watchlist                                        -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-partnership">
+  <div class="ad-section-label">Partnership Watchlist</div>
+  <div style="font-size:11px;color:#9E958A;margin-bottom:8px;">
+    Directional signal for future resort outreach.
+    Score = (1 &times; Views) + (5 &times; Wishlists) + (10 &times; Trips) + (15 &times; Group Trips).
+    This is not a monetization model.
+  </div>
+
+  {% if partnership_rows %}
+  {% set max_score = (partnership_rows | map(attribute='score') | max) or 1 %}
+  <div class="mi-table-wrap">
+    <table class="mi-table" style="min-width:480px;">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Resort</th>
+          <th class="th-r">Score</th>
+          <th class="th-r">Views</th>
+          <th class="th-r">Wish</th>
+          <th class="th-r">Trips</th>
+          <th class="th-r">Grp</th>
+          <th style="min-width:80px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in partnership_rows %}
+        <tr>
+          <td style="color:#B0A69B;font-size:11px;font-weight:700;width:24px;">{{ loop.index }}</td>
+          <td class="mi-resort-name">
+            {{ row.name }}
+            {% if row.concentration %}<span class="mi-conc-badge">Concentrated</span>{% endif %}
+          </td>
+          <td class="td-score">{{ row.score }}</td>
+          <td class="td-muted">{{ row.views if row.views else '—' }}</td>
+          <td class="td-muted">{{ row.wishlists if row.wishlists else '—' }}</td>
+          <td class="td-num">{{ row.trips if row.trips else '—' }}</td>
+          <td class="td-muted">{{ row.group_trips if row.group_trips else '—' }}</td>
+          <td style="padding-right:16px;">
+            <div class="mi-bar-wrap">
+              <div class="mi-bar" style="width:{{ ((row.score / max_score) * 100)|int }}%;"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>No resort signals yet.</strong>
+    The Partnership Watchlist will populate once users add wishlists or plan trips.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 8: Mountain Insight                                             -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-insight">
+  <div class="ad-section-label">Mountain Insight</div>
+  {% if mi_insight %}
+  <div class="mi-insight">
+    <span class="mi-insight-icon">&#9660;</span>
+    <span>{{ mi_insight }}</span>
+  </div>
+  {% else %}
+  <div class="mi-empty">
+    <strong>Not enough data yet.</strong>
+    An insight will appear once wishlist, trip, or view signals are established across multiple resorts.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<!-- SECTION 9: Status                                                       -->
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="ad-section" id="mi-status">
+  <div class="ad-section-label">Status</div>
+
+  <div class="mi-status">
+    <div class="mi-status-item">
+      <span class="mi-status-key">Tracked Signals</span>
+      <span class="mi-status-val">{{ mi_status.tracked_signals }}</span>
+    </div>
+    <div class="mi-status-item">
+      <span class="mi-status-key">Reliable Signals</span>
+      <span class="mi-status-val">{{ mi_status.reliable_signals }}</span>
+    </div>
+    <div class="mi-status-item">
+      <span class="mi-status-key">Resorts With Activity</span>
+      <span class="mi-status-val">{{ mi_status.resorts_with_activity }} / {{ mi_status.total_resorts }}</span>
+    </div>
+    <div class="mi-status-item">
+      <span class="mi-status-key">Data Confidence</span>
+      <span class="mi-status-val mi-conf--{{ mi_status.confidence | lower }}">{{ mi_status.confidence }}</span>
+    </div>
+    <div class="mi-status-item">
+      <span class="mi-status-key">View Tracking Age</span>
+      <span class="mi-status-val">{{ mi_status.tracking_age_days }} day{{ 's' if mi_status.tracking_age_days != 1 else '' }}</span>
+    </div>
+  </div>
+
+  <div class="mi-sig-grid">
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--green">Green</span>&ensp;Resort Page Views
+      </div>
+      <div class="mi-sig-card-note">MountainPageView table. Growing — tracking launched May 27, 2026.</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--green">Green</span>&ensp;Wishlist Adds
+      </div>
+      <div class="mi-sig-card-note">User.wish_list_resorts. Reliable. Max 3 per user caps total counts.</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--green">Green</span>&ensp;Planned Trips
+      </div>
+      <div class="mi-sig-card-note">SkiTrip.resort_id. Strongest intent signal. 100% normalized.</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--yellow">Yellow</span>&ensp;Group Trips
+      </div>
+      <div class="mi-sig-card-note">SkiTrip.is_group_trip flag. Small counts currently (3 total).</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--yellow">Yellow</span>&ensp;Trip Invites
+      </div>
+      <div class="mi-sig-card-note">TripInviteToken via trip_id→resort_id. Limited: 7 tokens total.</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--yellow">Yellow</span>&ensp;Pass Compatibility
+      </div>
+      <div class="mi-sig-card-note">ResortPass mappings × User.pass_type. Indirect — potential access, not intent.</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--red">Red</span>&ensp;Friend Activity
+      </div>
+      <div class="mi-sig-card-note">Friend table has no resort_id. Per-resort attribution not possible in v1.</div>
+    </div>
+
+    <div class="mi-sig-card">
+      <div class="mi-sig-card-name">
+        <span class="mi-sig mi-sig--red">Red</span>&ensp;Availability Overlaps
+      </div>
+      <div class="mi-sig-card-note">UserAvailability has 0 rows and no resort FK. Excluded from v1.</div>
+    </div>
+
+  </div>
+
+  <div style="font-size:11px;color:#9E958A;margin-top:10px;">
+    Mountain page view tracking launched May 27, 2026. See <a href="/admin/resort-intelligence" style="color:#5C1219;">Resort Intelligence</a> for the historical demand table.
+  </div>
+</div>
+{% endblock %}

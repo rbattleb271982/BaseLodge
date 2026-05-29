@@ -17688,5 +17688,326 @@ def admin_posthog_funnels():
     )
 
 
+@app.route("/admin/mountain-intelligence")
+@login_required
+@admin_required
+def admin_mountain_intelligence():
+    """Mountain Intelligence v1 — forward-looking demand: attention, conversion, latent demand, social potential, partnerships."""
+    from collections import defaultdict
+    from datetime import datetime as _dt
+
+    now_dt = datetime.utcnow()
+    VIEW_TRACKING_LAUNCH = datetime(2026, 5, 27)
+    tracking_age_days = (now_dt - VIEW_TRACKING_LAUNCH).days
+
+    # ── Non-seeded user base ──────────────────────────────────────────────
+    all_users = User.query.filter(User.is_seeded == False).all()
+    ns_ids    = [u.id for u in all_users]
+    total_users = len(all_users)
+
+    # ── Signal 2: Wishlist — per-resort count + distinct user sets ────────
+    wl_count = defaultdict(int)
+    wl_users = defaultdict(set)
+    for u in all_users:
+        for rid in (u.wish_list_resorts or []):
+            wl_count[rid]  += 1
+            wl_users[rid].add(u.id)
+
+    # ── Signal 3/4: Trips + Group Trips per resort ────────────────────────
+    trip_rows = db.session.query(
+        SkiTrip.resort_id,
+        func.count(SkiTrip.id).label("trips"),
+        func.sum(db.cast(SkiTrip.is_group_trip, db.Integer)).label("group_trips"),
+    ).filter(
+        SkiTrip.user_id.in_(ns_ids),
+        SkiTrip.resort_id != None,
+    ).group_by(SkiTrip.resort_id).all()
+
+    trip_count = {r[0]: r[1] for r in trip_rows}
+    gt_count   = {r[0]: int(r[2] or 0) for r in trip_rows}
+
+    # Wishlist→Trip conversion: % of wishlisters who also tripped here
+    trip_user_rows = db.session.query(SkiTrip.resort_id, SkiTrip.user_id).filter(
+        SkiTrip.user_id.in_(ns_ids), SkiTrip.resort_id != None
+    ).all()
+    trip_users = defaultdict(set)
+    for row in trip_user_rows:
+        trip_users[row[0]].add(row[1])
+
+    # Concentration check: user_id accounting for >50% of a resort's trips
+    trip_per_user_resort = db.session.query(
+        SkiTrip.resort_id, SkiTrip.user_id, func.count(SkiTrip.id).label("cnt")
+    ).filter(
+        SkiTrip.user_id.in_(ns_ids), SkiTrip.resort_id != None
+    ).group_by(SkiTrip.resort_id, SkiTrip.user_id).all()
+
+    concentration_flags = set()  # resort_ids where one user has >50% of trips
+    resort_user_trip_counts = defaultdict(list)
+    for row in trip_per_user_resort:
+        resort_user_trip_counts[row[0]].append(row[2])
+    for rid, counts in resort_user_trip_counts.items():
+        total = sum(counts)
+        if total > 0 and max(counts) / total > 0.5:
+            concentration_flags.add(rid)
+
+    # ── Signal 1: Page views per resort ──────────────────────────────────
+    view_rows = db.session.query(
+        MountainPageView.resort_id,
+        func.count(MountainPageView.id).label("views"),
+    ).group_by(MountainPageView.resort_id).all()
+    view_count = {r[0]: r[1] for r in view_rows}
+
+    # ── Signal 8: TripInviteToken per resort (via trip_id → resort_id) ───
+    from models import TripInviteToken
+    invite_rows = db.session.query(
+        SkiTrip.resort_id, func.count(TripInviteToken.id).label("invites")
+    ).join(TripInviteToken, TripInviteToken.trip_id == SkiTrip.id
+    ).filter(SkiTrip.resort_id != None
+    ).group_by(SkiTrip.resort_id).all()
+    invite_count = {r[0]: r[1] for r in invite_rows}
+
+    # ── Signal 7: Pass compatibility — users with a qualifying pass ───────
+    from models import ResortPass
+    pass_map_rows = db.session.query(ResortPass.resort_id, ResortPass.pass_name).all()
+    resort_passes = defaultdict(set)
+    for row in pass_map_rows:
+        resort_passes[row[0]].add(row[1].lower() if row[1] else "")
+
+    pass_slug_map = {
+        "epic": "epic", "ikon": "ikon", "indy": "indy",
+        "mountaincollective": "mountaincollective",
+        "powderalliance": "powderalliance",
+        "freedom": "freedom", "skicalifornia": "skicalifornia",
+    }
+    addressable_count = defaultdict(int)
+    for u in all_users:
+        user_pass = (u.pass_type or "").lower().replace("_", "").replace(" ", "")
+        canonical = pass_slug_map.get(user_pass)
+        if canonical:
+            for rid, passes in resort_passes.items():
+                if canonical in passes:
+                    addressable_count[rid] += 1
+
+    # ── All resort IDs with any signal ────────────────────────────────────
+    all_active_ids = set(wl_count) | set(trip_count) | set(view_count)
+
+    # ── Fetch resort names in one query ───────────────────────────────────
+    resort_map = {}
+    if all_active_ids:
+        for r in Resort.query.filter(Resort.id.in_(all_active_ids)).all():
+            resort_map[r.id] = r.name
+
+    # ── Build unified per-resort rows ─────────────────────────────────────
+    rows = []
+    for rid in all_active_ids:
+        wl  = wl_count.get(rid, 0)
+        tr  = trip_count.get(rid, 0)
+        gt  = gt_count.get(rid, 0)
+        vw  = view_count.get(rid, 0)
+        inv = invite_count.get(rid, 0)
+        adr = addressable_count.get(rid, 0)
+        conc = rid in concentration_flags
+
+        wl_uid = wl_users.get(rid, set())
+        tr_uid = trip_users.get(rid, set())
+        wl_trip_conv = round(len(wl_uid & tr_uid) / len(wl_uid) * 100) if wl_uid else None
+        tr_gt_conv   = round(gt / tr * 100) if tr else None
+
+        # Conversion % with sample guards
+        v2w_pct  = round(wl / vw * 100) if vw >= 5 and wl > 0 else None
+        w2t_pct  = round(len(wl_uid & tr_uid) / len(wl_uid) * 100) if len(wl_uid) >= 3 else None
+        overall_pct = round(tr / vw * 100) if vw >= 5 and tr > 0 else None
+
+        # Partnership score
+        score = vw * 1 + wl * 5 + tr * 10 + gt * 15
+
+        rows.append({
+            "id":           rid,
+            "name":         resort_map.get(rid, f"Resort {rid}"),
+            "views":        vw,
+            "wishlists":    wl,
+            "trips":        tr,
+            "group_trips":  gt,
+            "invites":      inv,
+            "addressable":  adr,
+            "concentration": conc,
+            "wl_trip_conv": wl_trip_conv,
+            "tr_gt_conv":   tr_gt_conv,
+            "v2w_pct":      v2w_pct,
+            "w2t_pct":      w2t_pct,
+            "overall_pct":  overall_pct,
+            "score":        score,
+        })
+
+    # ── Section 0: KPIs ───────────────────────────────────────────────────
+    total_wishlists   = sum(wl_count.values())
+    total_trips_count = sum(trip_count.values())
+    total_group_trips = sum(gt_count.values())
+    total_views       = sum(view_count.values())
+    distinct_view_resorts = len(view_count)
+    avg_views = round(total_views / distinct_view_resorts, 1) if distinct_view_resorts else 0
+
+    mi_kpis = dict(
+        resorts_with_activity = len(all_active_ids),
+        total_views           = total_views,
+        total_wishlists       = total_wishlists,
+        total_planned_trips   = total_trips_count,
+        total_group_trips     = total_group_trips,
+        avg_views_per_resort  = avg_views,
+    )
+
+    # ── Section 1: Attention Leaderboard (views ≥1) ───────────────────────
+    attention_rows = sorted(
+        [r for r in rows if r["views"] >= 1],
+        key=lambda r: -r["views"]
+    )[:15]
+    total_views_sum = total_views or 1  # avoid div/0 for share %
+
+    # ── Section 2: Demand Leaderboard ────────────────────────────────────
+    demand_wish = sorted(
+        [r for r in rows if r["wishlists"] > 0],
+        key=lambda r: (-r["wishlists"], -r["trips"])
+    )[:10]
+    demand_trips = sorted(
+        [r for r in rows if r["trips"] > 0],
+        key=lambda r: (-r["trips"], -r["wishlists"])
+    )[:10]
+
+    # ── Section 3: Conversion Funnel — resorts with any conversion data ───
+    funnel_rows = sorted(
+        [r for r in rows if r["trips"] > 0 or r["wishlists"] >= 3 or r["views"] >= 5],
+        key=lambda r: -(r["trips"] * 10 + r["wishlists"] * 5 + r["views"])
+    )[:10]
+
+    # ── Section 4: Latent Demand (wish≥2, trips=0) ────────────────────────
+    latent_rows = sorted(
+        [r for r in rows if r["wishlists"] >= 2 and r["trips"] == 0],
+        key=lambda r: (-r["wishlists"], -r["views"])
+    )
+
+    # ── Section 5: Overperformers (trips≥5, views < trips/2) ─────────────
+    overperformer_rows = sorted(
+        [r for r in rows if r["trips"] >= 5 and r["views"] < r["trips"] / 2],
+        key=lambda r: -r["trips"]
+    )
+
+    # ── Section 6: Social Potential ───────────────────────────────────────
+    # Signal = multiple distinct wishlist users + group trips + trip invites
+    social_rows = sorted(
+        [r for r in rows if r["group_trips"] > 0 or r["invites"] > 0 or r["wishlists"] >= 2],
+        key=lambda r: -(r["group_trips"] * 15 + r["invites"] * 5 + r["wishlists"] * 3)
+    )[:10]
+
+    # ── Section 7: Partnership Watchlist ─────────────────────────────────
+    partnership_rows = sorted(
+        [r for r in rows],
+        key=lambda r: -r["score"]
+    )[:15]
+
+    # ── Section 8: Mountain Insight ───────────────────────────────────────
+    mi_insight = None
+
+    # Rule 1: Aspiration gap — most-wishlisted with 0 trips
+    aspiration_gap = sorted(
+        [r for r in rows if r["wishlists"] >= 2 and r["trips"] == 0],
+        key=lambda r: -r["wishlists"]
+    )
+    if aspiration_gap:
+        top = aspiration_gap[0]
+        mi_insight = (
+            f"{top['name']} has {top['wishlists']} wishlists but 0 planned trips — "
+            f"high aspiration with no commitment yet."
+        )
+
+    # Rule 2: Conversion leader — highest wish→trip with ≥2 wishlist users (only if no rule 1)
+    if not mi_insight:
+        conv_candidates = sorted(
+            [r for r in rows if r["wl_trip_conv"] is not None and len(wl_users.get(r["id"], set())) >= 2],
+            key=lambda r: -r["wl_trip_conv"]
+        )
+        if conv_candidates:
+            top = conv_candidates[0]
+            mi_insight = (
+                f"{top['name']} is converting {top['wl_trip_conv']}% of wishlisters "
+                f"into planned trips — highest conversion of any resort."
+            )
+
+    # Rule 3: Trip leader — skip if concentration flag
+    if not mi_insight:
+        trip_leaders = sorted(
+            [r for r in rows if r["trips"] > 0 and not r["concentration"]],
+            key=lambda r: -r["trips"]
+        )
+        if trip_leaders:
+            top = trip_leaders[0]
+            mi_insight = (
+                f"{top['name']} leads all resorts with {top['trips']} planned trip{'s' if top['trips'] != 1 else ''}."
+            )
+        else:
+            # Fall back to trip leader with concentration note
+            trip_all = sorted([r for r in rows if r["trips"] > 0], key=lambda r: -r["trips"])
+            if trip_all:
+                top = trip_all[0]
+                mi_insight = (
+                    f"{top['name']} has the most planned trips ({top['trips']}) — "
+                    f"note: high trip concentration from a small number of users."
+                )
+
+    # Rule 4: Latent demand with group activity
+    if not mi_insight and latent_rows:
+        for r in latent_rows:
+            if r["group_trips"] > 0:
+                mi_insight = (
+                    f"{r['name']} has {r['wishlists']} wishlists and an active group trip — "
+                    f"social demand is building."
+                )
+                break
+
+    # Rule 5: Attention signal
+    if not mi_insight and attention_rows:
+        top = attention_rows[0]
+        mi_insight = f"{top['name']} is attracting the most page traffic with {top['views']} view{'s' if top['views'] != 1 else ''}."
+
+    # ── Section 9: Status ─────────────────────────────────────────────────
+    if tracking_age_days < 30:
+        mi_confidence = "Low"
+    elif tracking_age_days < 180:
+        mi_confidence = "Growing"
+    else:
+        mi_confidence = "High"
+
+    total_resorts = Resort.query.filter_by(is_active=True).count()
+    reliable_signals = 3  # Views (growing), Wishlist, Trips
+    tracked_signals  = 7  # all 7 non-red signals
+
+    mi_status = dict(
+        total_resorts        = total_resorts,
+        resorts_with_activity = len(all_active_ids),
+        confidence           = mi_confidence,
+        tracking_age_days    = tracking_age_days,
+        tracked_signals      = tracked_signals,
+        reliable_signals     = reliable_signals,
+    )
+
+    return render_template(
+        "admin_mountain_intelligence.html",
+        active_tab         = "mountain_intelligence",
+        now                = now_dt.strftime("%Y-%m-%d %H:%M UTC"),
+        mi_kpis            = mi_kpis,
+        attention_rows     = attention_rows,
+        total_views_sum    = total_views_sum,
+        demand_wish        = demand_wish,
+        demand_trips       = demand_trips,
+        funnel_rows        = funnel_rows,
+        latent_rows        = latent_rows,
+        overperformer_rows = overperformer_rows,
+        social_rows        = social_rows,
+        partnership_rows   = partnership_rows,
+        mi_insight         = mi_insight,
+        mi_status          = mi_status,
+        rows               = rows,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
