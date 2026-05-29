@@ -1,0 +1,236 @@
+PUT THIS IN PLAN FIRST
+
+#175 - Growth & Activation Quick Wins
+
+What & Why
+
+The Executive Dashboard surfaced the three highest-impact opportunities:
+
+1. Push Reliability
+2. Availability Adoption
+3. User Growth
+
+The prioritization audit identified one low-risk, high-impact fix for each area.
+
+Goal:
+
+Ship all three improvements in a single sprint.
+
+Requirements:
+
+* No new models
+* No migrations
+* No new vendors
+* No new tracking systems
+* No changes to analytics architecture
+* No redesigns
+
+Focus on:
+
+* Small changes
+* High impact
+* Existing infrastructure
+
+Use checkpoints sparingly.
+
+---
+
+## FIX 1 — PUSH RELIABILITY
+
+Problem:
+
+The audit found the 30% push failure rate is heavily inflated by attempts to send notifications to users with no active device token.
+
+Current behavior:
+
+Message dispatch attempts OneSignal delivery even when the recipient has no active push_device_token.
+
+Result:
+
+MEL logs failures that are actually preventable.
+
+Implementation:
+
+Before calling OneSignal:
+
+Check:
+
+push_device_token
+WHERE user_id = recipient
+AND active = true
+
+If no active token exists:
+
+Do NOT call OneSignal.
+
+Instead:
+
+* delivery_status = skipped
+* suppression_reason = no_device_token
+
+Return early.
+
+Requirements:
+
+* Reuse existing MEL patterns
+* Reuse existing suppression logging
+* No duplicate code paths
+* No new tables
+
+Expected outcome:
+
+Push failure rate should fall substantially.
+Future failures should represent real delivery issues.
+
+---
+
+## FIX 2 — AVAILABILITY ADOPTION
+
+Problem:
+
+18 users have a pass but no availability.
+
+Audit found the best intervention point is immediately after a user saves a pass.
+
+Implementation:
+
+After a successful pass save:
+
+Display a contextual success prompt.
+
+Example copy:
+
+"Pass saved! Add your open dates so friends can plan with you."
+
+Include:
+
+Primary CTA:
+
+Add Open Dates →
+
+Link directly to the existing availability flow.
+
+Requirements:
+
+* Trigger only when availability is empty
+* Trigger only after successful pass save
+* Do not interrupt save flow
+* Mobile-first
+* Match existing BaseLodge styling
+
+Do NOT create:
+
+* Modals
+* New onboarding steps
+* New database fields
+
+Inline success card/banner preferred.
+
+---
+
+## FIX 3 — USER GROWTH
+
+Problem:
+
+Trip sharing is underutilized.
+
+Audit found:
+
+* 38 trips
+* 7 trip invite tokens
+* 18% trip share rate
+
+Infrastructure already exists.
+
+Implementation:
+
+After successful trip creation:
+
+Display a contextual success prompt.
+
+Example copy:
+
+"Trip created! Invite friends to join."
+
+Include:
+
+Primary CTA:
+
+Invite Friends →
+
+Route directly into the existing trip invite flow.
+
+Requirements:
+
+* Trigger immediately after trip creation
+* Do not interrupt trip save
+* Reuse existing trip invite infrastructure
+* No new invite models
+* Mobile-first
+
+Inline banner, toast, or success card acceptable.
+
+---
+
+## TESTING REQUIREMENTS
+
+Push Reliability
+
+Verify:
+
+* User with active token still receives push
+* User without active token is skipped
+* MEL logs skipped/no_device_token
+* No false failures recorded
+* Existing notifications still work
+
+Availability Prompt
+
+Verify:
+
+* Pass save succeeds
+* Prompt appears only when availability is empty
+* CTA routes correctly
+* Prompt does not appear when availability already exists
+
+Trip Invite Prompt
+
+Verify:
+
+* Trip creation succeeds
+* Prompt appears after trip creation
+* CTA opens existing invite flow
+* Existing trip creation flow remains intact
+
+---
+
+## REGRESSION TESTING
+
+Verify:
+
+* Executive Dashboard still loads
+* Messaging Intelligence still loads
+* CRM Intelligence still loads
+* Activation Intelligence still loads
+* Growth Intelligence still loads
+* Trip creation still works
+* Pass save still works
+* Push sending still works
+
+---
+
+## DONE LOOKS LIKE
+
+1. Tokenless users are skipped instead of generating push failures.
+
+2. Users who save a pass immediately see:
+
+"Pass saved! Add your open dates so friends can plan with you."
+
+3. Users who create a trip immediately see:
+
+"Trip created! Invite friends to join."
+
+4. No regressions.
+
+Do not finish until all testing passes.

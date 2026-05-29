@@ -49,6 +49,7 @@ class DeliveryStatus:
 class SuppressionReason:
     USER_OPTED_OUT           = "user_opted_out"
     CHANNEL_UNAVAILABLE      = "channel_unavailable"
+    NO_DEVICE_TOKEN          = "no_device_token"
     SENDER_IS_RECIPIENT      = "sender_is_recipient"
     DUPLICATE_EVENT          = "duplicate_event"
     DIGEST_ONLY              = "digest_only"

@@ -149,6 +149,17 @@
             </div>
         </div>
 
+        {# Availability nudge — fires once after pass save when open_dates is empty #}
+        {% if request.args.get('pass_saved') == '1' and not current_user.open_dates %}
+        <div style="background:#F5F1E8;border:0.5px solid #5C1219;border-radius:10px;padding:16px 18px;margin-bottom:18px;display:flex;align-items:flex-start;gap:14px;">
+            <div style="flex:1;min-width:0;">
+                <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1A1A1A;line-height:1.3;">Pass saved!</p>
+                <p style="margin:0 0 12px;font-size:13px;color:#5A564F;line-height:1.45;">Add your open dates so friends can plan with you.</p>
+                <a href="{{ url_for('add_open_dates') }}" style="display:inline-block;font-size:13px;font-weight:600;color:#5C1219;text-decoration:none;">Add Open Dates →</a>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Profile section -->
         <div class="profile-group">
             <h2 class="profile-group-label">Profile</h2>

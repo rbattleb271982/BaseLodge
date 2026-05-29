@@ -3215,6 +3215,14 @@ def edit_profile():
                             source_route="edit_profile",
                         )
 
+            # Availability nudge: fire once when user just confirmed a real pass
+            # but has no open dates set — highest-intent moment to prompt them.
+            _should_prompt_avail = (
+                _ph_is_real_pass(normalized_passes)
+                and not bool(current_user.open_dates)
+            )
+            if _should_prompt_avail:
+                return redirect(url_for("profile", pass_saved="1"))
             return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()

@@ -405,6 +405,8 @@ def _dispatch_immediate_push(spec, actor_user_id, recipient_user_id,
         _suppression = (
             SuppressionReason.CHANNEL_UNAVAILABLE
             if result.get("skipped_reason") == "channel_unavailable"
+            else SuppressionReason.NO_DEVICE_TOKEN
+            if result.get("skipped_reason") == "no_device_token"
             else SuppressionReason.USER_OPTED_OUT
         )
         _error               = None

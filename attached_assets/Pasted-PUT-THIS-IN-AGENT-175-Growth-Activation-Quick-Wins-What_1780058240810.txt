@@ -1,0 +1,276 @@
+PUT THIS IN AGENT
+
+#175 - Growth & Activation Quick Wins
+
+What & Why
+
+Three independent, low-effort fixes that together address the three biggest opportunities surfaced by the Executive Dashboard: push reliability, availability adoption, and trip sharing.
+
+All three use existing infrastructure.
+
+Do not add:
+
+* New models
+* New migrations
+* New vendors
+* New external integrations
+* New tracking systems
+
+---
+
+## DONE LOOKS LIKE
+
+1. Push reliability
+
+Users with no active device token are skipped before any OneSignal call.
+
+MEL logs:
+
+* delivery_status = skipped
+* suppression_reason = no_device_token
+
+No failed attempts should be recorded for tokenless users.
+
+Existing sends to users with active tokens are unaffected.
+
+2. Availability prompt
+
+After a user saves a pass on the edit profile / settings page, and their open dates are empty, they immediately see an inline card:
+
+"Pass saved! Add your open dates so friends can plan with you."
+
+CTA:
+
+Add Open Dates →
+
+Link:
+
+/add-open-dates
+
+Prompt does not appear if open dates already exist.
+
+3. Trip invite prompt
+
+After a user creates a trip and lands on trip detail, the existing "Trip planned." success card includes an:
+
+Invite Friends →
+
+CTA that opens the existing invite modal.
+
+Prompt only shows for the trip owner immediately after creation via the existing flash mechanism.
+
+4. No regressions
+
+All admin intelligence pages, trip creation, pass save, and push sending still work correctly.
+
+---
+
+## OUT OF SCOPE
+
+* New models, migrations, or database fields
+* New vendors or external integrations
+* OneSignal webhook / stale token cleanup
+* Onboarding redesign
+* Marketing site changes
+* Push or email nudge campaigns
+
+---
+
+## STEPS
+
+Step 1 — Add NO_DEVICE_TOKEN suppression constant
+
+File:
+
+services/messaging_constants.py
+
+Add:
+
+NO_DEVICE_TOKEN = "no_device_token"
+
+to the SuppressionReason class.
+
+---
+
+Step 2 — Pre-flight token check in push provider
+
+File:
+
+services/push_providers.py
+
+After the existing opt-out filter, add a check:
+
+Query:
+
+push_device_token
+WHERE user_id IN recipients
+AND active = true
+
+If no active token is found for a recipient:
+
+* Do not call OneSignal for that recipient
+* Return success=True, skipped=True, skipped_reason="no_device_token"
+
+Import PushDeviceToken from models.
+
+Wrap the check in try/except so a DB error falls through to the OneSignal call.
+
+Do not break existing sends for users with active tokens.
+
+---
+
+Step 3 — Map no_device_token in dispatch layer
+
+File:
+
+services/message_dispatch.py
+
+Inside _dispatch_immediate_push(), in the skipped-result mapping block:
+
+When skipped_reason == "no_device_token":
+
+Map to:
+
+SuppressionReason.NO_DEVICE_TOKEN
+
+Place this between the existing channel_unavailable and user_opted_out branches.
+
+---
+
+Step 4 — Availability prompt redirect
+
+File:
+
+app.py
+
+In the edit_profile POST success block that redirects to profile:
+
+Check whether:
+
+* normalized_passes is a real pass using _ph_is_real_pass
+* current_user.open_dates is empty
+
+If both true:
+
+Redirect to:
+
+url_for("profile", pass_saved="1")
+
+instead of plain:
+
+url_for("profile")
+
+---
+
+Step 5 — Availability prompt UI
+
+File:
+
+templates/profile.html
+
+Inside:
+
+{% block content %}
+
+Immediately after the hc-card identity card div, add an inline prompt card that renders only when:
+
+request.args.get('pass_saved') == '1'
+and
+not current_user.open_dates
+
+Copy:
+
+"Pass saved! Add your open dates so friends can plan with you."
+
+CTA:
+
+Add Open Dates →
+
+Link:
+
+/add-open-dates
+
+Style should match existing BaseLodge inline card patterns:
+
+* cream background
+* bordeaux accent
+* no modal
+* mobile-first
+
+---
+
+Step 6 — Trip invite CTA in success card
+
+File:
+
+templates/trip_detail.html
+
+Inside the existing:
+
+{% if _trip_flash %}
+
+success overlay block, add an:
+
+Invite Friends →
+
+CTA button below the existing body text.
+
+Requirements:
+
+* Visible only when is_owner
+* Calls existing openInviteModal() JS function on click
+* Dismisses the success card
+
+Do not create a new modal.
+
+Reuse the existing invite modal.
+
+---
+
+## TESTING REQUIREMENTS
+
+Push Reliability
+
+Verify:
+
+* User with active token still sends normally
+* User without active token is skipped
+* MEL logs skipped / no_device_token
+* No false failures recorded for tokenless users
+* Existing notifications still work
+
+Availability Prompt
+
+Verify:
+
+* Pass save succeeds
+* Prompt appears only when availability is empty
+* CTA routes correctly to /add-open-dates
+* Prompt does not appear when availability already exists
+
+Trip Invite Prompt
+
+Verify:
+
+* Trip creation succeeds
+* Prompt appears after trip creation
+* CTA opens existing invite modal
+* Prompt only appears for trip owner
+* Existing trip creation flow remains intact
+
+Regression
+
+Verify:
+
+* /admin/dashboard loads
+* /admin/messaging loads
+* /admin/crm-intel loads
+* /admin/activation-intel loads
+* /admin/growth-intel loads
+* Trip creation still works
+* Pass save still works
+* Push sending still works
+
+Use checkpoints sparingly.
+
+Do not finish until all testing passes.

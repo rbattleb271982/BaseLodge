@@ -45,7 +45,7 @@ import os
 import httpx
 from flask import current_app
 
-from models import db, User
+from models import db, User, PushDeviceToken
 
 
 def send_onesignal_push(user_ids, title, body, data=None):
@@ -108,6 +108,27 @@ def send_onesignal_push(user_ids, title, body, data=None):
     if not all_ids:
         current_app.logger.warning("[OneSignal] send_push: all recipients opted out — silent skip (no delivery attempt)")
         return {"success": True, "provider_message_id": None, "skipped": True, "error": None}
+
+    # Pre-flight token check — attempting OneSignal delivery for users with no
+    # registered device token always results in a silent failure ("sent=0 failed=0"
+    # or "All included players are not subscribed"). Skip early so the MEL row is
+    # recorded as skipped/no_device_token rather than a misleading failed row.
+    try:
+        has_active_token = db.session.query(PushDeviceToken.id).filter(
+            PushDeviceToken.user_id.in_(all_ids),
+            PushDeviceToken.active == True  # noqa: E712
+        ).first() is not None
+        if not has_active_token:
+            current_app.logger.warning(
+                "[OneSignal] send_push: no active device token for user(s) %s — skipping (no_device_token)",
+                sorted(all_ids),
+            )
+            return {"success": True, "provider_message_id": None,
+                    "skipped": True, "skipped_reason": "no_device_token", "error": None}
+    except Exception as _tok_err:
+        current_app.logger.warning(
+            "[OneSignal] send_push: token check failed (%s) — proceeding to OneSignal", _tok_err
+        )
 
     external_ids = [str(uid) for uid in all_ids]
 
