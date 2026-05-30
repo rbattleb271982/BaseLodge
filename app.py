@@ -19478,5 +19478,163 @@ def admin_crm_intel():
     )
 
 
+# ══════════════════════════════════════════════════════════════════════════
+# Admin — Active Today API + User Detail
+# ══════════════════════════════════════════════════════════════════════════
+
+@app.route("/admin/api/active-today-users")
+@login_required
+@admin_required
+def admin_api_active_today_users():
+    """JSON list of users active today — exact same predicate as Founder Pulse Active count."""
+    today_start = _admin_today_start_utc()
+    users = User.query.filter(User.last_active_at >= today_start)\
+                      .order_by(User.last_active_at.desc()).all()
+    result = []
+    for u in users:
+        first = (u.first_name or "").strip()
+        last  = (u.last_name  or "").strip()
+        name  = f"{first} {last}".strip() or "Unknown User"
+        result.append({
+            "id":                u.id,
+            "name":              name,
+            "state":             u.home_state or "",
+            "last_active_at_iso": u.last_active_at.isoformat() if u.last_active_at else None,
+        })
+    return jsonify(result)
+
+
+@app.route("/admin/users/<int:user_id>")
+@login_required
+@admin_required
+def admin_user_detail(user_id):
+    """Admin-only drilldown page for a single user."""
+    from datetime import datetime as _dt
+    from sqlalchemy import or_ as _or
+
+    user = db.session.get(User, user_id)
+    if not user:
+        abort(404)
+
+    today_start = _admin_today_start_utc()
+    now_utc     = _dt.utcnow()
+
+    is_active_today = bool(user.last_active_at and user.last_active_at >= today_start)
+
+    trips_created = SkiTrip.query.filter_by(user_id=user_id)\
+                                 .order_by(SkiTrip.start_date.desc().nullslast())\
+                                 .limit(5).all()
+    trips_created_count = SkiTrip.query.filter_by(user_id=user_id).count()
+
+    trips_joined_count = SkiTripParticipant.query.filter_by(
+        user_id=user_id, status=GuestStatus.ACCEPTED
+    ).count()
+
+    friend_count = Friend.query.filter(
+        _or(Friend.user_id == user_id, Friend.friend_id == user_id)
+    ).count()
+
+    activity_days = db.session.execute(db.text(
+        'SELECT COUNT(DISTINCT DATE(created_at)) FROM activity WHERE actor_user_id = :uid'
+    ), {"uid": user_id}).scalar() or 0
+
+    activity_label_map = {
+        "trip_created":                        "Created Trip",
+        "trip_updated":                        "Updated Trip",
+        "friend_joined_trip":                  "Friend Joined Trip",
+        "trip_invite_received":                "Received Trip Invite",
+        "trip_invite_accepted":                "Accepted Trip Invite",
+        "trip_invite_declined":                "Declined Trip Invite",
+        "connection_accepted":                 "Made a New Friend",
+        "trip_overlap":                        "Trip Overlap Found",
+        "friend_trip_overlaps_availability":   "Availability Match",
+        "carpool_offered":                     "Carpool Offered",
+        "join_request_received":               "Received Join Request",
+        "join_request_accepted":               "Join Request Accepted",
+        "join_request_declined":               "Join Request Declined",
+        "trip_location_changed":               "Changed Trip Location",
+        "trip_pass_changed":                   "Updated Trip Pass",
+    }
+
+    act_rows = Activity.query.filter_by(actor_user_id=user_id)\
+                             .order_by(Activity.created_at.desc()).limit(40).all()
+    mpv_rows = MountainPageView.query.filter_by(user_id=user_id)\
+                                     .order_by(MountainPageView.viewed_at.desc()).limit(40).all()
+
+    combined = []
+    for a in act_rows:
+        raw = a.type.value if hasattr(a.type, "value") else str(a.type)
+        label = activity_label_map.get(raw, raw.replace("_", " ").title())
+        combined.append({"label": label, "ts": a.created_at})
+    for v in mpv_rows:
+        resort_name = (v.resort.name if v.resort else None) or "a mountain"
+        combined.append({"label": f"Viewed {resort_name}", "ts": v.viewed_at})
+
+    combined.sort(key=lambda x: x["ts"] or _dt.min, reverse=True)
+    recent_activity = combined[:20]
+
+    pass_raw = (user.pass_type or "").strip().lower()
+    if not pass_raw or pass_raw in ("no_pass", "no_pass_yet", "none"):
+        pass_display = "No pass on file"
+    else:
+        pass_display = user.pass_type
+
+    state_full = STATE_NAMES.get(user.home_state or "", user.home_state or "")
+
+    def _count_json_list(field):
+        if not field:
+            return 0
+        try:
+            parsed = json.loads(field) if isinstance(field, str) else field
+            return len(parsed) if isinstance(parsed, list) else 0
+        except Exception:
+            return 0
+
+    wish_count    = _count_json_list(user.wish_list_resorts)
+    visited_count = _count_json_list(user.visited_resort_ids)
+
+    def _fmt_trip_dates(trip):
+        try:
+            if trip.start_date and trip.end_date:
+                sm = trip.start_date.strftime("%b %-d")
+                em = trip.end_date.strftime("%-d") if trip.start_date.month == trip.end_date.month \
+                     else trip.end_date.strftime("%b %-d")
+                return f"{sm}–{em}"
+            elif trip.start_date:
+                return trip.start_date.strftime("%b %-d")
+        except Exception:
+            pass
+        return ""
+
+    trip_display = []
+    for t in trips_created:
+        resort_name = t.mountain or (t.resort.name if t.resort else None) or "Unknown"
+        trip_display.append({
+            "name":  resort_name,
+            "dates": _fmt_trip_dates(t),
+        })
+
+    now_str = _admin_now().strftime("%b %d, %Y at %H:%M %Z")
+
+    return render_template(
+        "admin_user_detail.html",
+        active_tab          = "dashboard",
+        user                = user,
+        is_active_today     = is_active_today,
+        state_full          = state_full,
+        pass_display        = pass_display,
+        trips_created_count = trips_created_count,
+        trips_joined_count  = trips_joined_count,
+        friend_count        = friend_count,
+        activity_days       = activity_days,
+        recent_activity     = recent_activity,
+        wish_count          = wish_count,
+        visited_count       = visited_count,
+        trip_display        = trip_display,
+        now_str             = now_str,
+        now_utc             = now_utc,
+    )
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

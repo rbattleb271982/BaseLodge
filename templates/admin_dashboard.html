@@ -97,6 +97,77 @@
     margin-bottom: 16px; overflow-wrap: break-word; word-break: break-word;
   }
 
+  /* ── Active Today drilldown trigger ── */
+  .fp-active-trigger { cursor: pointer; }
+  .fp-active-trigger:hover  { background: #FAF8F5; }
+  .fp-active-trigger:active { background: #F0EAE1; }
+
+  /* ── Bottom sheet overlay ── */
+  .fp-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.42);
+    z-index: 1000;
+  }
+  .fp-overlay.fp-open { display: block; }
+
+  /* ── Bottom sheet panel ── */
+  .fp-sheet {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-radius: 18px 18px 0 0;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 -4px 28px rgba(0,0,0,0.14);
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    z-index: 1001;
+  }
+  .fp-sheet.fp-open { transform: translateY(0); }
+  .fp-sheet-handle {
+    width: 36px; height: 4px;
+    background: #D9D1C8; border-radius: 2px;
+    margin: 12px auto 0;
+  }
+  .fp-sheet-top {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 14px 18px 10px;
+  }
+  .fp-sheet-title {
+    font-size: 18px; font-weight: 700; color: #1C1917;
+    font-family: Georgia, serif;
+  }
+  .fp-sheet-sub {
+    font-size: 12px; color: #9A9186; margin-top: 3px;
+  }
+  .fp-sheet-close {
+    background: none; border: none;
+    font-size: 22px; color: #6B6157;
+    cursor: pointer; padding: 0 4px; line-height: 1; flex-shrink: 0;
+  }
+  .fp-sheet-close:hover { color: #1C1917; }
+  .fp-sheet-body {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  }
+  .fp-sheet-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 18px;
+    border-bottom: 1px solid #F0EAE1;
+    cursor: pointer; text-decoration: none; color: inherit;
+  }
+  .fp-sheet-row:last-child { border-bottom: none; }
+  .fp-sheet-row:hover  { background: #FAF8F5; }
+  .fp-sheet-row:active { background: #F0EAE1; }
+  .fp-sheet-row-name { font-size: 14px; font-weight: 500; color: #1C1917; }
+  .fp-sheet-row-time {
+    font-size: 12px; color: #9A9186;
+    white-space: nowrap; margin-left: 14px; flex-shrink: 0;
+  }
+  .fp-sheet-empty {
+    padding: 36px 18px; text-align: center;
+    font-size: 14px; color: #9A9186;
+  }
+
   /* ── Row label (section divider above each KPI row) ── */
   .ad-row-label {
     font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
@@ -286,7 +357,7 @@
 
   {# ── Desktop horizontal strip ── #}
   <div class="fp-strip">
-    <div class="fp-strip-item">
+    <div class="fp-strip-item fp-active-trigger" title="Click to see who is active today">
       <div class="fp-strip-label">Active</div>
       <div class="fp-strip-val">{{ pulse.active[0] }}</div>
       <div class="fp-strip-delta {{ pulse.active[1][1] }}">{{ pulse.active[1][0] }}</div>
@@ -330,7 +401,7 @@
 
   {# ── Mobile 2-column card grid ── #}
   <div class="fp-grid">
-    <div class="fp-card">
+    <div class="fp-card fp-active-trigger" title="Click to see who is active today">
       <div class="fp-card-label">Active Today</div>
       <div class="fp-card-val">{{ pulse.active[0] }}</div>
       <div class="fp-card-delta {{ pulse.active[1][1] }}">{{ pulse.active[1][0] }}</div>
@@ -626,6 +697,95 @@
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ACTIVE TODAY DRILLDOWN SHEET                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="fp-overlay" id="fp-overlay"></div>
+<div class="fp-sheet" id="fp-sheet" role="dialog" aria-modal="true" aria-label="Active Today users">
+  <div class="fp-sheet-handle"></div>
+  <div class="fp-sheet-top">
+    <div>
+      <div class="fp-sheet-title" id="fp-sheet-title">Active Today</div>
+      <div class="fp-sheet-sub">Users who have been active in the app today</div>
+    </div>
+    <button class="fp-sheet-close" id="fp-sheet-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="fp-sheet-body" id="fp-sheet-body"></div>
+</div>
+
 {% endblock %}
 
-{% block scripts %}{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var overlay  = document.getElementById('fp-overlay');
+  var sheet    = document.getElementById('fp-sheet');
+  var titleEl  = document.getElementById('fp-sheet-title');
+  var body     = document.getElementById('fp-sheet-body');
+  var closeBtn = document.getElementById('fp-sheet-close');
+
+  function relTime(isoStr) {
+    if (!isoStr) return '';
+    var d   = new Date(isoStr + 'Z');
+    var sec = Math.round((Date.now() - d.getTime()) / 1000);
+    if (sec < 60)  return 'just now';
+    var min = Math.round(sec / 60);
+    if (min < 60)  return min + ' min ago';
+    var hr = Math.round(min / 60);
+    if (hr < 24)   return hr + ' hr ago';
+    if (hr < 48)   return 'Yesterday';
+    return Math.round(hr / 24) + ' days ago';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function openSheet(users) {
+    titleEl.textContent = users.length + ' Active Today';
+    if (users.length === 0) {
+      body.innerHTML = '<div class="fp-sheet-empty">No users have been active today.</div>';
+    } else {
+      body.innerHTML = users.map(function (u) {
+        var name  = escHtml(u.name) + (u.state ? ' (' + escHtml(u.state) + ')' : '');
+        var time  = escHtml(relTime(u.last_active_at_iso));
+        return '<a class="fp-sheet-row" href="/admin/users/' + u.id + '">' +
+          '<span class="fp-sheet-row-name">' + name + '</span>' +
+          '<span class="fp-sheet-row-time">' + time + '</span>' +
+          '</a>';
+      }).join('');
+    }
+    overlay.classList.add('fp-open');
+    sheet.classList.add('fp-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeSheet() {
+    overlay.classList.remove('fp-open');
+    sheet.classList.remove('fp-open');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.fp-active-trigger').forEach(function (el) {
+    el.addEventListener('click', function () {
+      body.innerHTML = '<div class="fp-sheet-empty">Loading\u2026</div>';
+      overlay.classList.add('fp-open');
+      sheet.classList.add('fp-open');
+      document.body.style.overflow = 'hidden';
+      fetch('/admin/api/active-today-users')
+        .then(function (r) { return r.json(); })
+        .then(openSheet)
+        .catch(function () {
+          body.innerHTML = '<div class="fp-sheet-empty">Unable to load data. Please try again.</div>';
+        });
+    });
+  });
+
+  closeBtn.addEventListener('click', closeSheet);
+  overlay.addEventListener('click', closeSheet);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeSheet();
+  });
+})();
+</script>
+{% endblock %}

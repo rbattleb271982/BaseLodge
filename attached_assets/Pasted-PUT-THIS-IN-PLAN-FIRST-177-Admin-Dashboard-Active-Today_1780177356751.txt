@@ -1,0 +1,423 @@
+PUT THIS IN PLAN FIRST
+
+#177 - Admin Dashboard — Active Today Drilldown
+
+What & Why
+
+The Founder Pulse "Active" KPI shows a count but not who. Add a tappable drilldown: tapping the Active card opens a bottom sheet listing active-today users (full name + state + last active time). Tapping any user row navigates to an admin-only user detail page.
+
+This is an admin-only feature designed to make the dashboard operational without changing any existing metrics, schemas, or user-facing functionality.
+
+Done Looks Like
+
+- Active card (desktop strip and mobile card) is tappable
+- Cursor pointer and subtle hover/active state
+- Tapping opens a native-style bottom sheet
+- Bottom sheet includes:
+  - Rounded top corners
+  - Drag handle
+  - Close X button
+  - Title
+  - Subtitle
+  - Scrollable list of users
+- User list shows:
+  - Full name
+  - State abbreviation inline with name
+  - Last active time on the right
+- Empty state renders correctly when count is 0
+- Tapping a user row opens the admin user detail page
+- User detail page loads without error
+- Mobile-friendly
+- No horizontal scrolling
+- No dashboard metric changes
+- No dashboard layout changes
+- No user-facing changes
+- No console errors
+- No broken routes
+- The number displayed in the Active KPI exactly matches the number of users returned by the drilldown list
+
+Out of Scope
+
+- Drilldowns on Sessions, New Users, Trips, WAU, MAU, etc.
+- Editing users
+- Messaging users
+- Deleting users
+- User impersonation
+- Push notifications
+- Exporting data
+- User-facing routes
+- Schema changes
+- Model changes
+
+Implementation
+
+1. Active Today API Endpoint
+
+Add an admin-only endpoint:
+
+GET /admin/api/active-today-users
+
+Requirements:
+
+- Admin authentication required
+- Return JSON array:
+
+[
+  {
+    "id": 123,
+    "name": "Richard Battle-Baxter",
+    "state": "CO",
+    "last_active_at_iso": "2026-05-29T15:22:00"
+  }
+]
+
+IMPORTANT:
+
+Use the exact same definition of "active today" currently used by the Founder Pulse Active metric.
+
+Do not introduce a new definition of active users.
+
+The Active KPI count and drilldown list must always match.
+
+Order results by most recent activity descending.
+
+Name format:
+
+"First Last"
+
+(last name optional if missing)
+
+State:
+
+User.home_state abbreviation
+
+Empty string if unavailable.
+
+2. Dashboard Bottom Sheet
+
+File:
+
+templates/admin_dashboard.html
+
+Make both Active KPI variants tappable:
+
+- Founder Pulse strip item
+- Founder Pulse mobile card
+
+Add:
+
+id="fp-active-trigger"
+
+to both implementations.
+
+Add:
+
+cursor: pointer;
+
+and subtle hover/active feedback.
+
+Bottom Sheet UI
+
+Add at the end of the content block:
+
+- Overlay
+- Bottom sheet panel
+- Drag handle
+- Close button
+- Title
+- Subtitle
+- Scrollable user list container
+
+Design
+
+- Native iOS-style bottom sheet
+- Fixed overlay
+- Rounded top corners (18px+)
+- Soft shadow
+- Smooth slide-up animation
+- Close on:
+  - X button
+  - Overlay click
+  - Escape key
+
+Example
+
+Title:
+1 Active Today
+
+Subtitle:
+Users who have been active in the app today
+
+Rows:
+
+Richard Battle-Baxter (CO)      5 min ago
+Sarah Michelle Johnson (UT)     20 min ago
+Michael Thomas Anderson (WY)    1 hr ago
+
+No avatars
+
+No profile photos
+
+No email addresses
+
+No user IDs
+
+No extra metadata
+
+Scrollable if user count is large.
+
+Empty State
+
+0 Active Today
+
+No users have been active today.
+
+3. Dashboard JavaScript
+
+Add JS to:
+
+templates/admin_dashboard.html
+
+Behavior:
+
+- Click trigger
+- Fetch:
+
+/admin/api/active-today-users
+
+- Render rows dynamically
+- Open sheet
+
+Relative time formatting:
+
+Examples:
+
+5 min ago
+20 min ago
+1 hr ago
+2 hr ago
+Yesterday
+
+Simple client-side helper is fine.
+
+Each row should navigate to:
+
+/admin/users/<user_id>
+
+4. Admin User Detail Page
+
+Create or reuse an existing admin user detail route.
+
+If an admin user detail page already exists:
+
+- Extend it
+- Do not create a duplicate route
+
+Otherwise create:
+
+GET /admin/users/<int:user_id>
+
+Admin authentication required.
+
+404 if user does not exist.
+
+Gather
+
+User record
+
+Trips created:
+- SkiTrip
+- ordered newest first
+- limit 5
+
+Trips joined:
+- SkiTripParticipant accepted status
+- joined trip info
+
+Friend count:
+- accepted friendships
+
+Days active:
+- distinct activity dates
+
+Recent activity:
+- latest Activity rows
+- latest MountainPageView rows
+- merged and sorted descending
+- up to 20 rows
+
+Map activity into human-readable labels.
+
+5. Admin User Detail Template
+
+Create:
+
+templates/admin_user_detail.html
+
+Extend:
+
+admin_console.html
+
+Page Header
+
+Richard Battle-Baxter
+
+Colorado
+
+Status Pill
+
+Active Today
+
+If not active today:
+
+Last Seen May 28, 2026
+
+Account Section
+
+Email
+richard@example.com
+
+Join Date
+Jan 14, 2026
+
+Last Active
+5 min ago
+
+Push Notifications
+Enabled
+
+Pass Type
+Epic Pass
+
+Use graceful fallbacks:
+
+Not available
+
+when data is missing.
+
+BaseLodge Activity Section
+
+4 stat cards:
+
+Trips Created
+
+Trips Joined
+
+Friends
+
+Days Active
+
+Recent Activity Section
+
+Up to 20 rows
+
+Examples:
+
+Opened App
+15 min ago
+
+Viewed Vail
+18 min ago
+
+Viewed Beaver Creek
+25 min ago
+
+Created Trip
+2 days ago
+
+Joined Trip
+5 days ago
+
+Updated Availability
+1 week ago
+
+If none:
+
+No activity recorded yet
+
+Mountains Section
+
+Pass Type
+
+Wish List Count
+
+Visited Count
+
+Use:
+
+Not set
+
+when applicable.
+
+Trips Section
+
+Show up to 5 recent trips.
+
+Example:
+
+Trip to Vail
+Dec 17–20
+
+Trip to Beaver Creek
+Jan 10–14
+
+Trip to Jackson Hole
+Feb 4–9
+
+If none:
+
+No trips yet
+
+Navigation
+
+Provide back link to:
+
+/admin/dashboard
+
+Graceful Fallback Requirement
+
+Any missing optional field must display:
+
+Not available
+
+instead of causing an error.
+
+Relevant Files
+
+app.py
+- _admin_today_start_utc()
+- _admin_now()
+- Founder Pulse dashboard route
+
+templates/admin_dashboard.html
+- Founder Pulse strip
+- Founder Pulse card
+- Existing fp-* CSS
+
+models.py
+- User
+- SkiTrip
+- SkiTripParticipant
+- Friend
+- Activity
+- MountainPageView
+
+templates/admin_console.html
+
+Testing Requirements
+
+- Verify Active KPI count equals drilldown row count
+- Verify drilldown works on desktop
+- Verify drilldown works on mobile
+- Verify user detail page loads for active users
+- Verify user detail page loads for inactive users
+- Verify empty state renders correctly
+- Verify all fallbacks work
+- Verify no horizontal scrolling
+- Verify no console errors
+- Verify no route conflicts
+- Verify no user-facing pages are affected
+
+Only use checkpoints if absolutely necessary.
+Do not modify schemas or models.
+Do not change the existing definition of Active users.

@@ -1,0 +1,265 @@
+{% extends "admin_console.html" %}
+{% block title %}User {{ user.id }}{% endblock %}
+{% block page_title %}User Detail{% endblock %}
+
+{% block head_styles %}
+  /* ══════════════════════════════════════════════════════════
+     ADMIN USER DETAIL — ud-* prefix
+  ══════════════════════════════════════════════════════════ */
+
+  .ud-back {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 13px; color: #6B6157; text-decoration: none;
+    margin-bottom: 20px;
+  }
+  .ud-back:hover { color: #5C1219; }
+
+  /* ── Header ── */
+  .ud-header {
+    margin-bottom: 24px;
+  }
+  .ud-name {
+    font-family: Georgia, serif;
+    font-size: 26px; font-weight: 700; color: #1C1917;
+    letter-spacing: -0.01em; line-height: 1.15;
+    margin-bottom: 4px;
+  }
+  .ud-meta {
+    font-size: 13px; color: #6B6157;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .ud-pill {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; padding: 3px 9px;
+    border-radius: 99px;
+  }
+  .ud-pill--active {
+    background: #DCFCE7; color: #16A34A;
+  }
+  .ud-pill--inactive {
+    background: #F0EAE1; color: #6B6157;
+  }
+
+  /* ── Section label ── */
+  .ud-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #9A9186;
+    margin: 24px 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #E4DDD2;
+  }
+
+  /* ── Account rows ── */
+  .ud-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid #F0EAE1;
+    gap: 12px;
+  }
+  .ud-row:last-child { border-bottom: none; }
+  .ud-row-label {
+    font-size: 12px; font-weight: 600; color: #6B6157;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .ud-row-val {
+    font-size: 13px; color: #1C1917;
+    text-align: right; word-break: break-all;
+  }
+  .ud-muted { color: #9A9186; font-style: italic; }
+
+  /* ── Stat cards ── */
+  .ud-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  @media (max-width: 600px) {
+    .ud-stats { grid-template-columns: 1fr 1fr; }
+  }
+  .ud-stat {
+    background: #fff; border: 1px solid #E4DDD2;
+    border-radius: 8px; padding: 10px 12px 9px;
+    min-width: 0;
+  }
+  .ud-stat-label {
+    font-size: 10px; font-weight: 700; color: #6B6157;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .ud-stat-val {
+    font-size: 26px; font-weight: 700; color: #5C1219;
+    font-family: Georgia, serif; letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  /* ── Recent activity list ── */
+  .ud-activity-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid #F0EAE1;
+    gap: 12px;
+  }
+  .ud-activity-row:last-child { border-bottom: none; }
+  .ud-activity-label {
+    font-size: 13px; color: #1C1917;
+  }
+  .ud-activity-time {
+    font-size: 12px; color: #9A9186;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .ud-empty {
+    font-size: 13px; color: #9A9186; font-style: italic;
+    padding: 8px 0;
+  }
+
+  /* ── Trip rows ── */
+  .ud-trip-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid #F0EAE1; gap: 12px;
+  }
+  .ud-trip-row:last-child { border-bottom: none; }
+  .ud-trip-name { font-size: 14px; font-weight: 500; color: #1C1917; }
+  .ud-trip-dates { font-size: 12px; color: #6B6157; white-space: nowrap; flex-shrink: 0; }
+
+  /* ── Updated timestamp ── */
+  .ud-footer {
+    font-size: 11px; color: #9E958A;
+    margin-top: 28px; padding-top: 12px;
+    border-top: 1px solid #E4DDD2;
+  }
+{% endblock %}
+
+{% block content %}
+
+<a class="ud-back" href="/admin/dashboard">&larr; Dashboard</a>
+
+<!-- ── Header ── -->
+<div class="ud-header">
+  <div class="ud-name">
+    {{ user.first_name or '' }} {{ user.last_name or '' }}
+    {%- if not user.first_name and not user.last_name %} Unknown User{% endif %}
+  </div>
+  <div class="ud-meta">
+    {% if state_full %}<span>{{ state_full }}</span>{% endif %}
+    {% if is_active_today %}
+      <span class="ud-pill ud-pill--active">Active Today</span>
+    {% elif user.last_active_at %}
+      <span class="ud-pill ud-pill--inactive">Last Seen {{ user.last_active_at.strftime('%b %-d, %Y') }}</span>
+    {% else %}
+      <span class="ud-pill ud-pill--inactive">Never Seen</span>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Account ── -->
+<div class="ud-section-label">Account</div>
+<div>
+  <div class="ud-row">
+    <span class="ud-row-label">Email</span>
+    <span class="ud-row-val">{{ user.email or '<span class="ud-muted">Not available</span>' | safe }}</span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Join Date</span>
+    <span class="ud-row-val">
+      {% if user.created_at %}{{ user.created_at.strftime('%b %-d, %Y') }}{% else %}<span class="ud-muted">Not available</span>{% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Last Active</span>
+    <span class="ud-row-val">
+      {% if user.last_active_at %}{{ user.last_active_at.strftime('%b %-d, %Y at %H:%M UTC') }}{% else %}<span class="ud-muted">Not available</span>{% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Push Notifications</span>
+    <span class="ud-row-val">
+      {% if user.push_notifications_enabled %}Enabled{% else %}Disabled{% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Pass Type</span>
+    <span class="ud-row-val">{{ pass_display }}</span>
+  </div>
+</div>
+
+<!-- ── BaseLodge Activity ── -->
+<div class="ud-section-label">BaseLodge Activity</div>
+<div class="ud-stats">
+  <div class="ud-stat">
+    <div class="ud-stat-label">Trips Created</div>
+    <div class="ud-stat-val">{{ trips_created_count }}</div>
+  </div>
+  <div class="ud-stat">
+    <div class="ud-stat-label">Trips Joined</div>
+    <div class="ud-stat-val">{{ trips_joined_count }}</div>
+  </div>
+  <div class="ud-stat">
+    <div class="ud-stat-label">Friends</div>
+    <div class="ud-stat-val">{{ friend_count }}</div>
+  </div>
+  <div class="ud-stat">
+    <div class="ud-stat-label">Days Active</div>
+    <div class="ud-stat-val">{{ activity_days }}</div>
+  </div>
+</div>
+
+<!-- ── Recent Activity ── -->
+<div class="ud-section-label">Recent Activity</div>
+{% if recent_activity %}
+  <div>
+    {% for item in recent_activity %}
+      <div class="ud-activity-row">
+        <span class="ud-activity-label">{{ item.label }}</span>
+        <span class="ud-activity-time">
+          {% if item.ts %}{{ item.ts.strftime('%b %-d, %Y') }}{% endif %}
+        </span>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="ud-empty">No activity recorded yet.</p>
+{% endif %}
+
+<!-- ── Mountains ── -->
+<div class="ud-section-label">Mountains</div>
+<div>
+  <div class="ud-row">
+    <span class="ud-row-label">Pass Type</span>
+    <span class="ud-row-val">{{ pass_display }}</span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Wish List</span>
+    <span class="ud-row-val">{{ wish_count }} resort{% if wish_count != 1 %}s{% endif %}</span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Visited</span>
+    <span class="ud-row-val">{{ visited_count }} resort{% if visited_count != 1 %}s{% endif %}</span>
+  </div>
+</div>
+
+<!-- ── Trips ── -->
+<div class="ud-section-label">Trips</div>
+{% if trip_display %}
+  <div>
+    {% for t in trip_display %}
+      <div class="ud-trip-row">
+        <span class="ud-trip-name">{{ t.name }}</span>
+        {% if t.dates %}<span class="ud-trip-dates">{{ t.dates }}</span>{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% if trips_created_count > 5 %}
+    <p style="font-size:12px; color:#9A9186; margin-top:8px;">Showing 5 of {{ trips_created_count }} trips.</p>
+  {% endif %}
+{% else %}
+  <p class="ud-empty">No trips yet.</p>
+{% endif %}
+
+<div class="ud-footer">Live data &middot; {{ now_str }}</div>
+
+{% endblock %}
+
+{% block scripts %}{% endblock %}

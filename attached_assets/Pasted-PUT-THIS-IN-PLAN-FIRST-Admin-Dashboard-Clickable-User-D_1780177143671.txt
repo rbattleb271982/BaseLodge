@@ -1,0 +1,169 @@
+PUT THIS IN PLAN FIRST
+
+Admin Dashboard — Clickable User Drilldowns
+
+What & Why
+The Founder Pulse KPIs show what happened, but not who is driving the activity. Add admin-only drilldowns so tapping Active Today opens a mobile-friendly bottom sheet showing the active users. Tapping a user row opens an Admin User Detail page.
+
+Feature 1 — Active Today Bottom Sheet
+
+Trigger:
+Tap the Active Today KPI card.
+
+Bottom sheet content:
+Title: 1 Active Today
+Subtitle: Users who have been active in the app today
+
+Table:
+USER                              LAST ACTIVE
+Richard Battle-Baxter (CO)        5 min ago
+Sarah Michelle Johnson (UT)       20 min ago
+Michael Thomas Anderson (WY)      1 hr ago
+Emily Rose Wilson (MT)            1 hr ago
+Alexander Paul Thompson (OR)      2 hr ago
+
+Design requirements:
+- Native iOS-style bottom sheet
+- Rounded top corners
+- Drag handle at top
+- Close X button
+- No avatars
+- No profile photos
+- No user IDs
+- No email addresses
+- Full names only
+- State abbreviation inline with name: Richard Battle-Baxter (CO)
+- Last active on the right
+- Subtle dividers between rows
+- Scrollable if more than 10 users
+- Mobile-first
+- Admin only
+
+Empty state:
+0 Active Today
+No users have been active today.
+
+Feature 2 — User Row Click
+
+Tap any user row inside the bottom sheet.
+
+Open:
+/admin/users/<user_id>
+
+Use an existing admin user detail route if one already exists.
+
+Feature 3 — Admin User Detail Page
+
+Page header:
+Richard Battle-Baxter
+Colorado
+
+Status pill:
+Active Today
+
+Section: Account
+Email
+richard@example.com
+
+Join Date
+Jan 14, 2026
+
+Last Active
+5 min ago
+
+Push Notifications
+Enabled
+
+Pass Type
+Epic Pass
+
+Section: BaseLodge Activity
+
+Show as stat cards:
+Trips Created
+12
+
+Trips Joined
+8
+
+Friends
+27
+
+Days Active
+34
+
+Section: Recent Activity
+
+Show latest 20 actions where existing tracking/events support it:
+Opened App
+15 min ago
+
+Viewed Vail
+18 min ago
+
+Viewed Beaver Creek
+25 min ago
+
+Created Trip
+2 days ago
+
+Joined Trip
+5 days ago
+
+Updated Availability
+1 week ago
+
+Section: Mountains
+
+Show:
+Pass Type
+Epic Pass
+
+Wish List Mountains
+6
+
+Visited Mountains
+14
+
+Section: Trips
+
+Show recent trips:
+Trip to Vail
+Dec 17–20
+
+Trip to Beaver Creek
+Jan 10–14
+
+Trip to Jackson Hole
+Feb 4–9
+
+Navigation:
+Back button returns to dashboard.
+
+Out of scope:
+- Messaging users
+- Editing users
+- Deleting users
+- Sending push notifications
+- Exporting users
+- User impersonation
+- Any user-facing changes
+
+Done looks like:
+- Active Today KPI opens bottom sheet
+- Bottom sheet shows full names + state inline
+- Last active shown on right
+- User rows are tappable
+- Tapping user opens admin detail page
+- User detail page loads correctly
+- Mobile friendly
+- No horizontal scrolling
+- Existing dashboard metrics unchanged
+- Existing dashboard visual design unchanged except Active Today becomes tappable
+- Admin only
+- No console errors
+- No broken routes
+
+Use real existing fields where available. If a field does not exist yet, show a graceful fallback like “Not available” instead of breaking the page.
+
+Only use checkpoints if absolutely necessary.
