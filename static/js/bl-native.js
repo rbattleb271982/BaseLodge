@@ -891,29 +891,63 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // ── Listen for notification opened (tap to open) ──────────────────
+      // _pushNavDone prevents a double-navigate if both the live listener
+      // and the cold-launch replay fire for the same tap.
+      var _pushNavDone = false;
+
+      function _doNavFromPush(payload, source) {
+        if (_pushNavDone) {
+          console.log('[PushRoute] duplicate nav suppressed from ' + source);
+          return;
+        }
+        var url = _extractPushUrl(payload);
+        if (url) {
+          _pushNavDone = true;
+          console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
+          window.location.href = url;
+        }
+      }
+
       if (OSPlugin && typeof OSPlugin.addListener === 'function') {
         try {
           await OSPlugin.addListener('notificationOpened', async function(openedResult) {
             await _clearBadgeAndNotifs('notification_opened');
-            var url = _extractPushUrl(openedResult);
-            if (url) {
-              console.log('[PushRoute] navigating to ' + url);
-              window.location.href = url;
-            }
+            _doNavFromPush(openedResult, 'notificationOpened');
           });
           console.log('[BadgeClear] OneSignal notificationOpened listener registered');
         } catch (_oe) {
           console.warn('[BadgeClear] notificationOpened listener error:', _oe);
         }
+
+        // ── Cold-launch replay ─────────────────────────────────────────
+        // When the app is opened from a terminated state by tapping a
+        // notification, the notificationOpened event fires before the
+        // WebView finishes loading — the listener above misses it.
+        // getLaunchNotification / getInitialNotification return the
+        // notification that triggered the cold launch (null otherwise).
+        try {
+          var _launchNotif = null;
+          if (typeof OSPlugin.getLaunchNotification === 'function') {
+            _launchNotif = await OSPlugin.getLaunchNotification();
+            console.log('[PushRoute] getLaunchNotification:', _launchNotif ? 'found' : 'null');
+          }
+          if (!_launchNotif && typeof OSPlugin.getInitialNotification === 'function') {
+            _launchNotif = await OSPlugin.getInitialNotification();
+            console.log('[PushRoute] getInitialNotification:', _launchNotif ? 'found' : 'null');
+          }
+          if (_launchNotif) {
+            await _clearBadgeAndNotifs('cold_launch_replay');
+            _doNavFromPush(_launchNotif, 'cold_launch_replay');
+          }
+        } catch (_cl) {
+          console.warn('[PushRoute] cold-launch check error:', _cl);
+        }
+
       } else if (PushPlugin && typeof PushPlugin.addListener === 'function') {
         try {
           await PushPlugin.addListener('pushNotificationActionPerformed', async function(action) {
             await _clearBadgeAndNotifs('push_action');
-            var url = _extractPushUrl(action);
-            if (url) {
-              console.log('[PushRoute] navigating to ' + url);
-              window.location.href = url;
-            }
+            _doNavFromPush(action, 'pushNotificationActionPerformed');
           });
           console.log('[BadgeClear] PushNotifications pushNotificationActionPerformed listener registered');
         } catch (_pae) {

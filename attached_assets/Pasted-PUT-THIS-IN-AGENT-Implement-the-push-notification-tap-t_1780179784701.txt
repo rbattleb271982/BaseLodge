@@ -1,0 +1,56 @@
+PUT THIS IN AGENT
+
+Implement the push notification tap-to-open fix from the investigation report.
+
+Goal:
+When a user taps a delivered push notification, the BaseLodge native app should open and route to the correct URL from the notification payload.
+
+Use checkpoints sparingly.
+
+Part 1 — JS cold-launch replay fix
+
+In static/js/bl-native.js, locate the OneSignal push listener setup near the notificationOpened / badge-clear section.
+
+After the existing OSPlugin.addListener('notificationOpened', ...) listener is registered, add a cold-launch check for notifications that opened the app before the JS listener was ready.
+
+Implementation requirements:
+- Try OS.getLaunchNotification() if available.
+- Also try OS.getInitialNotification() if available.
+- Use whichever returns a non-null notification.
+- Pass the returned notification object through the existing _extractPushUrl() helper.
+- If a URL is found, navigate with window.location.href = url.
+- Prevent duplicate routing if both the listener and launch check fire.
+- Do not change _extractPushUrl() unless absolutely necessary.
+- Do not change OneSignal init/login flow.
+- Do not change server-side push payload creation.
+- Do not change message_dispatch.py or services/push_providers.py.
+
+Part 2 — iOS AppDelegate tap forwarding fix
+
+In ios/App/App/AppDelegate.swift, add the missing iOS notification tap delegate method:
+
+userNotificationCenter(_:didReceive:withCompletionHandler:)
+
+Inside the method:
+- Post .capacitorDidReceiveNotification to NotificationCenter with response.notification.
+- Call completionHandler().
+
+Do not remove the existing willPresent implementation.
+
+Validation:
+- Confirm static/js/bl-native.js has no syntax errors.
+- Confirm iOS AppDelegate.swift compiles structurally.
+- Confirm Android files are not changed unless absolutely necessary.
+- Confirm push payload structure remains unchanged.
+- Confirm /admin/dashboard and /admin/messaging still load.
+- Confirm no production push sending logic changed.
+
+Return:
+- Files changed
+- Exact behavior added
+- Whether this fixes iOS, Android, or both
+- Whether Replit publish/deploy is required
+- Whether GitHub push/pull is required
+- Whether new iOS TestFlight build is required
+- Whether Android rebuild is required
+- Any remaining test steps
