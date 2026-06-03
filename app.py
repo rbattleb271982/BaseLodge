@@ -11848,6 +11848,40 @@ def seed_screenshot_data_endpoint():
         }), 500
 
 
+@app.route("/admin/seed-screenshot-expansion", methods=["GET", "POST"])
+@login_required
+@admin_required
+def seed_screenshot_expansion_endpoint():
+    """
+    Expand App Store screenshot data — adds 28 new fictional users, 20 accepted
+    friendships, 5 pending inbound requests, 3 pending outbound requests, group
+    trips, availability windows, and activity notifications for John Carter.
+
+    Idempotent — safe to call multiple times. All writes are get-or-create.
+
+    Usage: GET /admin/seed-screenshot-expansion
+    """
+    try:
+        from seed_screenshots_expansion import seed_screenshot_expansion
+        results = seed_screenshot_expansion(
+            app, db,
+            User, Friend, SkiTrip, Invitation, SkiTripParticipant,
+            Resort, UserAvailability, Activity, GuestStatus, InviteType,
+        )
+        return jsonify({
+            "status":  "success",
+            "message": "Screenshot expansion seed completed successfully",
+            "details": results,
+        }), 200
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "status":    "error",
+            "message":   f"Screenshot expansion seed failed: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
 @app.route("/admin/backfill-planning-timestamp", methods=["GET", "POST"])
 @login_required
 @admin_required
