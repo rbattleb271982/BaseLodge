@@ -8231,7 +8231,9 @@ def home():
         print(f"[HOME_PERF] active_equipment={time.perf_counter()-_hp_t0:.4f}s")
 
     for _row in dest_feed:
-        if _row.get('resort') and _row['resort'].slug:
+        if _row.get('idea_type') == 'availability_overlap' and _row.get('anchor_friend_id'):
+            _row['_url'] = url_for('friend_profile', friend_id=_row['anchor_friend_id'])
+        elif _row.get('resort') and _row['resort'].slug:
             _row['_url'] = url_for('mountain_detail', slug=_row['resort'].slug)
         else:
             _row['_url'] = url_for('add_trip')

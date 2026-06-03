@@ -1,0 +1,88 @@
+PUT THIS IN AGENT
+
+#183 - Ideas Cards — Friend Name + Month + Profile Navigation
+
+What & Why
+
+Availability overlap cards in the Home screen Ideas section currently show overlap-window text such as:
+
+"You, Emma — free this window · Jan 15–19"
+
+and currently navigate to a mountain detail page or /add_trip.
+
+This experience should be simplified. The card should focus on one friend and one month, and tapping the card should open that friend's profile. The friend's profile already shows exact overlap dates.
+
+Done looks like
+
+- DATES ALIGN
+- "{First Name} overlaps with you in {Month}"
+
+Examples:
+- Chloe overlaps with you in January
+- Emma overlaps with you in February
+
+Requirements
+
+- No helper text below the overlap sentence
+- Chevron remains visible
+- Card remains tappable
+- Tapping card navigates directly to the friend's profile
+- Friend profile continues to show exact overlap dates
+- Friend Trip cards unchanged
+- Wishlist cards unchanged
+- Empty states continue to work correctly
+
+Implementation
+
+1. In services/ideas_engine.py, inside build_destination_feed(), add:
+   - anchor_friend_id
+   - anchor_friend_name
+
+to availability_overlap rows using the first friend in the overlap window.
+
+2. Replace the current overlap text with:
+
+"{First Name} overlaps with you in {Month}"
+
+using:
+- first friend's first name
+- start.strftime("%B")
+
+3. In app.py, in the Home opportunities feed URL assignment logic, add a branch:
+
+if idea_type == "availability_overlap" and anchor_friend_id:
+    row["_url"] = url_for(
+        "friend_profile",
+        friend_id=anchor_friend_id
+    )
+
+4. Verify templates continue using:
+- row.line2
+- row._url
+
+Only adjust CSS if spacing looks incorrect.
+
+Acceptance Testing
+
+✓ Home Ideas cards show:
+  "Chloe overlaps with you in January"
+
+✓ No helper text
+
+✓ Chevron visible
+
+✓ Tap card → friend profile
+
+✓ Friend profile still shows overlap dates
+
+✓ Friend Trip cards unchanged
+
+✓ Wishlist cards unchanged
+
+✓ Mobile verified
+
+✓ Desktop verified
+
+Use checkpoints sparingly.
+
+Do not finish until you have fully tested navigation, card rendering, empty states, desktop layout, and mobile layout.

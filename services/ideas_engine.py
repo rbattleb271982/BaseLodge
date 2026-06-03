@@ -1001,16 +1001,15 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
                             break
                 # No fallback to arbitrary wishlist resort — allow resort_id=None (BUG-3 fix)
 
-                first_names = []
-                for fw in friends_in_window:
-                    raw = fw.get("friend_name") or ""
-                    first_names.append(raw.split()[0] if raw.strip() else "Friend")
+                anchor_fw = friends_in_window[0] if friends_in_window else {}
+                anchor_raw = anchor_fw.get("friend_name") or ""
+                anchor_first = anchor_raw.split()[0] if anchor_raw.strip() else "Your friend"
+                anchor_friend_id = anchor_fw.get("friend_id")
+                line2 = f"{anchor_first} overlaps with you in {start.strftime('%B')}"
 
                 if shared_resort_id:
-                    line2 = _fmt_wishlist_names(first_names, "— free this window")
                     print(f"[Ideas] overlap_window start={w['start_date']} friends={n} resort={shared_resort_id} ADDED")
                 else:
-                    line2 = _fmt_wishlist_names(first_names, "— pick a mountain")
                     print(f"[Ideas] overlap_window start={w['start_date']} friends={n} resort=None ADDED (no shared resort)")
                     _diag['raw_overlap_no_resort'] += 1
 
@@ -1029,6 +1028,8 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
                     "idea_type": "availability_overlap",
                     "friend_ids": sorted(window_friend_ids),
                     "has_user_date_overlap": True,
+                    "anchor_friend_id": anchor_friend_id,
+                    "anchor_friend_name": anchor_first,
                 })
     except Exception as _exc:
         print(f"[Ideas] overlap_window ERROR: {_exc}")
