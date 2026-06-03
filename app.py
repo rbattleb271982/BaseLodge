@@ -6493,18 +6493,22 @@ def friends():
 
     _fp_t0 = time.perf_counter()
 
-    # ── [FRIENDS_PERF] Block 1: friend_links ──────────────────────────────────
+    # ── [FRIENDS_PERF] Block 1+2: friend_links + all_friends (single JOIN) ────
+    # Replaces two serial queries (Friend→IDs, then User.in_(IDs)) with one JOIN.
+    # Saves ~65ms (one Supabase round-trip). Matches the pattern used by /home and
+    # /my-trips. Friend objects are still available for friendship_lookup below.
     _t = time.perf_counter()
-    friend_links = Friend.query.filter_by(user_id=user.id).all()
-    friend_ids = [f.friend_id for f in friend_links]
+    _friend_join_rows = (
+        db.session.query(User, Friend)
+        .join(Friend, Friend.friend_id == User.id)
+        .filter(Friend.user_id == user.id)
+        .all()
+    )
+    all_friends = [u for u, _f in _friend_join_rows]
+    friend_links = [_f for _u, _f in _friend_join_rows]
+    friend_ids = [u.id for u in all_friends]
     if app.debug:
-        print(f"[FRIENDS_PERF] friend_links={time.perf_counter()-_t:.4f}s count={len(friend_ids)}")
-
-    # ── [FRIENDS_PERF] Block 2: all_friends ───────────────────────────────────
-    _t = time.perf_counter()
-    all_friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    if app.debug:
-        print(f"[FRIENDS_PERF] all_friends={time.perf_counter()-_t:.4f}s count={len(all_friends)}")
+        print(f"[FRIENDS_PERF] friend_links+all_friends={time.perf_counter()-_t:.4f}s count={len(friend_ids)}")
 
     # ── [FRIENDS_PERF] Block 3: friend_trips ──────────────────────────────────
     _t = time.perf_counter()

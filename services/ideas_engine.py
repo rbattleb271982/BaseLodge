@@ -189,7 +189,7 @@ def build_overlap_windows(matches, user_pass_type, friend_trip_statuses=None):
     return result
 
 
-def build_wishlist_overlaps(user, all_friends):
+def build_wishlist_overlaps(user, all_friends, resort_map=None):
     """
     Returns a list of resort dicts where the user and at least one friend
     share the same wishlist resort.
@@ -214,6 +214,11 @@ def build_wishlist_overlaps(user, all_friends):
     ]
 
     Returns [] when the user has no wishlist or no friends.
+
+    resort_map: optional dict {resort_id: Resort} — when provided, Resort objects are
+    looked up from the map instead of issuing individual db.session.get() calls.
+    Callers that already hold a resort cache (e.g. build_destination_feed) should pass
+    it here to avoid N+1 database round-trips.
     """
     user_wishlist = set(user.wish_list_resorts or [])
     if not user_wishlist or not all_friends:
@@ -233,7 +238,7 @@ def build_wishlist_overlaps(user, all_friends):
                     "pass_type": friend.pass_type,
                 })
         if overlapping_friends:
-            resort = db.session.get(Resort, resort_id)
+            resort = (resort_map.get(resort_id) if resort_map else None) or db.session.get(Resort, resort_id)
             if resort:
                 results[resort_id] = {
                     "resort_id": resort.id,
@@ -1039,7 +1044,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     # ── 3. Wishlist overlaps ─────────────────────────────────────────────────
     try:
         _ip_t0 = time.perf_counter()
-        wishlist_data = build_wishlist_overlaps(user, all_friends)
+        wishlist_data = build_wishlist_overlaps(user, all_friends, resort_map=_resort_cache)
         print(f"[IDEAS_PERF] wishlist_overlaps={time.perf_counter()-_ip_t0:.4f}s results={len(wishlist_data)}")
         for rd in wishlist_data:
             rid        = rd["resort_id"]
