@@ -304,14 +304,6 @@ class User(UserMixin, db.Model):
         return _fmt_rider(primary)
     
     @property
-    def compact_rider_type_display(self):
-        """
-        DEPRECATED: Use display_rider_type instead.
-        Returns combined rider types (same as display_rider_type).
-        """
-        return self.display_rider_type
-    
-    @property
     def has_started_planning(self):
         """
         A user has started planning if first_planning_timestamp is set, OR if they
