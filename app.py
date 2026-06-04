@@ -5380,6 +5380,23 @@ def admin_push_diagnostics():
 # (Phase A extraction). Imported at the top of this file. Behavior unchanged.
 
 
+# ── QA push override ─────────────────────────────────────────────────────────
+# Temporary pre-launch QA helper: all admin test push routes redirect their
+# notification to Richard's device so delivery can be validated before the
+# App Store launch.  ONLY affects the four /admin/test-push* routes below.
+# Production notification paths (friend requests, trip invites, scheduled
+# pushes, automated messaging) are completely unaffected.
+_QA_PUSH_OVERRIDE_EMAIL = "richardbattlebaxter@gmail.com"
+
+
+def _get_qa_push_override_user():
+    """Look up the QA override account. Returns None if not found."""
+    try:
+        return User.query.filter_by(email=_QA_PUSH_OVERRIDE_EMAIL).first()
+    except Exception:
+        return None
+
+
 @app.route("/admin/test-push", methods=["GET", "POST"])
 @login_required
 @admin_required
@@ -5407,6 +5424,17 @@ def admin_test_push():
     target_user = db.session.get(User, target_user_id)
     if not target_user:
         return jsonify({"error": f"User {target_user_id} not found."}), 404
+
+    # ── QA Override: route all test pushes to Richard's device ────────────────
+    _qa_user = _get_qa_push_override_user()
+    if _qa_user:
+        current_app.logger.warning(
+            "[TestPush] QA Override Active — routed test push to Richard "
+            "(original target_user_id=%d → qa_user_id=%d email=%s)",
+            target_user_id, _qa_user.id, _QA_PUSH_OVERRIDE_EMAIL,
+        )
+        target_user = _qa_user
+        target_user_id = _qa_user.id
 
     # ── Determine platform from target user's most recently updated active token ──
     latest_token = (
@@ -5672,17 +5700,28 @@ def admin_test_push_all():
     def _tok_preview(t):
         return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
 
+    # ── QA Override: send to Richard's tokens instead of current admin's ────────
+    _qa_user_all = _get_qa_push_override_user()
+    _push_all_user_id = _qa_user_all.id if _qa_user_all else current_user.id
+
     active_tokens = (
         PushDeviceToken.query
-        .filter_by(user_id=current_user.id, active=True)
+        .filter_by(user_id=_push_all_user_id, active=True)
         .order_by(PushDeviceToken.updated_at.desc())
         .all()
     )
 
-    current_app.logger.warning(
-        "[TestPushAll] user_id=%d active_tokens=%d",
-        current_user.id, len(active_tokens),
-    )
+    if _qa_user_all:
+        current_app.logger.warning(
+            "[TestPushAll] QA Override Active — routed test push to Richard "
+            "(original user_id=%d → qa_user_id=%d email=%s active_tokens=%d)",
+            current_user.id, _qa_user_all.id, _QA_PUSH_OVERRIDE_EMAIL, len(active_tokens),
+        )
+    else:
+        current_app.logger.warning(
+            "[TestPushAll] user_id=%d active_tokens=%d",
+            current_user.id, len(active_tokens),
+        )
 
     if not active_tokens:
         return jsonify({
@@ -6089,6 +6128,17 @@ def admin_test_push_broadcast():
         .order_by(PushDeviceToken.updated_at.desc())
         .all()
     )
+
+    # ── QA Override: narrow broadcast to Richard's tokens only ────────────────
+    _qa_user_bc = _get_qa_push_override_user()
+    if _qa_user_bc:
+        _bc_before = len(active_tokens)
+        active_tokens = [t for t in active_tokens if t.user_id == _qa_user_bc.id]
+        current_app.logger.warning(
+            "[TestPushBroadcast] QA Override Active — routed test push to Richard "
+            "(qa_user_id=%d email=%s tokens_before=%d tokens_after=%d)",
+            _qa_user_bc.id, _QA_PUSH_OVERRIDE_EMAIL, _bc_before, len(active_tokens),
+        )
 
     unique_users = len({row.user_id for row in active_tokens})
 
@@ -15328,8 +15378,19 @@ def admin_test_onesignal_push():
         current_user.id, current_user.email,
     )
 
+    # ── QA Override: route test push to Richard's device ──────────────────────
+    _qa_user_os = _get_qa_push_override_user()
+    _os_target_id = current_user.id
+    if _qa_user_os:
+        _os_target_id = _qa_user_os.id
+        current_app.logger.warning(
+            "[OneSignal-Test] QA Override Active — routed test push to Richard "
+            "(original user_id=%d → qa_user_id=%d email=%s)",
+            current_user.id, _qa_user_os.id, _QA_PUSH_OVERRIDE_EMAIL,
+        )
+
     result = send_onesignal_push(
-        user_ids=[current_user.id],
+        user_ids=[_os_target_id],
         title="BaseLodge",
         body="Test push from BaseLodge (OneSignal)",
         data={"source": "admin_test"},
