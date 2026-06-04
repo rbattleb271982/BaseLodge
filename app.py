@@ -1835,14 +1835,18 @@ run_mountain_page_view_migration()
 # ============================================================================
 def run_rider_type_normalization_migration():
     """
-    Startup migration: normalize every user's rider_types JSON array to exactly
-    one canonical item, applying these rules:
-      - Capitalize known lowercase values (e.g. "skier" → "Skier")
-      - If Social appears alongside any real discipline, drop Social and keep
-        the first real discipline
-      - If Social is the sole element, leave it as ["Social"]
-      - Empty arrays are left unchanged (user hasn't completed onboarding)
-    Idempotent — safe to run on every startup.
+    Startup migration: normalize every user's rider_types value to exactly one
+    canonical item stored as a single-element JSON array.
+
+    Handles all legacy forms:
+      - Non-list values (strings, None, integers): coerced to list first
+      - Comma-packed elements like ['Skier,Snowboarder'] → split before mapping
+      - Known lowercase variants  (e.g. 'skier' → 'Skier')
+      - Old social labels ('Social / après', 'Social (along for the ride)') → 'Social'
+      - Multi-element arrays: drop Social when any real discipline exists and
+        keep the first real discipline; Social-only → ['Social']
+      - Empty / all-null arrays: left unchanged (user hasn't finished onboarding)
+    Idempotent — safe to run on every restart.
     """
     _CANON = {
         'skier': 'Skier',
@@ -1854,16 +1858,38 @@ def run_rider_type_normalization_migration():
         'social': 'Social',
         'social / après': 'Social',
         'social (along for the ride)': 'Social',
+        'both': 'Skier',  # old "Both" value → Skier
     }
 
-    def _normalize(types):
-        if not types:
-            return types
-        cased = [_CANON.get(str(t).strip().lower(), str(t).strip()) for t in types if t]
+    def _to_tokens(raw):
+        """Coerce any stored rider_types value into a flat list of string tokens."""
+        if raw is None:
+            return []
+        if isinstance(raw, str):
+            # Bare string (not a list) — treat as single value, may be comma-packed
+            raw = [raw]
+        if not isinstance(raw, list):
+            return []
+        tokens = []
+        for item in raw:
+            if not item:
+                continue
+            # Split comma-packed values stored inside a single array element
+            for part in str(item).split(','):
+                part = part.strip()
+                if part:
+                    tokens.append(part)
+        return tokens
+
+    def _normalize(raw):
+        tokens = _to_tokens(raw)
+        if not tokens:
+            return raw  # nothing to do — leave unchanged
+        cased = [_CANON.get(t.lower(), t) for t in tokens]
         non_social = [t for t in cased if t != 'Social']
-        if non_social:
-            return [non_social[0]]
-        return [cased[0]] if cased else types
+        result = [non_social[0]] if non_social else [cased[0]]
+        # Return None/empty unchanged; already-canonical single-item arrays untouched
+        return result
 
     try:
         with app.app_context():
@@ -1871,11 +1897,12 @@ def run_rider_type_normalization_migration():
                 users = User.query.all()
                 changed = 0
                 for u in users:
-                    rts = u.rider_types
-                    if not isinstance(rts, list):
+                    raw = u.rider_types
+                    # Skip users with no data at all (None, empty list)
+                    if raw is None or raw == []:
                         continue
-                    normalized = _normalize(rts)
-                    if normalized != rts:
+                    normalized = _normalize(raw)
+                    if normalized != raw:
                         u.rider_types = normalized
                         changed += 1
                 if changed:
