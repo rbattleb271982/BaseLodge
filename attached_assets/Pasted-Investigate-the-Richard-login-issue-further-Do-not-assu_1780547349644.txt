@@ -1,0 +1,52 @@
+Investigate the Richard login issue further. Do not assume the password is wrong just because check_password returns false.
+
+Context:
+richardbattlebaxter@gmail.com exists in production, has a password hash, is verified, and profile is complete. User says the password being entered is definitely correct.
+
+Goal:
+Determine why the known-correct password fails authentication.
+
+Tasks:
+1. Inspect User.set_password() and User.check_password().
+   - Confirm the hashing library and methods used.
+   - Confirm whether all historical password hashes are supported.
+   - Check whether any auth code changed from pbkdf2/bcrypt/etc. to scrypt.
+
+2. Compare the Richard account hash format against a known working account.
+   - Do not print full hashes.
+   - Print only safe metadata:
+     - hash prefix/algorithm
+     - hash length
+     - whether check_password_hash works for a controlled test user
+     - whether the working screenshots account uses the same hash format
+
+3. Check login form handling.
+   - Confirm email is normalized consistently.
+   - Confirm password is not stripped, lowercased, encoded incorrectly, truncated, or modified.
+   - Confirm mobile/Android login uses the exact same POST fields as web login.
+
+4. Test from server-side console only.
+   - Use a temporary controlled password test for Richard only if safe:
+     - Create a temporary password hash for a dummy user.
+     - Verify check_password works.
+   - Do not expose or log the actual password.
+
+5. Review whether auth_provider='email' changes login behavior.
+   - Screenshots account has auth_provider NULL.
+   - Richard has auth_provider='email'.
+   - Confirm that difference does not route Richard through a different auth path.
+
+6. Check for leading/trailing whitespace or invisible character issues.
+   - Compare entered email normalization.
+   - Add temporary safe logging around password length only, never password value.
+   - Log whether request.form receives expected password length.
+
+7. Confirm password reset compatibility.
+   - If reset sets a new hash, confirm the new hash can immediately pass login.
+   - Confirm reset does not require a new Android build.
+
+Deliverables:
+- Confirm whether this is actually a bad/stale hash, login-form issue, auth_provider issue, historical hashing issue, or user password mismatch.
+- Provide the safest fix.
+- Do not make production changes unless explicitly asked.
+Use checkpoints sparingly.

@@ -1,0 +1,64 @@
+Investigate why richardbattlebaxter@gmail.com cannot log into the production BaseLodge app while baselodge.screenshots@gmail.com can.
+
+Goal:
+Determine whether this is a user record issue, password issue, environment mismatch, account status issue, or authentication bug.
+
+Tasks:
+
+1. Identify the authentication flow used by the login route.
+   - Find the login POST endpoint.
+   - Document every failure condition and the exact error returned to users.
+
+2. Check the production database directly.
+   - Verify whether a User record exists for:
+     - richardbattlebaxter@gmail.com
+     - baselodge.screenshots@gmail.com
+   - Return:
+     - user id
+     - email
+     - active status
+     - password hash exists (yes/no)
+     - created date
+     - last login date (if tracked)
+
+3. Compare both accounts.
+   - List every field that differs between the two records.
+   - Look for:
+     - is_active
+     - email_verified
+     - onboarding status
+     - deleted flags
+     - disabled flags
+     - missing password hashes
+     - duplicate email records
+
+4. Review production logs.
+   - Attempt login with richardbattlebaxter@gmail.com.
+   - Capture the exact backend error path.
+   - Determine whether:
+     - account not found
+     - password mismatch
+     - exception
+     - session issue
+     - rate limit
+     - other auth failure
+
+5. Verify environment consistency.
+   - Confirm the Android app from Google Play is pointing at the same production backend as app.baselodgeapp.com.
+   - Confirm no staging URLs remain in Capacitor, JS, environment variables, or native configs.
+
+6. Test password reset.
+   - Verify whether richardbattlebaxter@gmail.com can successfully initiate a password reset.
+   - Determine whether the account is recognized by the system.
+
+Deliverables:
+- Root cause
+- Evidence
+- Exact fix required
+- Whether a database change is needed
+- Whether an app update is needed
+
+Do not make changes yet.
+Perform investigation only.
+Use checkpoints sparingly.
+Do not finish until you have traced the exact cause and can explain why one account logs in and the other does not.
