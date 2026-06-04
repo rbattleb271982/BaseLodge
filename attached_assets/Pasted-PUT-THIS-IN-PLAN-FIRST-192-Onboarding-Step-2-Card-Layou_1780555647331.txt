@@ -1,0 +1,191 @@
+PUT THIS IN PLAN FIRST.
+
+#192 - Onboarding Step 2 — Card Layout (6 Options)
+
+What & Why
+
+Replace the current wrapping pill layout on onboarding Step 2 with a full-width vertical card stack for better mobile symmetry and readability.
+
+At the same time, remove the "Interested (Learning)" option from onboarding. We are simplifying onboarding and keeping "None of the Above (Experience)" as the only non-discipline option.
+
+IMPORTANT
+
+- Do NOT change database fields
+- Do NOT change stored values
+- Do NOT change routes
+- Do NOT change models
+- Do NOT change onboarding step order
+- Do NOT change validation logic unless absolutely required
+- Do NOT change the Edit Profile page rider pills
+- Use checkpoints sparingly and only when necessary
+
+Done Looks Like
+
+Step 2 displays exactly 6 riding options as full-width stacked cards:
+
+- Skier
+- Snowboarder
+- Telemark
+- Cross-country
+- Adaptive
+- None of the Above (Experience)
+
+"Interested (Learning)" is completely removed from onboarding.
+
+No replacement option is added.
+
+Skill levels display as full-width stacked cards:
+
+- Beginner (Green)
+- Intermediate (Blue)
+- Advanced (Black)
+- Expert (Double Black)
+
+Display labels change only.
+
+Stored values remain:
+
+- Beginner
+- Intermediate
+- Advanced
+- Expert
+
+unchanged.
+
+Skill section behavior:
+
+Show skill section for:
+- Skier
+- Snowboarder
+- Telemark
+- Cross-country
+- Adaptive
+
+Hide skill section for:
+- None of the Above (Experience)
+
+Selection behavior remains unchanged:
+
+- Tap selects
+- Tap another switches selection
+- Tap selected again deselects
+
+Visual styling remains consistent with BaseLodge:
+
+- Selected = existing bordeaux state
+- Unselected styling preserved
+- Existing typography preserved
+- Existing onboarding progress indicator preserved
+- Existing CTA preserved
+- Existing header copy preserved
+
+No console errors.
+No onboarding regressions.
+
+Out of Scope
+
+- Steps 1, 3, or 4
+- Edit Profile rider pills
+- RIDER_TYPES constant
+- Existing users who already have Interested selected
+- Backend models
+- Backend routes
+- Stored value changes
+- Global stylesheet changes
+- Color system changes
+
+Implementation
+
+1. Replace Riding Layout
+
+Current Step 2 riding pills use a wrapping flex layout.
+
+Replace with a vertical full-width card stack.
+
+Each card should:
+
+- Be full width
+- Have equal height
+- Match BaseLodge visual language
+- Preserve existing data-grp attributes
+- Preserve existing data-val attributes
+- Preserve existing data-target attributes
+- Preserve existing selection JS behavior
+
+2. Remove Interested Option
+
+Remove:
+
+Interested (Learning)
+
+from onboarding Step 2 only.
+
+Do NOT remove it from:
+- RIDER_TYPES
+- Existing profiles
+- Edit Profile page
+- Stored values
+
+This is an onboarding-only simplification.
+
+3. Replace Skill Layout
+
+Convert skill pills to the same full-width card design.
+
+Update visible labels only:
+
+- Beginner (Green)
+- Intermediate (Blue)
+- Advanced (Black)
+- Expert (Double Black)
+
+Keep underlying values unchanged.
+
+4. Verify Skill Visibility
+
+Current logic hides skill section for:
+
+data-val="Social"
+
+which corresponds to:
+
+None of the Above (Experience)
+
+Confirm this behavior still works.
+
+No new visibility rules should be added.
+
+5. CSS
+
+Add scoped CSS inside identity_setup.html.
+
+Avoid global stylesheet changes.
+
+6. Testing
+
+Verify:
+
+- Exactly 6 riding cards render
+- Interested option is gone
+- All cards are full-width and vertically stacked
+- Skill cards render correctly
+- Skill labels display correctly
+- Skill section hides only for None of the Above (Experience)
+- Skill section shows for all 5 riding disciplines
+- Single-select behavior still works
+- Stored values submit correctly
+- Onboarding submission succeeds
+- Mobile layout looks balanced on iPhone-width screens
+- No console errors
+- No regressions
+
+Relevant Files
+
+templates/identity_setup.html
+- Step 2 riding options
+- Step 2 skill options
+- updateObSkillVisibility()
+- updateCta2()
+- rider card click handler
+
+Do not finish until you have fully tested the implementation and confirmed every acceptance criterion above is working.

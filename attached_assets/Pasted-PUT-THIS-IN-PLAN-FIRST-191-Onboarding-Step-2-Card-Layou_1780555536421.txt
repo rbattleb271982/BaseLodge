@@ -1,0 +1,152 @@
+PUT THIS IN PLAN FIRST.
+
+#191 - Onboarding Step 2 — Card Layout Redesign (Simplified)
+
+What & Why
+
+Replace the current wrapping pill layout on onboarding Step 2 with a full-width vertical card stack. The goal is better visual symmetry and readability on mobile. Each option gets its own row at equal width and height, matching the BaseLodge design system.
+
+IMPORTANT
+
+- Do NOT change any database fields, stored values, routes, models, validation, onboarding flow, or profile mappings.
+- This is primarily a UI/UX change.
+- Use checkpoints sparingly and only when necessary.
+
+Done looks like
+
+- Step 2 shows 6 riding options as full-width stacked cards, one per row
+- Step 2 shows 4 skill level options as full-width stacked cards, one per row
+- Riding options are:
+
+  Skier
+
+  Snowboarder
+
+  Telemark
+
+  Cross-country
+
+  Adaptive
+
+  None of the Above (Experience)
+
+- Skill level labels are:
+
+  Beginner (Green)
+
+  Intermediate (Blue)
+
+  Advanced (Black)
+
+  Expert (Double Black)
+
+- Skill level section is hidden for:
+  - None of the Above (Experience)
+
+- Skill level section is shown for:
+  - Skier
+  - Snowboarder
+  - Telemark
+  - Cross-country
+  - Adaptive
+
+- Single-select behavior remains unchanged
+  - Tap to select
+  - Tap another option switches selection
+  - Tap selected option again deselects
+
+- Selected/unselected visual states preserved
+  - Selected state remains bordeaux fill
+  - Existing styling language remains intact
+
+- Progress indicator unchanged
+- Header copy unchanged
+- CTA button unchanged
+- All onboarding flow behavior unchanged
+
+- No console errors
+- No onboarding regressions
+
+Out of scope
+
+- Steps 1, 3, or 4
+- Edit Profile rider chips
+- Backend model changes
+- Stored value changes
+- Route changes
+- Validation redesign
+- Dark mode
+- Color system updates
+
+Steps
+
+1. Replace riding option layout
+
+Current wrapping pill layout should be replaced with a vertical stack of full-width card-style buttons.
+
+Each card should:
+- Match width
+- Match height
+- Preserve existing data attributes
+- Preserve existing selection logic
+- Use existing BaseLodge styling language
+
+2. Remove Interested option
+
+Remove:
+
+Interested (Learning)
+
+from Step 2 onboarding.
+
+Do not introduce replacement logic.
+
+Keep:
+
+None of the Above (Experience)
+
+as the only non-rider option.
+
+3. Replace skill level layout
+
+Convert skill level pills to the same full-width card treatment.
+
+Update displayed labels only:
+
+- Beginner (Green)
+- Intermediate (Blue)
+- Advanced (Black)
+- Expert (Double Black)
+
+Do not change stored values.
+
+4. Skill visibility logic
+
+Hide skill section only when:
+
+- None of the Above (Experience)
+
+Show skill section for all rider disciplines.
+
+5. CSS
+
+Add scoped styles within identity_setup.html.
+
+Avoid modifying global stylesheets.
+
+6. Testing
+
+Verify:
+
+- All 6 riding options render correctly
+- Full-width card layout works on iPhone-width screens
+- Skill section hides only for None of the Above (Experience)
+- Skill section shows for all riding disciplines
+- Single-select behavior still works
+- Existing values save correctly
+- Onboarding submission still works
+- No console errors
+- No visual regressions
+- Mobile layout feels balanced and symmetrical
+
+Do not finish until you've fully tested the implementation and confirmed every acceptance criterion above is working.
