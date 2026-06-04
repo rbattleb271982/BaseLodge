@@ -441,10 +441,8 @@ def rider_display_filter(raw):
     pass through unchanged.
 
     Mappings:
-        "Cross-Country"               → "Cross-country"
-        "Social"                      → "Social / après"
-        "Social (along for the ride)" → "Social / après"
-        "Skier + Cross-Country"       → "Skier + Cross-country"  (handles joined strings)
+        "Cross-Country" → "Cross-country"
+        All other values pass through unchanged.
     """
     from models import _fmt_rider
     if not raw:
@@ -1833,6 +1831,66 @@ run_mountain_page_view_migration()
 
 
 # ============================================================================
+# RIDER TYPE NORMALIZATION — collapse multi-item arrays to single canonical item
+# ============================================================================
+def run_rider_type_normalization_migration():
+    """
+    Startup migration: normalize every user's rider_types JSON array to exactly
+    one canonical item, applying these rules:
+      - Capitalize known lowercase values (e.g. "skier" → "Skier")
+      - If Social appears alongside any real discipline, drop Social and keep
+        the first real discipline
+      - If Social is the sole element, leave it as ["Social"]
+      - Empty arrays are left unchanged (user hasn't completed onboarding)
+    Idempotent — safe to run on every startup.
+    """
+    _CANON = {
+        'skier': 'Skier',
+        'snowboarder': 'Snowboarder',
+        'telemark': 'Telemark',
+        'cross-country': 'Cross-Country',
+        'adaptive': 'Adaptive',
+        'interested': 'Interested',
+        'social': 'Social',
+        'social / après': 'Social',
+        'social (along for the ride)': 'Social',
+    }
+
+    def _normalize(types):
+        if not types:
+            return types
+        cased = [_CANON.get(str(t).strip().lower(), str(t).strip()) for t in types if t]
+        non_social = [t for t in cased if t != 'Social']
+        if non_social:
+            return [non_social[0]]
+        return [cased[0]] if cased else types
+
+    try:
+        with app.app_context():
+            try:
+                users = User.query.all()
+                changed = 0
+                for u in users:
+                    rts = u.rider_types
+                    if not isinstance(rts, list):
+                        continue
+                    normalized = _normalize(rts)
+                    if normalized != rts:
+                        u.rider_types = normalized
+                        changed += 1
+                if changed:
+                    db.session.commit()
+                print(f"rider_type_normalization_migration: normalized {changed} user(s).")
+            except Exception as inner_e:
+                db.session.rollback()
+                print(f"rider_type_normalization_migration inner error (rolled back): {inner_e}")
+    except Exception as e:
+        print(f"rider_type_normalization_migration: skipped ({e})")
+
+run_rider_type_normalization_migration()
+
+
+# ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
 from utils.resort_utils import get_ambiguous_resort_names, resort_display_name as _resort_display_name
@@ -2338,13 +2396,8 @@ def get_all_active_resorts_map():
     return result
 
 
-RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive", "Social"]
+RIDER_TYPES = ["Skier", "Snowboarder", "Telemark", "Cross-Country", "Adaptive", "Interested", "Social"]
 
-def normalize_rider_type(rider_type):
-    """Map 'Both' to 'Skier' for display. All other values pass through."""
-    if rider_type == "Both":
-        return "Skier"
-    return rider_type
 
 CANONICAL_PASSES = [
     "no_pass",
@@ -2378,18 +2431,18 @@ PASS_OPTIONS = get_sorted_passes()
 
 # Rider-aware copy helpers
 def get_gear_term(rider_type):
-    """Return rider-aware gear terminology."""
+    """Return rider-aware gear terminology based on stored rider_types[0] value."""
     if rider_type and rider_type.lower() in ['snowboarder', 'snowboarding']:
         return 'board'
-    elif rider_type and rider_type.lower() in ['skier', 'skiing', 'both']:
+    elif rider_type and rider_type.lower() in ['skier', 'skiing', 'telemark']:
         return 'skis'
     return 'gear'
 
 def get_ride_term(rider_type):
-    """Return rider-aware action terminology."""
+    """Return rider-aware action terminology based on stored rider_types[0] value."""
     if rider_type and rider_type.lower() in ['snowboarder', 'snowboarding']:
         return 'ride'
-    elif rider_type and rider_type.lower() in ['skier', 'skiing', 'both']:
+    elif rider_type and rider_type.lower() in ['skier', 'skiing', 'telemark']:
         return 'ski'
     return 'ride'
 
@@ -2509,7 +2562,6 @@ def format_trip_dates(trip):
         return ""
 
 # Make functions available to Jinja2 templates
-app.jinja_env.globals['normalize_rider_type'] = normalize_rider_type
 app.jinja_env.globals['get_sorted_passes'] = get_sorted_passes
 app.jinja_env.globals['get_gear_term'] = get_gear_term
 app.jinja_env.globals['get_ride_term'] = get_ride_term
@@ -2881,7 +2933,9 @@ def onboarding():
             flash("Please select your rider type.")
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
-        if not skill_level:
+        # Social-only users don't need a skill level (they skip the skill section)
+        is_social_only = rider_types == ["Social"]
+        if not skill_level and not is_social_only:
             flash("Please select your skill level.")
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
@@ -3173,7 +3227,7 @@ def edit_profile():
         birth_year_raw = request.form.get("birth_year")
         user.birth_year = int(birth_year_raw) if birth_year_raw else None
         
-        # Handle rider types (multi-select)
+        # Handle rider type (single-select, stored as single-item array)
         rider_types_raw = request.form.get("rider_types", "")
         rider_types = [rt.strip() for rt in rider_types_raw.split(",") if rt.strip()]
         user.rider_types = rider_types if rider_types else []

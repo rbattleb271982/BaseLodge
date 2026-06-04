@@ -10,9 +10,7 @@ db = SQLAlchemy()
 # Canonical display-label overrides for rider types.
 # Raw stored values (DB/form) are never changed; this only affects rendered text.
 _RIDER_DISPLAY_MAP = {
-    "Cross-Country":              "Cross-country",
-    "Social":                     "Social / après",
-    "Social (along for the ride)": "Social / après",
+    "Cross-Country": "Cross-country",
 }
 
 

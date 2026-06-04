@@ -313,7 +313,8 @@
         {%- set _has_gear = eq and (eq.brand or eq.model) -%}
         {%- set _has_boots = eq and (eq.boot_brand or eq.boot_model) -%}
         {%- set _has_bindings = eq and (eq.binding_brand or eq.binding_model) -%}
-        {%- set _gear_label = 'Snowboard' if (friend.display_rider_type or '') == 'Snowboarder' else ('Skis' if (friend.display_rider_type or '') in ['Skier', 'Both'] else 'Gear') -%}
+        {%- set _primary_rt = (friend.rider_types or [''])[0] -%}
+        {%- set _gear_label = 'Snowboard' if _primary_rt == 'Snowboarder' else ('Skis' if _primary_rt in ['Skier', 'Telemark'] else 'Gear') -%}
 
         <!-- ① Profile summary card -->
         <div class="fp-summary">

@@ -96,6 +96,14 @@
             color: #fff;
             border-color: #5C1219;
         }
+        .ep-pill-hint {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            color: #9A8F82;
+            margin-top: 2px;
+        }
+        .ep-pill.selected .ep-pill-hint { color: rgba(255,255,255,0.75); }
         .ep-floating-save {
             position: fixed;
             bottom: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -192,7 +200,6 @@
 
             <div class="ep-field">
                 <label class="ep-field-label">Rider type</label>
-                <p class="ep-field-hint">Up to 2 — select how you ride</p>
                 <div class="ep-pills" id="rider-pills">
                     {% set user_riders = current_user.rider_types or [] %}
                     {% for rt in rider_types %}
@@ -200,7 +207,10 @@
                             class="ep-pill {% if rt in user_riders %}selected{% endif %}"
                             data-value="{{ rt }}"
                             onclick="toggleRiderPill(this)">
-                        {% if rt == 'Social' %}Social / après{% elif rt == 'Cross-Country' %}Cross-country{% else %}{{ rt }}{% endif %}
+                        {%- if rt == 'Interested' %}Interested (Learning)<span class="ep-pill-hint">Thinking about trying it.</span>
+                        {%- elif rt == 'Social' %}None of the Above (Experience)<span class="ep-pill-hint">Here for the mountain experience.</span>
+                        {%- elif rt == 'Cross-Country' %}Cross-country
+                        {%- else %}{{ rt }}{% endif %}
                     </button>
                     {% endfor %}
                 </div>
@@ -345,22 +355,18 @@
         formDirty = false;
     });
 
-    // ── Rider type pills (max 2) ───────────────────────────────────────
+    // ── Rider type pills (single-select / radio) ──────────────────────
     let riderOrder = Array.from(document.querySelectorAll('#rider-pills .ep-pill.selected')).map(p => p.dataset.value);
 
     function toggleRiderPill(pill) {
         const val = pill.dataset.value;
-        const idx = riderOrder.indexOf(val);
-        if (idx >= 0) {
-            riderOrder.splice(idx, 1);
-            pill.classList.remove('selected');
-        } else {
-            if (riderOrder.length >= 2) {
-                const toRemove = riderOrder.shift();
-                document.querySelector(`#rider-pills .ep-pill[data-value="${CSS.escape(toRemove)}"]`)?.classList.remove('selected');
-            }
-            riderOrder.push(val);
+        const alreadySel = pill.classList.contains('selected');
+        /* Radio behavior — deselect all, then select this one (or deselect if same) */
+        document.querySelectorAll('#rider-pills .ep-pill').forEach(p => p.classList.remove('selected'));
+        riderOrder = [];
+        if (!alreadySel) {
             pill.classList.add('selected');
+            riderOrder = [val];
         }
         document.getElementById('rider_types_hidden').value = riderOrder.join(',');
         updateSkillVisibility();

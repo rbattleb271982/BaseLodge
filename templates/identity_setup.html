@@ -462,8 +462,9 @@
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Telemark"      data-target="h-rider">Telemark</button>
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Cross-Country" data-target="h-rider">Cross-country</button>
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Adaptive"      data-target="h-rider">Adaptive</button>
-                            <button type="button" class="ob-pill" data-grp="rider" data-val="Social"        data-target="h-rider">Social / après</button>
-                            <p class="ob-section-label">Skill level</p>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Interested"    data-target="h-rider">Interested (Learning)<span class="ob-hint">Thinking about trying it.</span></button>
+                            <button type="button" class="ob-pill" data-grp="rider" data-val="Social"        data-target="h-rider">None of the Above (Experience)<span class="ob-hint">Here for the mountain experience.</span></button>
+                            <p class="ob-section-label" id="ob-skill-label">Skill level</p>
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Beginner"     data-target="h-skill">Beginner<span class="ob-hint">Green runs</span></button>
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Intermediate" data-target="h-skill">Intermediate<span class="ob-hint">Blue runs</span></button>
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Advanced"     data-target="h-skill">Advanced<span class="ob-hint">Black runs</span></button>
@@ -569,9 +570,26 @@
     var stepNames = { 1: 'welcome', 2: 'rider_and_skill', 3: 'pass', 4: 'location' };
 
     function updateCta2() {
-        var hasRider = document.querySelectorAll('.ob-pill[data-grp="rider"].sel').length > 0;
+        var selPill = document.querySelector('.ob-pill[data-grp="rider"].sel');
+        var hasRider = !!selPill;
         var hasSkill = document.querySelectorAll('.ob-pill[data-grp="skill"].sel').length > 0;
-        document.getElementById('cta-2').disabled = !(hasRider && hasSkill);
+        var isSocial = selPill && selPill.dataset.val === 'Social';
+        document.getElementById('cta-2').disabled = !(hasRider && (hasSkill || isSocial));
+    }
+
+    function updateObSkillVisibility() {
+        var selPill = document.querySelector('.ob-pill[data-grp="rider"].sel');
+        var isSocial = selPill && selPill.dataset.val === 'Social';
+        var display = isSocial ? 'none' : '';
+        var skillLabel = document.getElementById('ob-skill-label');
+        if (skillLabel) skillLabel.style.display = display;
+        document.querySelectorAll('.ob-pill[data-grp="skill"]').forEach(function(p) {
+            p.style.display = display;
+            if (isSocial) {
+                p.classList.remove('sel');
+                document.getElementById('h-skill').value = '';
+            }
+        });
     }
 
     function slideTo(n) {
@@ -626,16 +644,16 @@
 
             if (grp === 'rider') {
                 var alreadySel = this.classList.contains('sel');
-                if (alreadySel) {
-                    this.classList.remove('sel');
-                } else {
+                /* Radio behavior — deselect all, then select this one (or deselect if same) */
+                document.querySelectorAll('.ob-pill[data-grp="rider"]').forEach(function(p) {
+                    p.classList.remove('sel');
+                });
+                if (!alreadySel) {
                     this.classList.add('sel');
                 }
-                var riderSelected = [];
-                document.querySelectorAll('.ob-pill[data-grp="rider"].sel').forEach(function(p) {
-                    riderSelected.push(p.dataset.val);
-                });
-                document.getElementById(targetId).value = riderSelected.join(',');
+                var selPill = document.querySelector('.ob-pill[data-grp="rider"].sel');
+                document.getElementById(targetId).value = selPill ? selPill.dataset.val : '';
+                updateObSkillVisibility();
                 updateCta2();
 
             } else if (grp === 'pass') {

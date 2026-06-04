@@ -108,7 +108,8 @@
             {%- set _has_boots    = primary_equipment and (primary_equipment.boot_brand or primary_equipment.boot_model) -%}
             {%- set _has_bindings = primary_equipment and (primary_equipment.binding_brand or primary_equipment.binding_model) -%}
             {%- set _is_renting   = current_user.equipment_status == 'needs_rentals' -%}
-            {%- set _gear_label   = 'Snowboard' if (current_user.display_rider_type or '') == 'Snowboarder' else ('Skis' if (current_user.display_rider_type or '') in ['Skier', 'Both'] else 'Equipment') -%}
+            {%- set _primary_rt   = (current_user.rider_types or [''])[0] -%}
+            {%- set _gear_label   = 'Snowboard' if _primary_rt == 'Snowboarder' else ('Skis' if _primary_rt in ['Skier', 'Telemark'] else 'Equipment') -%}
             {%- if _has_gear or _has_boots or _has_bindings %}
             <a href="{{ url_for('settings_equipment') }}" class="hc-equipment-link" style="white-space:normal;">
                 {%- if _has_gear -%}
