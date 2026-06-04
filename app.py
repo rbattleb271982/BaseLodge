@@ -82,7 +82,7 @@ BASE_URL = _resolve_base_url()
 import sqlalchemy as sa
 from sqlalchemy import func
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g, make_response
 from flask_login import LoginManager, login_required, current_user, login_user, logout_user
 from functools import wraps, lru_cache
 from flask_migrate import Migrate
@@ -1973,24 +1973,29 @@ def handle_exception(e):
     return render_template("500.html"), 500
 
 def get_or_create_invite_token(user):
-    """Get existing valid invite token for user or create a new one.
-    
+    """Always issue a fresh invite token for user, expiring any prior valid ones.
+
     Returns None if user has reached their max invite accepts limit.
     Single-use tokens: each token can only be used once (used_at is set on use).
+
+    A fresh token is generated on every call so that after an unfriend cycle the
+    old shareable URL is guaranteed to be stale.  Any existing valid (unused +
+    unexpired) tokens are expired in-place before the new one is committed.
     """
     # Check if user can still accept more invites
     if not can_sender_accept_more_invites(user):
         return None
-    
-    # Look for existing unused token (most recent first)
-    existing = InviteToken.query.filter_by(inviter_id=user.id).order_by(InviteToken.created_at.desc()).all()
+
+    # Expire every currently-valid token so old URLs stop working
+    now = datetime.utcnow()
+    existing = InviteToken.query.filter_by(inviter_id=user.id).all()
     for token_obj in existing:
         if not token_obj.is_used() and not token_obj.is_expired():
-            return token_obj
-    
+            token_obj.expires_at = now
+
     # Create new token with 48-hour expiration
     token = secrets.token_urlsafe(16)
-    expires_at = datetime.utcnow() + timedelta(hours=48)
+    expires_at = now + timedelta(hours=48)
     invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at)
     db.session.add(invite)
     db.session.commit()
@@ -7398,11 +7403,13 @@ def invite():
     # Check if user has reached their invite accept limit
     if not can_sender_accept_more_invites(current_user):
         return render_template("invite_limit_reached.html", user=current_user)
-    
+
     invite_token = get_or_create_invite_token(current_user)
     invite_url = f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
-    
-    return render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=None)
+
+    resp = make_response(render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=None))
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 @app.route("/my-qr")
 @login_required
