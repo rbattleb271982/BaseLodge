@@ -56,13 +56,13 @@
 
         .ob-slider {
             display: flex;
-            width: 400%;
+            width: 300%;
             flex: 1;
             transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .ob-step {
-            width: 25%;
+            width: 33.333%;
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
@@ -327,33 +327,12 @@
             color: #5C1219;
         }
 
-        /* ── Welcome step (inline, step 1) ── */
-        .ob-welcome-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 0 28px 20px;
-        }
-        .ob-welcome-logo {
-            font-family: var(--bl-font-serif);
-            font-size: 18px;
-            font-weight: 500;
-            color: #5C1219;
-            margin-bottom: 28px;
-        }
-        .ob-welcome-title {
-            font-family: var(--bl-font-serif);
-            font-size: 36px;
-            font-weight: 500;
-            color: #1A1A1A;
-            line-height: 1.15;
-            margin-bottom: 16px;
-        }
-        .ob-welcome-body {
-            font-size: 16px;
+        /* ── Welcome intro (merged into Step 1) ── */
+        .ob-welcome-intro {
+            font-size: 14px;
             color: #8F8477;
-            line-height: 1.6;
+            line-height: 1.5;
+            margin-bottom: 6px;
         }
 
         /* ── Section label inside options (for merged steps) ── */
@@ -382,6 +361,17 @@
             margin-top: 4px;
         }
 
+        /* Step 1: compact density overrides */
+        #ob-step-1 .ob-progress   { padding-top: 12px; }
+        #ob-step-1 .ob-nav        { padding-top: 8px; min-height: 38px; }
+        #ob-step-1 .ob-header     { padding: 8px 28px 4px; }
+        #ob-step-1 .ob-step-counter { margin-bottom: 3px; }
+        #ob-step-1 .ob-title      { margin-bottom: 5px; }
+        #ob-step-1 .ob-options    { padding: 10px 28px 4px; gap: 5px; }
+        #ob-step-1 .ob-pill       { min-height: 44px; padding: 9px 16px; }
+        #ob-step-1 .ob-section-label { padding: 2px 0 1px; }
+        #ob-step-1 .ob-footer     { padding: 8px 28px 30px; }
+
         /* Step 2: compact density overrides */
         #ob-step-2 .ob-progress   { padding-top: 12px; }
         #ob-step-2 .ob-nav        { padding-top: 8px; min-height: 38px; }
@@ -390,19 +380,8 @@
         #ob-step-2 .ob-title      { margin-bottom: 5px; }
         #ob-step-2 .ob-options    { padding: 10px 28px 4px; gap: 5px; }
         #ob-step-2 .ob-pill       { min-height: 44px; padding: 9px 16px; }
-        #ob-step-2 .ob-section-label { padding: 2px 0 1px; }
+        #ob-step-2 .ob-divider    { margin: 1px 0; }
         #ob-step-2 .ob-footer     { padding: 8px 28px 30px; }
-
-        /* Step 3: compact density overrides */
-        #ob-step-3 .ob-progress   { padding-top: 12px; }
-        #ob-step-3 .ob-nav        { padding-top: 8px; min-height: 38px; }
-        #ob-step-3 .ob-header     { padding: 8px 28px 4px; }
-        #ob-step-3 .ob-step-counter { margin-bottom: 3px; }
-        #ob-step-3 .ob-title      { margin-bottom: 5px; }
-        #ob-step-3 .ob-options    { padding: 10px 28px 4px; gap: 5px; }
-        #ob-step-3 .ob-pill       { min-height: 44px; padding: 9px 16px; }
-        #ob-step-3 .ob-divider    { margin: 1px 0; }
-        #ob-step-3 .ob-footer     { padding: 8px 28px 30px; }
     </style>
 </head>
 <body>
@@ -425,11 +404,10 @@
             <div class="ob-viewport">
                 <div class="ob-slider" id="ob-slider">
 
-                    <!-- Step 1: Welcome -->
-                    <div class="ob-step">
+                    <!-- Step 1: Rider type + Skill level -->
+                    <div class="ob-step" id="ob-step-1">
                         <div class="ob-progress">
                             <div class="ob-seg on"></div>
-                            <div class="ob-seg"></div>
                             <div class="ob-seg"></div>
                             <div class="ob-seg"></div>
                         </div>
@@ -438,33 +416,10 @@
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
                         </div>
-                        <div class="ob-welcome-content">
-                            <p class="ob-welcome-logo">BaseLodge</p>
-                            <h1 class="ob-welcome-title">Welcome aboard.</h1>
-                            <p class="ob-welcome-body">A few quick questions and you'll be on the mountain in no time.</p>
-                        </div>
-                        <div class="ob-footer">
-                            <button type="button" class="ob-btn" id="cta-1" onclick="goNext(1)">Let's get started</button>
-                        </div>
-                    </div>
-
-                    <!-- Step 2: Rider type + Skill level -->
-                    <div class="ob-step" id="ob-step-2">
-                        <div class="ob-progress">
-                            <div class="ob-seg on"></div>
-                            <div class="ob-seg on"></div>
-                            <div class="ob-seg"></div>
-                            <div class="ob-seg"></div>
-                        </div>
-                        <div class="ob-nav">
-                            <button type="button" class="ob-back" onclick="goBack(2)" aria-label="Back">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                            </button>
-                        </div>
                         <div class="ob-header">
-                            <p class="ob-step-counter">Step 2 of 4</p>
-                            <h1 class="ob-title">Tell us about your riding.</h1>
-                            <p class="ob-subtitle">Choose what fits you best.</p>
+                            <p class="ob-step-counter">Step 1 of 3</p>
+                            <p class="ob-welcome-intro">Welcome to BaseLodge. Let's get you set up.</p>
+                            <h1 class="ob-title">What best describes you?</h1>
                         </div>
                         <div class="ob-options ob-options--stack">
                             <button type="button" class="ob-pill" data-grp="rider" data-val="Skier"         data-target="h-rider">Skier</button>
@@ -480,25 +435,24 @@
                             <button type="button" class="ob-pill" data-grp="skill" data-val="Expert"       data-target="h-skill">Expert (Double Black)</button>
                         </div>
                         <div class="ob-footer">
-                            <button type="button" class="ob-btn" id="cta-2" disabled onclick="goNext(2)">Continue</button>
+                            <button type="button" class="ob-btn" id="cta-1" disabled onclick="goNext(1)">Continue</button>
                         </div>
                     </div>
 
-                    <!-- Step 3: Pass -->
-                    <div class="ob-step" id="ob-step-3">
+                    <!-- Step 2: Pass -->
+                    <div class="ob-step" id="ob-step-2">
                         <div class="ob-progress">
-                            <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg"></div>
                         </div>
                         <div class="ob-nav">
-                            <button type="button" class="ob-back" onclick="goBack(3)" aria-label="Back">
+                            <button type="button" class="ob-back" onclick="goBack(2)" aria-label="Back">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
                         </div>
                         <div class="ob-header">
-                            <p class="ob-step-counter">Step 3 of 4</p>
+                            <p class="ob-step-counter">Step 2 of 3</p>
                             <h1 class="ob-title">Do you have a ski pass?</h1>
                             <p class="ob-subtitle">Choose what applies — or skip for now.</p>
                         </div>
@@ -518,25 +472,24 @@
                             <button type="button" class="ob-pill" data-grp="pass" data-val="other"              data-target="h-pass">Other pass</button>
                         </div>
                         <div class="ob-footer">
-                            <button type="button" class="ob-btn" id="cta-3" disabled onclick="goNext(3)">Continue</button>
+                            <button type="button" class="ob-btn" id="cta-2" disabled onclick="goNext(2)">Continue</button>
                         </div>
                     </div>
 
-                    <!-- Step 4: Location -->
-                    <div class="ob-step">
+                    <!-- Step 3: Location -->
+                    <div class="ob-step" id="ob-step-3">
                         <div class="ob-progress">
-                            <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                             <div class="ob-seg on"></div>
                         </div>
                         <div class="ob-nav">
-                            <button type="button" class="ob-back" onclick="goBack(4)" aria-label="Back">
+                            <button type="button" class="ob-back" onclick="goBack(3)" aria-label="Back">
                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M10 13L5 8L10 3" stroke="#1A1A1A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </button>
                         </div>
                         <div class="ob-header">
-                            <p class="ob-step-counter">Step 4 of 4</p>
+                            <p class="ob-step-counter">Step 3 of 3</p>
                             <h1 class="ob-title">Which state do you live in?</h1>
                             <p class="ob-subtitle">Pick your state or province.</p>
                         </div>
@@ -562,7 +515,7 @@
                             </div>
                         </div>
                         <div class="ob-footer">
-                            <button type="submit" class="ob-btn" id="cta-4" disabled>Finish</button>
+                            <button type="submit" class="ob-btn" id="cta-3" disabled>Finish</button>
                         </div>
                     </div>
 
@@ -576,14 +529,14 @@
     var slider = document.getElementById('ob-slider');
     var currentStep = 1;
     var lastOnboardingStepFired = 0;
-    var stepNames = { 1: 'welcome', 2: 'rider_and_skill', 3: 'pass', 4: 'location' };
+    var stepNames = { 1: 'rider_and_skill', 2: 'pass', 3: 'location' };
 
-    function updateCta2() {
+    function updateCta1() {
         var selPill = document.querySelector('.ob-pill[data-grp="rider"].sel');
         var hasRider = !!selPill;
         var hasSkill = document.querySelectorAll('.ob-pill[data-grp="skill"].sel').length > 0;
         var isSocial = selPill && selPill.dataset.val === 'Social';
-        document.getElementById('cta-2').disabled = !(hasRider && (hasSkill || isSocial));
+        document.getElementById('cta-1').disabled = !(hasRider && (hasSkill || isSocial));
     }
 
     function updateObSkillVisibility() {
@@ -602,14 +555,14 @@
     }
 
     function slideTo(n) {
-        slider.style.transform = 'translateX(' + (-(n - 1) * 25) + '%)';
+        slider.style.transform = 'translateX(' + (-(n - 1) * 33.333) + '%)';
         currentStep = n;
     }
 
     function goNext(from) {
         if (from > lastOnboardingStepFired && typeof posthog !== 'undefined') {
             lastOnboardingStepFired = from;
-            if (from <= 3) {
+            if (from <= 2) {
                 posthog.capture('onboarding_step_completed', { step_index: from, step_name: stepNames[from] });
             }
         }
@@ -663,7 +616,7 @@
                 var selPill = document.querySelector('.ob-pill[data-grp="rider"].sel');
                 document.getElementById(targetId).value = selPill ? selPill.dataset.val : '';
                 updateObSkillVisibility();
-                updateCta2();
+                updateCta1();
 
             } else if (grp === 'pass') {
                 var alreadySel = this.classList.contains('sel');
@@ -690,7 +643,7 @@
                     passSelected.push(p.dataset.val);
                 });
                 document.getElementById(targetId).value = passSelected.join(',');
-                document.getElementById('cta-3').disabled = passSelected.length === 0;
+                document.getElementById('cta-2').disabled = passSelected.length === 0;
                 updateObPassCap();
 
             } else {
@@ -700,7 +653,7 @@
                 });
                 this.classList.add('sel');
                 document.getElementById(targetId).value = this.dataset.val;
-                if (grp === 'skill') { updateCta2(); }
+                if (grp === 'skill') { updateCta1(); }
             }
         });
     });
@@ -708,7 +661,7 @@
     function onStateChange(select) {
         var wrap = document.getElementById('state-wrap');
         var label = document.getElementById('state-label');
-        var cta = document.getElementById('cta-4');
+        var cta = document.getElementById('cta-3');
         if (select.value) {
             label.textContent = select.options[select.selectedIndex].text;
             wrap.classList.add('has-val');

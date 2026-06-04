@@ -1,0 +1,234 @@
+#195 - Merge Welcome Screen Into Question 1
+
+What & Why
+
+Onboarding currently opens on a standalone welcome screen ("Welcome aboard. / Let's get started") before showing any questions. This adds a tap and a screen of friction without providing meaningful value.
+
+Merge the welcome moment into Question 1 and reduce the onboarding flow by one screen and one tap.
+
+Done looks like
+
+- Onboarding opens directly on Question 1 (rider type + skill level)
+- Above the Question 1 headline, this line appears:
+
+  Welcome to BaseLodge. Let's get you set up.
+
+- The Question 1 headline reads:
+
+  What best describes you?
+
+- Question 1 back button is hidden (no previous step)
+- Progress bar shows 1 of 3 segments filled on Question 1
+- Step counter reads:
+  - Step 1 of 3 on Q1
+  - Step 2 of 3 on Q2 (pass)
+  - Step 3 of 3 on Q3 (location)
+- All selection behavior remains unchanged
+- Stored values remain unchanged
+- Form submission remains unchanged
+- No console errors
+- Mobile spacing remains clean and balanced
+
+Out of scope
+
+- Changes to Question 2, 3, or 4 content
+- Onboarding routes
+- Validation logic
+- Rider options
+- Skill options
+- Pass selections
+- Location selection behavior
+
+Steps
+
+1. Delete the welcome panel
+
+Remove the entire welcome step:
+
+- div.ob-step containing:
+  - ob-welcome-content
+  - cta-1
+
+Remove unused CSS:
+
+- .ob-welcome-content
+- .ob-welcome-logo
+- .ob-welcome-title
+- .ob-welcome-body
+
+2. Fix slider geometry
+
+Current:
+- width: 400%
+- step width: 25%
+- slideTo uses (n - 1) * 25%
+
+Change to:
+- width: 300%
+- step width: 33.333%
+- slideTo uses (n - 1) * 33.333
+
+3. Rebuild new Step 1 (former rider/skill step)
+
+Change:
+
+- id="ob-step-2" → id="ob-step-1"
+
+Rename compact CSS overrides:
+
+- #ob-step-2 → #ob-step-1
+
+Back button:
+- Add invis class
+- Remove onclick="goBack(2)"
+
+Progress bar:
+- 1 segment active
+- 2 inactive
+
+Step counter:
+- "Step 1 of 3"
+
+Add this intro line directly below the step counter:
+
+Welcome to BaseLodge. Let's get you set up.
+
+Style:
+- Small supporting text
+- 14px
+- Muted color
+- Tight spacing
+
+Headline:
+
+What best describes you?
+
+Replace:
+
+Tell us about your riding.
+
+Remove the subtitle entirely unless spacing feels too empty.
+
+CTA:
+
+- id="cta-1"
+- onclick="goNext(1)"
+
+4. Rebuild new Step 2 (former pass step)
+
+Change:
+
+- id="ob-step-3" → id="ob-step-2"
+
+Rename compact CSS overrides:
+
+- #ob-step-3 → #ob-step-2
+
+Back button:
+
+- onclick="goBack(2)"
+
+Progress bar:
+
+- 2 active
+- 1 inactive
+
+Step counter:
+
+- Step 2 of 3
+
+CTA:
+
+- id="cta-2"
+- onclick="goNext(2)"
+
+5. Rebuild new Step 3 (former location step)
+
+Optionally add:
+
+- id="ob-step-3"
+
+Back button:
+
+- onclick="goBack(3)"
+
+Progress bar:
+
+- 3 active
+- 0 inactive
+
+Step counter:
+
+- Step 3 of 3
+
+Submit button:
+
+- id="cta-3"
+
+6. Update JavaScript
+
+Update:
+
+stepNames = {
+  1: 'rider_and_skill',
+  2: 'pass',
+  3: 'location'
+}
+
+Remove the welcome entry entirely.
+
+Rename:
+
+updateCta2()
+→
+updateCta1()
+
+Update:
+
+getElementById('cta-2')
+→
+getElementById('cta-1')
+
+Update all call sites accordingly.
+
+Pass click handler:
+
+getElementById('cta-3')
+→
+getElementById('cta-2')
+
+Location state change handler:
+
+getElementById('cta-4')
+→
+getElementById('cta-3')
+
+Analytics guard:
+
+from <= 3
+→
+from <= 2
+
+Only fire onboarding-step analytics for the first two transitions, not final submit.
+
+7. QA
+
+Verify:
+
+- Onboarding opens directly on rider/skill screen
+- Welcome intro line displays correctly
+- Question 1 layout feels balanced on mobile
+- Compact #ob-step-1 spacing overrides still apply
+- Back button hidden on Step 1
+- Progress segments display correctly
+- Step counters show 1/3, 2/3, 3/3
+- CTA enable/disable logic still works
+- All values save correctly
+- Form submission succeeds
+- No console errors
+
+Relevant file
+
+templates/identity_setup.html
+
+Use checkpoints sparingly. Do not finish until the welcome screen is removed, Question 1 is the first onboarding screen, all step numbering has been updated to a 3-step flow, and onboarding has been fully tested.
