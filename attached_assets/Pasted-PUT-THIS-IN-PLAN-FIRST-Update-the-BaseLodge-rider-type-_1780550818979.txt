@@ -1,0 +1,77 @@
+PUT THIS IN PLAN FIRST
+
+Update the BaseLodge rider-type onboarding and profile display logic.
+
+Current issue:
+- Onboarding currently has rider type as a multi-select field.
+- Edit Profile caps rider type at 2 selections.
+- "Social / après" is confusing because riders are selecting it alongside ski/snowboard.
+- We want the field to represent one primary identity.
+
+New rider type options:
+
+1. Skier
+2. Snowboarder
+3. Telemark
+4. Cross-country
+5. Adaptive
+6. Interested (Learning)
+   Helper text: Thinking about trying it.
+7. None of the Above (Experience)
+   Helper text: Here for the mountain experience.
+
+Profile display rules:
+
+- Skier → Skier
+- Snowboarder → Snowboarder
+- Telemark → Telemark
+- Cross-country → Cross-country
+- Adaptive → Adaptive
+- Interested (Learning) → Interested
+- None of the Above (Experience) → Social
+
+Implementation requirements:
+
+- Make rider type single-select in onboarding.
+- Make rider type single-select in Edit Profile.
+- Remove the “up to 2” edit-profile behavior.
+- Remove the old "Social / après" onboarding option.
+- Add "Interested (Learning)" with helper text.
+- Add "None of the Above (Experience)" with helper text.
+- Keep using the existing user.rider_types column.
+- Store the selected value as a single-item JSON array for compatibility.
+- Use clean internal values, for example:
+  - ["Skier"]
+  - ["Snowboarder"]
+  - ["Telemark"]
+  - ["Cross-Country"]
+  - ["Adaptive"]
+  - ["Interested"]
+  - ["Social"]
+- Display "Interested (Learning)" only in onboarding/edit profile.
+- Display "None of the Above (Experience)" only in onboarding/edit profile.
+- Display "Interested" on profiles.
+- Display "Social" on profiles.
+
+Normalize existing rider_types data safely:
+
+- ["Skier", "Snowboarder"] → ["Skier"] only if there is no existing "Both" option being added.
+- If you believe "Both" is needed because many users ski and snowboard, flag it before making that specific normalization.
+- ["Skier", "Social"] → ["Skier"]
+- ["Snowboarder", "Social"] → ["Snowboarder"]
+- ["Social"] → ["Social"]
+- ["skier"] → ["Skier"]
+- Any legacy "Social / après" or "Social (along for the ride)" value → ["Social"]
+
+Important:
+- Do not delete users.
+- Do not add a new database column unless absolutely necessary.
+- Do not change unrelated onboarding fields.
+- Do not change unrelated profile fields.
+- Update display_rider_type in models.py.
+- Update onboarding JS.
+- Update edit-profile JS.
+- Update profile display wherever rider type appears.
+- Fix gear label logic so multi-value display strings no longer break it.
+- Check home header, stats card, friend profile, identity_line filter, gear/ride helpers, admin analytics, and PostHog user properties.
+- Use checkpoints only if absolutely necessary.

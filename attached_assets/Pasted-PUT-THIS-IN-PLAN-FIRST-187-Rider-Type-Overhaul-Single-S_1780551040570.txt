@@ -1,0 +1,234 @@
+PUT THIS IN PLAN FIRST
+
+#187 - Rider-Type Overhaul: Single-Select + New Options
+
+What & Why
+
+Replace the current multi-select rider-type field (onboarding + edit profile) with a single-select field using a revised set of 7 options.
+
+The current "Social / après" option is creating confusion because riders are selecting it alongside their actual riding discipline.
+
+The goal is for rider type to represent one primary identity while still providing a welcoming option for people who are interested in learning and people who are primarily there for the overall mountain experience.
+
+--------------------------------------------------
+NEW RIDER TYPE OPTIONS
+--------------------------------------------------
+
+1. Skier
+2. Snowboarder
+3. Telemark
+4. Cross-country
+5. Adaptive
+6. Interested (Learning)
+   Helper text:
+   Thinking about trying it.
+
+7. None of the Above (Experience)
+   Helper text:
+   Here for the mountain experience.
+
+--------------------------------------------------
+PROFILE DISPLAY RULES
+--------------------------------------------------
+
+Stored Value → Profile Display
+
+Skier → Skier
+Snowboarder → Snowboarder
+Telemark → Telemark
+Cross-Country → Cross-country
+Adaptive → Adaptive
+Interested → Interested
+Social → Social
+
+Important:
+
+The onboarding/edit-profile label should be:
+
+None of the Above (Experience)
+
+But the profile should display:
+
+Social
+
+The onboarding/edit-profile label should be:
+
+Interested (Learning)
+
+But the profile should display:
+
+Interested
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+- Onboarding step 2 shows 7 rider-type options.
+- Rider type is single-select.
+- Only one rider type can be selected at a time.
+- Edit Profile uses the same 7 options.
+- Edit Profile is single-select.
+- The "Up to 2" rider-type hint is removed.
+- "Social / après" no longer appears anywhere in the app.
+- Helper text appears under:
+  - Interested (Learning)
+  - None of the Above (Experience)
+- Home header shows correct display values.
+- Friend profile shows correct display values.
+- Identity line shows correct display values.
+- Stats card shows correct display values.
+- Rider mix analytics continue working.
+- Gear labels no longer break because of multi-value rider strings.
+
+--------------------------------------------------
+IMPORTANT SKILL LEVEL RULE
+--------------------------------------------------
+
+Hide skill level ONLY when the selected rider type is:
+
+Social
+(None of the Above / Experience)
+
+Do NOT hide skill level for:
+
+Interested
+
+Interested users should still be able to select a skill level.
+
+--------------------------------------------------
+PRODUCTION DATA MIGRATION
+--------------------------------------------------
+
+Normalize all existing rider_types arrays into a single-item array.
+
+Rules:
+
+["Skier", "Social"] → ["Skier"]
+
+["Snowboarder", "Social"] → ["Snowboarder"]
+
+["Cross-Country", "Social"] → ["Cross-Country"]
+
+["Skier", "Telemark", "Social"] → ["Skier"]
+
+["Skier", "Snowboarder", "Telemark"] → ["Skier"]
+
+["Skier", "Snowboarder"] → ["Skier"]
+
+["Social"] → ["Social"]
+
+["skier"] → ["Skier"]
+
+[] → unchanged
+
+Additional requirement:
+
+For any user who currently has Social plus a riding discipline, remove Social and keep the discipline.
+
+Social should only remain for true non-rider / experience users.
+
+Examples:
+
+["Skier", "Social"] → ["Skier"]
+
+["Snowboarder", "Social"] → ["Snowboarder"]
+
+["Cross-Country", "Social"] → ["Cross-Country"]
+
+["Skier", "Telemark", "Social"] → ["Skier"]
+
+Only users with Social as their sole rider type should remain Social.
+
+--------------------------------------------------
+IMPLEMENTATION REQUIREMENTS
+--------------------------------------------------
+
+Update RIDER_TYPES constant.
+
+Update display mappings.
+
+Remove old Social / après display handling.
+
+Update onboarding UI.
+
+Update onboarding JS to single-select behavior.
+
+Update edit profile UI.
+
+Update edit profile JS to single-select behavior.
+
+Remove the old riderOrder cap logic.
+
+Keep storing rider_types in the existing JSON column.
+
+Store as a single-item array.
+
+Examples:
+
+["Skier"]
+["Snowboarder"]
+["Telemark"]
+["Cross-Country"]
+["Adaptive"]
+["Interested"]
+["Social"]
+
+Update display_rider_type.
+
+Update gear label logic.
+
+Use rider_types[0] instead of relying on display strings.
+
+Update:
+
+- Home header
+- Header empty state
+- Friend profile
+- Stats card
+- Identity line filter
+- Mountain row identity helpers
+- Rider/pass helper displays
+- Rider mix analytics
+- PostHog user properties if applicable
+
+--------------------------------------------------
+DEAD CODE CLEANUP
+--------------------------------------------------
+
+Remove:
+
+- Social / après legacy mappings
+- Social (along for the ride) mappings
+- Multi-select rider-type assumptions
+- normalize_rider_type "Both" logic if no longer used
+
+Verify compact_rider_type_display usage and either:
+- replace with display_rider_type
+or
+- leave as alias if still required
+
+--------------------------------------------------
+DATABASE
+--------------------------------------------------
+
+Do not add new database columns.
+
+Continue using rider_types JSON column.
+
+Run migration before exposing new UI.
+
+Wrap migration in transaction with rollback on failure.
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+- Pass selection
+- Skill level options themselves
+- Location fields
+- Equipment setup page discipline toggle
+- primary_riding_style
+- Any unrelated onboarding fields
+- Any unrelated profile fields
+
+Use checkpoints only if absolutely necessary.

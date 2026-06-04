@@ -1,0 +1,389 @@
+PUT THIS IN PLAN FIRST
+
+#188 - Rider-Type Overhaul: Single-Select + New Options
+
+What & Why
+
+Replace the current multi-select rider-type field (onboarding + edit profile) with a single-select field using 7 revised options.
+
+The current "Social / après" option creates confusion because riders select it alongside their actual discipline.
+
+The new model gives every user one primary riding identity, with welcoming options for learners and experience-seekers that display cleanly on profiles.
+
+--------------------------------------------------
+DONE LOOKS LIKE
+--------------------------------------------------
+
+- Onboarding step 2 shows 7 single-select pills.
+- Only one rider-type pill can be active at a time.
+- Edit Profile uses the same 7 options.
+- Edit Profile is single-select.
+- The "Up to 2" hint is removed.
+- "Social / après" no longer appears anywhere in the UI or display strings.
+- Interested (Learning) displays helper text:
+  "Thinking about trying it."
+- None of the Above (Experience) displays helper text:
+  "Here for the mountain experience."
+- Profile displays "Interested" and "Social" as described below.
+- Gear label logic no longer breaks because of multi-value rider strings.
+- Rider mix analytics continue working.
+- PostHog user properties continue working.
+- Existing users are safely migrated to a single-item rider_types array.
+
+--------------------------------------------------
+NEW RIDER TYPE OPTIONS
+--------------------------------------------------
+
+Onboarding / Edit Profile Label
+
+1. Skier
+2. Snowboarder
+3. Telemark
+4. Cross-country
+5. Adaptive
+6. Interested (Learning)
+   Helper text:
+   Thinking about trying it.
+
+7. None of the Above (Experience)
+   Helper text:
+   Here for the mountain experience.
+
+--------------------------------------------------
+STORED VALUES
+--------------------------------------------------
+
+Skier                    -> "Skier"
+Snowboarder              -> "Snowboarder"
+Telemark                 -> "Telemark"
+Cross-country            -> "Cross-Country"
+Adaptive                 -> "Adaptive"
+Interested (Learning)    -> "Interested"
+None of the Above        -> "Social"
+
+Continue using the existing rider_types JSON column.
+
+Store all rider types as a single-item array:
+
+["Skier"]
+["Snowboarder"]
+["Telemark"]
+["Cross-Country"]
+["Adaptive"]
+["Interested"]
+["Social"]
+
+--------------------------------------------------
+PROFILE DISPLAY RULES
+--------------------------------------------------
+
+Stored Value -> Profile Display
+
+Skier           -> Skier
+Snowboarder     -> Snowboarder
+Telemark        -> Telemark
+Cross-Country   -> Cross-country
+Adaptive        -> Adaptive
+Interested      -> Interested
+Social          -> Social
+
+Important:
+
+The onboarding/edit-profile label should be:
+
+None of the Above (Experience)
+
+But the profile should display:
+
+Social
+
+The onboarding/edit-profile label should be:
+
+Interested (Learning)
+
+But the profile should display:
+
+Interested
+
+Helper text should only appear in onboarding and edit profile.
+
+Helper text should never appear on:
+
+- Home header
+- Friend profile
+- Identity line
+- Stats card
+- Admin analytics
+- Any profile display surface
+
+--------------------------------------------------
+SKILL LEVEL VISIBILITY RULE
+--------------------------------------------------
+
+Hide skill level ONLY when:
+
+rider_types[0] == "Social"
+
+(Selected option: None of the Above / Experience)
+
+Show skill level for ALL other rider types including:
+
+- Interested
+- Skier
+- Snowboarder
+- Telemark
+- Cross-country
+- Adaptive
+
+Apply this rule in:
+
+- Onboarding JS
+- Edit Profile JS
+
+--------------------------------------------------
+PRODUCTION DATA MIGRATION
+--------------------------------------------------
+
+Before exposing the new UI, normalize all existing rider_types arrays into a single-item array.
+
+Rules:
+
+["Skier", "Social"] -> ["Skier"]
+
+["Snowboarder", "Social"] -> ["Snowboarder"]
+
+["Cross-Country", "Social"] -> ["Cross-Country"]
+
+["Skier", "Telemark", "Social"] -> ["Skier"]
+
+["Skier", "Snowboarder", "Telemark"] -> ["Skier"]
+
+["Skier", "Snowboarder"] -> ["Skier"]
+
+["Social"] -> ["Social"]
+
+["skier"] -> ["Skier"]
+
+[] -> unchanged
+
+Additional requirement:
+
+For any user who currently has Social plus a riding discipline:
+
+Remove Social.
+Keep the riding discipline.
+
+Examples:
+
+["Skier", "Social"] -> ["Skier"]
+
+["Snowboarder", "Social"] -> ["Snowboarder"]
+
+["Cross-Country", "Social"] -> ["Cross-Country"]
+
+["Skier", "Telemark", "Social"] -> ["Skier"]
+
+Only users whose sole rider type is Social should remain Social.
+
+Wrap migration in a transaction.
+
+Rollback and log on failure.
+
+Do not crash startup.
+
+Migration must run before route handlers begin serving traffic.
+
+--------------------------------------------------
+STEP 1 - UPDATE RIDER TYPE CONSTANTS
+--------------------------------------------------
+
+Update RIDER_TYPES constant.
+
+Replace the current list with:
+
+Skier
+Snowboarder
+Telemark
+Cross-Country
+Adaptive
+Interested
+Social
+
+Update _RIDER_DISPLAY_MAP:
+
+Remove:
+
+- Social / après
+- Social (along for the ride)
+
+Keep:
+
+Cross-Country -> Cross-country
+
+Interested and Social should pass through unchanged.
+
+--------------------------------------------------
+STEP 2 - UPDATE ONBOARDING
+--------------------------------------------------
+
+File:
+templates/identity_setup.html
+
+Replace current rider-type pills with the new 7 options.
+
+Add helper text beneath:
+
+Interested (Learning)
+
+Thinking about trying it.
+
+None of the Above (Experience)
+
+Here for the mountain experience.
+
+Convert rider-type selection from multi-select to radio behavior:
+
+- Clicking a pill selects it.
+- Selecting a new pill deselects all others.
+- Clicking the selected pill again deselects it.
+
+Keep existing CTA gating:
+
+At least one rider type must be selected.
+
+Update skill-level visibility rule:
+
+Hide only when selected rider type == Social.
+
+--------------------------------------------------
+STEP 3 - UPDATE EDIT PROFILE
+--------------------------------------------------
+
+File:
+templates/edit_profile.html
+
+Replace current rider-type pills with the new 7 options.
+
+Remove:
+
+"Up to 2 — select how you ride"
+
+Convert rider selection to radio behavior:
+
+- One active selection only.
+- Selecting another option deselects the previous one.
+- Clicking the active option again deselects it.
+
+Remove:
+
+- riderOrder.length >= 2 cap logic
+- riderOrder.shift() eviction logic
+
+Keep hidden-input submit behavior.
+
+Server-side parse remains unchanged.
+
+Update skill-level visibility:
+
+Hide only when rider type == Social.
+
+Do NOT hide for Interested.
+
+--------------------------------------------------
+STEP 4 - FIX GEAR LABEL LOGIC
+--------------------------------------------------
+
+Stop relying on display_rider_type string comparisons.
+
+Use:
+
+rider_types[0]
+
+as the source of truth.
+
+Update:
+
+- Home header
+- _header_empty.html
+- Friend profile
+
+Update get_gear_term()
+
+Update get_ride_term()
+
+Interested and Social should return generic gear/ride terminology.
+
+--------------------------------------------------
+STEP 5 - UPDATE DISPLAY SURFACES
+--------------------------------------------------
+
+Audit and verify:
+
+- display_rider_type
+- Home header
+- Stats card
+- Friend profile
+- identity_line filter
+- _mountain_row_identity
+- _ideas_rider_pass_line
+- Rider mix analytics
+- PostHog rider-type user property
+
+Most surfaces should update automatically once display_rider_type is updated.
+
+Verify every call site.
+
+--------------------------------------------------
+STEP 6 - REMOVE DEAD CODE
+--------------------------------------------------
+
+Remove:
+
+normalize_rider_type function
+
+Remove:
+
+normalize_rider_type Jinja global registration
+
+Remove:
+
+Legacy Social / après mappings
+
+Remove:
+
+Legacy Social (along for the ride) mappings
+
+Update stats card to use:
+
+display_rider_type
+
+instead of:
+
+compact_rider_type_display
+
+Retain compact_rider_type_display only if still required for compatibility.
+
+--------------------------------------------------
+DATABASE
+--------------------------------------------------
+
+Do not add any database columns.
+
+Continue using rider_types JSON.
+
+Store only a single rider type after migration.
+
+--------------------------------------------------
+OUT OF SCOPE
+--------------------------------------------------
+
+- Pass selection
+- Location fields
+- Skill level options themselves
+- Equipment setup page discipline toggle
+- primary_riding_style
+- Any unrelated onboarding fields
+- Any unrelated profile fields
+- Any new database columns
+
+Use checkpoints only if absolutely necessary.
