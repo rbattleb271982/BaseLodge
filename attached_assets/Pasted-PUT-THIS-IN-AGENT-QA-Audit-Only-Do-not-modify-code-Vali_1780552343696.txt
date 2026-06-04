@@ -1,0 +1,108 @@
+PUT THIS IN AGENT
+
+QA Audit Only — Do not modify code.
+
+Validate the completed Rider-Type Overhaul (#189) end-to-end and report findings.
+
+Test all of the following:
+
+1. NEW USER ONBOARDING
+- Start a fresh onboarding flow.
+- Verify rider type is single-select.
+- Verify only one rider-type pill can be active at a time.
+- Verify these options exist:
+  - Skier
+  - Snowboarder
+  - Telemark
+  - Cross-country
+  - Adaptive
+  - Interested (Learning)
+  - None of the Above (Experience)
+- Verify helper text appears:
+  - Interested (Learning) → "Thinking about trying it."
+  - None of the Above (Experience) → "Here for the mountain experience."
+- Verify helper text is visually secondary.
+- Verify Social (None of the Above) hides the skill-level section.
+- Verify Interested does NOT hide the skill-level section.
+- Verify onboarding can be completed successfully using:
+  - Social
+  - Interested
+  - Skier
+
+2. EDIT PROFILE
+- Open Edit Profile.
+- Verify the same 7 rider-type options exist.
+- Verify rider type is single-select.
+- Verify "Up to 2 — select how you ride" no longer exists.
+- Verify Social hides skill level.
+- Verify Interested does NOT hide skill level.
+- Verify rider type saves correctly.
+
+3. PROFILE DISPLAY
+Verify display values appear correctly on:
+- Home header
+- My profile page
+- Friend profile page
+- Stats card
+- Identity line
+
+Expected display values:
+
+Stored Value -> Display
+
+Skier -> Skier
+Snowboarder -> Snowboarder
+Telemark -> Telemark
+Cross-Country -> Cross-country
+Adaptive -> Adaptive
+Interested -> Interested
+Social -> Social
+
+4. MIGRATION VALIDATION
+Verify migrated users were normalized correctly.
+
+Specifically check:
+- Former Skier + Social user now displays Skier.
+- Former Snowboarder + Social user now displays Snowboarder.
+- Former Social-only user still displays Social.
+- Lowercase skier user now displays Skier.
+
+Provide actual examples if available.
+
+5. GEAR LABEL LOGIC
+Verify gear labels render correctly for:
+- Skier
+- Snowboarder
+- Telemark
+- Cross-country
+- Adaptive
+- Interested
+- Social
+
+Confirm no profile falls back incorrectly because of rider-type logic.
+
+6. DEAD CODE / REFERENCES
+Run codebase-wide searches for:
+
+compact_rider_type_display
+Social / après
+Social (along for the ride)
+
+Confirm:
+- Whether references still exist.
+- Whether any dead code remains.
+
+7. SUMMARY
+Return:
+
+PASS / FAIL for each section.
+
+If any issues are found:
+- Include exact file.
+- Exact line(s).
+- Exact fix required.
+
+Do not make changes.
+QA and report only.
+
+Use checkpoints only if absolutely necessary.
