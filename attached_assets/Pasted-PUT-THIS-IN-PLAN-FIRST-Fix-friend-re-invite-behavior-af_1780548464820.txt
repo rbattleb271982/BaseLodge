@@ -1,0 +1,64 @@
+PUT THIS IN PLAN FIRST
+
+Fix friend re-invite behavior after two users unfriend each other.
+
+Current issue:
+If User A and User B were previously friends, then one or both users delete/remove the friendship, User A should be able to send User B a new invite link and User B should be able to accept it. Right now, the invite flow can show: "This invite link is no longer valid."
+
+Expected behavior:
+- Removing a friend should only remove the active friendship.
+- It should not permanently block the two users from becoming friends again.
+- A new invite after removal should generate a fresh valid invite token.
+- The recipient should be able to accept the new invite and recreate the friendship.
+- Old consumed/expired invite links can remain invalid, but newly generated links must work.
+
+Please investigate and then implement the safest fix.
+
+Tasks:
+1. Review the friend removal/delete friendship logic.
+   - Confirm what database records are deleted, marked inactive, or left behind.
+   - Confirm whether prior invite records remain linked to the same user pair.
+
+2. Review friend invite generation.
+   - Confirm whether the system creates a truly new invite token every time.
+   - Confirm whether it accidentally reuses an old consumed/expired token for the same sender/recipient pair.
+
+3. Review invite acceptance validation.
+   - Identify every condition that renders:
+     "This invite link is no longer valid."
+   - Confirm whether prior friendship history blocks a new invite.
+
+4. Update the flow so re-invites are supported.
+   - If users are not currently friends, allow a new invite.
+   - Generate a fresh token for each new invite attempt.
+   - Mark old pending/expired/consumed invites for that user pair as inactive/expired if needed.
+   - Do not allow duplicate active friendships.
+   - Do not allow duplicate active pending invites for the exact same sender/recipient unless the existing one is still valid.
+
+5. Handle edge cases:
+   - If users are already friends and open an invite, show a friendly "You’re already connected" state instead of invalid.
+   - If an invite was already accepted, keep showing invalid or already-used state.
+   - If an invite is expired, keep showing invalid.
+   - If users deleted each other and a new invite exists, accepting it should work.
+
+6. Testing:
+   - User A invites User B.
+   - User B accepts.
+   - Confirm friendship exists.
+   - User A removes User B.
+   - Confirm friendship no longer exists.
+   - User A sends a new invite to User B.
+   - Confirm a new token/database row is created.
+   - User B opens new invite.
+   - Confirm invite is valid.
+   - User B accepts.
+   - Confirm friendship is recreated.
+   - Confirm old invite links remain invalid.
+   - Confirm no duplicate friendships are created.
+
+Important:
+- Do not change Android/iOS native code.
+- This should be backend/web logic only.
+- No new Android build should be required unless you discover the invite URL is hardcoded in the native app.
+- Use checkpoints sparingly.
+- Do not finish until this exact friend → remove → re-invite → accept flow has been tested end-to-end.
