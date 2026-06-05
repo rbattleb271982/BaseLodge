@@ -19763,6 +19763,33 @@ def admin_api_new_users_today():
     return jsonify(result)
 
 
+@app.route("/admin/test-founder-signup-push", methods=["POST"])
+@login_required
+@admin_required
+def admin_test_founder_signup_push():
+    """TEST-ONLY — sends a hardcoded founder signup alert to richardbattlebaxter@gmail.com.
+    Remove or disable after QA passes.
+    """
+    try:
+        from services.push_providers import send_onesignal_push as _os_push
+        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        if not richard:
+            return jsonify({"success": False, "error": "richard account not found"}), 404
+
+        title = "New BaseLodge User 🎿"
+        body  = "Alex Smith just signed up (NJ)\nConnected to James Morgan"
+        result = _os_push([richard.id], title, body)
+        if result.get("success"):
+            return jsonify({"success": True,
+                            "skipped": result.get("skipped"),
+                            "skipped_reason": result.get("skipped_reason"),
+                            "provider_message_id": result.get("provider_message_id")})
+        return jsonify({"success": False, "error": result.get("error")}), 500
+    except Exception as exc:
+        app.logger.exception("[TestFounderPush] unexpected error: %s", exc)
+        return jsonify({"success": False, "error": str(exc)}), 500
+
+
 @app.route("/admin/users/<int:user_id>")
 @login_required
 @admin_required
