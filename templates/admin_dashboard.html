@@ -102,6 +102,11 @@
   .fp-active-trigger:hover  { background: #FAF8F5; }
   .fp-active-trigger:active { background: #F0EAE1; }
 
+  /* ── New Users drilldown trigger ── */
+  .fp-new-users-trigger { cursor: pointer; }
+  .fp-new-users-trigger:hover  { background: #FAF8F5; }
+  .fp-new-users-trigger:active { background: #F0EAE1; }
+
   /* ── Bottom sheet overlay ── */
   .fp-overlay {
     display: none;
@@ -411,7 +416,7 @@
       <div class="fp-card-val">{{ pulse.sessions[0] }}</div>
       <div class="fp-card-delta {{ pulse.sessions[1][1] }}">{{ pulse.sessions[1][0] }}</div>
     </div>
-    <div class="fp-card">
+    <div class="fp-card fp-new-users-trigger" title="Click to see who signed up today">
       <div class="fp-card-label">New Users</div>
       <div class="fp-card-val">{{ pulse.new_users[0] }}</div>
       <div class="fp-card-delta {{ pulse.new_users[1][1] }}">{{ pulse.new_users[1][0] }}</div>
@@ -713,6 +718,22 @@
   <div class="fp-sheet-body" id="fp-sheet-body"></div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- NEW USERS TODAY DRILLDOWN SHEET                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="fp-overlay" id="fp-nu-overlay"></div>
+<div class="fp-sheet" id="fp-nu-sheet" role="dialog" aria-modal="true" aria-label="New Users Today">
+  <div class="fp-sheet-handle"></div>
+  <div class="fp-sheet-top">
+    <div>
+      <div class="fp-sheet-title" id="fp-nu-title">New Users Today</div>
+      <div class="fp-sheet-sub">Users who signed up today (Denver time)</div>
+    </div>
+    <button class="fp-sheet-close" id="fp-nu-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="fp-sheet-body" id="fp-nu-body"></div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -785,6 +806,80 @@
   overlay.addEventListener('click', closeSheet);
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeSheet();
+  });
+})();
+
+(function () {
+  var overlay  = document.getElementById('fp-nu-overlay');
+  var sheet    = document.getElementById('fp-nu-sheet');
+  var titleEl  = document.getElementById('fp-nu-title');
+  var body     = document.getElementById('fp-nu-body');
+  var closeBtn = document.getElementById('fp-nu-close');
+
+  function fmtSignupTime(isoStr) {
+    if (!isoStr) return '';
+    var d = new Date(isoStr.endsWith('Z') ? isoStr : isoStr + 'Z');
+    return d.toLocaleTimeString('en-US', {
+      hour: 'numeric', minute: '2-digit', hour12: true,
+      timeZone: 'America/Denver'
+    });
+  }
+
+  function escHtml(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function openNuSheet(users) {
+    var n = users.length;
+    titleEl.textContent = n === 1 ? '1 New User Today' : n + ' New Users Today';
+    if (n === 0) {
+      body.innerHTML = '<div class="fp-sheet-empty">No new users today.</div>';
+    } else {
+      body.innerHTML = users.map(function (u) {
+        var first = escHtml(u.first_name);
+        var last  = escHtml(u.last_name);
+        var name  = (first + ' ' + last).trim() || 'Unknown User';
+        var email = escHtml(u.email);
+        var time  = escHtml(fmtSignupTime(u.created_at));
+        return '<a class="fp-sheet-row" href="/admin/users/' + u.user_id + '">' +
+          '<span class="fp-sheet-row-name" style="display:flex;flex-direction:column;gap:2px;">' +
+            '<span>' + name + '</span>' +
+            '<span style="font-size:12px;color:#9A9186;font-weight:400;">' + email + '</span>' +
+          '</span>' +
+          '<span class="fp-sheet-row-time">' + time + '</span>' +
+          '</a>';
+      }).join('');
+    }
+    overlay.classList.add('fp-open');
+    sheet.classList.add('fp-open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeNuSheet() {
+    overlay.classList.remove('fp-open');
+    sheet.classList.remove('fp-open');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.fp-new-users-trigger').forEach(function (el) {
+    el.addEventListener('click', function () {
+      body.innerHTML = '<div class="fp-sheet-empty">Loading\u2026</div>';
+      overlay.classList.add('fp-open');
+      sheet.classList.add('fp-open');
+      document.body.style.overflow = 'hidden';
+      fetch('/admin/api/new-users-today')
+        .then(function (r) { return r.json(); })
+        .then(openNuSheet)
+        .catch(function () {
+          body.innerHTML = '<div class="fp-sheet-empty">Unable to load new users.</div>';
+        });
+    });
+  });
+
+  closeBtn.addEventListener('click', closeNuSheet);
+  overlay.addEventListener('click', closeNuSheet);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeNuSheet();
   });
 })();
 </script>

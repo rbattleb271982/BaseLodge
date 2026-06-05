@@ -19693,6 +19693,26 @@ def admin_api_active_today_users():
     return jsonify(result)
 
 
+@app.route("/admin/api/new-users-today")
+@login_required
+@admin_required
+def admin_api_new_users_today():
+    """JSON list of users who signed up today — same Denver midnight as Founder Pulse."""
+    today_start = _admin_today_start_utc()
+    users = User.query.filter(User.created_at >= today_start)\
+                      .order_by(User.created_at.desc()).all()
+    result = []
+    for u in users:
+        result.append({
+            "user_id":    u.id,
+            "first_name": (u.first_name or "").strip(),
+            "last_name":  (u.last_name  or "").strip(),
+            "email":      u.email or "",
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+        })
+    return jsonify(result)
+
+
 @app.route("/admin/users/<int:user_id>")
 @login_required
 @admin_required
