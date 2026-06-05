@@ -2942,6 +2942,53 @@ def auth_check_email():
     return jsonify({"exists": user is not None})
 
 
+def send_founder_new_user_push(new_user):
+    """Send a targeted push to richardbattlebaxter@gmail.com when a new user completes onboarding.
+
+    Never raises — all exceptions are caught and logged so onboarding is never blocked.
+    """
+    try:
+        from services.push_providers import send_onesignal_push as _os_push
+        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        if not richard:
+            app.logger.warning("[FounderAlert] richard account not found — skipping")
+            return
+
+        # Build signup line
+        first = (new_user.first_name or "").strip()
+        last  = (new_user.last_name  or "").strip()
+        full  = (first + " " + last).strip() or "Someone"
+        state = (new_user.home_state or "").strip()
+        signup_line = f"{full} just signed up ({state})" if state else f"{full} just signed up"
+
+        # Build connection line
+        friend_rows = Friend.query.filter_by(user_id=new_user.id).all()
+        n_friends   = len(friend_rows)
+        if n_friends == 0:
+            connection_line = "No connection"
+        elif n_friends == 1:
+            f_user = db.session.get(User, friend_rows[0].friend_id)
+            if f_user:
+                fn = (f_user.first_name or "").strip()
+                ln = (f_user.last_name  or "").strip()
+                connection_line = f"Connected to {(fn + ' ' + ln).strip() or 'a friend'}"
+            else:
+                connection_line = "Connected to 1 friend"
+        else:
+            connection_line = f"Connected to {n_friends} friends"
+
+        title = "New BaseLodge User 🎿"
+        body  = f"{signup_line}\n{connection_line}"
+
+        result = _os_push([richard.id], title, body)
+        app.logger.warning(
+            "[FounderAlert] push sent to richard (id=%d): success=%s skipped=%s error=%s",
+            richard.id, result.get("success"), result.get("skipped"), result.get("error"),
+        )
+    except Exception as _exc:
+        app.logger.exception("[FounderAlert] unexpected error — onboarding not affected: %s", _exc)
+
+
 @app.route("/onboarding", methods=["GET", "POST"])
 @login_required
 def onboarding():
@@ -2999,6 +3046,8 @@ def onboarding():
                 'source':       'onboarding',
                 'is_first_pass': True,
             })
+
+        send_founder_new_user_push(current_user)
 
         # Redirect — invite signups go to friends, others go to home
         next_url = (
@@ -19708,6 +19757,7 @@ def admin_api_new_users_today():
             "first_name": (u.first_name or "").strip(),
             "last_name":  (u.last_name  or "").strip(),
             "email":      u.email or "",
+            "state":      u.home_state or "",
             "created_at": u.created_at.isoformat() if u.created_at else None,
         })
     return jsonify(result)

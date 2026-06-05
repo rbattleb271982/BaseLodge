@@ -838,7 +838,8 @@
       body.innerHTML = users.map(function (u) {
         var first = escHtml(u.first_name);
         var last  = escHtml(u.last_name);
-        var name  = (first + ' ' + last).trim() || 'Unknown User';
+        var baseName = (first + ' ' + last).trim() || 'Unknown User';
+        var name  = u.state ? baseName + ' (' + escHtml(u.state) + ')' : baseName;
         var email = escHtml(u.email);
         var time  = escHtml(fmtSignupTime(u.created_at));
         return '<a class="fp-sheet-row" href="/admin/users/' + u.user_id + '">' +

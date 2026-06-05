@@ -1,0 +1,250 @@
+#198 - Founder New User Push Alert + State in New Users Drilldown
+
+Goals
+
+1. Send a founder-only push notification whenever a new user completes onboarding.
+2. Add state abbreviation to the New Users Today bottom sheet.
+
+══════════════════════════════════════════════════════════════
+PART 1 — FOUNDER NEW USER PUSH ALERT
+══════════════════════════════════════════════════════════════
+
+Recipient
+
+Only send this notification to:
+
+richardbattlebaxter@gmail.com
+
+Do not send to:
+- Other admins
+- The new user
+- Any other users
+
+Trigger
+
+Fire after onboarding is completed, not immediately at account creation.
+
+Reason:
+- State is known
+- Profile is complete
+- Friend connection status is known
+- Represents a true activated user
+
+Notification Format
+
+Title:
+
+New BaseLodge User 🎿
+
+Body when connected to one friend:
+
+Alex Smith just signed up (NJ)
+Connected to James Morgan
+
+Body when connected to multiple friends:
+
+Alex Smith just signed up (NJ)
+Connected to 3 friends
+
+Body when no connection exists:
+
+Alex Smith just signed up (NJ)
+No connection
+
+Requirements
+
+- Pull first_name and last_name from the new user.
+- Pull state from the onboarding location/profile field.
+- If state is missing, omit the parentheses entirely.
+
+Examples:
+
+Alex Smith just signed up (NJ)
+
+Alex Smith just signed up
+
+Friend Connection Logic
+
+- Check accepted friendships immediately after onboarding completion.
+- If exactly one accepted friend:
+  Connected to First Last
+
+- If more than one accepted friend:
+  Connected to N friends
+
+- If no accepted friends:
+  No connection
+
+Implementation
+
+Create a helper:
+
+send_founder_new_user_push(new_user)
+
+Helper responsibilities:
+
+1. Look up:
+   User.query.filter_by(
+       email="richardbattlebaxter@gmail.com"
+   ).first()
+
+2. Retrieve Richard's OneSignal subscription/player identifier.
+
+3. Build title and body.
+
+4. Send targeted OneSignal push.
+
+5. Catch and log all exceptions.
+
+6. Never interrupt onboarding if push delivery fails.
+
+Failure Handling
+
+- If Richard has no push token:
+  Log and exit.
+
+- If OneSignal errors:
+  Log and exit.
+
+- Do not block signup completion.
+
+QA
+
+No connection:
+
+Title:
+New BaseLodge User 🎿
+
+Body:
+Alex Smith just signed up (NJ)
+No connection
+
+Single connection:
+
+Title:
+New BaseLodge User 🎿
+
+Body:
+Alex Smith just signed up (NJ)
+Connected to James Morgan
+
+Multiple connections:
+
+Title:
+New BaseLodge User 🎿
+
+Body:
+Alex Smith just signed up (NJ)
+Connected to 3 friends
+
+Verify:
+- Richard receives notification.
+- Other admins do not.
+- New user does not.
+- Onboarding succeeds even if OneSignal fails.
+
+══════════════════════════════════════════════════════════════
+PART 2 — ADD STATE TO NEW USERS TODAY DRILLDOWN
+══════════════════════════════════════════════════════════════
+
+Goal
+
+Show state abbreviation in the New Users Today bottom sheet.
+
+Current
+
+Delete Account
+delete@gmail.com
+
+Desired
+
+Delete Account (NJ)
+delete@gmail.com
+
+If state is unavailable:
+
+Delete Account
+delete@gmail.com
+
+Backend
+
+Update:
+
+GET /admin/api/new-users-today
+
+Return:
+
+{
+  "user_id": 123,
+  "first_name": "Alex",
+  "last_name": "Smith",
+  "email": "alex@gmail.com",
+  "state": "NJ",
+  "created_at": "2026-06-04T00:08:00"
+}
+
+Requirements
+
+- Include state in the JSON payload.
+- Use the same source used elsewhere in onboarding/profile.
+- Do not change the query predicate.
+- Continue using _admin_today_start_utc().
+
+Frontend
+
+Update row rendering.
+
+Current:
+
+Alex Smith
+alex@gmail.com
+
+Desired:
+
+Alex Smith (NJ)
+alex@gmail.com
+
+If state is missing:
+
+Alex Smith
+alex@gmail.com
+
+Time remains right aligned:
+
+Alex Smith (NJ)
+alex@gmail.com                     8:42 PM
+
+Implementation Example
+
+Build display name as:
+
+First Last (NJ)
+
+only when state exists.
+
+Do not:
+- Add a separate state line
+- Increase row height
+- Change sheet layout
+- Change typography hierarchy
+
+QA
+
+Verify:
+
+Alex Smith (NJ)
+alex@gmail.com
+
+Richard Baxter (CO)
+richard@gmail.com
+
+Missing state:
+
+Alex Smith
+alex@gmail.com
+
+Verify:
+- Sheet remains mobile-friendly.
+- No horizontal scrolling.
+- Time still right aligned.
+- Existing drilldown functionality unchanged.
