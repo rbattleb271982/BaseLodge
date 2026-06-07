@@ -1,0 +1,109 @@
+Implement Phase 1 performance fixes from the forensic audit.
+
+Goal:
+Reduce database round trips without changing app behavior or UI.
+
+Make only low-risk query/eager-loading/batching changes.
+
+Phase 1 scope:
+
+1. Mountain Detail N+1 fix
+
+Route:
+- /mountain/<slug>
+- app.py mountain_detail(slug)
+
+Problem:
+trip.get_accepted_participants() is called inside loops and can fire 2 queries per trip.
+
+Fix:
+Bulk-load all accepted SkiTripParticipant rows for the raw_trips in one query.
+Build an in-memory mapping:
+trip_id -> accepted participants / user_ids
+
+Then update the existing logic to use that map instead of calling trip.get_accepted_participants() repeatedly.
+
+Requirements:
+- Preserve existing output exactly.
+- Preserve Friends Going / Planning behavior.
+- Preserve social_going and social_considering counts.
+- Preserve flat_rows behavior.
+- Preserve wishlist_friends behavior.
+- No template changes unless absolutely required.
+
+2. Trip Detail participant overlap N+1 fix
+
+Route:
+- /trips/<trip_id>
+- app.py trip_detail
+
+Problem:
+The participant overlap loop runs one SkiTrip query per participant.
+
+Fix:
+Batch-load all other_user trips for the same resort in one query using user_id.in_(other_user_ids).
+
+Then build the same overlap output from the in-memory results.
+
+Requirements:
+- Preserve existing overlap output exactly.
+- Preserve owner/guest behavior.
+- Preserve permissions.
+- No UI changes.
+
+3. Home invite banner lazy-load fix
+
+Route:
+- /home
+
+Problem:
+Invited SkiTripParticipant rows access p.trip and p.trip.resort lazily.
+
+Fix:
+Add appropriate joinedload/selectinload so invited participations include:
+- trip
+- trip.resort
+
+Requirements:
+- Preserve invite banner behavior exactly.
+- No UI changes.
+
+4. Trip Detail trip.resort lazy-load fix
+
+Route:
+- /trips/<trip_id>
+
+Problem:
+SkiTrip.get_or_404(trip_id) does not eager-load resort.
+
+Fix:
+Fetch trip with joinedload(SkiTrip.resort) instead of bare get_or_404, while preserving 404 behavior.
+
+Requirements:
+- No behavior change.
+- No UI change.
+
+Do NOT:
+- Refactor unrelated code
+- Change copy
+- Change templates unless unavoidable
+- Add caching yet
+- Change models
+- Change database schema
+- Optimize Friends route yet
+- Optimize Home route broadly yet
+
+After implementation, provide:
+1. Files changed
+2. Exact changes made
+3. Before/after expected query counts
+4. Any risks
+5. QA checklist
+
+QA should include:
+- Home with pending trip invites
+- Mountain detail with multiple trips and participants
+- Trip detail as owner
+- Trip detail as guest
+- Trip detail overlap section
+- Wishlist/friends sections still unchanged

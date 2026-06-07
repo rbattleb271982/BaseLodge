@@ -8170,10 +8170,15 @@ def home():
     trip_invites = []
     try:
         _hp_t0 = time.perf_counter()
-        invited_participations = SkiTripParticipant.query.filter(
-            SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.status == GuestStatus.INVITED
-        ).all()
+        invited_participations = (
+            SkiTripParticipant.query
+            .options(db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort))
+            .filter(
+                SkiTripParticipant.user_id == user.id,
+                SkiTripParticipant.status == GuestStatus.INVITED
+            )
+            .all()
+        )
         if app.debug:
             print(f"[HOME_PERF] invited_participations={time.perf_counter() - _hp_t0:.4f}s count={len(invited_participations)}")
         active_invites = sorted(
@@ -9245,6 +9250,18 @@ def mountain_detail(slug):
     _t = time.perf_counter()
     rows_by_window = {}
 
+    # Bulk-load all accepted participants for raw_trips — one query replaces N×2
+    # calls to trip.get_accepted_participants() across Pass 1 and Pass 2.
+    _raw_trip_ids = [t.id for t in raw_trips]
+    _bulk_accepted_uids: dict = {}  # trip_id -> [user_ids]
+    if _raw_trip_ids:
+        _part_rows = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id.in_(_raw_trip_ids),
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+        ).all()
+        for _pr in _part_rows:
+            _bulk_accepted_uids.setdefault(_pr.trip_id, []).append(_pr.user_id)
+
     # Pass 1: collect every user ID that will be needed across all trip windows.
     # This lets us do one bulk User query instead of one query per person.
     all_needed_uids = set()
@@ -9252,8 +9269,8 @@ def mountain_detail(slug):
         if get_trip_status(trip, today=today) == 'past':
             continue
         people_ids = {trip.user_id}
-        for p in trip.get_accepted_participants():
-            people_ids.add(p.user_id)
+        for uid in _bulk_accepted_uids.get(trip.id, []):
+            people_ids.add(uid)
         all_needed_uids.update(people_ids & allowed_ids)
 
     # One bulk query replacing the previous per-uid db.session.get() calls.
@@ -9272,8 +9289,8 @@ def mountain_detail(slug):
 
         # Owner always counts as accepted; also gather explicit accepted participants
         people_ids = {trip.user_id}
-        for p in trip.get_accepted_participants():
-            people_ids.add(p.user_id)
+        for uid in _bulk_accepted_uids.get(trip.id, []):
+            people_ids.add(uid)
 
         relevant_ids = people_ids & allowed_ids
         if not relevant_ids:
@@ -10312,7 +10329,12 @@ def edit_trip_form(trip_id):
 def trip_detail(trip_id):
     """Trip Detail page - primary hub for viewing and managing a trip."""
     _rp_t0 = time.perf_counter()
-    trip = SkiTrip.query.get_or_404(trip_id)
+    trip = (
+        SkiTrip.query
+        .options(db.joinedload(SkiTrip.resort))
+        .filter_by(id=trip_id)
+        .first_or_404()
+    )
 
     # Check if user is owner or a participant
     is_owner = trip.user_id == current_user.id
@@ -10409,49 +10431,53 @@ def trip_detail(trip_id):
             _participant_users_map = {
                 u.id: u for u in User.query.filter(User.id.in_(other_user_ids)).all()
             }
-            # Find overlapping trips from other participants
+            # Batch-load ALL overlapping trips for all participants in one query —
+            # replaces the previous 1-query-per-participant N+1 pattern.
+            # Preserves the same resort_id / mountain fallback matching logic.
+            if trip.resort_id and trip.mountain:
+                _all_other_trips = SkiTrip.query.filter(
+                    SkiTrip.user_id.in_(other_user_ids),
+                    db.or_(
+                        SkiTrip.resort_id == trip.resort_id,
+                        db.and_(
+                            SkiTrip.resort_id.is_(None),
+                            SkiTrip.mountain == trip.mountain
+                        )
+                    ),
+                    SkiTrip.start_date <= trip.end_date,
+                    SkiTrip.end_date >= trip.start_date,
+                    SkiTrip.end_date >= today
+                ).all()
+            elif trip.resort_id:
+                _all_other_trips = SkiTrip.query.filter(
+                    SkiTrip.user_id.in_(other_user_ids),
+                    SkiTrip.resort_id == trip.resort_id,
+                    SkiTrip.start_date <= trip.end_date,
+                    SkiTrip.end_date >= trip.start_date,
+                    SkiTrip.end_date >= today
+                ).all()
+            elif trip.mountain:
+                _all_other_trips = SkiTrip.query.filter(
+                    SkiTrip.user_id.in_(other_user_ids),
+                    SkiTrip.mountain == trip.mountain,
+                    SkiTrip.start_date <= trip.end_date,
+                    SkiTrip.end_date >= trip.start_date,
+                    SkiTrip.end_date >= today
+                ).all()
+            else:
+                _all_other_trips = []
+
+            # Group trips by owner user_id for per-participant overlap calculation
+            _other_trips_by_user: dict = {}
+            for _ot in _all_other_trips:
+                _other_trips_by_user.setdefault(_ot.user_id, []).append(_ot)
+
             for user_id in other_user_ids:
                 other_user = _participant_users_map.get(user_id)
                 if not other_user:
                     continue
-                
-                # Get their ACTIVE trips (not past, at same resort, overlapping dates).
-                # When the current trip has resort_id, match by resort_id OR by mountain string
-                # for legacy participant trips that share the same mountain but lack resort_id.
-                # This handles mixed canonical/legacy data in the same query.
-                if trip.resort_id and trip.mountain:
-                    other_trips = SkiTrip.query.filter(
-                        SkiTrip.user_id == user_id,
-                        db.or_(
-                            SkiTrip.resort_id == trip.resort_id,
-                            db.and_(
-                                SkiTrip.resort_id.is_(None),
-                                SkiTrip.mountain == trip.mountain
-                            )
-                        ),
-                        SkiTrip.start_date <= trip.end_date,
-                        SkiTrip.end_date >= trip.start_date,
-                        SkiTrip.end_date >= today
-                    ).all()
-                elif trip.resort_id:
-                    other_trips = SkiTrip.query.filter(
-                        SkiTrip.user_id == user_id,
-                        SkiTrip.resort_id == trip.resort_id,
-                        SkiTrip.start_date <= trip.end_date,
-                        SkiTrip.end_date >= trip.start_date,
-                        SkiTrip.end_date >= today
-                    ).all()
-                elif trip.mountain:
-                    other_trips = SkiTrip.query.filter(
-                        SkiTrip.user_id == user_id,
-                        SkiTrip.mountain == trip.mountain,
-                        SkiTrip.start_date <= trip.end_date,
-                        SkiTrip.end_date >= trip.start_date,
-                        SkiTrip.end_date >= today
-                    ).all()
-                else:
-                    other_trips = []
-                
+
+                other_trips = _other_trips_by_user.get(user_id, [])
                 if other_trips:
                     # Calculate overlap days using a SET to avoid double-counting
                     overlap_day_set = set()
@@ -10462,7 +10488,7 @@ def trip_detail(trip_id):
                                 if ot_d in trip_dates:
                                     overlap_day_set.add(ot_d)
                                 ot_d += timedelta(days=1)
-                    
+
                     if overlap_day_set:
                         participant_overlaps.append({
                             'name': other_user.first_name,
