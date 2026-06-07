@@ -247,9 +247,16 @@
         </button>
 
         <!-- Wishlist friends section -->
-        {% if wishlist_friends %}
+        {% if is_on_wishlist or wishlist_friends %}
         <p class="md-trips-label" style="margin-top: 26px;">Friends interested</p>
         <div style="padding-top: 4px;">
+            {% if is_on_wishlist %}
+            <div class="md-row" style="cursor: default;">
+                <div class="md-row-left">
+                    <span class="md-row-name">You</span>
+                </div>
+            </div>
+            {% endif %}
             {% for u in wishlist_friends %}
             <a href="{{ url_for('friend_profile', friend_id=u.id) }}" class="md-row">
                 <div class="md-row-left">

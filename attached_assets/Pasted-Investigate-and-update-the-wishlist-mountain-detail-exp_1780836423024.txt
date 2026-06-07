@@ -1,0 +1,79 @@
+Investigate and update the wishlist/mountain detail experience.
+
+Make the following changes only.
+
+1. Home wishlist Ideas tile copy
+
+File:
+- services/ideas_engine.py
+
+For wishlist overlap cards, line 2 should never list names.
+
+Use this copy:
+
+If 1 overlapping friend:
+"You and 1 friend have this on your wishlist"
+
+If multiple overlapping friends:
+"You and {n} friends have this on your wishlist"
+
+Do not include resort name in line 2.
+Do not list friend names on the tile.
+
+2. Mountain detail page should separate wishlist interest from trip planning
+
+Files:
+- app.py
+- templates/mountain_detail.html
+
+Current issue:
+A person can have the mountain on their wishlist and also have a planned/considering trip there. These are different signals and should be shown separately.
+
+Desired structure on mountain detail:
+
+A. Friends interested
+This section should show everyone who has this mountain on their wishlist, including:
+- current user, if this mountain is on their wishlist
+- friends who have this mountain on their wishlist
+
+Example:
+Friends interested
+You
+Sam Stookesberry
+
+B. Friends going / planning
+This existing section should continue to show actual trip rows.
+
+Example:
+Friends going
+Feb 14–20 — Sam Stookesberry     Considering
+Feb 14–20 — You                  Considering
+
+Requirements:
+- Do not hide someone from Friends interested just because they also appear in Friends going/planning.
+- Wishlist interest and trip planning should be allowed to overlap.
+- Keep the existing trip-going/planning logic unchanged.
+- The wishlist section should be based only on wish_list_resorts.
+- The trip section should remain based only on actual trip rows.
+- If nobody has the mountain on their wishlist, hide the Friends interested section.
+- If only the current user has it on their wishlist, show "You" under Friends interested.
+- Sort friends alphabetically by first name after "You".
+- Each friend row should link to that friend’s profile.
+- "You" does not need to link.
+
+3. Placement
+
+On mountain_detail.html:
+- Show Friends interested below the wishlist button.
+- Show it above the existing Friends going / planning section.
+
+4. Styling
+
+Keep styling consistent with the current mountain detail page.
+Use the same label style as "FRIENDS GOING".
+Rows can be simple text rows, similar to trip rows but without dates/status.
+
+5. After implementation, summarize:
+- Files changed
+- Exact copy changes
+- What to QA
