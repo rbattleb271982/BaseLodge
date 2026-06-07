@@ -1,0 +1,82 @@
+Implement the wishlist overlap UX update.
+
+Make these changes only.
+
+1. Home Ideas wishlist tile copy
+
+File:
+- services/ideas_engine.py
+
+In build_wishlist_overlap_cards, update the subtitle copy for wishlist overlap cards.
+
+Current issue:
+The tile already shows the mountain name on line 1, so line 2 should not repeat the resort name or list friend names.
+
+Change line 2 to count-only copy:
+
+If 1 overlapping friend:
+"You and 1 friend have this on your wishlist"
+
+If multiple overlapping friends:
+"You and {n} friends have this on your wishlist"
+
+Requirements:
+- Do not list friend names on the Home tile.
+- Do not include resort name in line 2.
+- Keep the card to 2 content lines:
+  Line 1: resort name/location
+  Line 2: count-only overlap sentence
+
+2. Mountain detail page: show overlapping wishlist friends
+
+Files:
+- app.py
+- templates/mountain_detail.html
+
+In the mountain_detail(slug) route:
+- Reuse the existing friend_ids set.
+- Query friends whose wish_list_resorts contains the current resort.id.
+- Store them as wishlist_friends.
+- Sort by first name.
+- Pass wishlist_friends into render_template.
+
+Suggested logic:
+
+wishlist_friends = []
+if friend_ids:
+    _wl_candidates = User.query.filter(User.id.in_(friend_ids)).all()
+    wishlist_friends = [
+        u for u in _wl_candidates
+        if resort.id in (u.wish_list_resorts or [])
+    ]
+    wishlist_friends.sort(key=lambda u: ((u.first_name or '').lower(), (u.last_name or '').lower()))
+
+Then in templates/mountain_detail.html:
+- Add a section under the wishlist button and above the "No friends are going yet" / trip social section.
+- Only render if wishlist_friends exists and is not empty.
+- Header: "Friends interested"
+- Show each friend's name.
+- Each friend row should link to that friend’s profile using the existing friend profile route/pattern in the app.
+- Keep styling consistent with existing mountain detail rows.
+
+Example:
+
+Friends interested
+
+Jonathan
+Solo
+Sean
+Zach
+
+Requirements:
+- Do not show this section if no friends overlap on wishlist.
+- Do not change trip-going logic.
+- Do not change the wishlist button.
+- Do not create new models or tables.
+- Do not add pagination.
+- Preserve existing mountain detail behavior.
+
+After implementation, summarize:
+- Files changed
+- Exact copy changes
+- What to QA

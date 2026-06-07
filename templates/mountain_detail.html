@@ -246,6 +246,20 @@
             {%- if is_on_wishlist -%}✓ On your wishlist{%- else -%}♡ Add to wishlist{%- endif -%}
         </button>
 
+        <!-- Wishlist friends section -->
+        {% if wishlist_friends %}
+        <p class="md-trips-label" style="margin-top: 26px;">Friends interested</p>
+        <div style="padding-top: 4px;">
+            {% for u in wishlist_friends %}
+            <a href="{{ url_for('friend_profile', friend_id=u.id) }}" class="md-row">
+                <div class="md-row-left">
+                    <span class="md-row-name">{{ u.first_name }}{% if u.last_name %} {{ u.last_name }}{% endif %}</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- Trips section label -->
         {% if flat_rows %}
         <p class="md-trips-label">Friends going</p>

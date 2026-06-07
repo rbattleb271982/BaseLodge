@@ -9361,6 +9361,16 @@ def mountain_detail(slug):
             break
     is_on_wishlist = resort.id in (current_user.wish_list_resorts or [])
 
+    # Friends who also have this resort on their wishlist
+    wishlist_friends = []
+    if friend_ids:
+        _wl_candidates = User.query.filter(User.id.in_(friend_ids)).all()
+        wishlist_friends = [
+            u for u in _wl_candidates
+            if resort.id in (u.wish_list_resorts or [])
+        ]
+        wishlist_friends.sort(key=lambda u: ((u.first_name or '').lower(), (u.last_name or '').lower()))
+
     if app.debug:
         print(f"[ROUTE_PERF] route=mountain_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
@@ -9375,6 +9385,7 @@ def mountain_detail(slug):
         user_pass_covered=user_pass_covered,
         user_pass_name=user_pass_name,
         is_on_wishlist=is_on_wishlist,
+        wishlist_friends=wishlist_friends,
     )
 
 
