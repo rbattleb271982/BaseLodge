@@ -1054,12 +1054,10 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
             if not resort_obj:
                 continue
             n      = len(overlapping)
-            friend_first_names = [
-                (p.get("first_name") or "").strip() or "Friend"
-                for p in overlapping
-            ]
-            suffix = "— both on your wishlists" if n == 1 else "— all on your wishlists"
-            line2 = _fmt_wishlist_names(friend_first_names, suffix)
+            if n == 1:
+                line2 = "You and 1 friend have this on your wishlist"
+            else:
+                line2 = f"You and {n} friends have this on your wishlist"
             _diag['raw_wishlist'] += 1
             print(f"[Ideas] source=wishlist resort_id={rid} friends={n}")
             _try_add({
