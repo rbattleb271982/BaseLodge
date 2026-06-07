@@ -1,0 +1,65 @@
+Production Bug Investigation — Invite Link Shows "This invite has expired"
+
+Context:
+
+A user who originally had a BaseLodge account during the web-app beta period signed into the current mobile app and generated a fresh friend invite link.
+
+The recipient opened the link immediately and received the "This invite has expired" page.
+
+Important detail:
+- The inviter and recipient were previously friends in BaseLodge during testing.
+- The inviter generated the link from the current Invite tab.
+- The recipient opened it immediately after it was generated.
+- This is not an old saved link.
+- The re-invite fix was recently deployed to allow users to reconnect after unfriending.
+
+I want a full audit before making any code changes.
+
+Please investigate:
+
+1. Trace the complete invite generation flow.
+   - Where invite tokens are created.
+   - How previous tokens are expired.
+   - Any conditions that automatically invalidate tokens.
+
+2. Trace the complete invite acceptance flow.
+   - Every condition that can result in:
+     - "This invite has expired"
+     - Invalid invite
+     - Already friends
+     - Existing pending request
+     - Any redirect away from successful acceptance.
+
+3. Search for all tables/models involved:
+   - Friendship
+   - FriendRequest
+   - InviteToken
+   - InviteLink
+   - Any legacy invite models
+   - Any beta-era friendship records
+
+4. Determine whether stale friendship records between two users can cause a newly generated invite token to be treated as expired.
+
+5. Determine whether stale friend request records can cause a newly generated invite token to be treated as expired.
+
+6. Determine whether visiting the Invite tab multiple times can invalidate a newly generated token unexpectedly.
+
+7. Review the production-safe logic path for:
+   - Users who were friends before
+   - Users who unfriended each other
+   - Users who have pending requests
+   - Users who had accounts before the mobile app launch
+
+8. Report:
+   - Exact files involved
+   - Exact functions involved
+   - All possible root causes
+   - Which root cause is most likely given this scenario
+
+Do NOT make changes yet.
+
+First provide:
+- Findings
+- Root cause analysis
+- Recommended fix
+- Risk assessment of the fix
