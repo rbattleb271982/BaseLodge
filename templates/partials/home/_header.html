@@ -32,9 +32,18 @@ Inputs:
     {%- set _sl_val   = user.skill_level or 'Add skill level' -%}
     {%- set _pass_val = (user.pass_type | pass_display) if user.pass_type else 'No pass yet' -%}
     <div class="hc-identity">
-        <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit rider type">{{ _rt_val }}</a>
-        <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit skill level">Skill Level: {{ _sl_val }}</a>
-        <a href="{{ url_for('select_pass') }}" class="hc-identity-link" aria-label="Edit pass">Pass: {{ _pass_val }}</a>
+        <div class="hc-identity-row">
+            <span class="hc-identity-label">Rider Type:</span>
+            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit rider type">{{ _rt_val }}</a>
+        </div>
+        <div class="hc-identity-row">
+            <span class="hc-identity-label">Skill Level:</span>
+            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit skill level">{{ _sl_val }}</a>
+        </div>
+        <div class="hc-identity-row">
+            <span class="hc-identity-label">Pass:</span>
+            <a href="{{ url_for('select_pass') }}" class="hc-identity-link" aria-label="Edit pass">{{ _pass_val }}</a>
+        </div>
     </div>
 
     {# ── Equipment / CTA row ── #}
@@ -45,20 +54,29 @@ Inputs:
     {%- set _primary_rt   = (user.rider_types or [''])[0] -%}
     {%- set _gear_label   = 'Snowboard' if _primary_rt == 'Snowboarder' else ('Skis' if _primary_rt in ['Skier', 'Telemark'] else 'Equipment') -%}
     {%- if _has_gear or _has_boots or _has_bindings %}
-    <a href="{{ url_for('settings_equipment') }}" class="hc-equipment-link" style="white-space:normal;">
+    <div class="hc-identity">
         {%- if _has_gear -%}
         {%- set _g = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
-        <span style="display:block;">{{ _gear_label }}: {{ _g }}</span>
+        <div class="hc-identity-row">
+            <span class="hc-identity-label">{{ _gear_label }}:</span>
+            <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit {{ _gear_label | lower }}">{{ _g }}</a>
+        </div>
         {%- endif -%}
         {%- if _has_boots -%}
         {%- set _b = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}
-        <span style="display:block;">Boots: {{ _b }}</span>
+        <div class="hc-identity-row">
+            <span class="hc-identity-label">Boots:</span>
+            <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit boots">{{ _b }}</a>
+        </div>
         {%- endif -%}
         {%- if _has_bindings -%}
         {%- set _bn = ([home_eq.binding_brand, home_eq.binding_model] | select | join(' ')) -%}
-        <span style="display:block;">Bindings: {{ _bn }}</span>
+        <div class="hc-identity-row">
+            <span class="hc-identity-label">Bindings:</span>
+            <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit bindings">{{ _bn }}</a>
+        </div>
         {%- endif -%}
-    </a>
+    </div>
     {%- elif _is_renting %}
     <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit gear setup">Rental gear</a>
     {%- else %}
