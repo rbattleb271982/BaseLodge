@@ -1,0 +1,138 @@
+Perform a comprehensive performance and timing audit of BaseLodge.
+
+Do not make any code changes.
+
+I want to identify exactly where time is being spent across the app before we optimize anything.
+
+Deliverables:
+
+1. Home Page Audit
+Analyze the complete request lifecycle for the Home page.
+
+Measure and document:
+- Route execution time
+- Database query count
+- Slowest queries
+- Time spent building:
+  - Home header/profile card
+  - Happening feed
+  - Ideas feed
+  - Trip overlap logic
+  - Wishlist overlap logic
+  - Friend activity logic
+  - Any recommendation engines
+- Template render time
+- Total page response time
+
+Identify:
+- N+1 query patterns
+- Duplicate queries
+- Repeated friend lookups
+- Repeated resort lookups
+- Repeated trip lookups
+- Expensive loops
+
+2. Mountain Detail Audit
+
+Analyze:
+- Route execution time
+- Query count
+- Query timings
+- Social calculations
+- Wishlist friend calculations
+- Trip calculations
+- Template render time
+
+3. Friends Tab Audit
+
+Analyze:
+- Route timing
+- Query count
+- Friend card generation
+- Mutual friend calculations
+- Availability calculations
+- Overlap calculations
+
+4. Trips Audit
+
+Analyze:
+- Trips list page
+- Trip detail page
+- Guest calculations
+- Availability calculations
+- Resort calculations
+
+5. Global Findings
+
+Identify:
+- Top 20 slowest functions
+- Top 20 slowest database queries
+- Any routes over:
+  - 100ms
+  - 250ms
+  - 500ms
+  - 1000ms
+
+Highlight:
+- N+1 problems
+- Excessive ORM usage
+- Queries inside loops
+- Duplicate calculations
+- Duplicate object hydration
+- Large in-memory processing
+
+6. Instrumentation
+
+Add TEMPORARY timing instrumentation only if necessary.
+
+Acceptable:
+- perf_counter()
+- route timing logs
+- query timing logs
+
+Do NOT:
+- Refactor
+- Optimize
+- Change behavior
+- Change UI
+
+7. Output Format
+
+For each route provide:
+
+Route:
+Total Time:
+Query Count:
+
+Breakdown:
+- Query time
+- Business logic time
+- Template time
+
+Top contributors:
+1.
+2.
+3.
+
+Then provide:
+
+Performance Opportunities Ranked
+Impact:
+- High
+- Medium
+- Low
+
+Effort:
+- Low
+- Medium
+- High
+
+Expected Gain:
+- Estimated milliseconds saved
+
+Goal:
+I want a forensic audit first.
+
+Do not optimize anything yet.
+Do not modify application behavior.
+Only measure, trace, and report.
