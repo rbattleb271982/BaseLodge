@@ -246,27 +246,6 @@
             {%- if is_on_wishlist -%}✓ On your wishlist{%- else -%}♡ Add to wishlist{%- endif -%}
         </button>
 
-        <!-- Wishlist friends section -->
-        {% if is_on_wishlist or wishlist_friends %}
-        <p class="md-trips-label" style="margin-top: 26px;">Friends interested</p>
-        <div style="padding-top: 4px;">
-            {% if is_on_wishlist %}
-            <div class="md-row" style="cursor: default;">
-                <div class="md-row-left">
-                    <span class="md-row-name">You</span>
-                </div>
-            </div>
-            {% endif %}
-            {% for u in wishlist_friends %}
-            <a href="{{ url_for('friend_profile', friend_id=u.id) }}" class="md-row">
-                <div class="md-row-left">
-                    <span class="md-row-name">{{ u.first_name }}{% if u.last_name %} {{ u.last_name }}{% endif %}</span>
-                </div>
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-
         <!-- Trips section label -->
         {% if flat_rows %}
         <p class="md-trips-label">Friends going</p>
@@ -317,6 +296,27 @@
         <div class="md-empty">
             <p class="md-empty-line1">No friends are going yet.</p>
             <p class="md-empty-line2">When someone plans a trip here, it will show up.</p>
+        </div>
+        {% endif %}
+
+        <!-- Wishlist friends section -->
+        {% if wishlist_friends %}
+        {%- set _wl_count = wishlist_friends|length -%}
+        <p class="md-trips-label" style="margin-top: 26px;">
+            {%- if _wl_count == 1 -%}
+            1 friend has this on their wishlist
+            {%- else -%}
+            {{ _wl_count }} friends have this on their wishlist
+            {%- endif -%}
+        </p>
+        <div style="padding-top: 4px;">
+            {% for u in wishlist_friends %}
+            <a href="{{ url_for('friend_profile', friend_id=u.id) }}" class="md-row">
+                <div class="md-row-left">
+                    <span class="md-row-name">{{ u.first_name }}{% if u.last_name %} {{ u.last_name }}{% endif %}</span>
+                </div>
+            </a>
+            {% endfor %}
         </div>
         {% endif %}
 
