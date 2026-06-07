@@ -2058,27 +2058,28 @@ def handle_exception(e):
     return render_template("500.html"), 500
 
 def get_or_create_invite_token(user):
-    """Always issue a fresh invite token for user, expiring any prior valid ones.
+    """Return a valid invite token for user, creating one only when necessary.
 
     Returns None if user has reached their max invite accepts limit.
     Single-use tokens: each token can only be used once (used_at is set on use).
 
-    A fresh token is generated on every call so that after an unfriend cycle the
-    old shareable URL is guaranteed to be stale.  Any existing valid (unused +
-    unexpired) tokens are expired in-place before the new one is committed.
+    Reuses an existing valid (unused + unexpired) token so that a freshly
+    shared link is not invalidated the next time the inviter visits /invite or
+    /friends.  Token rotation (expiring the current token) happens only at
+    unfriend time, not on normal page loads.
     """
-    # Check if user can still accept more invites
     if not can_sender_accept_more_invites(user):
         return None
 
-    # Expire every currently-valid token so old URLs stop working
     now = datetime.utcnow()
     existing = InviteToken.query.filter_by(inviter_id=user.id).all()
+
+    # Reuse the first valid token — avoids rotating a live shareable URL
     for token_obj in existing:
         if not token_obj.is_used() and not token_obj.is_expired():
-            token_obj.expires_at = now
+            return token_obj
 
-    # Create new token with 48-hour expiration
+    # No valid token exists — create a fresh one
     token = secrets.token_urlsafe(16)
     expires_at = now + timedelta(hours=48)
     invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at)
@@ -4787,6 +4788,14 @@ def remove_friend(friend_id):
         )
     ).update({'status': 'cancelled'}, synchronize_session=False)
 
+    # Expire the initiator's active invite token so a link shared before the
+    # unfriend can't be used to immediately reconnect.  A fresh token is issued
+    # the next time they visit /invite.
+    _now = datetime.utcnow()
+    for _tok in InviteToken.query.filter_by(inviter_id=current_user.id).all():
+        if not _tok.is_used() and not _tok.is_expired():
+            _tok.expires_at = _now
+
     db.session.commit()
 
     return jsonify({"success": True, "message": "Friend removed"}), 200
@@ -7255,6 +7264,14 @@ def remove_friend_web(friend_id):
             ),
         )
     ).update({'status': 'cancelled'}, synchronize_session=False)
+
+    # Expire the initiator's active invite token so a link shared before the
+    # unfriend can't be used to immediately reconnect.  A fresh token is issued
+    # the next time they visit /invite.
+    _now = datetime.utcnow()
+    for _tok in InviteToken.query.filter_by(inviter_id=current_user.id).all():
+        if not _tok.is_used() and not _tok.is_expired():
+            _tok.expires_at = _now
 
     db.session.commit()
 
