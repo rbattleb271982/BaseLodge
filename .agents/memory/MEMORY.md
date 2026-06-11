@@ -2,3 +2,4 @@
 - [Startup migration pattern](startup-migration-pattern.md) — use db.text() not text(); define function then call immediately after; wrap in try/except with inner rollback.
 - [Admin console architecture](admin-console-arch.md) — all admin pages extend admin_console.html; active_tab drives sidebar highlight + submenu display; bar chart classes must be defined per-template in {% block head %}.
 - [Activity tracking / last_active_at](activity-tracking.md) — field was never written in app.py; fix stamps it at all login paths + throttled before_request heartbeat (1×/hr via session).
+- [App Store metrics architecture](app-store-metrics.md) — AppStoreMetric model stores daily snapshots; refresh via POST /admin/app-store/refresh only; dashboard reads DB never live APIs; ASC page views/conversion NOT available via public API.

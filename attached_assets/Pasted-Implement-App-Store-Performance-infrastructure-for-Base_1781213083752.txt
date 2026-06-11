@@ -1,0 +1,72 @@
+Implement App Store Performance infrastructure for BaseLodge.
+
+Use the audit findings already provided.
+
+Goal:
+Create a durable App Store / Google Play metrics system that stores daily snapshots in our database, instead of calling Apple or Google live from the dashboard.
+
+Requirements:
+
+1. Add a new AppStoreMetric model in models.py:
+   - platform: 'ios' or 'android'
+   - report_date
+   - downloads
+   - page_views nullable
+   - conversion_pct nullable
+   - rating nullable
+   - review_count nullable
+   - crashes nullable
+   - anrs nullable
+   - fetched_at
+
+2. Add a safe startup migration to create the table if it does not exist.
+
+3. Create:
+   - services/app_store_client.py
+   - services/play_store_client.py
+
+4. Create admin routes:
+   - GET /admin/app-store
+   - POST /admin/app-store/refresh
+
+5. The GET page should read from AppStoreMetric only.
+   Do not call Apple or Google APIs from the page render.
+
+6. The POST refresh route should:
+   - Call Apple API if Apple secrets are present
+   - Call Google Play API if Google secrets are present
+   - Upsert daily metric rows
+   - Fail gracefully if one platform is not configured yet
+   - Return user-friendly flash messages
+
+7. Create templates/admin_app_store.html extending admin_console.html.
+
+8. Add a sidebar item under a new “Distribution” section:
+   - App Store Performance
+
+9. Add one Founder Pulse / dashboard card:
+   - App Growth
+   - Downloads Yesterday
+   - Downloads L30
+   - Avg Rating
+   - Link to /admin/app-store
+
+10. Do not include App Store page views or conversion rate for iOS unless the API supports it.
+    Leave those fields nullable.
+
+11. Use existing admin design patterns:
+    - ad-card
+    - ad-kpi-grid
+    - ad-row-label
+    - sparkline_points filter
+    - existing flash/message pattern if available
+
+12. Make this production-safe:
+    - No secrets printed to logs
+    - No dashboard-time external API calls
+    - Defensive handling for missing credentials
+    - Defensive handling for empty data
+    - Admin-only routes
+    - Idempotent refresh route
+
+Do not overbuild charts. Start with KPI cards, platform sections, L7/L30 summaries, and a simple 30-day trend.

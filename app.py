@@ -1918,6 +1918,46 @@ run_rider_type_normalization_migration()
 
 
 # ============================================================================
+# APP STORE METRIC TABLE — safe CREATE TABLE IF NOT EXISTS at startup
+# ============================================================================
+def _run_app_store_metric_migration():
+    """Create app_store_metric table if it does not already exist."""
+    try:
+        with app.app_context():
+            with db.engine.begin() as conn:
+                conn.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS app_store_metric (
+                        id             SERIAL PRIMARY KEY,
+                        platform       VARCHAR(16)  NOT NULL,
+                        report_date    DATE         NOT NULL,
+                        downloads      INTEGER,
+                        page_views     INTEGER,
+                        conversion_pct FLOAT,
+                        rating         FLOAT,
+                        review_count   INTEGER,
+                        crashes        FLOAT,
+                        anrs           FLOAT,
+                        fetched_at     TIMESTAMP    NOT NULL DEFAULT NOW(),
+                        CONSTRAINT uq_app_store_metric_platform_date
+                            UNIQUE (platform, report_date)
+                    )
+                """))
+                conn.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS ix_app_store_metric_platform "
+                    "ON app_store_metric (platform)"
+                ))
+                conn.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS ix_app_store_metric_report_date "
+                    "ON app_store_metric (report_date)"
+                ))
+        print("app_store_metric_migration: table and indexes ensured.")
+    except Exception as _e:
+        print(f"app_store_metric_migration: skipped ({_e})")
+
+_run_app_store_metric_migration()
+
+
+# ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
 from utils.resort_utils import get_ambiguous_resort_names, resort_display_name as _resort_display_name
@@ -16568,6 +16608,52 @@ def admin_dashboard():
     _dn = _admin_now()
     pulse_time = _dn.strftime("%H:%M") + " " + _dn.strftime("%Z")
 
+    # ── App Store summary tile (reads from DB only — no live API calls) ──────
+    try:
+        from models import AppStoreMetric
+        from datetime import date as _date, timedelta as _td
+        _today     = _date.today()
+        _yesterday = _today - _td(days=1)
+        _l30_start = _today - _td(days=30)
+
+        def _asm_dl_yesterday(platform):
+            row = AppStoreMetric.query.filter_by(
+                platform=platform, report_date=_yesterday
+            ).first()
+            return row.downloads if row and row.downloads is not None else None
+
+        def _asm_dl_l30(platform):
+            rows = AppStoreMetric.query.filter(
+                AppStoreMetric.platform    == platform,
+                AppStoreMetric.report_date >= _l30_start,
+                AppStoreMetric.downloads   != None,
+            ).all()
+            return sum(r.downloads for r in rows) if rows else None
+
+        def _asm_rating(platform):
+            row = AppStoreMetric.query.filter(
+                AppStoreMetric.platform == platform,
+                AppStoreMetric.rating   != None,
+            ).order_by(AppStoreMetric.report_date.desc()).first()
+            return row.rating if row else None
+
+        store_summary = dict(
+            ios_dl_yesterday  = _asm_dl_yesterday("ios"),
+            android_dl_yesterday = _asm_dl_yesterday("android"),
+            ios_dl_l30        = _asm_dl_l30("ios"),
+            android_dl_l30    = _asm_dl_l30("android"),
+            ios_rating        = _asm_rating("ios"),
+            android_rating    = _asm_rating("android"),
+            has_data          = AppStoreMetric.query.count() > 0,
+        )
+    except Exception:
+        store_summary = dict(
+            ios_dl_yesterday=None, android_dl_yesterday=None,
+            ios_dl_l30=None, android_dl_l30=None,
+            ios_rating=None, android_rating=None,
+            has_data=False,
+        )
+
     return render_template(
         "admin_dashboard.html",
         active_tab         = "dashboard",
@@ -16626,6 +16712,7 @@ def admin_dashboard():
         active_users_total     = active_users_total,
         pulse                  = pulse,
         pulse_time             = pulse_time,
+        store_summary          = store_summary,
     )
 
 
@@ -19974,6 +20061,244 @@ def admin_user_detail(user_id):
         now_str             = now_str,
         now_utc             = now_utc,
     )
+
+
+# ============================================================================
+# ADMIN — APP STORE PERFORMANCE
+# ============================================================================
+
+@app.route("/admin/app-store")
+@login_required
+@admin_required
+def admin_app_store():
+    """App Store Performance — reads from AppStoreMetric table only.
+    No live calls to Apple or Google at page-render time."""
+    from models import AppStoreMetric
+    from datetime import date, timedelta
+    from collections import defaultdict
+
+    today     = date.today()
+    yesterday = today - timedelta(days=1)
+    l7_start  = today - timedelta(days=7)
+    l30_start = today - timedelta(days=30)
+
+    rows = (
+        AppStoreMetric.query
+        .filter(AppStoreMetric.report_date >= l30_start)
+        .order_by(AppStoreMetric.report_date.desc())
+        .all()
+    )
+
+    def _rows_for(platform):
+        return [r for r in rows if r.platform == platform]
+
+    def _dl_sum(platform_rows):
+        vals = [r.downloads for r in platform_rows if r.downloads is not None]
+        return sum(vals) if vals else None
+
+    def _latest_rating(platform_rows):
+        for r in platform_rows:
+            if r.rating is not None:
+                return r.rating
+        return None
+
+    def _latest_reviews(platform_rows):
+        for r in platform_rows:
+            if r.review_count is not None:
+                return r.review_count
+        return None
+
+    def _dl_yesterday(platform_rows):
+        for r in platform_rows:
+            if r.report_date == yesterday and r.downloads is not None:
+                return r.downloads
+        return None
+
+    def _dl_l7(platform_rows):
+        vals = [r.downloads for r in platform_rows
+                if r.report_date >= l7_start and r.downloads is not None]
+        return sum(vals) if vals else None
+
+    def _sparkline_series(platform_rows):
+        """Return 30-element daily download list for sparkline (oldest → newest)."""
+        by_date = {r.report_date: (r.downloads or 0) for r in platform_rows
+                   if r.downloads is not None}
+        series = []
+        for delta in range(29, -1, -1):
+            d = today - timedelta(days=delta)
+            series.append(by_date.get(d, 0))
+        return series
+
+    def _crash_rate_avg(platform_rows):
+        vals = [r.crashes for r in platform_rows if r.crashes is not None]
+        return round(sum(vals) / len(vals), 3) if vals else None
+
+    ios_rows     = _rows_for("ios")
+    android_rows = _rows_for("android")
+
+    ios_kpis = dict(
+        dl_yesterday = _dl_yesterday(ios_rows),
+        dl_l7        = _dl_l7(ios_rows),
+        dl_l30       = _dl_sum(ios_rows),
+        rating       = _latest_rating(ios_rows),
+        review_count = _latest_reviews(ios_rows),
+        crash_rate   = _crash_rate_avg(ios_rows),
+        spark        = _sparkline_series(ios_rows),
+    )
+    android_kpis = dict(
+        dl_yesterday = _dl_yesterday(android_rows),
+        dl_l7        = _dl_l7(android_rows),
+        dl_l30       = _dl_sum(android_rows),
+        rating       = _latest_rating(android_rows),
+        review_count = _latest_reviews(android_rows),
+        crash_rate   = _crash_rate_avg(android_rows),
+        spark        = _sparkline_series(android_rows),
+    )
+
+    total_dl_l30 = (
+        (ios_kpis["dl_l30"] or 0) + (android_kpis["dl_l30"] or 0)
+        if ios_kpis["dl_l30"] is not None or android_kpis["dl_l30"] is not None
+        else None
+    )
+
+    ios_configured     = all(os.environ.get(k) for k in (
+        "ASC_KEY_P8", "ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_VENDOR_NO"))
+    android_configured = all(os.environ.get(k) for k in (
+        "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "GOOGLE_PLAY_PACKAGE_NAME"))
+
+    has_data      = bool(rows)
+    last_refreshed = (
+        max((r.fetched_at for r in rows), default=None)
+        if rows else None
+    )
+    last_refreshed_str = (
+        last_refreshed.strftime("%b %d, %Y at %H:%M UTC") if last_refreshed else "Never"
+    )
+
+    return render_template(
+        "admin_app_store.html",
+        active_tab          = "app_store",
+        now                 = _fmt_admin_now(),
+        ios_kpis            = ios_kpis,
+        android_kpis        = android_kpis,
+        total_dl_l30        = total_dl_l30,
+        has_data            = has_data,
+        ios_configured      = ios_configured,
+        android_configured  = android_configured,
+        last_refreshed_str  = last_refreshed_str,
+    )
+
+
+@app.route("/admin/app-store/refresh", methods=["POST"])
+@login_required
+@admin_required
+def admin_app_store_refresh():
+    """Pull the latest metrics from Apple / Google and upsert into AppStoreMetric.
+
+    - Checks for credentials before attempting each platform.
+    - Fails gracefully per-platform; one failure does not abort the other.
+    - Returns a flash message + redirect back to /admin/app-store.
+    - Idempotent: re-running overwrites (upserts) the same (platform, date) rows.
+    """
+    from models import AppStoreMetric
+    from datetime import datetime as _dt
+
+    messages = []
+    errors   = []
+
+    # ── iOS / App Store Connect ───────────────────────────────────────────────
+    ios_configured = all(os.environ.get(k) for k in (
+        "ASC_KEY_P8", "ASC_KEY_ID", "ASC_ISSUER_ID", "ASC_VENDOR_NO"))
+
+    if ios_configured:
+        try:
+            from services.app_store_client import fetch_daily_downloads, fetch_app_rating
+
+            dl_rows = fetch_daily_downloads(days_back=30)
+            rating  = fetch_app_rating()
+
+            upserted = 0
+            for row in dl_rows:
+                existing = AppStoreMetric.query.filter_by(
+                    platform="ios", report_date=row["report_date"]
+                ).first()
+                if existing:
+                    existing.downloads  = row["downloads"]
+                    existing.fetched_at = _dt.utcnow()
+                else:
+                    db.session.add(AppStoreMetric(
+                        platform    = "ios",
+                        report_date = row["report_date"],
+                        downloads   = row["downloads"],
+                        fetched_at  = _dt.utcnow(),
+                    ))
+                upserted += 1
+
+            if rating:
+                latest = AppStoreMetric.query.filter_by(platform="ios").order_by(
+                    AppStoreMetric.report_date.desc()
+                ).first()
+                if latest:
+                    latest.rating       = rating["rating"]
+                    latest.review_count = rating["review_count"]
+                    latest.fetched_at   = _dt.utcnow()
+
+            db.session.commit()
+            messages.append(f"iOS: {upserted} day(s) upserted.")
+        except Exception as exc:
+            db.session.rollback()
+            errors.append(f"iOS fetch failed: {exc}")
+    else:
+        messages.append("iOS: skipped (ASC credentials not configured).")
+
+    # ── Android / Google Play ─────────────────────────────────────────────────
+    android_configured = all(os.environ.get(k) for k in (
+        "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "GOOGLE_PLAY_PACKAGE_NAME"))
+
+    if android_configured:
+        try:
+            from services.play_store_client import fetch_daily_installs, fetch_daily_crashes
+
+            install_rows = fetch_daily_installs(days_back=30)
+            crash_rows   = fetch_daily_crashes(days_back=30)
+
+            crash_by_date = {r["report_date"]: r["crashes"] for r in crash_rows}
+
+            upserted = 0
+            for row in install_rows:
+                existing = AppStoreMetric.query.filter_by(
+                    platform="android", report_date=row["report_date"]
+                ).first()
+                crashes_val = crash_by_date.get(row["report_date"])
+                if existing:
+                    existing.downloads  = row["downloads"]
+                    existing.crashes    = crashes_val
+                    existing.fetched_at = _dt.utcnow()
+                else:
+                    db.session.add(AppStoreMetric(
+                        platform    = "android",
+                        report_date = row["report_date"],
+                        downloads   = row["downloads"],
+                        crashes     = crashes_val,
+                        fetched_at  = _dt.utcnow(),
+                    ))
+                upserted += 1
+
+            db.session.commit()
+            messages.append(f"Android: {upserted} day(s) upserted.")
+        except Exception as exc:
+            db.session.rollback()
+            errors.append(f"Android fetch failed: {exc}")
+    else:
+        messages.append("Android: skipped (Play credentials not configured).")
+
+    # ── Flash result ─────────────────────────────────────────────────────────
+    if errors:
+        flash("Refresh completed with errors — " + " | ".join(messages + errors), "error")
+    else:
+        flash("Refresh complete — " + " | ".join(messages), "success")
+
+    return redirect(url_for("admin_app_store"))
 
 
 if __name__ == "__main__":

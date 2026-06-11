@@ -1,0 +1,392 @@
+{% extends "admin_console.html" %}
+{% block title %}App Store Performance{% endblock %}
+{% block page_title %}App Store Performance{% endblock %}
+
+{% block head_styles %}
+
+  .asp-updated {
+    font-size: 11px;
+    color: #9E958A;
+    margin-bottom: 18px;
+  }
+
+  /* ── KPI grid — 4-col desktop / 2-col mobile ── */
+  .ad-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  @media (max-width: 700px) { .ad-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+  .ad-kpi-grid--3col { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 700px) { .ad-kpi-grid--3col { grid-template-columns: repeat(2, 1fr); } }
+
+  .ad-card {
+    background: #fff;
+    border: 1px solid #E4DDD2;
+    border-radius: 9px;
+    padding: 12px 14px 10px;
+    min-width: 0;
+  }
+  .ad-card--link {
+    display: block; text-decoration: none; color: inherit;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .ad-card--link:hover  { background: #FAF7F2; border-color: #C9BFB2; }
+  .ad-card--link:active { background: #F3EDE3; }
+  .ad-card--alert { border-color: #B71C1C !important; }
+  .ad-card--alert .ad-card-value { color: #B71C1C !important; }
+
+  .ad-card-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: #6B6157; margin-bottom: 5px;
+  }
+  .ad-card-value {
+    font-size: 26px; font-weight: 700; color: #5C1219;
+    line-height: 1; font-family: Georgia, serif; letter-spacing: -0.02em;
+  }
+  .ad-card-value--zero { color: #B0A99F; }
+  .ad-card-value--sm   { font-size: 20px; }
+  .ad-card-sub  { font-size: 11px; color: #9E958A; margin-top: 3px; }
+  .ad-trend     { font-size: 11px; font-weight: 500; margin-top: 4px; color: #9A9186; }
+  .ad-trend--pos  { color: #16A34A; }
+  .ad-trend--neg  { color: #DC2626; }
+  .ad-trend--flat { color: #9A9186; }
+  .ad-spark { display: block; margin-top: 6px; overflow: visible; }
+
+  /* ── Row label ── */
+  .ad-row-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
+    text-transform: uppercase; color: #9E958A;
+    margin: 20px 0 8px;
+  }
+  .ad-row-label:first-of-type { margin-top: 0; }
+
+  /* ── Section ── */
+  .asp-section { margin-bottom: 28px; }
+
+  /* ── Platform badge ── */
+  .asp-platform-badge {
+    display: inline-block;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  .asp-platform-badge--ios {
+    background: rgba(92, 18, 25, 0.09);
+    color: #5C1219;
+  }
+  .asp-platform-badge--android {
+    background: rgba(22, 101, 52, 0.10);
+    color: #166534;
+  }
+
+  /* ── Config notice ── */
+  .asp-config-notice {
+    background: #FFF8F0;
+    border: 1px solid #F5DDB0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: #92400E;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  /* ── Empty state ── */
+  .asp-empty {
+    background: #FAFAF8;
+    border: 1px dashed #D4C8B8;
+    border-radius: 10px;
+    padding: 32px 20px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .asp-empty-title {
+    font-size: 16px; font-weight: 700; color: #1C1917;
+    font-family: Georgia, serif; margin-bottom: 6px;
+  }
+  .asp-empty-sub {
+    font-size: 13px; color: #6B6560; line-height: 1.5; margin-bottom: 16px;
+  }
+
+  /* ── Refresh button ── */
+  .asp-refresh-form { display: inline; }
+  .asp-refresh-btn {
+    display: inline-block;
+    background: #5C1219; color: #fff;
+    border: none; border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .asp-refresh-btn:hover { background: #7A1A24; color: #fff; }
+  .asp-refresh-btn--sm {
+    padding: 7px 14px;
+    font-size: 12px;
+  }
+
+  /* ── Flash messages ── */
+  .asp-flash {
+    border-radius: 8px;
+    padding: 11px 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .asp-flash--success { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+  .asp-flash--error   { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+  .asp-flash--info    { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
+
+  /* ── Trend bar ── */
+  .asp-bar-wrap { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+  .asp-bar-bg   {
+    flex: 1; background: #E4DDD2; border-radius: 3px; height: 5px; overflow: hidden;
+  }
+  .asp-bar-fill { height: 100%; background: #5C1219; border-radius: 3px; }
+
+{% endblock %}
+
+{%- macro sparkline(series) -%}
+{%- if series -%}{%- set _max = series | max -%}
+{%- if _max > 0 -%}
+{%- set ns = namespace(pts='') -%}{%- set W = 60 -%}{%- set H = 22 -%}{%- set n = series | length -%}
+{%- for v in series -%}
+  {%- set x = ((loop.index0 / (n - 1)) * W) | round(1) -%}
+  {%- set y = (H - (v / _max * (H * 0.82) + H * 0.09)) | round(1) -%}
+  {%- set ns.pts = ns.pts ~ ' ' ~ x ~ ',' ~ y -%}
+{%- endfor -%}
+<svg class="ad-spark" width="{{ W }}" height="{{ H }}" viewBox="0 0 {{ W }} {{ H }}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <polyline points="{{ ns.pts | trim }}" fill="none" stroke="#C4A882" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+{%- endif -%}{%- endif -%}
+{%- endmacro -%}
+
+{% block content %}
+
+<!-- flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="asp-flash asp-flash--{{ category }}">{{ message }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="asp-updated">
+  Last refreshed: {{ last_refreshed_str }} &nbsp;·&nbsp;
+  <form action="/admin/app-store/refresh" method="POST" class="asp-refresh-form">
+    <button type="submit" class="asp-refresh-btn asp-refresh-btn--sm">Refresh now</button>
+  </form>
+</div>
+
+<!-- config notices -->
+{% if not ios_configured %}
+<div class="asp-config-notice">
+  <strong>iOS not configured.</strong> Set <code>ASC_KEY_P8</code>, <code>ASC_KEY_ID</code>,
+  <code>ASC_ISSUER_ID</code>, and <code>ASC_VENDOR_NO</code> in Replit Secrets to enable
+  App Store Connect data.
+</div>
+{% endif %}
+{% if not android_configured %}
+<div class="asp-config-notice">
+  <strong>Android not configured.</strong> Set <code>GOOGLE_PLAY_SERVICE_ACCOUNT_JSON</code>
+  and <code>GOOGLE_PLAY_PACKAGE_NAME</code> in Replit Secrets to enable Google Play data.
+</div>
+{% endif %}
+
+{% if not has_data %}
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- EMPTY STATE                                                 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="asp-empty">
+  <div class="asp-empty-title">No data yet</div>
+  <div class="asp-empty-sub">
+    Configure your App Store Connect and Google Play credentials,<br>
+    then click Refresh to pull the last 30 days of metrics.
+  </div>
+  <form action="/admin/app-store/refresh" method="POST">
+    <button type="submit" class="asp-refresh-btn">Pull metrics now</button>
+  </form>
+</div>
+{% else %}
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- COMBINED OVERVIEW                                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label">Combined</div>
+<div class="ad-kpi-grid">
+
+  <div class="ad-card">
+    <div class="ad-card-label">Total Downloads L30</div>
+    <div class="ad-card-value{% if not total_dl_l30 %} ad-card-value--zero{% endif %}">
+      {{ total_dl_l30 if total_dl_l30 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">iOS + Android</div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">iOS Downloads L30</div>
+    <div class="ad-card-value{% if not ios_kpis.dl_l30 %} ad-card-value--zero{% endif %}">
+      {{ ios_kpis.dl_l30 if ios_kpis.dl_l30 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">App Store</div>
+    {{ sparkline(ios_kpis.spark) }}
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Android Downloads L30</div>
+    <div class="ad-card-value{% if not android_kpis.dl_l30 %} ad-card-value--zero{% endif %}">
+      {{ android_kpis.dl_l30 if android_kpis.dl_l30 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">Google Play</div>
+    {{ sparkline(android_kpis.spark) }}
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Avg Rating</div>
+    <div class="ad-card-value{% if not ios_kpis.rating and not android_kpis.rating %} ad-card-value--zero{% endif %}">
+      {% if ios_kpis.rating %}
+        {{ "%.1f"|format(ios_kpis.rating) }}
+      {% elif android_kpis.rating %}
+        {{ "%.1f"|format(android_kpis.rating) }}
+      {% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">
+      {% if ios_kpis.rating %}iOS{% endif %}
+      {% if ios_kpis.rating and android_kpis.rating %} / {% endif %}
+      {% if android_kpis.rating %}{{ "%.1f"|format(android_kpis.rating) }} Android{% endif %}
+      {% if not ios_kpis.rating and not android_kpis.rating %}not yet available{% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- iOS — APP STORE                                             -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label">
+  iOS
+  <span class="asp-platform-badge asp-platform-badge--ios">App Store</span>
+</div>
+<div class="ad-kpi-grid" id="as-ios">
+
+  <div class="ad-card">
+    <div class="ad-card-label">Downloads Yesterday</div>
+    <div class="ad-card-value{% if not ios_kpis.dl_yesterday %} ad-card-value--zero{% endif %}">
+      {{ ios_kpis.dl_yesterday if ios_kpis.dl_yesterday is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">installs</div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Downloads L7</div>
+    <div class="ad-card-value{% if not ios_kpis.dl_l7 %} ad-card-value--zero{% endif %}">
+      {{ ios_kpis.dl_l7 if ios_kpis.dl_l7 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">last 7 days</div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Downloads L30</div>
+    <div class="ad-card-value{% if not ios_kpis.dl_l30 %} ad-card-value--zero{% endif %}">
+      {{ ios_kpis.dl_l30 if ios_kpis.dl_l30 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">last 30 days</div>
+    {{ sparkline(ios_kpis.spark) }}
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Rating</div>
+    <div class="ad-card-value{% if not ios_kpis.rating %} ad-card-value--zero{% endif %}">
+      {% if ios_kpis.rating %}{{ "%.1f"|format(ios_kpis.rating) }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">
+      {% if ios_kpis.review_count %}{{ ios_kpis.review_count | int }} reviews{% else %}not yet available{% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ANDROID — GOOGLE PLAY                                       -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label" id="as-android">
+  Android
+  <span class="asp-platform-badge asp-platform-badge--android">Google Play</span>
+</div>
+<div class="ad-kpi-grid">
+
+  <div class="ad-card">
+    <div class="ad-card-label">Downloads Yesterday</div>
+    <div class="ad-card-value{% if not android_kpis.dl_yesterday %} ad-card-value--zero{% endif %}">
+      {{ android_kpis.dl_yesterday if android_kpis.dl_yesterday is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">new device activations</div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Downloads L7</div>
+    <div class="ad-card-value{% if not android_kpis.dl_l7 %} ad-card-value--zero{% endif %}">
+      {{ android_kpis.dl_l7 if android_kpis.dl_l7 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">last 7 days</div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Downloads L30</div>
+    <div class="ad-card-value{% if not android_kpis.dl_l30 %} ad-card-value--zero{% endif %}">
+      {{ android_kpis.dl_l30 if android_kpis.dl_l30 is not none else '—' }}
+    </div>
+    <div class="ad-card-sub">last 30 days</div>
+    {{ sparkline(android_kpis.spark) }}
+  </div>
+
+  <div class="ad-card{% if android_kpis.crash_rate and android_kpis.crash_rate > 1.0 %} ad-card--alert{% endif %}">
+    <div class="ad-card-label">Crash Rate (avg L30)</div>
+    <div class="ad-card-value{% if not android_kpis.crash_rate %} ad-card-value--zero{% endif %}">
+      {% if android_kpis.crash_rate is not none %}{{ "%.2f"|format(android_kpis.crash_rate) }}%{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">% of sessions</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- RATINGS                                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label" id="as-ratings">Ratings</div>
+<div class="ad-kpi-grid ad-kpi-grid--3col">
+
+  <div class="ad-card">
+    <div class="ad-card-label">iOS Rating</div>
+    <div class="ad-card-value{% if not ios_kpis.rating %} ad-card-value--zero{% endif %}">
+      {% if ios_kpis.rating %}{{ "%.1f"|format(ios_kpis.rating) }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">
+      {% if ios_kpis.review_count %}{{ ios_kpis.review_count | int }} total reviews{% else %}no review data{% endif %}
+    </div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Android Rating</div>
+    <div class="ad-card-value{% if not android_kpis.rating %} ad-card-value--zero{% endif %}">
+      {% if android_kpis.rating %}{{ "%.1f"|format(android_kpis.rating) }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">
+      {% if android_kpis.review_count %}{{ android_kpis.review_count | int }} total reviews{% else %}no review data{% endif %}
+    </div>
+  </div>
+
+  <div class="ad-card">
+    <div class="ad-card-label">Page Views / Conversion</div>
+    <div class="ad-card-value ad-card-value--zero">—</div>
+    <div class="ad-card-sub">not available via iOS API</div>
+  </div>
+
+</div>
+
+{% endif %}
+
+{% endblock %}

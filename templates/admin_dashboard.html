@@ -605,6 +605,48 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ROW 4 — APP GROWTH (store metrics summary)                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="ad-row-label">App Growth</div>
+<div class="ad-kpi-grid">
+
+  <a href="/admin/app-store" class="ad-card ad-card--link">
+    <div class="ad-card-label">Downloads Yesterday</div>
+    {% set _dl_y = (store_summary.ios_dl_yesterday or 0) + (store_summary.android_dl_yesterday or 0) %}
+    <div class="ad-card-value{% if _dl_y == 0 %} ad-card-value--zero{% endif %}">
+      {% if store_summary.has_data %}{{ _dl_y }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">iOS + Android</div>
+  </a>
+
+  <a href="/admin/app-store" class="ad-card ad-card--link">
+    <div class="ad-card-label">Downloads L30</div>
+    {% set _dl_l30 = (store_summary.ios_dl_l30 or 0) + (store_summary.android_dl_l30 or 0) %}
+    <div class="ad-card-value{% if _dl_l30 == 0 %} ad-card-value--zero{% endif %}">
+      {% if store_summary.has_data %}{{ _dl_l30 }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">last 30 days</div>
+  </a>
+
+  <a href="/admin/app-store" class="ad-card ad-card--link">
+    <div class="ad-card-label">iOS Rating</div>
+    <div class="ad-card-value{% if not store_summary.ios_rating %} ad-card-value--zero{% endif %}">
+      {% if store_summary.ios_rating %}{{ "%.1f"|format(store_summary.ios_rating) }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">App Store avg</div>
+  </a>
+
+  <a href="/admin/app-store" class="ad-card ad-card--link">
+    <div class="ad-card-label">Android Rating</div>
+    <div class="ad-card-value{% if not store_summary.android_rating %} ad-card-value--zero{% endif %}">
+      {% if store_summary.android_rating %}{{ "%.1f"|format(store_summary.android_rating) }}{% else %}—{% endif %}
+    </div>
+    <div class="ad-card-sub">Google Play avg</div>
+  </a>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
 <!-- INTELLIGENCE HUB                                           -->
 <!-- ═══════════════════════════════════════════════════════════ -->
 <div class="hub-section">

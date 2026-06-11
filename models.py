@@ -1383,3 +1383,44 @@ class MountainPageView(db.Model):
 
     def __repr__(self):
         return f'<MountainPageView resort={self.resort_id} user={self.user_id}>'
+
+
+class AppStoreMetric(db.Model):
+    """Daily snapshot of App Store / Google Play distribution metrics.
+
+    One row per (platform, report_date).  Populated by the admin
+    /admin/app-store/refresh route; never written at request time by
+    the regular app. All numeric fields are nullable so rows can be
+    upserted incrementally as different API calls succeed.
+
+    platform        — 'ios' or 'android'
+    report_date     — the calendar day this row covers
+    downloads       — installs / new-device activations for that day
+    page_views      — store listing views (iOS: not available via public API)
+    conversion_pct  — page-view → install rate (iOS: not available via public API)
+    rating          — current average store rating (0.0–5.0)
+    review_count    — total published review count
+    crashes         — Android: crash-rate % (float); iOS: raw crash count (int)
+    anrs            — Android: ANR-rate % (float); iOS: null
+    fetched_at      — when this row was last written/updated
+    """
+    __tablename__ = 'app_store_metric'
+
+    id             = db.Column(db.Integer, primary_key=True)
+    platform       = db.Column(db.String(16),  nullable=False, index=True)
+    report_date    = db.Column(db.Date,         nullable=False, index=True)
+    downloads      = db.Column(db.Integer,      nullable=True)
+    page_views     = db.Column(db.Integer,      nullable=True)
+    conversion_pct = db.Column(db.Float,        nullable=True)
+    rating         = db.Column(db.Float,        nullable=True)
+    review_count   = db.Column(db.Integer,      nullable=True)
+    crashes        = db.Column(db.Float,        nullable=True)
+    anrs           = db.Column(db.Float,        nullable=True)
+    fetched_at     = db.Column(db.DateTime,     nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('platform', 'report_date', name='uq_app_store_metric_platform_date'),
+    )
+
+    def __repr__(self):
+        return f'<AppStoreMetric {self.platform} {self.report_date} dl={self.downloads}>'
