@@ -174,6 +174,36 @@
     </span>
   </div>
   <div class="ud-row">
+    <span class="ud-row-label">Sign-in Method</span>
+    <span class="ud-row-val">
+      {% if user.auth_provider == 'google' %}
+        Google OAuth
+      {% elif user.auth_provider == 'email' %}
+        Email / Password
+      {% else %}
+        <span class="ud-muted">{{ user.auth_provider or 'Unknown' }}</span>
+      {% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Password Set</span>
+    <span class="ud-row-val">
+      {% if user.password_hash %}Yes{% else %}<span class="ud-muted">No (OAuth account)</span>{% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Verified</span>
+    <span class="ud-row-val">
+      {% if user.is_verified %}Yes{% else %}<span class="ud-muted">No</span>{% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
+    <span class="ud-row-label">Test / Seeded Account</span>
+    <span class="ud-row-val">
+      {% if user.is_seeded %}<strong style="color:#B45309;">Yes — seeded</strong>{% else %}No{% endif %}
+    </span>
+  </div>
+  <div class="ud-row">
     <span class="ud-row-label">Push Notifications</span>
     <span class="ud-row-val">
       {% if user.push_notifications_enabled %}Enabled{% else %}Disabled{% endif %}

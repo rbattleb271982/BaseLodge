@@ -20064,6 +20064,47 @@ def admin_user_detail(user_id):
 
 
 # ============================================================================
+# ADMIN — USER LOOKUP (auth diagnostic by email)
+# ============================================================================
+
+@app.route("/admin/user-lookup")
+@login_required
+@admin_required
+def admin_user_lookup():
+    """
+    Safe auth diagnostic: look up a user by email and return key account fields.
+    Never exposes password hashes or secrets.
+
+    GET /admin/user-lookup?email=someone@example.com
+    """
+    email = request.args.get("email", "").lower().strip()
+    if not email:
+        return jsonify({"error": "Provide ?email= query parameter"}), 400
+
+    user = User.query.filter(sa.func.lower(User.email) == email).first()
+    if not user:
+        return jsonify({"found": False, "email_queried": email}), 404
+
+    return jsonify({
+        "found": True,
+        "id": user.id,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "auth_provider": user.auth_provider,
+        "has_password": bool(user.password_hash),
+        "is_verified": user.is_verified,
+        "is_seeded": user.is_seeded,
+        "lifecycle_stage": user.lifecycle_stage,
+        "login_count": user.login_count,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "last_active_at": user.last_active_at.isoformat() if user.last_active_at else None,
+        "password_changed_at": user.password_changed_at.isoformat() if user.password_changed_at else None,
+        "admin_detail_url": url_for("admin_user_detail", user_id=user.id, _external=False),
+    })
+
+
+# ============================================================================
 # ADMIN — APP STORE PERFORMANCE
 # ============================================================================
 
