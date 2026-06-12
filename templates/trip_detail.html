@@ -1693,11 +1693,44 @@
 
         function handleInviteClick() { document.getElementById('inviteModal').classList.add('active'); document.body.classList.add('modal-open'); }
         function closeInviteModal() { document.getElementById('inviteModal').classList.remove('active'); document.body.classList.remove('modal-open'); }
+        // Fire-and-forget share tracking — never blocks or throws.
+        // token is extracted from the URL (last path segment after /trip-invite/).
+        // source is always 'trip_detail'.
+        function _trackTripShare(action, url) {
+            try {
+                var token = (url || '').split('/trip-invite/')[1] || '';
+                fetch('/api/invite/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token_type: 'trip',
+                        token: token,
+                        action: action,
+                        source: 'trip_detail'
+                    }),
+                    keepalive: true
+                }).catch(function() {});
+            } catch(e) {}
+        }
+
         function blShareTrip(text, url) {
             if (navigator.share) {
-                navigator.share({ text: text, url: url }).catch(function() {});
+                // Track 'share_sheet' only on successful completion.
+                // AbortError (user dismissed) is not counted — caught separately.
+                navigator.share({ text: text, url: url }).then(function() {
+                    _trackTripShare('share_sheet', url);
+                }).catch(function(err) {
+                    // AbortError = dismissed; NotAllowedError = permission denied.
+                    // Neither counts as a share intent — no tracking.
+                    if (err && err.name !== 'AbortError') {
+                        // Fallback: copy to clipboard if share failed for non-abort reason
+                        navigator.clipboard.writeText(url).catch(function() {});
+                    }
+                });
             } else {
+                // navigator.share not available — fall back to clipboard copy
                 navigator.clipboard.writeText(url).then(function() {
+                    _trackTripShare('copy', url);
                     blToast('Link copied!');
                 }).catch(function() {
                     blToast('Could not copy. Link: ' + url);
@@ -1707,6 +1740,7 @@
         function blCopyInviteLink(url) {
             var btn = document.getElementById('copyInviteBtn');
             navigator.clipboard.writeText(url).then(function() {
+                _trackTripShare('copy', url);
                 if (btn) { var orig = btn.textContent; btn.textContent = 'Copied \u2713'; setTimeout(function() { btn.textContent = orig; }, 2000); }
             }).catch(function() {
                 blToast('Could not copy. Link: ' + url);

@@ -68,8 +68,26 @@
     <script>
         const inviteUrl = "{{ invite_url }}";
 
+        // Fire-and-forget tracking — never blocks or throws
+        function _trackShare(action) {
+            try {
+                fetch('/api/invite/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        token_type: 'friend',
+                        token: inviteUrl.split('/invite/')[1] || '',
+                        action: action,
+                        source: 'invite_page'
+                    }),
+                    keepalive: true
+                }).catch(function() {});
+            } catch(e) {}
+        }
+
         document.getElementById("copyInvite").onclick = () => {
             navigator.clipboard.writeText(inviteUrl).then(() => {
+                _trackShare('copy');
                 const btn = document.getElementById("copyInvite");
                 const originalText = btn.textContent;
                 btn.textContent = "Copied!";
@@ -80,5 +98,14 @@
                 blToast("Couldn't copy automatically — tap and hold the link to copy.");
             });
         };
+
+        // "Invite via text" is an <a href="sms:..."> — track on click before OS opens SMS.
+        // We can only record intent; we cannot confirm whether the message was sent.
+        const textBtn = document.querySelector('a[href^="sms:"]');
+        if (textBtn) {
+            textBtn.addEventListener('click', function() {
+                _trackShare('text');
+            });
+        }
     </script>
 {% endblock %}

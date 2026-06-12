@@ -1424,3 +1424,36 @@ class AppStoreMetric(db.Model):
 
     def __repr__(self):
         return f'<AppStoreMetric {self.platform} {self.report_date} dl={self.downloads}>'
+
+
+class InviteShareEvent(db.Model):
+    """Records when a user taps a share/copy action on an invite link.
+
+    Tracks share *intent* — not guaranteed message delivery. SMS and native
+    share sheets cannot confirm the user actually sent the message.
+
+    token_type  — 'friend' | 'trip'
+    action      — 'copy' | 'text' | 'share_sheet'
+    source      — 'invite_page' | 'friends_empty_state' | 'trip_detail'
+    token_id    — FK to invite_token.id or trip_invite_token.id (nullable)
+    token       — raw token string fallback when token_id unavailable
+    user_agent  — truncated UA string for platform detection
+    """
+    __tablename__ = 'invite_share_event'
+
+    id         = db.Column(db.Integer, primary_key=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                           nullable=False, index=True)
+    token_type = db.Column(db.String(16),  nullable=False)
+    token_id   = db.Column(db.Integer,     nullable=True)
+    token      = db.Column(db.String(64),  nullable=True)
+    action     = db.Column(db.String(16),  nullable=False)
+    source     = db.Column(db.String(32),  nullable=False)
+    user_agent = db.Column(db.String(256), nullable=True)
+    created_at = db.Column(db.DateTime,    nullable=False,
+                           default=datetime.utcnow, index=True)
+
+    user = db.relationship('User', backref='invite_share_events')
+
+    def __repr__(self):
+        return f'<InviteShareEvent user={self.user_id} {self.token_type} {self.action}>'

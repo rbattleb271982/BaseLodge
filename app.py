@@ -95,7 +95,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
@@ -1969,6 +1969,40 @@ def _run_app_store_metric_migration():
 _run_app_store_metric_migration()
 
 
+def _run_invite_share_event_migration():
+    """Create invite_share_event table and indexes if they do not already exist."""
+    try:
+        with app.app_context():
+            with db.engine.begin() as conn:
+                conn.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS invite_share_event (
+                        id         SERIAL PRIMARY KEY,
+                        user_id    INTEGER      NOT NULL
+                                   REFERENCES "user"(id) ON DELETE CASCADE,
+                        token_type VARCHAR(16)  NOT NULL,
+                        token_id   INTEGER,
+                        token      VARCHAR(64),
+                        action     VARCHAR(16)  NOT NULL,
+                        source     VARCHAR(32)  NOT NULL,
+                        user_agent VARCHAR(256),
+                        created_at TIMESTAMP    NOT NULL DEFAULT NOW()
+                    )
+                """))
+                conn.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS ix_ise_user_id "
+                    "ON invite_share_event (user_id)"
+                ))
+                conn.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS ix_ise_created_at "
+                    "ON invite_share_event (created_at)"
+                ))
+        print("invite_share_event_migration: table and indexes ensured.")
+    except Exception as _e:
+        print(f"invite_share_event_migration: skipped ({_e})")
+
+_run_invite_share_event_migration()
+
+
 # ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
@@ -3189,6 +3223,70 @@ def _queue_founder_login_push(user_id, user_email):
         app.logger.exception(
             "[founder_app_open_push] user_id=%d gate_error=%s", user_id, _exc,
         )
+
+
+def _send_founder_invite_share_push(user_id, token_type, action, source):
+    """Send a founder-only push notification when an InviteShareEvent is committed.
+
+    Called from a background thread after the DB insert succeeds — never blocks
+    the API response. Accepts only plain scalars to avoid DetachedInstanceError.
+
+    token_type — 'friend' | 'trip'
+    action     — 'copy' | 'text' | 'share_sheet'
+    source     — 'invite_page' | 'friends_empty_state' | 'trip_detail'
+    """
+    try:
+        from services.push_providers import send_onesignal_push as _os_push
+
+        user = db.session.get(User, user_id)
+        if not user:
+            app.logger.warning("[invite_share_push] user_id=%d sent=False reason=user_not_found", user_id)
+            return
+
+        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        if not richard:
+            app.logger.warning("[invite_share_push] user_id=%d sent=False reason=no_founder_account", user_id)
+            return
+
+        first = (user.first_name or "").strip()
+        last  = (user.last_name  or "").strip()
+        name  = (first + " " + last).strip()
+        state = (user.home_state or "").strip()
+
+        type_label   = "friend" if token_type == "friend" else "trip"
+        action_label = {"copy": "copy link", "text": "text", "share_sheet": "share sheet"}.get(action, action)
+        source_label = {
+            "invite_page":          "invite page",
+            "friends_empty_state":  "friends page",
+            "trip_detail":          "trip detail",
+        }.get(source, source)
+
+        parts = [p for p in [state, source_label, action_label] if p]
+        if name and parts:
+            body = f"{name} sent a {type_label} invite · {' · '.join(parts)}"
+        elif name:
+            body = f"{name} sent a {type_label} invite"
+        else:
+            body = f"Someone sent a {type_label} invite · {action_label}"
+
+        result = _os_push([richard.id], "Invite Sent", body)
+        if result.get("success"):
+            app.logger.warning(
+                "[invite_share_push] user_id=%d token_type=%s action=%s sent=True body=%r",
+                user_id, token_type, action, body,
+            )
+        elif result.get("skipped"):
+            app.logger.warning(
+                "[invite_share_push] user_id=%d sent=False reason=no_push_token",
+                user_id,
+            )
+        else:
+            app.logger.warning(
+                "[invite_share_push] user_id=%d sent=False reason=push_error error=%s",
+                user_id, result.get("error"),
+            )
+    except Exception as _exc:
+        app.logger.exception("[invite_share_push] user_id=%d error=%s", user_id, _exc)
 
 
 @app.route("/onboarding", methods=["GET", "POST"])
@@ -4796,6 +4894,93 @@ def update_participant_settings(trip_id):
             "needs_ride": participant.needs_ride
         }
     })
+
+@app.route("/api/invite/share", methods=["POST"])
+@login_required
+@limiter.limit("120 per hour", key_func=_user_or_ip)
+def api_invite_share():
+    """Record an invite share intent (copy / text / share_sheet) in InviteShareEvent.
+
+    Called from frontend share buttons immediately before or after the copy/share
+    action. Non-critical — returns 200 even on internal errors so it never blocks
+    the copy/share UX. Fires a founder push in a background thread after commit.
+
+    Body JSON:
+        token_type  — 'friend' | 'trip'
+        token       — the raw token string (used to resolve token_id)
+        action      — 'copy' | 'text' | 'share_sheet'
+        source      — 'invite_page' | 'friends_empty_state' | 'trip_detail'
+    """
+    VALID_ACTIONS     = {"copy", "text", "share_sheet"}
+    VALID_SOURCES     = {"invite_page", "friends_empty_state", "trip_detail"}
+    VALID_TOKEN_TYPES = {"friend", "trip"}
+
+    try:
+        data       = request.get_json(silent=True) or {}
+        token_type = (data.get("token_type") or "").strip()
+        token_str  = (data.get("token")      or "").strip()
+        action     = (data.get("action")     or "").strip()
+        source     = (data.get("source")     or "").strip()
+
+        if action     not in VALID_ACTIONS:
+            return jsonify({"ok": False, "error": "invalid action"}), 400
+        if source     not in VALID_SOURCES:
+            return jsonify({"ok": False, "error": "invalid source"}), 400
+        if token_type not in VALID_TOKEN_TYPES:
+            return jsonify({"ok": False, "error": "invalid token_type"}), 400
+
+        # Resolve token_id from the raw token string when possible
+        token_id = None
+        if token_str:
+            if token_type == "friend":
+                _tok = InviteToken.query.filter_by(token=token_str).first()
+                token_id = _tok.id if _tok else None
+            else:
+                _tok = TripInviteToken.query.filter_by(token=token_str).first()
+                token_id = _tok.id if _tok else None
+
+        ua = (request.headers.get("User-Agent") or "")[:256]
+
+        evt = InviteShareEvent(
+            user_id    = current_user.id,
+            token_type = token_type,
+            token_id   = token_id,
+            token      = token_str or None,
+            action     = action,
+            source     = source,
+            user_agent = ua,
+        )
+        db.session.add(evt)
+        db.session.commit()
+
+        # PostHog supplemental event (supplemental only — admin panel reads DB)
+        try:
+            ph_analytics.track(current_user.id, "invite_share_intent", {
+                "token_type": token_type,
+                "action":     action,
+                "source":     source,
+            })
+        except Exception:
+            pass
+
+        # Founder push in background thread — plain scalars only, no ORM objects
+        _uid = current_user.id
+        _tt, _act, _src = token_type, action, source
+        def _fire_invite_push():
+            with app.app_context():
+                _send_founder_invite_share_push(_uid, _tt, _act, _src)
+        threading.Thread(target=_fire_invite_push, daemon=True).start()
+
+        app.logger.info(
+            "[invite_share] user_id=%d token_type=%s action=%s source=%s",
+            current_user.id, token_type, action, source,
+        )
+        return jsonify({"ok": True})
+
+    except Exception as _exc:
+        app.logger.exception("[invite_share] unhandled error: %s", _exc)
+        return jsonify({"ok": True})  # always 200 — never block the share UX
+
 
 @app.route("/api/friends/invite", methods=["POST"])
 @login_required
@@ -16738,7 +16923,8 @@ def admin_dashboard():
         Friend.created_at <  _pulse_yest_end,
     ).count() // 2
 
-    # 7. Invites Sent Today — friend Invitations + SkiTripParticipant INVITED rows
+    # 7a. In-App Invites Today — friend Invitations + SkiTripParticipant INVITED rows
+    #     (structured invites between users already in the system)
     p_finv_today = Invitation.query.filter(
         Invitation.created_at >= _pulse_today_start
     ).count()
@@ -16755,8 +16941,18 @@ def admin_dashboard():
         SkiTripParticipant.created_at <  _pulse_yest_end,
         SkiTripParticipant.status == GuestStatus.INVITED,
     ).count()
-    p_invites_today = p_finv_today + p_tinv_today
-    p_invites_yest  = p_finv_yest  + p_tinv_yest
+    p_in_app_invites_today = p_finv_today + p_tinv_today
+    p_in_app_invites_yest  = p_finv_yest  + p_tinv_yest
+
+    # 7b. Invite Shares Today — InviteShareEvent rows (copy/text/share_sheet intent)
+    #     Counts outbound share actions to non-users; independent of 7a.
+    p_invite_share_today = InviteShareEvent.query.filter(
+        InviteShareEvent.created_at >= _pulse_today_start,
+    ).count()
+    p_invite_share_yest  = InviteShareEvent.query.filter(
+        InviteShareEvent.created_at >= _pulse_yest_start,
+        InviteShareEvent.created_at <  _pulse_yest_end,
+    ).count()
 
     # 8. Pushes Delivered Today — channel='push', delivery_status='sent'
     # sent_at is nullable; fall back to created_at for rows that lack it.
@@ -16791,8 +16987,9 @@ def admin_dashboard():
         trips     = (p_trips_today,     _pulse_delta(p_trips_today,     p_trips_yest)),
         mtn_views = (p_mtn_views_today, _pulse_delta(p_mtn_views_today, p_mtn_views_yest)),
         friends   = (p_friends_today,   _pulse_delta(p_friends_today,   p_friends_yest)),
-        invites   = (p_invites_today,   _pulse_delta(p_invites_today,   p_invites_yest)),
-        pushes    = (p_pushes_today,    _pulse_delta(p_pushes_today,    p_pushes_yest)),
+        in_app_invites = (p_in_app_invites_today, _pulse_delta(p_in_app_invites_today, p_in_app_invites_yest)),
+        invite_share   = (p_invite_share_today,   _pulse_delta(p_invite_share_today,   p_invite_share_yest)),
+        pushes         = (p_pushes_today,          _pulse_delta(p_pushes_today,         p_pushes_yest)),
     )
     _dn = _admin_now()
     pulse_time = _dn.strftime("%H:%M") + " " + _dn.strftime("%Z")

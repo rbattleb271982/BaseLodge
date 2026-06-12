@@ -1,0 +1,259 @@
+Please implement reliable invite share tracking for BaseLodge admin metrics.
+
+Current State
+
+BaseLodge currently has invite tokens and invite acceptance tracking, but it does not track actual outbound share intent. The current admin "Invites Today" metric counts internal Invitation rows + SkiTripParticipant INVITED rows, not copy/text/share actions.
+
+Goal
+
+Add an "Invites Sent Today" metric based on user share intent actions:
+
+* Friend invite link copied
+* Friend invite opened via SMS/text
+* Trip invite link copied
+* Trip invite opened via native share sheet
+* Trip invite copied
+
+Important:
+
+This tracks share intent, not guaranteed message delivery. SMS and native share sheets cannot confirm the user actually sent the message.
+
+Implementation Preference
+
+Add a small local database table so the admin panel can query this directly.
+
+New Model
+
+InviteShareEvent
+
+Fields:
+
+* id
+* user_id
+* token_type: "friend" or "trip"
+* token_id: nullable integer
+* token: nullable string fallback
+* action: "copy" | "text" | "share_sheet"
+* source: "invite_page" | "friends_empty_state" | "trip_detail"
+* created_at
+* user_agent nullable
+* platform nullable if easy to capture
+
+Backend Endpoint
+
+Add:
+
+POST /api/invite/share
+
+Payload:
+
+{
+"token_type": "friend" | "trip",
+"token": "...",
+"action": "copy" | "text" | "share_sheet",
+"source": "invite_page" | "friends_empty_state" | "trip_detail"
+}
+
+Behavior:
+
+* Require login.
+* Validate action, source, and token_type.
+* Look up the token when possible:
+
+  * InviteToken for friend token_type
+  * TripInviteToken for trip token_type
+* Insert an InviteShareEvent row.
+* Also fire a PostHog/server analytics event if the existing analytics helper pattern supports it.
+* Return JSON success.
+* Do not block the frontend share/copy UX if the tracking request fails.
+
+Frontend Changes
+
+1. templates/invite.html
+
+Track:
+
+* Copy invite link
+* Invite via text
+
+2. templates/friends.html empty state
+
+Track:
+
+* Copy invite link
+* Invite via text
+
+3. templates/trip_detail.html
+
+Track:
+
+* blShareTrip()
+* blCopyInviteLink()
+
+Important Frontend Behavior
+
+* For copy actions, fire tracking before or after clipboard copy, but do not prevent copy if tracking fails.
+* For SMS/text links, add an onclick handler so tracking fires, then opens the sms: URL.
+* For navigator.share(), track "share_sheet" when the share sheet successfully completes.
+* If AbortError is caught, do not count it.
+* If browser limitations make this unreliable, document the exact behavior in comments.
+* Tracking should be completely invisible to the user and never interfere with sharing.
+
+Founder Push Notifications
+
+Also add founder-only push notifications whenever an InviteShareEvent is created.
+
+Requirement:
+
+When any InviteShareEvent is successfully recorded, send a founder-only push notification using the same pattern as existing founder notifications (new user, app open, etc.).
+
+Push Title
+
+Invite Sent
+
+Push Body Examples
+
+* John Smith sent a friend invite · copy link
+* John Smith sent a friend invite · text
+* John Smith sent a trip invite · share sheet
+* Someone sent a friend invite · copy link
+
+Optional Enhancements
+
+If easy:
+
+* Include state abbreviation:
+
+  * John Smith sent a friend invite · CO · text
+* Include source:
+
+  * John Smith sent a trip invite · trip detail · share sheet
+
+Rules
+
+* Only notify founder/admin recipients already used by existing founder push logic.
+* Do not notify normal users.
+* Do not block invite tracking if push sending fails.
+* Send push only after InviteShareEvent commit succeeds.
+* Wrap push sending in try/except with logging.
+* Reuse existing founder push helper functions if available.
+* If easy, prevent accidental duplicate pushes from rapid double-taps using an existing dedupe pattern. Otherwise document the behavior.
+
+Admin Panel Changes
+
+Add:
+
+Invites Sent Today
+
+Definition:
+
+Count of InviteShareEvent rows created since today's start.
+
+Keep the existing metric but rename it to avoid confusion:
+
+Current:
+
+* Invites Today
+
+Rename to:
+
+* In-App Invites Today
+  or
+* Internal Invites Today
+
+Definition:
+
+Existing Invitation + SkiTripParticipant invite counts.
+
+If there is already a Growth Dashboard pattern for L7/L30 metrics, also add:
+
+* Invites Sent L7
+* Invites Sent L30
+
+Otherwise only add:
+
+* Invites Sent Today
+
+Migration
+
+Add the new InviteShareEvent model/table and migration using the project's existing migration pattern.
+
+Do not modify or break:
+
+* InviteToken
+* TripInviteToken
+* Invitation
+* Friend
+* SkiTripParticipant
+
+PostHog
+
+If there is already a server-side analytics helper, also emit an event such as:
+
+invite_share_intent
+
+Properties:
+
+* token_type
+* action
+* source
+* user_id
+
+This is supplemental only. The admin dashboard should rely on the database table.
+
+Return
+
+Please provide:
+
+1. Files changed
+2. Database migration details
+3. New model definition
+4. Endpoint behavior
+5. Frontend changes
+6. Founder push implementation details
+7. Updated admin metric definitions
+8. QA checklist
+
+QA Checklist
+
+Friend Invite Flow
+
+* Copy invite link increments Invites Sent Today
+* Copy invite link sends founder push
+* Invite via text increments Invites Sent Today
+* Invite via text sends founder push
+
+Friends Empty State
+
+* Copy invite link increments Invites Sent Today
+* Invite via text increments Invites Sent Today
+* Founder push received
+
+Trip Invite Flow
+
+* Copy invite link increments Invites Sent Today
+* Native share increments Invites Sent Today when completed
+* Aborted share sheet does not increment if technically detectable
+* Founder push received
+
+Admin Metrics
+
+* Invites Sent Today reflects InviteShareEvent count
+* Existing internal invite metric still functions
+* Existing metric renamed appropriately
+
+Regression Tests
+
+* Friend invite acceptance still works
+* Trip invite acceptance still works
+* Existing InviteToken reuse behavior still works
+* Existing TripInviteToken behavior still works
+* Existing in-app trip invites still work
+* Existing push notifications still work
+
+Mobile
+
+* iOS app shell works
+* Android app shell works
+* Mobile web works
+* No share action is blocked if tracking fails

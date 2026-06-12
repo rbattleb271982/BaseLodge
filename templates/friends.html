@@ -268,10 +268,35 @@
     {% if invite_url %}
     var _inviteUrl = {{ invite_url | tojson }};
 
+    // Fire-and-forget tracking — never blocks or throws
+    function _trackFriendShare(action) {
+        try {
+            var token = _inviteUrl.split('/invite/')[1] || '';
+            fetch('/api/invite/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token_type: 'friend',
+                    token: token,
+                    action: action,
+                    source: 'friends_empty_state'
+                }),
+                keepalive: true
+            }).catch(function() {});
+        } catch(e) {}
+    }
+
+    // "Invite via text" sms: links — track on click before OS opens SMS.
+    // We can only record intent; we cannot confirm the message was sent.
+    document.querySelectorAll('a[href^="sms:"]').forEach(function(el) {
+        el.addEventListener('click', function() { _trackFriendShare('text'); });
+    });
+
     function copyInviteLink(btn) {
         var orig = btn.textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(_inviteUrl).then(function () {
+                _trackFriendShare('copy');
                 btn.textContent = 'Copied!';
                 setTimeout(function () { btn.textContent = orig; }, 2000);
             }).catch(function () { _fallbackCopy(_inviteUrl, btn, orig); });
@@ -285,7 +310,10 @@
         el.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
         document.body.appendChild(el);
         el.focus(); el.select();
-        try { document.execCommand('copy'); } catch (e) {}
+        try {
+            document.execCommand('copy');
+            _trackFriendShare('copy');
+        } catch (e) {}
         document.body.removeChild(el);
         btn.textContent = 'Copied!';
         setTimeout(function () { btn.textContent = orig; }, 2000);
