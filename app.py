@@ -2931,9 +2931,26 @@ def auth():
         elif form_type == "login":
             email = request.form.get("email", "").lower().strip()
             password = request.form.get("password", "")
-            
+
             user = User.query.filter_by(email=email).first()
-            if user and user.check_password(password):
+
+            # ── Diagnostic logging (safe — no passwords or full hashes) ────────
+            _ua = (request.user_agent.string or "")[:160] if request.user_agent else ""
+            _hash_prefix = (user.password_hash or "")[:12] if user else ""
+            _check = user.check_password(password) if user else False
+            app.logger.info(
+                "[login_attempt] email_found=%s has_password=%s auth_provider=%s "
+                "hash_prefix=%s check_ok=%s ua=%.120s",
+                user is not None,
+                bool(user.password_hash) if user else None,
+                user.auth_provider if user else None,
+                _hash_prefix,
+                _check,
+                _ua,
+            )
+            # ────────────────────────────────────────────────────────────────────
+
+            if user and _check:
                 user.last_active_at = datetime.utcnow()
                 login_user(user, remember=True)
                 session['_last_active_stamp'] = time.time()
@@ -2965,7 +2982,7 @@ def auth():
                     return redirect(_post_login)
 
                 return redirect(url_for("home"))
-            
+
             flash("Invalid email or password.", "error")
             ph_analytics.track(None, 'auth_error', {'error_type': 'invalid_credentials'})
 
