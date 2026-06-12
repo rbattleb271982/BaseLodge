@@ -751,47 +751,64 @@ def before_request_handlers():
     # thread so it never delays the response.  Excluded for: admin/founder user,
     # seeded accounts, static/api/admin/download/auth/invite routes.
     # Enable: set FOUNDER_APP_OPEN_PUSH_ENABLED=true in environment variables.
-    if (os.environ.get("FOUNDER_APP_OPEN_PUSH_ENABLED", "").lower() == "true"
-            and current_user.is_authenticated
-            and not getattr(current_user, "is_seeded", False)):
-        _fop_path = request.path
-        _fop_skip = (
-            _fop_path.startswith("/static/") or
-            _fop_path.startswith("/api/") or
-            _fop_path.startswith("/admin/") or
-            _fop_path.startswith("/download") or
-            _fop_path.startswith("/auth/") or
-            _fop_path.startswith("/invite/") or
-            _fop_path.startswith("/trip-invite/") or
-            _fop_path.startswith("/connect/") or
-            _fop_path.startswith("/debug/") or
-            _fop_path.startswith("/reset-password/") or
-            _fop_path in ("/forgot-password", "/logout", "/robots.txt",
-                          "/sitemap.xml", "/privacypolicy", "/termsandconditions",
-                          "/favicon.ico")
-        )
-        if not _fop_skip:
-            # Skip if this user IS the founder/admin recipient
-            _admin_emails_fop = {
-                e.strip().lower()
-                for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
-                if e.strip()
-            }
-            _is_founder = current_user.email.lower() in _admin_emails_fop
-            if not _is_founder:
-                # Throttle: one push per user per Denver calendar day
-                _denver_today = _admin_now().strftime("%Y-%m-%d")
-                _session_key  = f"_fop_{current_user.id}"
-                if session.get(_session_key) != _denver_today:
-                    session[_session_key] = _denver_today
-                    session.modified = True
-                    # Capture values before handing off to the thread
-                    _fop_user_obj   = current_user._get_current_object()
-                    _fop_app        = app._get_current_object()
-                    def _fire_fop(u=_fop_user_obj, a=_fop_app):
-                        with a.app_context():
-                            send_founder_app_open_push(u)
-                    threading.Thread(target=_fire_fop, daemon=True).start()
+    if current_user.is_authenticated:
+        if os.environ.get("FOUNDER_APP_OPEN_PUSH_ENABLED", "").lower() != "true":
+            pass  # feature off — no log (too noisy per-request)
+        elif getattr(current_user, "is_seeded", False):
+            pass  # seeded/demo account — skip silently
+        else:
+            _fop_path = request.path
+            _fop_skip = (
+                _fop_path.startswith("/static/") or
+                _fop_path.startswith("/api/") or
+                _fop_path.startswith("/admin/") or
+                _fop_path.startswith("/download") or
+                _fop_path.startswith("/auth/") or
+                _fop_path.startswith("/invite/") or
+                _fop_path.startswith("/trip-invite/") or
+                _fop_path.startswith("/connect/") or
+                _fop_path.startswith("/debug/") or
+                _fop_path.startswith("/reset-password/") or
+                _fop_path in ("/forgot-password", "/logout", "/robots.txt",
+                              "/sitemap.xml", "/privacypolicy", "/termsandconditions",
+                              "/favicon.ico")
+            )
+            if not _fop_skip:
+                # Skip if this user IS the founder/admin recipient
+                _admin_emails_fop = {
+                    e.strip().lower()
+                    for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
+                    if e.strip()
+                }
+                _is_founder = current_user.email.lower() in _admin_emails_fop
+                if _is_founder:
+                    app.logger.debug(
+                        "[founder_app_open_push] user_id=%d sent=False reason=founder_user",
+                        current_user.id,
+                    )
+                else:
+                    # Throttle: one push per user per Denver calendar day
+                    _denver_today = _admin_now().strftime("%Y-%m-%d")
+                    _session_key  = f"_fop_{current_user.id}"
+                    if session.get(_session_key) == _denver_today:
+                        app.logger.debug(
+                            "[founder_app_open_push] user_id=%d sent=False reason=throttled_today date=%s",
+                            current_user.id, _denver_today,
+                        )
+                    else:
+                        session[_session_key] = _denver_today
+                        session.modified = True
+                        # Pass plain int — avoids DetachedInstanceError in thread
+                        _fop_uid = current_user.id
+                        _fop_app = app._get_current_object()
+                        def _fire_fop(uid=_fop_uid, a=_fop_app):
+                            with a.app_context():
+                                send_founder_app_open_push(uid)
+                        threading.Thread(target=_fire_fop, daemon=True).start()
+                        app.logger.warning(
+                            "[founder_app_open_push] user_id=%d sent=pending reason=thread_started path=%s",
+                            current_user.id, _fop_path,
+                        )
 
     # ── Navigation timing (BL_NAV_DEBUG) ─────────────────────────────────────
     # Records wall-clock start and initialises a per-request query counter.
@@ -3096,22 +3113,27 @@ def send_founder_new_user_push(new_user):
         app.logger.exception("[FounderAlert] unexpected error — onboarding not affected: %s", _exc)
 
 
-def send_founder_app_open_push(user):
+def send_founder_app_open_push(user_id):
     """Send a founder-only push to richard when a real user opens BaseLodge.
 
-    Throttled to at most once per user per day (Denver time) via session key
-    `_founder_open_push_date`.  Fires in a background thread so it adds zero
-    latency to the request.  Feature-flagged via FOUNDER_APP_OPEN_PUSH_ENABLED
-    env var ("true" to enable, anything else = disabled).
+    Accepts a plain integer user_id so it is safe to call from a background
+    thread with its own app context — no SQLAlchemy detached-instance issues.
+    Does its own fresh DB lookup inside the function.
 
     Never raises — all exceptions are caught and logged.
     """
     try:
         from services.push_providers import send_onesignal_push as _os_push
 
+        # Fresh lookup — safe inside a new app context
+        user = db.session.get(User, user_id)
+        if not user:
+            app.logger.warning("[founder_app_open_push] user_id=%d sent=False reason=user_not_found", user_id)
+            return
+
         richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
         if not richard:
-            app.logger.warning("[founder_app_open_push] user_id=%d sent=False reason=richard_not_found", user.id)
+            app.logger.warning("[founder_app_open_push] user_id=%d sent=False reason=no_founder_account", user_id)
             return
 
         first = (user.first_name or "").strip()
@@ -3127,12 +3149,27 @@ def send_founder_app_open_push(user):
             body = "Someone opened BaseLodge"
 
         result = _os_push([richard.id], "BaseLodge Opened", body)
-        app.logger.warning(
-            "[founder_app_open_push] user_id=%d sent=%s skipped=%s error=%s",
-            user.id, result.get("success"), result.get("skipped"), result.get("error"),
-        )
+
+        if result.get("success"):
+            app.logger.warning(
+                "[founder_app_open_push] user_id=%d sent=True reason=sent body=%r",
+                user_id, body,
+            )
+        elif result.get("skipped"):
+            app.logger.warning(
+                "[founder_app_open_push] user_id=%d sent=False reason=no_push_token skipped_reason=%s",
+                user_id, result.get("skipped_reason"),
+            )
+        else:
+            app.logger.warning(
+                "[founder_app_open_push] user_id=%d sent=False reason=push_error error=%s",
+                user_id, result.get("error"),
+            )
     except Exception as _exc:
-        app.logger.exception("[founder_app_open_push] user_id=%d sent=False reason=exception: %s", user.id, _exc)
+        app.logger.exception(
+            "[founder_app_open_push] user_id=%d sent=False reason=exception error=%s",
+            user_id, _exc,
+        )
 
 
 @app.route("/onboarding", methods=["GET", "POST"])
@@ -20032,6 +20069,94 @@ def admin_api_new_users_today():
             "created_at": u.created_at.isoformat() if u.created_at else None,
         })
     return jsonify(result)
+
+
+@app.route("/admin/test-founder-app-open-push", methods=["POST"])
+@login_required
+@admin_required
+def admin_test_founder_app_open_push():
+    """Simulate the app-open founder push for a given user_id.
+
+    POST /admin/test-founder-app-open-push?user_id=42
+
+    Returns JSON describing every gate check so you can see exactly why
+    a push would or would not send — without touching session throttle state.
+    """
+    user_id = request.args.get("user_id", type=int)
+    if not user_id:
+        return jsonify({"error": "user_id query param required (e.g. ?user_id=42)"}), 400
+
+    # ── Gate 1: feature flag ──────────────────────────────────────────────────
+    enabled = os.environ.get("FOUNDER_APP_OPEN_PUSH_ENABLED", "").lower() == "true"
+    if not enabled:
+        return jsonify({
+            "sent": False,
+            "reason": "feature_disabled",
+            "fix": "Set FOUNDER_APP_OPEN_PUSH_ENABLED=true in Secrets / environment variables",
+        })
+
+    # ── Gate 2: user exists ───────────────────────────────────────────────────
+    user = db.session.get(User, user_id)
+    if not user:
+        return jsonify({"sent": False, "reason": "user_not_found", "user_id": user_id}), 404
+
+    # ── Gate 3: not seeded ────────────────────────────────────────────────────
+    if getattr(user, "is_seeded", False):
+        return jsonify({"sent": False, "reason": "seeded_user", "user_id": user_id})
+
+    # ── Gate 4: not a founder/admin ───────────────────────────────────────────
+    admin_emails = {
+        e.strip().lower()
+        for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
+        if e.strip()
+    }
+    if user.email.lower() in admin_emails:
+        return jsonify({
+            "sent": False,
+            "reason": "founder_user",
+            "email": user.email,
+            "note": "This is the founder account — it is intentionally excluded",
+        })
+
+    # ── Gate 5: founder (richard) has a push token ────────────────────────────
+    richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+    if not richard:
+        return jsonify({"sent": False, "reason": "no_founder_account"})
+
+    # ── All gates passed — fire synchronously so we get the result inline ─────
+    try:
+        from services.push_providers import send_onesignal_push as _os_push
+
+        first = (user.first_name or "").strip()
+        last  = (user.last_name  or "").strip()
+        name  = (first + " " + last).strip()
+        state = (user.home_state or "").strip()
+
+        if name and state:
+            body = f"{name} opened the app · {state}"
+        elif name:
+            body = f"{name} opened the app"
+        else:
+            body = "Someone opened BaseLodge"
+
+        result = _os_push([richard.id], "BaseLodge Opened", body)
+        app.logger.warning(
+            "[founder_app_open_push] TEST user_id=%d sent=%s skipped=%s error=%s body=%r",
+            user_id, result.get("success"), result.get("skipped"), result.get("error"), body,
+        )
+        return jsonify({
+            "sent":              result.get("success", False),
+            "skipped":           result.get("skipped"),
+            "skipped_reason":    result.get("skipped_reason"),
+            "push_error":        result.get("error"),
+            "push_body":         body,
+            "richard_id":        richard.id,
+            "user_id":           user_id,
+            "note":              "Session throttle NOT updated — safe to call multiple times for QA",
+        })
+    except Exception as exc:
+        app.logger.exception("[founder_app_open_push] TEST error: %s", exc)
+        return jsonify({"sent": False, "reason": "exception", "error": str(exc)}), 500
 
 
 @app.route("/admin/test-founder-signup-push", methods=["POST"])
