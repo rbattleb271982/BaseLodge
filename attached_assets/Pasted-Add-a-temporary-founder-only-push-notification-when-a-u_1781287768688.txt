@@ -1,0 +1,60 @@
+Add a temporary founder-only push notification when a user opens the app.
+
+Goal:
+I currently receive a founder push notification when someone creates a new account. I want a similar notification anytime someone opens BaseLodge, just for this early launch period. This should be founder-only and easy to disable later.
+
+Requirements:
+
+1. Trigger
+- Fire when a logged-in user opens/loads the app.
+- Use the best existing “app open” or session-start event if one already exists.
+- If there is already logic tracking sessions today / active today / last_active_at, hook into that instead of creating duplicate tracking.
+- Do not trigger for anonymous visitors, static assets, health checks, admin pages, or QR/download pages.
+
+2. Recipient
+- Send only to the founder/admin push recipient currently used for new-user signup alerts.
+- Do not send this notification to normal users.
+
+3. Throttling
+- Avoid spam from the same user.
+- Send at most one app-open push per user per day, using Denver time if the app already uses Denver time for founder metrics.
+- If easier, add a feature flag or env var:
+  FOUNDER_APP_OPEN_PUSH_ENABLED=true
+- Make it easy to turn off later.
+
+4. Message content
+Push title:
+BaseLodge Opened
+
+Push body:
+{name} opened the app · {state if available}
+
+Fallback body if name/state missing:
+Someone opened BaseLodge
+
+5. Exclusions
+Do not send for:
+- The founder/admin account opening the app
+- Admin routes
+- /download
+- /download/qr
+- Invite landing pages if they are not logged in
+- Background requests like analytics, static files, assets, favicon, health checks
+
+6. Safety
+- Do not create duplicate push tokens.
+- Do not affect normal user push notifications.
+- Do not slow down app load noticeably.
+- If push sending fails, log it but do not block the user.
+
+7. Admin visibility
+- Add safe logging:
+  [founder_app_open_push] user_id=... sent=True/False reason=...
+- Optional: add a simple counter to Founder Pulse later, but do not build a full dashboard unless it already exists.
+
+Return:
+- Where the trigger was added
+- How throttling is stored
+- How to disable it
+- Test route or QA steps
+- Confirmation that normal users do not receive these pushes

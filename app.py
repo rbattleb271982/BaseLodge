@@ -19,6 +19,7 @@ import os
 import secrets
 import time
 import json
+import threading
 import jwt
 import httpx
 from datetime import datetime, date, timedelta, timezone
@@ -744,6 +745,53 @@ def before_request_handlers():
                 session.modified = True
             except Exception:
                 db.session.rollback()
+
+    # ── Founder app-open push (throttled, feature-flagged) ────────────────────
+    # Fires at most once per user per day (Denver time).  Runs in a background
+    # thread so it never delays the response.  Excluded for: admin/founder user,
+    # seeded accounts, static/api/admin/download/auth/invite routes.
+    # Enable: set FOUNDER_APP_OPEN_PUSH_ENABLED=true in environment variables.
+    if (os.environ.get("FOUNDER_APP_OPEN_PUSH_ENABLED", "").lower() == "true"
+            and current_user.is_authenticated
+            and not getattr(current_user, "is_seeded", False)):
+        _fop_path = request.path
+        _fop_skip = (
+            _fop_path.startswith("/static/") or
+            _fop_path.startswith("/api/") or
+            _fop_path.startswith("/admin/") or
+            _fop_path.startswith("/download") or
+            _fop_path.startswith("/auth/") or
+            _fop_path.startswith("/invite/") or
+            _fop_path.startswith("/trip-invite/") or
+            _fop_path.startswith("/connect/") or
+            _fop_path.startswith("/debug/") or
+            _fop_path.startswith("/reset-password/") or
+            _fop_path in ("/forgot-password", "/logout", "/robots.txt",
+                          "/sitemap.xml", "/privacypolicy", "/termsandconditions",
+                          "/favicon.ico")
+        )
+        if not _fop_skip:
+            # Skip if this user IS the founder/admin recipient
+            _admin_emails_fop = {
+                e.strip().lower()
+                for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
+                if e.strip()
+            }
+            _is_founder = current_user.email.lower() in _admin_emails_fop
+            if not _is_founder:
+                # Throttle: one push per user per Denver calendar day
+                _denver_today = _admin_now().strftime("%Y-%m-%d")
+                _session_key  = f"_fop_{current_user.id}"
+                if session.get(_session_key) != _denver_today:
+                    session[_session_key] = _denver_today
+                    session.modified = True
+                    # Capture values before handing off to the thread
+                    _fop_user_obj   = current_user._get_current_object()
+                    _fop_app        = app._get_current_object()
+                    def _fire_fop(u=_fop_user_obj, a=_fop_app):
+                        with a.app_context():
+                            send_founder_app_open_push(u)
+                    threading.Thread(target=_fire_fop, daemon=True).start()
 
     # ── Navigation timing (BL_NAV_DEBUG) ─────────────────────────────────────
     # Records wall-clock start and initialises a per-request query counter.
@@ -3046,6 +3094,45 @@ def send_founder_new_user_push(new_user):
         )
     except Exception as _exc:
         app.logger.exception("[FounderAlert] unexpected error — onboarding not affected: %s", _exc)
+
+
+def send_founder_app_open_push(user):
+    """Send a founder-only push to richard when a real user opens BaseLodge.
+
+    Throttled to at most once per user per day (Denver time) via session key
+    `_founder_open_push_date`.  Fires in a background thread so it adds zero
+    latency to the request.  Feature-flagged via FOUNDER_APP_OPEN_PUSH_ENABLED
+    env var ("true" to enable, anything else = disabled).
+
+    Never raises — all exceptions are caught and logged.
+    """
+    try:
+        from services.push_providers import send_onesignal_push as _os_push
+
+        richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
+        if not richard:
+            app.logger.warning("[founder_app_open_push] user_id=%d sent=False reason=richard_not_found", user.id)
+            return
+
+        first = (user.first_name or "").strip()
+        last  = (user.last_name  or "").strip()
+        name  = (first + " " + last).strip()
+        state = (user.home_state or "").strip()
+
+        if name and state:
+            body = f"{name} opened the app · {state}"
+        elif name:
+            body = f"{name} opened the app"
+        else:
+            body = "Someone opened BaseLodge"
+
+        result = _os_push([richard.id], "BaseLodge Opened", body)
+        app.logger.warning(
+            "[founder_app_open_push] user_id=%d sent=%s skipped=%s error=%s",
+            user.id, result.get("success"), result.get("skipped"), result.get("error"),
+        )
+    except Exception as _exc:
+        app.logger.exception("[founder_app_open_push] user_id=%d sent=False reason=exception: %s", user.id, _exc)
 
 
 @app.route("/onboarding", methods=["GET", "POST"])
