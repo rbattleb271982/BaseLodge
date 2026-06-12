@@ -3091,9 +3091,18 @@ def send_founder_app_open_push(user_id):
         last  = (user.last_name  or "").strip()
         name  = (first + " " + last).strip()
         state = (user.home_state or "").strip()
+        lc    = user.login_count or 0  # 0 / None treated as unknown
 
-        if name and state:
-            body = f"{name} opened the app · {state}"
+        def _ordinal(n):
+            if 11 <= (n % 100) <= 13:          # 11th, 12th, 13th
+                return f"{n}th"
+            return f"{n}{['th','st','nd','rd','th','th','th','th','th','th'][n % 10]}"
+
+        login_suffix = f"{_ordinal(lc)} login" if lc > 0 else ""
+
+        parts = [p for p in [state, login_suffix] if p]
+        if name and parts:
+            body = f"{name} opened the app · {' · '.join(parts)}"
         elif name:
             body = f"{name} opened the app"
         else:
@@ -3103,8 +3112,8 @@ def send_founder_app_open_push(user_id):
 
         if result.get("success"):
             app.logger.warning(
-                "[founder_app_open_push] user_id=%d sent=True reason=sent body=%r",
-                user_id, body,
+                "[founder_app_open_push] user_id=%d login_count=%d sent=True reason=sent body=%r",
+                user_id, lc, body,
             )
         elif result.get("skipped"):
             app.logger.warning(
