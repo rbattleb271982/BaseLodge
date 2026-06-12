@@ -3166,10 +3166,10 @@ def _queue_founder_login_push(user_id, user_email):
             return
         _FOP_THROTTLE[user_id] = _today
 
-        # All gates passed — fire in a background thread (user_id is a plain int)
-        _app = app._get_current_object()
-        def _fire(uid=user_id, a=_app):
-            with a.app_context():
+        # All gates passed — fire in a background thread (user_id is a plain int).
+        # app is the real Flask instance at module level — no _get_current_object() needed.
+        def _fire(uid=user_id):
+            with app.app_context():
                 send_founder_app_open_push(uid)
         threading.Thread(target=_fire, daemon=True).start()
         app.logger.warning(
