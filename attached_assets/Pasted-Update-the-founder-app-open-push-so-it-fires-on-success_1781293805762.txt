@@ -1,0 +1,74 @@
+Update the founder app-open push so it fires on successful login.
+
+Context:
+I already receive founder-only push notifications when someone creates a new account. I also added a temporary founder app-open push, but it did not fire reliably from the general app-open/page-load flow.
+
+New goal:
+Any time a non-admin user successfully logs into BaseLodge, send me a founder-only push notification. Treat successful login as the “app opened” moment.
+
+Requirements:
+
+1. Trigger
+- Move or add the trigger immediately after successful email/password login.
+- Fire only after the user session is successfully created.
+- If there are multiple login methods, check all successful login paths and add it wherever needed.
+- Do not rely on before_request/page-load behavior for this notification.
+
+2. Recipient
+- Send only to the founder/admin push recipient currently used for new-user signup alerts.
+- Do not send this notification to normal users.
+
+3. Exclusions
+Do not send when:
+- The founder/admin logs in
+- The user is anonymous
+- The login fails
+- The request is for admin, static assets, /download, /download/qr, invite pages, health checks, or background requests
+
+4. Throttling
+- Keep once-per-user-per-Denver-day throttling.
+- If the same user logs in multiple times in the same Denver day, send only once.
+- Keep or add feature flag:
+  FOUNDER_APP_OPEN_PUSH_ENABLED=true
+
+5. Push content
+Title:
+BaseLodge Opened
+
+Body:
+{name} opened the app · {state if available}
+
+Fallback body:
+Someone opened BaseLodge
+
+6. Logging
+Add clear logs for every decision:
+[founder_app_open_push] user_id=... sent=True reason=login_success
+[founder_app_open_push] user_id=... sent=False reason=feature_disabled
+[founder_app_open_push] user_id=... sent=False reason=throttled_today
+[founder_app_open_push] user_id=... sent=False reason=founder_user
+[founder_app_open_push] user_id=... sent=False reason=no_founder_token
+[founder_app_open_push] user_id=... sent=False reason=push_error error=...
+
+7. Safety
+- Do not pass SQLAlchemy ORM objects into background threads.
+- Pass only user_id into any background worker/thread.
+- Re-query the user inside the thread/app_context.
+- Do not log passwords, tokens, or full password hashes.
+- If the push fails, log it but do not block login.
+
+8. Cleanup
+- Confirm whether the old before_request app-open push should be removed or disabled to avoid duplicate notifications.
+- The final behavior should be login-based, not page-load-based.
+
+9. QA
+Add or verify an admin-only test route if helpful:
+POST /admin/test-founder-app-open-push?user_id=<NON_ADMIN_USER_ID>
+
+Return:
+- Exact file/function changed
+- Whether old before_request trigger was removed/disabled
+- How throttling is stored
+- How to disable the feature later
+- QA steps to confirm it works
+- Whether redeploy is required

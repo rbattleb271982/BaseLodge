@@ -36,6 +36,11 @@ from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDI
 # ── Admin timezone helpers — America/Denver display ───────────────────────────
 _ADMIN_TZ = ZoneInfo("America/Denver")
 
+# ── Founder login-alert throttle cache ────────────────────────────────────────
+# Maps user_id → Denver date string ("YYYY-MM-DD").  Resets on server restart.
+# Used by _queue_founder_login_push to suppress duplicate pushes within a day.
+_FOP_THROTTLE: dict = {}
+
 def _admin_now():
     """Current datetime in America/Denver (timezone-aware)."""
     return datetime.now(tz=_ADMIN_TZ)
@@ -746,69 +751,10 @@ def before_request_handlers():
             except Exception:
                 db.session.rollback()
 
-    # ── Founder app-open push (throttled, feature-flagged) ────────────────────
-    # Fires at most once per user per day (Denver time).  Runs in a background
-    # thread so it never delays the response.  Excluded for: admin/founder user,
-    # seeded accounts, static/api/admin/download/auth/invite routes.
-    # Enable: set FOUNDER_APP_OPEN_PUSH_ENABLED=true in environment variables.
-    if current_user.is_authenticated:
-        if os.environ.get("FOUNDER_APP_OPEN_PUSH_ENABLED", "").lower() != "true":
-            pass  # feature off — no log (too noisy per-request)
-        elif getattr(current_user, "is_seeded", False):
-            pass  # seeded/demo account — skip silently
-        else:
-            _fop_path = request.path
-            _fop_skip = (
-                _fop_path.startswith("/static/") or
-                _fop_path.startswith("/api/") or
-                _fop_path.startswith("/admin/") or
-                _fop_path.startswith("/download") or
-                _fop_path.startswith("/auth/") or
-                _fop_path.startswith("/invite/") or
-                _fop_path.startswith("/trip-invite/") or
-                _fop_path.startswith("/connect/") or
-                _fop_path.startswith("/debug/") or
-                _fop_path.startswith("/reset-password/") or
-                _fop_path in ("/forgot-password", "/logout", "/robots.txt",
-                              "/sitemap.xml", "/privacypolicy", "/termsandconditions",
-                              "/favicon.ico")
-            )
-            if not _fop_skip:
-                # Skip if this user IS the founder/admin recipient
-                _admin_emails_fop = {
-                    e.strip().lower()
-                    for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
-                    if e.strip()
-                }
-                _is_founder = current_user.email.lower() in _admin_emails_fop
-                if _is_founder:
-                    app.logger.debug(
-                        "[founder_app_open_push] user_id=%d sent=False reason=founder_user",
-                        current_user.id,
-                    )
-                else:
-                    # Throttle: one push per user per Denver calendar day
-                    _denver_today = _admin_now().strftime("%Y-%m-%d")
-                    _session_key  = f"_fop_{current_user.id}"
-                    if session.get(_session_key) == _denver_today:
-                        app.logger.debug(
-                            "[founder_app_open_push] user_id=%d sent=False reason=throttled_today date=%s",
-                            current_user.id, _denver_today,
-                        )
-                    else:
-                        session[_session_key] = _denver_today
-                        session.modified = True
-                        # Pass plain int — avoids DetachedInstanceError in thread
-                        _fop_uid = current_user.id
-                        _fop_app = app._get_current_object()
-                        def _fire_fop(uid=_fop_uid, a=_fop_app):
-                            with a.app_context():
-                                send_founder_app_open_push(uid)
-                        threading.Thread(target=_fire_fop, daemon=True).start()
-                        app.logger.warning(
-                            "[founder_app_open_push] user_id=%d sent=pending reason=thread_started path=%s",
-                            current_user.id, _fop_path,
-                        )
+    # ── Founder login-alert push ───────────────────────────────────────────────
+    # Moved to login paths (email, Google OAuth, password-reset).
+    # _queue_founder_login_push() is called immediately after login_user()
+    # in each of those handlers — see routes around /auth and /auth/google/callback.
 
     # ── Navigation timing (BL_NAV_DEBUG) ─────────────────────────────────────
     # Records wall-clock start and initialises a per-request query counter.
@@ -2859,6 +2805,8 @@ def reset_password(token=None):
         db.session.commit()
 
         login_user(user)
+        # Founder login alert (non-blocking, throttled to 1×/user/day)
+        _queue_founder_login_push(user.id, user.email)
         flash("Your password has been reset.", "success")
 
         # Consume pending invite if user arrived via an invite link
@@ -3030,6 +2978,9 @@ def auth():
                 )
                 ph_analytics.track(user.id, 'login_completed', {'method': 'email'})
 
+                # Founder login alert (non-blocking, throttled to 1×/user/day)
+                _queue_founder_login_push(user.id, user.email)
+
                 # Connect with inviter if coming from friend invite link
                 if "invite_token" in session:
                     connected = _connect_pending_inviter(user)
@@ -3169,6 +3120,65 @@ def send_founder_app_open_push(user_id):
         app.logger.exception(
             "[founder_app_open_push] user_id=%d sent=False reason=exception error=%s",
             user_id, _exc,
+        )
+
+
+def _queue_founder_login_push(user_id, user_email):
+    """Check all gates and fire send_founder_app_open_push in a background thread.
+
+    Called immediately after login_user() at every successful login path.
+    Uses module-level _FOP_THROTTLE dict (keyed by user_id, value = Denver date
+    string) so the once-per-day limit survives across multiple page loads within
+    the same server process.  Resets on server restart.
+
+    Args:
+        user_id   (int): plain integer — safe to cross thread boundaries.
+        user_email (str): used only for founder exclusion check.
+
+    Never raises — all exceptions are caught and logged.
+    """
+    try:
+        # Gate 1: feature flag
+        if os.environ.get("FOUNDER_APP_OPEN_PUSH_ENABLED", "").lower() != "true":
+            # Silent — logging every login when feature is off would be too noisy
+            return
+
+        # Gate 2: founder / admin exclusion
+        _admin_set = {
+            e.strip().lower()
+            for e in os.environ.get("ALLOWED_ADMIN_EMAILS", "").split(",")
+            if e.strip()
+        }
+        if (user_email or "").lower() in _admin_set:
+            app.logger.debug(
+                "[founder_app_open_push] user_id=%d sent=False reason=founder_user",
+                user_id,
+            )
+            return
+
+        # Gate 3: once per user per Denver calendar day (in-memory)
+        _today = _admin_now().strftime("%Y-%m-%d")
+        if _FOP_THROTTLE.get(user_id) == _today:
+            app.logger.warning(
+                "[founder_app_open_push] user_id=%d sent=False reason=throttled_today date=%s",
+                user_id, _today,
+            )
+            return
+        _FOP_THROTTLE[user_id] = _today
+
+        # All gates passed — fire in a background thread (user_id is a plain int)
+        _app = app._get_current_object()
+        def _fire(uid=user_id, a=_app):
+            with a.app_context():
+                send_founder_app_open_push(uid)
+        threading.Thread(target=_fire, daemon=True).start()
+        app.logger.warning(
+            "[founder_app_open_push] user_id=%d sent=pending reason=login_success",
+            user_id,
+        )
+    except Exception as _exc:
+        app.logger.exception(
+            "[founder_app_open_push] user_id=%d gate_error=%s", user_id, _exc,
         )
 
 
@@ -11638,6 +11648,9 @@ def auth_google_callback():
         login_user(user, remember=True)
         session['_last_active_stamp'] = time.time()
         session.modified = True
+
+        # Founder login alert (non-blocking, throttled to 1×/user/day)
+        _queue_founder_login_push(user.id, user.email)
 
         if "invite_token" in session:
             session["post_onboarding_redirect"] = url_for("friends")
