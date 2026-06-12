@@ -786,6 +786,7 @@ def before_request_handlers():
             path == "/sitemap.xml" or
             path == "/privacypolicy" or
             path == "/termsandconditions" or
+            path.startswith("/download") or
             request.endpoint in {"health_check"}):
         return None
 
@@ -15586,6 +15587,31 @@ def admin_resorts_duplicates():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/download")
+def download_page():
+    """
+    Public download page — no login required.
+    iOS/iPadOS users are redirected to the App Store.
+    Android users are redirected to Google Play.
+    Desktop / unknown browsers see a page with both store buttons.
+    """
+    _APP_STORE_URL  = "https://apps.apple.com/us/app/baselodge/id6764206581"
+    _PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.baselodgeapp.com&pli=1"
+
+    ua = (request.user_agent.string or "").lower()
+    if any(t in ua for t in ("iphone", "ipad", "ipod")):
+        return redirect(_APP_STORE_URL, code=302)
+    if "android" in ua:
+        return redirect(_PLAY_STORE_URL, code=302)
+    return render_template("download.html")
+
+
+@app.route("/download/qr")
+def download_qr():
+    """Public QR code preview page — no login required."""
+    return render_template("download_qr.html")
 
 
 @app.route("/privacypolicy")
