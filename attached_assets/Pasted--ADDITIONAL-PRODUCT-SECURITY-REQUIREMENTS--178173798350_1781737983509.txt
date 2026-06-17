@@ -1,0 +1,95 @@
+--------------------------------------------------
+ADDITIONAL PRODUCT & SECURITY REQUIREMENTS
+--------------------------------------------------
+
+Regardless of root cause, I want recommendations for how to guarantee the following:
+
+REQUIREMENT 1 — INVITE LINKS MUST NEVER AUTHENTICATE A USER
+
+A user should NEVER be able to become authenticated as another user because of:
+
+- friend invite links
+- trip invite links
+- shared links
+- deep links
+- push notifications
+- onboarding links
+- referral links
+
+Investigate every invite flow and answer:
+
+1. Can an invite link ever authenticate a user?
+2. Can an invite link ever restore a user session?
+3. Can an invite link ever attach another user's identity to the current session?
+4. Can an invite link ever cause current_user to change?
+5. Can an invite link ever bypass login?
+
+Provide evidence.
+
+Then provide recommendations for hardening.
+
+Goal:
+
+No invite link should ever have the ability to:
+- log a user in
+- switch users
+- restore another user's session
+- impersonate another user
+
+A user must always authenticate independently using their own account.
+
+--------------------------------------------------
+REQUIREMENT 2 — BETA USERS MUST RETAIN ACCESS
+
+A user who participated in beta should be able to install the App Store version and continue using their existing account.
+
+Investigate:
+
+1. Do beta users and App Store users share:
+   - database
+   - authentication system
+   - accounts
+   - sessions
+
+2. Should a beta user ever need to create a new account?
+
+3. Under what conditions would a beta user be forced to create a new account?
+
+4. Are there any:
+   - TestFlight migration issues
+   - bundle identifier issues
+   - OAuth issues
+   - account continuity issues
+   - email matching issues
+
+that could prevent a beta user from accessing their existing account?
+
+5. Using Danielle specifically:
+   - Did Danielle have a valid beta account?
+   - If yes, why was she not able to use it?
+   - If no, why did she believe she had one?
+
+Provide evidence.
+
+--------------------------------------------------
+REQUIREMENT 3 — ACCOUNT OWNERSHIP GUARANTEE
+
+Design a recommended architecture (do not implement) that guarantees:
+
+- A user can only access their own account.
+- Remember-me sessions cannot accidentally transfer between users.
+- Device transfers cannot restore another user's identity.
+- TestFlight → App Store transitions cannot authenticate the wrong user.
+- Invite links remain unauthenticated until the user explicitly signs in.
+- Existing beta users retain access to their accounts.
+
+Include:
+
+- recommended session architecture
+- recommended remember-me architecture
+- recommended logout behavior
+- recommended App Store migration behavior
+- recommended invite-link behavior
+- recommended logging and audit trail improvements
+
+Rank recommendations by priority.
