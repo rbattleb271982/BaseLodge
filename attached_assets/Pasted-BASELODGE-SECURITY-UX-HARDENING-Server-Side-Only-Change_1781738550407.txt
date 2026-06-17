@@ -1,0 +1,175 @@
+BASELODGE SECURITY & UX HARDENING
+
+Server-Side Only Changes (No New iOS / Android Build Required)
+
+The Danielle / Solo investigation appears to point toward confusion in the friend connection invite flow rather than a true cross-account authentication bug.
+
+I want to implement a small set of high-impact, low-risk server-side improvements.
+
+These changes must NOT require:
+
+* App Store resubmission
+* TestFlight build
+* Android release
+* Native iOS changes
+* Native Android changes
+
+Only Flask, templates, CSS, and server-side code.
+
+⸻
+
+CHANGE 1 — FRIEND CONNECTION INVITE PAGE CLARITY
+
+Audit:
+
+* invite_landing.html
+* all templates and routes related to /invite/<token>
+* friend connection invite flows
+* any related connection invite UI
+
+Do NOT focus on trip invites for this task.
+
+The Danielle/Solo incident was related to the friend connection invite flow.
+
+Current behavior appears to prominently display the inviter’s identity without clearly indicating that the visitor is not authenticated.
+
+Goal:
+
+Make it impossible for a first-time visitor to confuse the inviter’s identity with their own identity.
+
+For unauthenticated users:
+
+Clearly display:
+
+“You have been invited by”
+
+[Avatar]
+
+Solo Ntete
+
+“You are not signed in.”
+
+“Create an account or sign in to connect.”
+
+The page should clearly communicate:
+
+* who sent the invite
+* that the visitor is not currently signed in
+* that accepting the invite requires creating or signing into their own account
+* that the visitor is NOT viewing the inviter’s account
+
+Review all friend connection invite templates and recommend the best UX implementation.
+
+Implement the changes.
+
+⸻
+
+CHANGE 2 — AUTH RESTORATION LOGGING
+
+Add logging whenever authentication is restored automatically.
+
+I want visibility into:
+
+* session cookie restores
+* remember-me cookie restores
+
+If Flask-Login provides signal hooks, use the appropriate mechanism.
+
+Example logs:
+
+[auth_restore]
+method=remember_cookie
+user_id=32
+email=example@example.com
+ua=iPhone
+
+[auth_restore]
+method=session_cookie
+user_id=32
+email=example@example.com
+ua=iPhone
+
+Include:
+
+* user_id
+* email
+* auth source
+* user agent
+* timestamp
+
+Do NOT log:
+
+* passwords
+* tokens
+* cookie contents
+* secrets
+
+Provide exact implementation details.
+
+Implement the logging.
+
+⸻
+
+CHANGE 3 — REMEMBER COOKIE DURATION
+
+Audit current remember-me configuration.
+
+If REMEMBER_COOKIE_DURATION is not explicitly set:
+
+Configure:
+
+REMEMBER_COOKIE_DURATION = timedelta(days=30)
+
+Confirm:
+
+* existing login behavior remains unchanged
+* users remain logged in normally
+* only inactive sessions expire sooner
+
+Implement the change.
+
+⸻
+
+CHANGE 4 — SECURITY REVIEW
+
+After implementation provide:
+
+Files Changed
+
+Exact Changes
+
+User Impact
+
+Risks
+
+Rollback Plan
+
+Confirm:
+
+* No database migration required
+* No App Store review required
+* No Android release required
+* No native code changes required
+
+⸻
+
+OUT OF SCOPE
+
+Do NOT implement:
+
+* session versioning
+* native WKWebView cookie clearing
+* bundle identifier changes
+* TestFlight/App Store separation
+* new API endpoints
+* major authentication architecture changes
+
+Those may be evaluated later.
+
+For this task I only want:
+
+1. Friend connection invite clarification
+2. Authentication restoration logging
+3. 30-day remember cookie duration
+
+Implement all three and provide a deployment summary.

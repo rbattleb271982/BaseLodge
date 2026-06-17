@@ -89,7 +89,7 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g, make_response
-from flask_login import LoginManager, login_required, current_user, login_user, logout_user
+from flask_login import LoginManager, login_required, current_user, login_user, logout_user, user_loaded_from_cookie
 from functools import wraps, lru_cache
 from flask_migrate import Migrate
 from flask_limiter import Limiter
@@ -255,6 +255,7 @@ app.config.update(
     SESSION_REFRESH_EACH_REQUEST=False,
     REMEMBER_COOKIE_SECURE=is_production,
     REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_DURATION=timedelta(days=30),
 )
 
 # Navigation debug flag — set BL_NAV_DEBUG=1 in environment to enable.
@@ -271,6 +272,27 @@ login_manager.login_message = None
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
+
+
+@user_loaded_from_cookie.connect_via(app)
+def _on_user_loaded_from_cookie(sender, user, **kwargs):
+    """Log whenever Flask-Login silently restores a session from a remember-me cookie.
+    Fires once per request where the cookie — not the session — is the auth source.
+    Does NOT log passwords, tokens, or cookie contents.
+    """
+    try:
+        app.logger.info(
+            "[auth_restore] method=remember_cookie user_id=%s email=%s "
+            "ua=%.100s ts=%s ip=%s",
+            user.id,
+            user.email,
+            request.user_agent.string,
+            datetime.utcnow().isoformat(),
+            request.remote_addr,
+        )
+    except Exception:
+        pass
+
 
 from utils.countries import COUNTRIES, STATE_ABBR_MAP
 
@@ -734,6 +756,31 @@ def set_security_headers(response):
 # Home-specific DB work lives in the home() route handler, not here.
 def before_request_handlers():
     import sys
+
+    # ── Auth session-cookie restore logging ───────────────────────────────────
+    # Flask-Login silently re-authenticates from the session cookie on every
+    # request with zero logging. We detect the first authenticated request in
+    # each Flask session and emit a single [auth_restore] line so the audit
+    # trail is not completely blank between explicit logins.
+    # remember-me cookie restores are logged separately via the
+    # user_loaded_from_cookie signal registered near the user_loader above.
+    if (current_user.is_authenticated
+            and not request.path.startswith('/static/')
+            and not session.get('_auth_session_logged')):
+        try:
+            app.logger.info(
+                "[auth_restore] method=session_cookie user_id=%s email=%s "
+                "ua=%.100s ts=%s ip=%s",
+                current_user.id,
+                current_user.email,
+                request.user_agent.string,
+                datetime.utcnow().isoformat(),
+                request.remote_addr,
+            )
+            session['_auth_session_logged'] = True
+            session.modified = True
+        except Exception:
+            pass
 
     # ── Activity heartbeat (throttled to 1 DB write per user per hour) ────────
     # Uses a session timestamp so no extra SELECT is needed; just one UPDATE

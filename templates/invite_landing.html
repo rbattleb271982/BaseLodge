@@ -53,6 +53,17 @@
             margin: 0 auto 40px;
         }
 
+        /* ── "Invited by" label (unauthenticated only) ────────────────────── */
+        .il-invited-by-label {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #888;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
         /* ── Avatar ───────────────────────────────────────────────────────── */
         .il-avatar {
             width: 72px;
@@ -66,10 +77,43 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 24px;
+            margin-bottom: 12px;
             flex-shrink: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             user-select: none;
+        }
+
+        /* ── Inviter name (unauthenticated only) ──────────────────────────── */
+        .il-inviter-name {
+            font-family: Georgia, "Times New Roman", Times, serif;
+            font-size: 20px;
+            font-weight: 400;
+            color: #1A1A1A;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* ── "Not signed in" notice (unauthenticated only) ────────────────── */
+        .il-not-signed-in {
+            width: 100%;
+            background: #ECEAE3;
+            border: 1px solid #D5CEBE;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 28px;
+            text-align: center;
+        }
+        .il-not-signed-in p {
+            font-size: 13px;
+            line-height: 1.55;
+            color: #555;
+        }
+        .il-not-signed-in strong {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 4px;
         }
 
         /* ── Headline ─────────────────────────────────────────────────────── */
@@ -140,7 +184,7 @@
         }
         .il-btn-secondary:active { opacity: 0.72; }
 
-        /* ── Logged-in-as notice ──────────────────────────────────────────── */
+        /* ── Logged-in-as notice (authenticated only) ─────────────────────── */
         .il-logged-in-as {
             font-size: 13px;
             color: #888;
@@ -175,26 +219,34 @@
          src="/static/images/baselodge-wordmark.png"
          alt="BaseLodge">
 
-    <div class="il-avatar" aria-hidden="true">{{ initials }}</div>
-
     {% if current_user.is_authenticated %}
+
+        {# ── Authenticated view: show whose invite it is, confirm logged-in identity ── #}
+        <div class="il-avatar" aria-hidden="true">{{ initials }}</div>
         <h1 class="il-headline">Connect with {{ inviter.first_name }}?</h1>
         <p class="il-body">
             {{ inviter.first_name }} invited you to connect on BaseLodge —
             see their trips, plan ski weekends together, and coordinate who's going where.
         </p>
-    {% else %}
-        <h1 class="il-headline">{{ inviter.first_name }} invited you to connect on BaseLodge</h1>
-        <p class="il-body">
-            See trips, coordinate ski weekends, and connect with friends heading to the mountains.
+        <p class="il-logged-in-as">
+            Signed in as {{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}.
+            Not you? <a href="{{ url_for('logout') }}">Sign out</a> and switch accounts.
         </p>
-    {% endif %}
 
-    {% if current_user.is_authenticated %}
-    <p class="il-logged-in-as">
-        Logged in as {{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}.
-        Not you? <a href="{{ url_for('logout') }}">Log out</a> and switch accounts.
-    </p>
+    {% else %}
+
+        {# ── Unauthenticated view: make it unmistakable who is inviting, and that
+              the visitor is NOT signed in. This framing prevents a first-time visitor
+              from confusing the inviter's identity with their own. ── #}
+        <p class="il-invited-by-label">You have been invited by</p>
+        <div class="il-avatar" aria-hidden="true">{{ initials }}</div>
+        <p class="il-inviter-name">{{ inviter.first_name }}{% if inviter.last_name %} {{ inviter.last_name }}{% endif %}</p>
+
+        <div class="il-not-signed-in" role="status">
+            <strong>You are not signed in</strong>
+            <p>Create an account or sign in to connect with {{ inviter.first_name }}.</p>
+        </div>
+
     {% endif %}
 
     <div class="il-divider"></div>
@@ -207,7 +259,7 @@
             </button>
         {% else %}
             <button type="submit" class="il-btn-primary">
-                Accept Invite
+                Sign in to connect
             </button>
         {% endif %}
     </form>
