@@ -1,0 +1,297 @@
+# URGENT SECURITY INVESTIGATION — POSSIBLE CROSS-ACCOUNT AUTH INCIDENT
+
+I need a complete forensic investigation of a potentially serious authentication/session issue in my Flask + Capacitor mobile app (BaseLodge).
+
+## Incident Description
+
+User A ("Danielle") downloaded and opened the app.
+
+When she first launched the app, she reports that she was automatically logged into User B's account ("Solo") without ever entering Solo's email address or password.
+
+Danielle states:
+
+- She has never had Solo's credentials
+- Solo has never used Danielle's phone
+- Danielle did not log in manually
+- The app opened directly into Solo's account
+- Danielle could see Solo's account
+- Danielle then logged out and created her own account
+
+Assume the report is accurate until disproven.
+
+This would represent unauthorized access to another user's account and must be treated as a potential security incident.
+
+---
+
+## DO NOT MAKE ANY CODE CHANGES
+
+Investigation only.
+
+I want findings, evidence, root-cause analysis, and recommendations.
+
+---
+
+## 1. Authentication Architecture Audit
+
+Identify every authentication path.
+
+Show exact files and line numbers for:
+
+- Flask-Login setup
+- login_user()
+- logout_user()
+- current_user
+- user_loader
+- request_loader
+- remember-me functionality
+- session restoration logic
+- OAuth flows
+- password reset login flows
+
+Provide a full auth flow diagram.
+
+---
+
+## 2. Session Handling Audit
+
+Inspect:
+
+- SECRET_KEY configuration
+- Flask session configuration
+- SESSION_COOKIE_NAME
+- SESSION_COOKIE_SECURE
+- SESSION_COOKIE_SAMESITE
+- SESSION_COOKIE_HTTPONLY
+- session lifetime settings
+- permanent session settings
+
+Determine:
+
+- Are sessions cookie-based or server-side?
+- Can a session resolve to the wrong user?
+- Can stale sessions survive unexpectedly?
+
+---
+
+## 3. Capacitor / Mobile Storage Audit
+
+Search entire codebase for:
+
+localStorage
+sessionStorage
+Preferences
+Capacitor Preferences
+Cookies
+CapacitorCookies
+remember_token
+auth_token
+user_id
+
+Identify:
+
+- How auth state is persisted
+- Whether stale auth state can survive reinstall
+- Whether another user's auth state could be restored
+
+Include exact files and line numbers.
+
+---
+
+## 4. App Startup Investigation
+
+Trace the complete launch flow.
+
+Starting from:
+
+App Launch
+→ Initial HTML/Page Load
+→ Authentication Check
+→ Current User Resolution
+→ Redirect Logic
+
+Determine:
+
+- What happens on first launch
+- What happens when an existing session exists
+- Whether the wrong account could be displayed before auth validation completes
+
+Show exact code path.
+
+---
+
+## 5. Current User Resolution
+
+Trace exactly how BaseLodge determines:
+
+"Who is the logged-in user?"
+
+Follow:
+
+Request
+→ Cookie
+→ Session
+→ Flask-Login
+→ Database Lookup
+→ current_user
+
+Determine whether any scenario could resolve one user's session to another user.
+
+---
+
+## 6. Login Flow Audit
+
+Inspect every login path:
+
+### Email / Password
+
+### Google OAuth
+
+### Remember Me
+
+### Session Restore
+
+### Password Reset
+
+For each path:
+
+- Show flow
+- Show code
+- Show user lookup
+- Show session creation
+
+Determine whether any path can authenticate the wrong user.
+
+---
+
+## 7. Logout Audit
+
+Inspect logout implementation.
+
+Determine whether logout clears:
+
+- Flask session
+- Remember tokens
+- Cookies
+- Local storage
+- Capacitor preferences
+- WebView state
+
+Show exact code.
+
+Identify anything that survives logout.
+
+---
+
+## 8. Caching Audit
+
+Search entire project for:
+
+cache
+cached
+memoize
+Flask-Caching
+Redis
+singleton
+global state
+
+Determine whether:
+
+- User data can be cached incorrectly
+- /profile
+- /api/me
+- user endpoints
+- dashboard endpoints
+
+could return another user's data.
+
+---
+
+## 9. Global State Audit
+
+Search for:
+
+- module-level user variables
+- cached User objects
+- global current_user references
+- detached SQLAlchemy user objects
+- class variables storing user information
+- singleton user state
+
+Determine whether one user's identity can leak into another request.
+
+---
+
+## 10. Database & Token Audit
+
+Identify:
+
+- session tables
+- remember token tables
+- auth token tables
+
+Determine:
+
+- token uniqueness guarantees
+- token collision risk
+- session collision risk
+
+---
+
+## 11. Incident-Specific Investigation
+
+Search logs around the reported incident.
+
+Determine:
+
+- Whether Solo received a login event
+- Whether Danielle received a login event
+- Whether a session was restored
+- Whether a new session was created
+- Whether the user_id changed unexpectedly
+- Whether there were unusual redirects
+
+If logging exists, show evidence.
+
+---
+
+## Deliverable Format
+
+### Executive Summary
+
+Risk Level:
+- Critical
+- High
+- Medium
+- Low
+
+### Findings
+
+Rank all findings by severity.
+
+### Most Likely Root Causes
+
+Top 5 explanations ranked by likelihood.
+
+### Evidence
+
+Include:
+- File names
+- Line numbers
+- Relevant code snippets
+
+### Recommended Fixes
+
+Recommendations only.
+Do not implement.
+
+### Final Assessment
+
+Answer:
+
+"Based on the current codebase, how could Danielle have been automatically authenticated as Solo?"
+
+And:
+
+"Is this likely to be a true cross-account authentication bug, a stale session issue, a mobile storage issue, or something else?"
+
+Be exhaustive and assume the user report is accurate until disproven.
