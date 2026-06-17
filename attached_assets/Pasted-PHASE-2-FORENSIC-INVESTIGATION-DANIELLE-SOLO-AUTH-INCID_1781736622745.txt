@@ -1,0 +1,475 @@
+PHASE 2 FORENSIC INVESTIGATION — DANIELLE / SOLO AUTH INCIDENT
+
+The initial audit concluded that there is no obvious server-side cross-account authentication bug and suggested a stale remember-me cookie as the most likely explanation.
+
+However, there are unresolved facts:
+
+* Danielle insists she was logged in as Solo.
+* Danielle and Solo do not know each other’s credentials.
+* Danielle states Solo has never used her phone.
+* We do not yet have evidence that Solo’s remember-me cookie was ever present on Danielle’s device.
+* Both Danielle and Solo participated in the BaseLodge beta program prior to App Store launch.
+* Danielle reports that after logging out of the account she believed belonged to Solo, she created a brand-new account.
+* Existing beta users should not normally need to recreate accounts if beta and production share the same user database.
+* We have not yet audited the native Capacitor shell in sufficient detail.
+* We have not fully ruled out stale navigation state, route restoration, WebView state restoration, deep-link restoration, beta-to-production migration behavior, account continuity issues, or app-launch behavior.
+
+I want a deeper forensic investigation.
+
+DO NOT MAKE ANY CODE CHANGES.
+
+Investigation and findings only.
+
+⸻
+
+OBJECTIVE
+
+Determine the most likely explanation for how Danielle could have appeared to be logged in as Solo.
+
+I want evidence, not theories.
+
+Every conclusion must be tied to code, configuration, logs, database evidence, platform behavior, or documented iOS/Capacitor behavior.
+
+⸻
+
+PART 1 — NATIVE IOS / CAPACITOR AUDIT
+
+Perform a complete audit of the iOS shell.
+
+Inspect:
+
+* AppDelegate.swift
+* SceneDelegate.swift
+* Capacitor configuration
+* capacitor.config.*
+* Info.plist
+* Capacitor plugins
+* WKWebView configuration
+* WKWebsiteDataStore usage
+* Cookie handling
+* App restoration behavior
+* State restoration behavior
+* Deep-link restoration
+* Universal links
+* URL scheme handling
+* Any custom native plugins
+
+Determine:
+
+1. Can a prior authenticated session survive:
+    * app close
+    * app force quit
+    * app update
+    * app reinstall
+    * TestFlight update
+    * TestFlight → App Store migration
+    * device migration
+    * iCloud restore
+2. Does Capacitor restore:
+    * browser history
+    * last URL
+    * navigation stack
+    * WebView state
+3. Can a user reopen directly onto a previously viewed page?
+
+Provide file names, line numbers, and exact code paths.
+
+⸻
+
+PART 2 — TESTFLIGHT / BETA INVESTIGATION
+
+This section is critical.
+
+Both Danielle and Solo were beta testers before App Store launch.
+
+Investigate:
+
+* TestFlight bundle identifier
+* Production bundle identifier
+* Capacitor server URL
+* Cookie domains
+* Session domains
+* Shared storage behavior
+* WebView persistence between beta and production builds
+
+Answer:
+
+1. Could a TestFlight login session survive into the App Store version?
+2. Could a user who logged into the beta remain authenticated after installing the App Store version?
+3. Could TestFlight and App Store builds share:
+    * cookies
+    * WebView storage
+    * website data
+    * authentication state
+4. Could an old beta account session explain Danielle seeing Solo’s account?
+
+For every answer:
+
+* Provide evidence
+* Cite files
+* Cite platform behavior
+
+Rank probability.
+
+⸻
+
+PART 3 — AUTHENTICATION RESTORATION TRACE
+
+Trace the exact sequence that occurs when:
+
+A user launches the app.
+
+Show:
+
+App Launch
+→ WebView startup
+→ Initial URL load
+→ Cookie attachment
+→ Flask request
+→ Session resolution
+→ current_user creation
+→ Redirect logic
+→ Home/Profile rendering
+
+I want a complete sequence diagram.
+
+Determine:
+
+* Exactly where authentication is restored.
+* Whether authentication restoration is logged.
+* Whether authentication restoration bypasses normal login routes.
+
+⸻
+
+PART 4 — REMEMBER-ME COOKIE VALIDATION
+
+The first audit suggested a remember-me cookie.
+
+I want proof.
+
+Investigate:
+
+1. Exactly how Flask-Login remember cookies are configured.
+2. Exact cookie names.
+3. Exact expiration behavior.
+4. Whether any custom Flask-Login behavior exists.
+5. Whether the cookie is tied only to user_id.
+6. Whether it is tied to:
+    * device
+    * browser
+    * push token
+    * IP address
+    * user agent
+7. Whether a remember cookie issued to Solo would still be valid if copied to another device.
+
+Provide evidence.
+
+⸻
+
+PART 5 — DEVICE TRANSFER SCENARIOS
+
+Assume Danielle’s statement is accurate:
+
+“Solo has never used my phone.”
+
+Evaluate these scenarios individually:
+
+A. New iPhone restored from iCloud backup
+
+B. Quick Start migration
+
+C. App reinstall
+
+D. TestFlight → App Store migration
+
+E. Shared Apple ID
+
+F. Family Sharing
+
+G. WKWebView persistence
+
+H. Cached Safari website data
+
+For each scenario answer:
+
+* Technically possible? (Yes/No)
+* Evidence supporting it
+* Evidence contradicting it
+* Probability
+
+⸻
+
+PART 6 — NAVIGATION / PROFILE CONFUSION AUDIT
+
+Audit every route that could display another user.
+
+Examples:
+
+* friend profile pages
+* public profiles
+* invite pages
+* trip participant pages
+* friend detail pages
+* availability pages
+* mountain friend pages
+
+Determine:
+
+Could Danielle have landed on a page prominently displaying Solo’s information while still being authenticated as herself?
+
+Could this reasonably appear to a normal user as:
+
+“I am logged in as Solo”?
+
+Provide route descriptions and supporting evidence.
+
+Rank likelihood.
+
+⸻
+
+PART 7 — APP STARTUP STATE AUDIT
+
+Search entire codebase for:
+
+history.pushState
+history.replaceState
+window.location
+location.href
+sessionStorage
+localStorage
+Capacitor
+deep links
+navigation restoration
+browser history
+
+Determine:
+
+1. Can the app reopen on the last viewed route?
+2. Can a friend profile page survive app closure?
+3. Can an invite route survive app closure?
+4. Can browser history override the authenticated landing page?
+
+Provide evidence.
+
+⸻
+
+PART 8 — LOGGING FORENSICS
+
+Identify every log that would fire during:
+
+A. Explicit login
+
+B. Silent remember-me authentication
+
+C. Session restoration
+
+D. App launch
+
+E. OAuth login
+
+F. Logout
+
+Determine:
+
+What evidence should exist if Danielle was truly authenticated as Solo?
+
+Examples:
+
+* login_count changes
+* last_active_at updates
+* app_open events
+* audit logs
+* push registration updates
+* session writes
+
+Show where these values are stored.
+
+Then identify:
+
+* What database records should exist if Danielle’s device silently restored Solo’s session?
+* What database records should exist if Danielle performed a real login?
+* What database records should exist if this was merely a navigation issue?
+
+⸻
+
+PART 9 — DEFENSIVE STARTUP SAFEGUARD DESIGN
+
+Do NOT implement.
+
+Design a startup safety mechanism.
+
+Goal:
+
+Whenever the app launches or resumes:
+
+1. Verify authenticated user from the server.
+2. Confirm user identity.
+3. Route to the authenticated user’s own experience.
+4. Clear stale friend-profile routes.
+5. Clear stale invite routes.
+6. Prevent restoration of another user’s profile page.
+7. Preserve legitimate deep links and push-notification navigation.
+
+Describe:
+
+* implementation approach
+* files involved
+* side effects
+* risks
+
+⸻
+
+PART 10 — CHALLENGE THE ORIGINAL CONCLUSION
+
+The first report concluded:
+
+“Most likely root cause = stale remember-me cookie.”
+
+I want this conclusion stress-tested.
+
+Specifically:
+
+1. What evidence actually supports the remember-me theory?
+2. What evidence is missing?
+3. What assumptions must be true for that theory to be correct?
+4. What facts would disprove it?
+5. What alternative explanations fit the evidence equally well or better?
+
+Do not simply repeat the original conclusion.
+
+Attempt to falsify it.
+
+⸻
+
+PART 11 — BETA ACCOUNT FORENSICS
+
+This section is mandatory.
+
+Facts:
+
+* Danielle was a beta user.
+* Solo was a beta user.
+* Danielle reports she had to create a brand-new account after logging out.
+* Existing beta users should not normally need to recreate accounts.
+
+Investigate:
+
+1. Whether Danielle’s original beta account still exists.
+2. Whether Danielle now has multiple accounts.
+3. Whether duplicate accounts exist using:
+    * same email
+    * alternate emails
+    * Apple relay emails
+    * Google sign-in emails
+4. Whether beta users and production users share the same database.
+5. Whether there were ever:
+    * staging databases
+    * beta databases
+    * development databases
+    * TestFlight-only environments
+6. Whether any migration occurred between:
+    * beta
+    * TestFlight
+    * production
+7. Determine:
+    * account creation date of Danielle’s current account
+    * account creation date of any prior Danielle account
+    * last login dates
+    * login providers used
+8. Determine whether Danielle’s need to create a new account:
+    * supports the remember-me theory
+    * contradicts the remember-me theory
+    * supports a beta migration issue
+    * supports an account duplication issue
+
+Provide evidence and rank likelihood.
+
+⸻
+
+PART 12 — DATABASE & USER FORENSICS
+
+Using production data and logs:
+
+Investigate:
+
+1. Solo’s account
+    * account creation date
+    * login history
+    * login_count history
+    * last_active_at history
+    * OAuth provider (if any)
+2. Danielle’s account(s)
+    * all matching accounts
+    * creation dates
+    * email addresses
+    * auth providers
+    * beta history
+3. Look for:
+
+* duplicate users
+* email collisions
+* Apple relay addresses
+* Google OAuth duplicates
+* beta-era accounts
+
+4. Determine:
+
+Could Danielle have accidentally created a second account because her original beta account was inaccessible?
+
+5. Correlate timestamps around the incident.
+
+This section should use actual database evidence where available.
+
+⸻
+
+PART 13 — RANK ALL EXPLANATIONS
+
+After the full investigation, rank:
+
+1. True cross-account authentication bug
+2. Remember-me cookie restoration
+3. TestFlight/App Store migration issue
+4. Beta account continuity issue
+5. Device migration / iCloud restore
+6. Shared Apple ID issue
+7. Stale navigation state
+8. Deep-link issue
+9. Cached WebView state
+10. User misunderstanding
+11. Another explanation
+
+For each:
+
+* Probability %
+* Supporting evidence
+* Contradicting evidence
+
+⸻
+
+FINAL DELIVERABLE
+
+Provide:
+
+Executive Summary
+
+Findings Ranked By Severity
+
+Findings Ranked By Likelihood
+
+Evidence
+
+(file names, line numbers, code snippets)
+
+Most Likely Explanation
+
+Answer:
+
+“Based on all available evidence, what is the most likely explanation for Danielle appearing to be logged in as Solo?”
+
+Confidence Level
+
+Low / Medium / High
+
+Support every conclusion with evidence.
+
+Do not make any code changes.
