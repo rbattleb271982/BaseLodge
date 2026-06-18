@@ -1,0 +1,161 @@
+Run a full QA audit of the newly deployed BaseLodge Friend Request experience.
+
+Goal:
+Verify that the complete friend request flow works correctly across browser and mobile-app contexts and identify any regressions, edge cases, UX issues, or failures.
+
+Please perform actual testing, not just code review.
+
+Test Environment
+
+* Use two separate test users (User A and User B)
+* Test in:
+    * Mobile browser
+    * Installed BaseLodge app (if available)
+    * Desktop browser
+* Test both foreground and background app states where possible
+
+Test Suite 1 — Friend Request Creation
+
+1. User A sends User B an in-app friend request.
+2. Verify Invitation row is created correctly.
+3. Verify duplicate request protection still works.
+4. Verify sender receives proper UI confirmation.
+5. Verify no server errors occur.
+
+Record:
+
+* Request created?
+* Push sent?
+* Any console errors?
+* Any backend errors?
+
+Test Suite 2 — Push Notification Experience
+
+1. User B receives friend request push.
+2. Verify title/body content.
+3. Tap push.
+4. Verify destination.
+
+Expected:
+
+* Opens BaseLodge.
+* Lands on Friends screen.
+* Requests section is visible.
+* Pending request is highlighted or scrolled into view.
+
+Record:
+
+* Actual URL opened.
+* Time from tap to destination.
+* Any navigation glitches.
+
+Test Suite 3 — Pending Request Visibility
+
+1. Open Friends screen normally.
+2. Verify Friend Requests section appears.
+3. Verify sender name displays correctly.
+4. Verify multiple pending requests display properly.
+5. Verify empty state when no requests exist.
+
+Look for:
+
+* Layout issues
+* Mobile spacing issues
+* Clipped buttons
+* Overflow issues
+
+Test Suite 4 — Accept Flow
+
+1. Tap Accept.
+2. Verify friendship is created.
+3. Verify request row disappears.
+4. Verify page refresh behavior.
+5. Verify friend appears in friends list.
+6. Verify sender receives acceptance push.
+
+Confirm:
+
+* No duplicate Friend rows.
+* Invitation status updated correctly.
+* No orphan Invitation records remain.
+
+Test Suite 5 — Decline Flow
+
+1. Send new request.
+2. Tap Decline.
+3. Verify request disappears.
+4. Verify status becomes declined.
+5. Verify friendship is NOT created.
+6. Verify request cannot later be accepted accidentally.
+
+Test Suite 6 — Pull-To-Refresh
+
+1. Open Friends screen.
+2. Create invite from another user.
+3. Without leaving Friends:
+    * Pull down.
+4. Verify refresh executes.
+5. Verify request appears.
+
+Test:
+
+* Light pull
+* Aggressive pull
+* Multiple rapid pulls
+
+Look for:
+
+* Stuck spinner
+* Scroll lock
+* UI jumpiness
+* Duplicate refreshes
+
+Test Suite 7 — Foreground Push Banner
+
+1. Keep User B on Friends screen.
+2. Send invite from User A.
+3. Verify foreground banner appears.
+4. Tap banner.
+
+Expected:
+
+* Navigates to requests section.
+* No duplicate banners.
+* Banner dismisses correctly.
+
+Test Suite 8 — Edge Cases
+
+1. Two pending requests simultaneously.
+2. Accept one, decline one.
+3. Sender deletes account before acceptance.
+4. Receiver refreshes repeatedly.
+5. Invite accepted on another device.
+6. Push arrives after request already accepted.
+7. Expired session while accepting.
+8. Slow network conditions.
+
+Test Suite 9 — Regression Check
+
+Verify these still work:
+
+* Personal invite links
+* InviteToken flow
+* Trip invites
+* Existing Friends page
+* Friend profile page
+* Friend removal flow
+* Push notifications unrelated to friend requests
+
+Deliverables
+
+Provide:
+
+1. Pass/Fail for each test suite
+2. Screenshots where useful
+3. Any bugs discovered
+4. Severity level for each bug
+5. Recommended fixes
+6. Any UX improvements that would make the experience feel more immediate and polished
+7. Final production readiness score from 1–10
+
+Do not make code changes yet. Produce a QA report first.
