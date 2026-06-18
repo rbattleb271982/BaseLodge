@@ -3620,11 +3620,11 @@ def invite_token_confirm(token):
             user_id=current_user.id, friend_id=inviter.id
         ).first()
         if existing:
-            # Already connected — mark token used and redirect cleanly
+            # Already connected — mark token used and show the success screen
+            # rather than silently redirecting. Idempotent: safe to call twice.
             invite.used_at = datetime.utcnow()
             db.session.commit()
-            flash(f"You're already connected with {inviter.first_name}.", "info")
-            return redirect(url_for("friends"))
+            return render_template("invite_accepted.html", inviter=inviter)
 
         # If the user is mid-onboarding, create the friendship now but let
         # before_request gate send them back to /onboarding first.
@@ -3633,8 +3633,7 @@ def invite_token_confirm(token):
             session["post_onboarding_redirect"] = url_for("friends")
 
         _apply_invite_token(invite, current_user)
-        flash(f"You're now connected with {inviter.first_name}!", "success")
-        return redirect(url_for("friends"))
+        return render_template("invite_accepted.html", inviter=inviter)
 
     # ── Unauthenticated: store token and route through auth ───────────────────
     session["invite_token"] = token
@@ -16048,7 +16047,7 @@ def download_page():
     Desktop / unknown browsers see a page with both store buttons.
     """
     _APP_STORE_URL  = "https://apps.apple.com/us/app/baselodge/id6764206581"
-    _PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.baselodgeapp.com&pli=1"
+    _PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.baselodge.app&pli=1"
 
     ua = (request.user_agent.string or "").lower()
     if any(t in ua for t in ("iphone", "ipad", "ipod")):

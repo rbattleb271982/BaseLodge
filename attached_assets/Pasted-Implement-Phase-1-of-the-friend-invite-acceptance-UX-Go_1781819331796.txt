@@ -1,0 +1,80 @@
+Implement Phase 1 of the friend invite acceptance UX.
+
+Goal:
+After a user accepts a personal friend invite link, do not immediately redirect them to /friends. Instead, show a dedicated success screen that confirms the connection and gives them a clear next step.
+
+Important:
+Do not add profile photos.
+Do not add home mountain.
+Do not add user location.
+Do not add public profile details.
+This screen should only confirm the connection and move the user into BaseLodge.
+
+Current flow:
+POST /invite//confirm currently creates the friendship, flashes “You’re now connected with [Name]!”, and redirects to /friends.
+
+New flow:
+After successful InviteToken acceptance, render a new standalone template:
+
+templates/invite_accepted.html
+
+Screen content:
+
+* BaseLodge logo/header
+* Success checkmark
+* Headline: “You’re connected with [First Name]”
+* Body copy: “You can now plan mountain trips together on BaseLodge.”
+* Primary CTA: “Open BaseLodge”
+* Secondary text link: “Continue in browser”
+
+CTA behavior:
+
+* “Continue in browser” should link to /friends
+* “Open BaseLodge” should attempt to open the installed app using a custom URL scheme if available:
+    baselodge://friends
+* If the app does not open, fall back after roughly 1500ms:
+    * iOS: App Store URL for BaseLodge
+    * Android: Google Play URL for BaseLodge
+    * Desktop/unknown: /download
+
+Also fix the existing Android Play Store package typo anywhere it appears:
+Wrong: com.baselodgeapp.com
+Correct: com.baselodge.app
+
+Required route changes:
+
+1. In invite_token_confirm(), after _apply_invite_token() succeeds, render invite_accepted.html instead of redirecting directly to /friends.
+2. Preserve idempotency:
+    * If the user is already friends and the token is being marked used, also show invite_accepted.html rather than redirecting silently.
+3. Do not change _apply_invite_token() unless required.
+4. Do not change the in-app Invitation model flow.
+5. Do not change trip invite flows.
+6. Do not implement Universal Links or Android App Links in this pass.
+7. Do not implement profile search.
+
+Design requirements:
+
+* Standalone mobile-first HTML, similar to invite_landing.html
+* Clean, simple, celebratory
+* Maroon BaseLodge CTA
+* No profile photo
+* No home mountain
+* No location
+* No friends list
+* No trip details
+* Use only the inviter’s first name in the headline if available
+
+Also add a small fallback message under the button:
+“Already have the app? Open BaseLodge to view your Friends screen.”
+
+Testing required:
+
+* Logged-in user accepts valid invite → success screen appears
+* Continue in browser → lands on /friends
+* Open BaseLodge on browser with app not installed → falls back to correct App Store / Play Store / download page
+* Already-friends acceptance → success screen appears
+* Invalid/expired/used token behavior remains unchanged except already-friends case
+* In-app friend request accept flow remains unchanged
+* Trip invite flow remains unchanged
+
+Please make the minimal safe implementation and provide a change summary with files changed.
