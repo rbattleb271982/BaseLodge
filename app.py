@@ -329,6 +329,23 @@ def inject_notif_count():
     except Exception:
         return {'notif_unread_count': 0}
 
+
+@app.context_processor
+def inject_pending_friend_count():
+    """Inject pending friend-request count into every app-shell template for the nav badge."""
+    if not current_user.is_authenticated:
+        return {'pending_friend_count': 0}
+    try:
+        count = Invitation.query.filter(
+            Invitation.receiver_id == current_user.id,
+            Invitation.status == 'pending',
+            Invitation.trip_id.is_(None)
+        ).count()
+        return {'pending_friend_count': count}
+    except Exception:
+        return {'pending_friend_count': 0}
+
+
 # Helper to normalize country code
 def normalize_country_code(code):
     if not code:
@@ -5141,6 +5158,12 @@ def accept_invitation(invitation_id):
 
     if invitation.receiver_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    # Guard: declined invitations cannot be accepted. Blocks the direct-API edge
+    # case where a receiver declines via the UI and then calls accept on the same
+    # invitation ID. Only 'pending' invitations may proceed to accept.
+    if invitation.status == 'declined':
+        return jsonify({"success": False, "error": "This invitation is no longer active"}), 409
 
     # Idempotency: if users are already friends (double-tap, retry, or QR path raced ahead),
     # mark the invitation accepted and return success without creating duplicate Friend rows

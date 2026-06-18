@@ -544,7 +544,12 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) {
+            if (res.redirected || res.status === 401) {
+                throw { __auth__: true };
+            }
+            return res.json();
+        })
         .then(function(data) {
             if (data.success) {
                 // Remove the request row immediately then reload to show new friend
@@ -556,10 +561,15 @@
                 _showRequestError(row, data.error || 'Could not accept. Try again.');
             }
         })
-        .catch(function() {
+        .catch(function(err) {
             _setRequestRowLoading(row, false);
             if (btn) btn.textContent = 'Accept';
-            _showRequestError(row, 'Network error. Try again.');
+            if (err && err.__auth__) {
+                _showRequestError(row, 'Your session expired. Signing you in…');
+                setTimeout(function() { window.location.href = '/login'; }, 1200);
+            } else {
+                _showRequestError(row, 'Network error. Try again.');
+            }
         });
     }
 
@@ -572,7 +582,12 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         })
-        .then(function(res) { return res.json(); })
+        .then(function(res) {
+            if (res.redirected || res.status === 401) {
+                throw { __auth__: true };
+            }
+            return res.json();
+        })
         .then(function(data) {
             if (data.success) {
                 _removeRequestRow(invitationId);
@@ -582,10 +597,15 @@
                 _showRequestError(row, data.error || 'Could not decline. Try again.');
             }
         })
-        .catch(function() {
+        .catch(function(err) {
             _setRequestRowLoading(row, false);
             if (btn) btn.textContent = 'Decline';
-            _showRequestError(row, 'Network error. Try again.');
+            if (err && err.__auth__) {
+                _showRequestError(row, 'Your session expired. Signing you in…');
+                setTimeout(function() { window.location.href = '/login'; }, 1200);
+            } else {
+                _showRequestError(row, 'Network error. Try again.');
+            }
         });
     }
 
