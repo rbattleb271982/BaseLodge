@@ -5190,6 +5190,25 @@ def accept_invitation(invitation_id):
 
     return jsonify({"success": True, "message": "Friend added"}), 200
 
+@app.route("/api/friends/invite/<int:invitation_id>/decline", methods=["POST"])
+@login_required
+def decline_invitation(invitation_id):
+    invitation = db.session.get(Invitation, invitation_id)
+    if not invitation:
+        return jsonify({"success": False, "error": "Invitation not found"}), 404
+    if invitation.receiver_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    if invitation.status != 'pending':
+        return jsonify({"success": True, "message": "Already resolved"}), 200
+    invitation.status = 'declined'
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "Could not decline"}), 500
+    return jsonify({"success": True, "message": "Invitation declined"}), 200
+
+
 @app.route("/api/friends/<int:friend_id>", methods=["DELETE"])
 @login_required
 def remove_friend(friend_id):
@@ -7440,6 +7459,25 @@ def friends():
         print(f"[FRIENDS_PERF] total={time.perf_counter()-_fp_t0:.4f}s friend_count={friend_count}")
         print(f"[ROUTE_PERF] route=friends total={time.perf_counter()-_rp_t0:.4f}s")
 
+    # ── Pending incoming friend invitations ───────────────────────────────────
+    # Separate from the Friend rows (which are confirmed) — these are
+    # Invitation rows where the current user is the receiver and status=pending.
+    # Ordered newest-first so the most recent request appears at the top.
+    pending_incoming = (
+        Invitation.query
+        .filter_by(receiver_id=current_user.id, status='pending')
+        .filter(Invitation.trip_id.is_(None))   # friend invites only, not trip requests
+        .order_by(Invitation.created_at.desc())
+        .all()
+    )
+    # Pre-load sender User objects so the template can render names without N+1.
+    _sender_ids = [inv.sender_id for inv in pending_incoming]
+    _senders_map = {}
+    if _sender_ids:
+        _senders_map = {u.id: u for u in User.query.filter(User.id.in_(_sender_ids)).all()}
+    for inv in pending_incoming:
+        inv._sender = _senders_map.get(inv.sender_id)
+
     return render_template(
         "friends.html",
         user=user,
@@ -7447,6 +7485,7 @@ def friends():
         invite_url=invite_url,
         friend_count=friend_count,
         alpha_groups=alpha_groups,
+        pending_incoming=pending_incoming,
     )
 
 @app.route("/friends/<int:friend_id>")

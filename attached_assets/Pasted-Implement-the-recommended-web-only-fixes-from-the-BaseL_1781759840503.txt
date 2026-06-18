@@ -1,0 +1,67 @@
+Implement the recommended web-only fixes from the BaseLodge Friend Invite Experience audit.
+
+Goal:
+When User A sends User B an in-app friend invite, User B should be able to see and accept that invite from the Friends screen. Push already routes to /friends, but /friends currently does not show pending invitations, so the push opens to a dead end.
+
+Please implement these fixes safely.
+
+1. Show incoming pending friend requests on /friends
+
+* Update the /friends route to query pending incoming invitations:
+    Invitation.receiver_id == current_user.id
+    Invitation.status == “pending”
+* Order newest first.
+* Pass them to friends.html.
+* Render a “Friend Requests” or “Requests” section above the friends list when pending requests exist.
+* Each request row should show the sender’s name and include:
+    * Accept button
+    * Decline button if a decline endpoint already exists
+    * If no decline endpoint exists, note that and only implement Accept for now unless adding decline is simple and safe
+
+2. Accept from the Friends screen
+
+* Wire the Accept button to the existing endpoint:
+    POST /api/friends/invite/<id>/accept
+* On success, reload the page or update the DOM so the new friend appears.
+* Show a simple error message if the accept fails.
+
+3. Improve push destination
+
+* Change the FRIEND_REQUEST_CREATED push target from /friends to:
+    /friends?requests=1
+* On /friends?requests=1, auto-scroll or visually highlight the requests section.
+
+4. Add pull-to-refresh on the Friends screen
+
+* Add a mobile-friendly pull-to-refresh behavior scoped to friends.html.
+* When the user pulls down from the top of the Friends screen, reload the page.
+* Keep this JS/CSS-only. Do not require a native app update.
+* Preserve normal desktop behavior.
+
+5. Optional but recommended: foreground app banner
+
+* In static/js/bl-native.js, the push received listener currently only logs foreground notifications.
+* If a foreground push comes in with event === "friend.request.created", show a lightweight in-app banner/toast:
+    “New friend request”
+    with a “View” action that navigates to /friends?requests=1.
+* Keep this defensive and non-breaking.
+
+Important constraints:
+
+* Do not touch personal invite links unless necessary.
+* Do not touch trip invite behavior unless necessary.
+* Do not require an iOS or Android app store update.
+* Do not break the existing OneSignal push tap routing.
+* Avoid duplicate friend creation.
+* Preserve existing friend profile accept behavior.
+
+Acceptance criteria:
+
+* User A sends User B an in-app friend invite.
+* User B receives the existing push.
+* Tapping the push opens /friends?requests=1.
+* The Friends screen shows the pending request with an Accept button.
+* User B can accept from the Friends screen.
+* After accepting, the page refreshes or updates and User A appears in the friends list.
+* If User B is already on Friends, pulling down refreshes the page and reveals the request.
+* Existing friend links and trip invites still work.

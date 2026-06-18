@@ -42,7 +42,6 @@
         .fr-search-wrap {
             margin-bottom: 4px;
         }
-        /* .fr-search-input → use global .bl-search-input */
         .fr-no-results {
             font-size: 14px;
             color: var(--bl-color-text-muted);
@@ -169,11 +168,173 @@
             text-decoration: underline;
             text-underline-offset: 2px;
         }
-    </style>
+
+        /* ── Pending requests section ─────────────────────────────────── */
+        .fr-requests-section {
+            margin-bottom: 24px;
+        }
+        .fr-requests-header {
+            font-size: 12px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--bl-color-text-tertiary);
+            font-weight: 700;
+            padding: 0 0 6px 0;
+            margin: 0;
+        }
+        .fr-request-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 64px;
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
+            gap: 12px;
+        }
+        .fr-request-row:first-of-type {
+            border-top: 1px solid #E5DFD0;
+        }
+        .fr-request-row:last-child {
+            border-bottom: none;
+        }
+        .fr-request-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .fr-request-name {
+            font-size: 17px;
+            font-weight: 500;
+            color: #1A1A1A;
+            margin: 0 0 2px 0;
+        }
+        .fr-request-sub {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 0;
+        }
+        .fr-request-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .fr-req-btn {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 7px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+        }
+        .fr-req-btn:active { opacity: 0.65; }
+        .fr-req-btn:disabled { opacity: 0.4; cursor: default; }
+        .fr-req-btn-accept {
+            background: #5C1219;
+            color: #fff;
+        }
+        .fr-req-btn-decline {
+            background: #F0EBE3;
+            color: #5C1219;
+        }
+        .fr-request-error {
+            font-size: 13px;
+            color: #C0392B;
+            margin: 4px 0 0 0;
+        }
+
+        /* ── Requests-highlight pulse (when ?requests=1) ──────────────── */
+        @keyframes fr-requests-pulse {
+            0%   { background: transparent; }
+            30%  { background: rgba(92,18,25,0.07); }
+            100% { background: transparent; }
+        }
+        .fr-requests-section.fr-highlight {
+            animation: fr-requests-pulse 1.4s ease-out forwards;
+            border-radius: 8px;
+            padding: 0 6px;
+            margin-left: -6px;
+            margin-right: -6px;
+        }
+
+        /* ── Pull-to-refresh indicator ────────────────────────────────── */
+        #fr-ptr {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 0;
+            overflow: hidden;
+            transition: height 0.15s ease;
+            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            gap: 6px;
+        }
+        #fr-ptr svg {
+            flex-shrink: 0;
+            transition: transform 0.25s ease;
+        }
+        #fr-ptr.fr-ptr-ready svg {
+            transform: rotate(180deg);
+        }
+        #fr-ptr.fr-ptr-loading svg {
+            animation: fr-spin 0.8s linear infinite;
+        }
+        @keyframes fr-spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+</style>
 {% endblock %}
 
 {% block content %}
+    <!-- Pull-to-refresh indicator sits outside the scrollable container -->
+    <div id="fr-ptr" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 1v6M8 1L5 4M8 1l3 3M2 10a6 6 0 1 0 12 0" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="fr-ptr-label">Pull to refresh</span>
+    </div>
+
     <div class="page-container">
+
+        {% if pending_incoming %}
+        <!-- ══════════════════════════════════════════════════════════════
+             PENDING FRIEND REQUESTS
+        ══════════════════════════════════════════════════════════════ -->
+        <div class="fr-requests-section" id="fr-requests-section">
+            <p class="fr-requests-header">Friend Requests</p>
+            {% for inv in pending_incoming %}
+            <div class="fr-request-row" id="fr-req-{{ inv.id }}">
+                <div class="fr-request-info">
+                    <p class="fr-request-name">
+                        {% if inv._sender %}
+                            {{ inv._sender.first_name | format_name }}{% if inv._sender.last_name %} {{ inv._sender.last_name | format_name }}{% endif %}
+                        {% else %}
+                            Someone
+                        {% endif %}
+                    </p>
+                    {% if inv._sender and inv._sender.home_state %}
+                    <p class="fr-request-sub">{{ inv._sender.home_state }}</p>
+                    {% endif %}
+                </div>
+                <div class="fr-request-actions">
+                    <button class="fr-req-btn fr-req-btn-decline"
+                            onclick="declineRequest({{ inv.id }}, this)"
+                            aria-label="Decline friend request">
+                        Decline
+                    </button>
+                    <button class="fr-req-btn fr-req-btn-accept"
+                            onclick="acceptRequest({{ inv.id }}, this)"
+                            aria-label="Accept friend request">
+                        Accept
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         {% if friend_count == 0 %}
         <!-- ══════════════════════════════════════════════════════════════
@@ -268,7 +429,6 @@
     {% if invite_url %}
     var _inviteUrl = {{ invite_url | tojson }};
 
-    // Fire-and-forget tracking — never blocks or throws
     function _trackFriendShare(action) {
         try {
             var token = _inviteUrl.split('/invite/')[1] || '';
@@ -286,8 +446,6 @@
         } catch(e) {}
     }
 
-    // "Invite via text" sms: links — track on click before OS opens SMS.
-    // We can only record intent; we cannot confirm the message was sent.
     document.querySelectorAll('a[href^="sms:"]').forEach(function(el) {
         el.addEventListener('click', function() { _trackFriendShare('text'); });
     });
@@ -320,7 +478,7 @@
     }
     {% endif %}
 
-    // ── Client-side search ─────────────────────────────────────────────────
+    // ── Client-side friend search ──────────────────────────────────────────
     function searchFriends(query) {
         var q = (query || '').trim().toLowerCase();
         var groups = document.querySelectorAll('.fr-alpha-group');
@@ -342,9 +500,7 @@
                 if (match) groupVisible++;
             });
 
-            // Hide letter headers while actively filtering
             if (header) header.style.display = q ? 'none' : '';
-
             group.style.display = (groupVisible === 0 && !q) || groupVisible > 0 ? '' : 'none';
             totalVisible += groupVisible;
         });
@@ -356,6 +512,176 @@
             if (noResultsEl) noResultsEl.style.display = 'none';
         }
     }
+
+    // ── Accept / Decline friend requests ──────────────────────────────────
+    function _setRequestRowLoading(row, loading) {
+        if (!row) return;
+        row.querySelectorAll('.fr-req-btn').forEach(function(b) { b.disabled = loading; });
+    }
+
+    function _removeRequestRow(invitationId) {
+        var row = document.getElementById('fr-req-' + invitationId);
+        if (row) {
+            row.style.transition = 'opacity 0.25s';
+            row.style.opacity = '0';
+            setTimeout(function() {
+                row.remove();
+                // Hide the whole section header if no requests remain
+                var section = document.getElementById('fr-requests-section');
+                if (section && section.querySelectorAll('.fr-request-row').length === 0) {
+                    section.remove();
+                }
+            }, 260);
+        }
+    }
+
+    function acceptRequest(invitationId, btn) {
+        var row = document.getElementById('fr-req-' + invitationId);
+        _setRequestRowLoading(row, true);
+        if (btn) btn.textContent = 'Accepting…';
+
+        fetch('/api/friends/invite/' + invitationId + '/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                // Remove the request row immediately then reload to show new friend
+                _removeRequestRow(invitationId);
+                setTimeout(function() { window.location.reload(); }, 300);
+            } else {
+                _setRequestRowLoading(row, false);
+                if (btn) btn.textContent = 'Accept';
+                _showRequestError(row, data.error || 'Could not accept. Try again.');
+            }
+        })
+        .catch(function() {
+            _setRequestRowLoading(row, false);
+            if (btn) btn.textContent = 'Accept';
+            _showRequestError(row, 'Network error. Try again.');
+        });
+    }
+
+    function declineRequest(invitationId, btn) {
+        var row = document.getElementById('fr-req-' + invitationId);
+        _setRequestRowLoading(row, true);
+        if (btn) btn.textContent = 'Declining…';
+
+        fetch('/api/friends/invite/' + invitationId + '/decline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                _removeRequestRow(invitationId);
+            } else {
+                _setRequestRowLoading(row, false);
+                if (btn) btn.textContent = 'Decline';
+                _showRequestError(row, data.error || 'Could not decline. Try again.');
+            }
+        })
+        .catch(function() {
+            _setRequestRowLoading(row, false);
+            if (btn) btn.textContent = 'Decline';
+            _showRequestError(row, 'Network error. Try again.');
+        });
+    }
+
+    function _showRequestError(row, msg) {
+        if (!row) return;
+        var existing = row.querySelector('.fr-request-error');
+        if (existing) { existing.textContent = msg; return; }
+        var info = row.querySelector('.fr-request-info');
+        if (!info) return;
+        var p = document.createElement('p');
+        p.className = 'fr-request-error';
+        p.textContent = msg;
+        info.appendChild(p);
+    }
+
+    // ── ?requests=1 — scroll to and highlight the requests section ────────
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('requests') !== '1') return;
+        var section = document.getElementById('fr-requests-section');
+        if (!section) return;
+        // Brief delay so the page has fully laid out
+        setTimeout(function() {
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            section.classList.add('fr-highlight');
+        }, 120);
+    })();
+
+    // ── Pull-to-refresh (mobile only, JS/CSS, no native plugin) ───────────
+    // Fires a window.location.reload() when the user pulls down from the
+    // very top of the scroll container (overscroll zone).
+    // Desktop is excluded by a touch-start guard.
+    (function() {
+        var ptr       = document.getElementById('fr-ptr');
+        var ptrLabel  = document.getElementById('fr-ptr-label');
+        if (!ptr) return;
+
+        var startY    = 0;
+        var pulling   = false;
+        var triggered = false;
+        var THRESHOLD = 72;   // px of pull needed to trigger refresh
+        var MAX_SHOW  = 56;   // max indicator height shown (px)
+
+        function _ptrHeight(pulled) {
+            // Dampen: show up to MAX_SHOW px, rubber-band feel
+            return Math.min(MAX_SHOW, pulled * 0.45);
+        }
+
+        document.addEventListener('touchstart', function(e) {
+            if (window.scrollY > 4) return;  // only at the very top
+            startY   = e.touches[0].clientY;
+            pulling  = true;
+            triggered = false;
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function(e) {
+            if (!pulling) return;
+            if (window.scrollY > 4) { pulling = false; _ptrReset(); return; }
+            var dy = e.touches[0].clientY - startY;
+            if (dy <= 0) { _ptrReset(); return; }
+
+            var h = _ptrHeight(dy);
+            ptr.style.height = h + 'px';
+
+            if (dy >= THRESHOLD && !triggered) {
+                ptr.classList.add('fr-ptr-ready');
+                if (ptrLabel) ptrLabel.textContent = 'Release to refresh';
+            } else if (dy < THRESHOLD) {
+                ptr.classList.remove('fr-ptr-ready');
+                if (ptrLabel) ptrLabel.textContent = 'Pull to refresh';
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+            if (!pulling) return;
+            pulling = false;
+            var dy = (e.changedTouches[0] ? e.changedTouches[0].clientY : startY) - startY;
+            if (dy >= THRESHOLD && !triggered) {
+                triggered = true;
+                ptr.classList.remove('fr-ptr-ready');
+                ptr.classList.add('fr-ptr-loading');
+                ptr.style.height = '44px';
+                if (ptrLabel) ptrLabel.textContent = 'Refreshing…';
+                // Small delay so the spinner is visible before the reload
+                setTimeout(function() { window.location.reload(); }, 300);
+            } else {
+                _ptrReset();
+            }
+        }, { passive: true });
+
+        function _ptrReset() {
+            ptr.style.height = '0';
+            ptr.classList.remove('fr-ptr-ready', 'fr-ptr-loading');
+            if (ptrLabel) ptrLabel.textContent = 'Pull to refresh';
+        }
+    })();
 
     </script>
 {% endblock %}

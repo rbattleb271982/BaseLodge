@@ -330,7 +330,113 @@ document.addEventListener('DOMContentLoaded', function() {
 
     await Push.addListener('pushNotificationReceived', function(n) {
       console.log('[Push] foreground notification:', JSON.stringify(n).slice(0, 128));
+      // ── Foreground in-app banner ──────────────────────────────────────────
+      // When the app is open and a push arrives, the OS does not show the
+      // system notification tray banner. Show a lightweight in-app toast
+      // so the user knows something happened without leaving their current page.
+      // Currently scoped to friend.request.created; extend as needed.
+      try {
+        var _evt  = (n && n.data && n.data.event) || '';
+        var _url  = (n && n.data && n.data.url)   || '';
+        var _title = (n && n.title) || (n && n.notification && n.notification.title) || '';
+        var _body  = (n && n.body)  || (n && n.notification && n.notification.body)  || '';
+
+        if (_evt === 'friend.request.created') {
+          _showFgBanner(
+            _title || 'New friend request',
+            _body  || 'Someone wants to connect.',
+            _url   || '/friends?requests=1'
+          );
+        }
+      } catch (_fbe) {
+        console.warn('[Push] foreground banner error:', _fbe);
+      }
     });
+
+    // ── Foreground banner helper ───────────────────────────────────────────
+    // Creates a dismissible slide-down toast at the top of the webview.
+    // Tapping it navigates to the provided url. Auto-dismisses after 5 s.
+    // Non-breaking: any DOM or style error is caught and swallowed.
+    function _showFgBanner(title, body, url) {
+      try {
+        var BANNER_ID = 'bl-fg-banner';
+        if (document.getElementById(BANNER_ID)) return; // de-dupe
+
+        var banner = document.createElement('div');
+        banner.id = BANNER_ID;
+        banner.setAttribute('role', 'alert');
+        banner.style.cssText = [
+          'position:fixed',
+          'top:env(safe-area-inset-top,0px)',
+          'left:12px',
+          'right:12px',
+          'z-index:99999',
+          'background:#fff',
+          'border:1px solid #E5DFD0',
+          'border-radius:12px',
+          'padding:12px 14px',
+          'box-shadow:0 4px 20px rgba(0,0,0,0.13)',
+          'display:flex',
+          'align-items:center',
+          'gap:12px',
+          'cursor:pointer',
+          'transform:translateY(-120%)',
+          'transition:transform 0.3s cubic-bezier(0.34,1.26,0.64,1)',
+          'font-family:system-ui,-apple-system,sans-serif',
+        ].join(';');
+
+        var icon = document.createElement('div');
+        icon.style.cssText = 'width:36px;height:36px;background:#5C1219;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;';
+        icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 2L4 7V18C4 18.55 4.45 19 5 19H9V14H13V19H17C17.55 19 18 18.55 18 18V7L11 2Z" fill="#F5F1E8"/></svg>';
+
+        var text = document.createElement('div');
+        text.style.cssText = 'flex:1;min-width:0;';
+
+        var titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-size:14px;font-weight:600;color:#1A1A1A;margin:0 0 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        titleEl.textContent = title;
+
+        var bodyEl = document.createElement('div');
+        bodyEl.style.cssText = 'font-size:12px;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        bodyEl.textContent = body;
+
+        var viewEl = document.createElement('div');
+        viewEl.style.cssText = 'font-size:13px;font-weight:600;color:#5C1219;flex-shrink:0;';
+        viewEl.textContent = 'View';
+
+        text.appendChild(titleEl);
+        text.appendChild(bodyEl);
+        banner.appendChild(icon);
+        banner.appendChild(text);
+        banner.appendChild(viewEl);
+
+        function _dismiss() {
+          banner.style.transform = 'translateY(-120%)';
+          setTimeout(function() {
+            if (banner.parentNode) banner.parentNode.removeChild(banner);
+          }, 350);
+        }
+
+        banner.addEventListener('click', function() {
+          _dismiss();
+          if (url) window.location.href = url;
+        });
+
+        document.body.appendChild(banner);
+        // Trigger slide-in on next frame
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            banner.style.transform = 'translateY(12px)';
+          });
+        });
+        // Auto-dismiss after 5 s
+        setTimeout(_dismiss, 5000);
+
+        console.log('[Push] foreground banner shown for event=' + (_evt || 'unknown'));
+      } catch (_be2) {
+        console.warn('[Push] _showFgBanner error:', _be2);
+      }
+    }
 
     console.log('[Push] listeners attached — calling requestPermissions()');
     _pushBeacon('listeners_attached', { user_id: userId });
