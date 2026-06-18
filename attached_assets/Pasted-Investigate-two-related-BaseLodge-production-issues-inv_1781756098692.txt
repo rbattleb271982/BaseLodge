@@ -1,0 +1,53 @@
+Investigate two related BaseLodge production issues involving the test user Ruchard Test.
+
+Context:
+I created a new user named Ruchard Test. I am trying to delete the account, but the delete account flow is not working. Also, from this user, I sent an invite to myself as another user. I clicked Accept Invite on the user page, likely in a mobile/browser context, and after accepting it brought me into BaseLodge in the browser instead of opening the installed BaseLodge app and placing me into my account.
+
+Please investigate both issues.
+
+Issue 1 — Delete Account Not Working
+
+1. Find the delete account route, template/modal, and any JS tied to the delete flow.
+2. Confirm whether the request is actually being submitted.
+3. Check for CSRF, method mismatch, missing form field, auth/session issue, JavaScript submit prevention, or backend exception.
+4. Check whether the user has related records blocking deletion, especially:
+    * InviteToken
+    * TripInviteToken
+    * Invitation
+    * SkiTripParticipant
+    * Friend/friendship records
+    * Push tokens
+    * Trips
+    * Any analytics/event records tied to user_id
+5. Determine whether deletion should hard-delete related records, soft-delete the user, anonymize the user, or cascade safely.
+6. Add server-side logging around the delete flow so we can see exactly why it fails.
+7. Provide the exact root cause and implement the safest fix.
+
+Issue 2 — Invite Accept Opens Browser Instead of App
+
+1. Audit the full invite accept flow for personal friend invites:
+    * invite landing route
+    * accept invite route
+    * login/session handling
+    * post-accept redirect
+    * mobile browser behavior
+    * Capacitor app behavior
+2. Confirm what happens when the BaseLodge app is already installed and a user accepts an invite from a browser.
+3. Expected behavior: if the user has the app installed, accepting an invite should bring them into the BaseLodge app, not leave them in the mobile browser.
+4. Check whether this requires:
+    * Universal Links for iOS
+    * Android App Links
+    * Capacitor deep link handling
+    * assetlinks.json
+    * apple-app-site-association
+    * a /download or smart routing fallback
+    * storing the invite token through login/app open
+5. Confirm whether the current /invite/<token> flow preserves the token after app open/login.
+6. If universal/app links are not fully configured yet, propose the best interim fix:
+    * accept invite in browser, then show “Open BaseLodge App” CTA
+    * or redirect to /download
+    * or deep-link into the app with the token
+    * while preserving the accepted friendship state
+7. Provide a recommended final architecture for invite links now that BaseLodge is live in the App Store and Google Play.
+
+Please do not just patch blindly. First explain the current flow, identify the failure points, then implement the smallest safe fix for delete account and recommend the correct app-link/deep-link path for invites.

@@ -11,6 +11,11 @@
     <meta property="og:description" content="See trips, coordinate ski weekends, and connect with friends heading to the mountains.">
     <meta property="og:type" content="website">
 
+    <!-- iOS Safari Smart App Banner — shows "Open in BaseLodge" natively in Safari
+         when this page is viewed on a device that has the app installed.
+         No Universal Links configuration required for this banner to appear. -->
+    <meta name="apple-itunes-app" content="app-id=6764206581">
+
     <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png?v={{ ICONS_VERSION }}">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png?v={{ ICONS_VERSION }}">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png?v={{ ICONS_VERSION }}">
@@ -210,10 +215,74 @@
             color: #5C1219;
             text-decoration: none;
         }
+
+        /* ── Open-in-app banner (mobile browser only) ────────────────────── */
+        .il-open-app-bar {
+            display: none; /* shown by JS when in mobile browser, not Capacitor */
+            width: 100%;
+            background: #1A1A1A;
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            align-items: center;
+            gap: 12px;
+        }
+        .il-open-app-bar-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 9px;
+            background: #5C1219;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .il-open-app-bar-icon svg { display: block; }
+        .il-open-app-bar-text {
+            flex: 1;
+            min-width: 0;
+        }
+        .il-open-app-bar-text strong {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #F5F1E8;
+            line-height: 1.3;
+        }
+        .il-open-app-bar-text span {
+            font-size: 11px;
+            color: #888;
+        }
+        .il-open-app-bar-link {
+            flex-shrink: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #F5F1E8;
+            text-decoration: none;
+            background: #5C1219;
+            padding: 6px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
 <div class="il-wrap">
+
+    <!-- Open-in-app bar: shown by JS when viewed in a mobile browser (not Capacitor webview).
+         iOS users also see Safari's native Smart App Banner at the top of the screen. -->
+    <div id="il-open-app-bar" class="il-open-app-bar" aria-label="Open in BaseLodge app">
+        <div class="il-open-app-bar-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M11 2L4 7V18C4 18.55 4.45 19 5 19H9V14H13V19H17C17.55 19 18 18.55 18 18V7L11 2Z" fill="#F5F1E8"/>
+            </svg>
+        </div>
+        <div class="il-open-app-bar-text">
+            <strong>BaseLodge</strong>
+            <span>Open invite in the app</span>
+        </div>
+        <a id="il-open-app-link" href="/download" class="il-open-app-bar-link">Open</a>
+    </div>
 
     <img class="il-wordmark"
          src="/static/images/baselodge-wordmark.png"
@@ -279,28 +348,59 @@
 
 <script>
 (function() {
+    // ── "Continue in Browser" button (Capacitor native shell only) ────────
     var btn = document.getElementById('openBrowser');
-    if (!btn) return;
+    if (btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var inNative = window.Capacitor
+                && typeof window.Capacitor.isNativePlatform === 'function'
+                && window.Capacitor.isNativePlatform();
 
-    btn.addEventListener('click', function(e) {
-        e.preventDefault();
-        // In native Capacitor shell: open the current URL in the system browser (Safari).
-        // In a real browser: just submit the accept form — they're already on the web.
+            if (inNative) {
+                // INTENTIONAL: opens this invite URL in the system browser so a
+                // new user can sign up on the web, complete onboarding, and return.
+                // This is the ONLY intentional app-shell escape in BaseLodge.
+                // Do NOT replicate this pattern for internal navigation.
+                window.open(window.location.href, '_system');
+            } else {
+                document.getElementById('acceptForm').submit();
+            }
+        });
+    }
+
+    // ── "Open in App" bar (mobile browser only, not Capacitor) ───────────
+    // Show the bar whenever this page is opened in a real mobile browser
+    // (Chrome / Safari) instead of inside the Capacitor webview.
+    // iOS users also see a native Smart App Banner via the apple-itunes-app meta tag.
+    (function() {
+        var bar = document.getElementById('il-open-app-bar');
+        if (!bar) return;
+
         var inNative = window.Capacitor
             && typeof window.Capacitor.isNativePlatform === 'function'
             && window.Capacitor.isNativePlatform();
 
-        if (inNative) {
-            // INTENTIONAL: opens this invite URL in Safari so a new user can sign up
-            // via the web, complete onboarding, and return to the app.
-            // This is the ONLY intentional app-shell escape in BaseLodge.
-            // Do NOT replicate this pattern for internal navigation.
-            window.open(window.location.href, '_system');
-        } else {
-            // Already in a browser — proceed with the normal accept flow.
-            document.getElementById('acceptForm').submit();
+        // Show only in real mobile browsers, not in the app or on desktop
+        var ua = navigator.userAgent || '';
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
+
+        if (!inNative && isMobile) {
+            bar.style.display = 'flex';
+
+            // For Android: update the "Open" link to try to launch the app directly
+            // via an intent URL. Falls back to /download (Play Store) if not installed.
+            var link = document.getElementById('il-open-app-link');
+            if (link && /Android/i.test(ua)) {
+                var intentUrl = 'intent://' + window.location.host + window.location.pathname
+                    + '#Intent;scheme=https;package=com.baselodge.app;'
+                    + 'S.browser_fallback_url=' + encodeURIComponent('https://play.google.com/store/apps/details?id=com.baselodgeapp.com') + ';end';
+                link.href = intentUrl;
+            }
+            // iOS: Safari's Smart App Banner (meta tag) handles the "Open" CTA natively.
+            // The bar still provides a manual fallback for users who dismiss the banner.
         }
-    });
+    })();
 })();
 </script>
 </body>

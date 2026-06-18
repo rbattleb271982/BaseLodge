@@ -842,6 +842,7 @@ def before_request_handlers():
             path == "/logout" or
             path == "/robots.txt" or
             path == "/sitemap.xml" or
+            path.startswith("/.well-known/") or
             path == "/privacypolicy" or
             path == "/termsandconditions" or
             path.startswith("/download") or
@@ -12076,6 +12077,15 @@ def delete_account():
         # 15. Push device tokens
         PushDeviceToken.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
+        # 15b. Invite share events — must be deleted explicitly.
+        #      InviteShareEvent.user has a backref='invite_share_events' on User
+        #      without passive_deletes=True.  When SQLAlchemy processes
+        #      db.session.delete(user) it tries to SET user_id=NULL on the related
+        #      rows before the user row is removed.  user_id is NOT NULL, so that
+        #      UPDATE fails with an IntegrityError even though the DB-level FK has
+        #      ON DELETE CASCADE (the ORM intercepts before Postgres can cascade).
+        InviteShareEvent.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
         # 16a. NULL out invited_by_user_id on any users this person invited.
         #      This is a self-referential FK with no ON DELETE action — leaving it
         #      set would block deletion of the user row with an FK violation.
@@ -16005,6 +16015,96 @@ def terms_and_conditions():
 @app.route("/robots.txt")
 def robots_txt():
     return send_file("static/robots.txt", mimetype="text/plain", max_age=86400)
+
+
+# ── Deep-link verification files ─────────────────────────────────────────────
+#
+# These two routes let iOS (Universal Links) and Android (App Links) verify that
+# app.baselodgeapp.com is associated with the BaseLodge app, so that invite URLs
+# open directly in the installed app instead of the mobile browser.
+#
+# CURRENT STATUS: placeholders are served — real values need to be filled in.
+#
+# HOW TO COMPLETE SETUP:
+#
+# iOS Universal Links (apple-app-site-association):
+#   1. Find your Apple Team ID at https://developer.apple.com → Membership
+#   2. Replace "XXXXXXXXXX" below with your 10-character Team ID
+#   3. The bundle ID is already correct: com.baselodge.app
+#   4. In Xcode: target → Signing & Capabilities → + Capability → Associated Domains
+#      Add: applinks:app.baselodgeapp.com
+#   5. In Capacitor iOS (AppDelegate.swift or capacitor.config.json), handle
+#      application(_:continue:restorationHandler:) to parse the invite URL
+#
+# Android App Links (assetlinks.json):
+#   1. In Android Studio: App Signing → upload certificate SHA-256 fingerprint
+#      (from Google Play Console → App Signing → App signing key certificate)
+#   2. Replace the placeholder SHA-256 below with your real certificate fingerprint
+#   3. In android/app/src/main/AndroidManifest.xml, add an intent-filter with
+#      android:autoVerify="true" for https://app.baselodgeapp.com/invite/*
+#   4. In Capacitor Android, handle appUrlOpen via @capacitor/app's App.addListener
+#
+# Server-side token preservation (both platforms):
+#   The Capacitor App plugin fires appUrlOpen when the app is opened via a deep link.
+#   Read the URL, extract the token, and navigate to /invite/<token> inside the webview.
+#   The session cookie is already present (same domain), so the accept flow works normally.
+#
+@app.route("/.well-known/apple-app-site-association")
+def apple_app_site_association():
+    """iOS Universal Links verification file.
+
+    Tells iOS that app.baselodgeapp.com/invite/* links should open in BaseLodge.
+    Replace XXXXXXXXXX with the real Apple Team ID before submitting to the App Store.
+    """
+    import json as _json
+    aasa = {
+        "applinks": {
+            "apps": [],
+            "details": [
+                {
+                    "appID": "XXXXXXXXXX.com.baselodge.app",  # ← replace Team ID
+                    "paths": [
+                        "/invite/*",
+                        "/trip-invite/*"
+                    ]
+                }
+            ]
+        }
+    }
+    return app.response_class(
+        response=_json.dumps(aasa),
+        status=200,
+        mimetype="application/json"
+    )
+
+
+@app.route("/.well-known/assetlinks.json")
+def assetlinks_json():
+    """Android App Links verification file.
+
+    Tells Android that app.baselodgeapp.com/invite/* links should open in BaseLodge.
+    Replace the placeholder SHA-256 fingerprint with the real signing certificate
+    fingerprint from Google Play Console → App Signing before releasing to Play Store.
+    """
+    import json as _json
+    assetlinks = [
+        {
+            "relation": ["delegate_permission/common.handle_all_urls"],
+            "target": {
+                "namespace": "android_app",
+                "package_name": "com.baselodge.app",
+                "sha256_cert_fingerprints": [
+                    # ← replace with real SHA-256 from Google Play Console → App Signing
+                    "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+                ]
+            }
+        }
+    ]
+    return app.response_class(
+        response=_json.dumps(assetlinks),
+        status=200,
+        mimetype="application/json"
+    )
 
 
 @app.route("/sitemap.xml")
