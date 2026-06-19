@@ -3028,16 +3028,19 @@ def auth():
                 'signup_source': 'invite' if "invite_token" in session else 'organic',
             })
 
-            # Connect with inviter if coming from friend invite link
+            # After signup, redirect through onboarding then back to the invite
+            # landing page (post_onboarding_redirect already set by invite_token_confirm).
+            # Do NOT call _connect_pending_inviter here — friendship is created
+            # at explicit confirm so the success screen always appears.
+            # Only set fallback redirects when invite_token_confirm did not set them.
             if "invite_token" in session:
-                # Pre-set post-onboarding redirect to friends before token is consumed
-                session["post_onboarding_redirect"] = url_for("friends")
-                _connect_pending_inviter(new_user)
+                if not session.get("post_onboarding_redirect"):
+                    session["post_onboarding_redirect"] = url_for("friends")
             elif "trip_invite_token" in session:
-                # Pre-set post-onboarding redirect back to trip invite landing
-                session["post_onboarding_redirect"] = url_for(
-                    "trip_invite_token_landing", token=session["trip_invite_token"]
-                )
+                if not session.get("post_onboarding_redirect"):
+                    session["post_onboarding_redirect"] = url_for(
+                        "trip_invite_token_landing", token=session["trip_invite_token"]
+                    )
 
             return redirect(url_for("onboarding"))
         
@@ -3080,22 +3083,33 @@ def auth():
                 # Founder login alert (non-blocking, throttled to 1×/user/day)
                 _queue_founder_login_push(user.id, user.email)
 
-                # Connect with inviter if coming from friend invite link
+                # Return to any pending post-login destination.
+                # Checked FIRST so /invite/<token> redirect (set by invite_token_confirm)
+                # takes precedence over the inline _connect_pending_inviter fallback.
+                # This guarantees the success screen is shown for all auth paths.
+                _post_login = session.pop("post_login_redirect", None)
+                if _post_login:
+                    app.logger.info(
+                        "[invite_context_restored] user_id=%s source=email_login redirect=%s",
+                        user.id, _post_login,
+                    )
+                    return redirect(_post_login)
+
+                # Fallback: consume invite token inline when no post_login_redirect is set
+                # (e.g. user navigated directly to /auth while invite_token was in session).
                 if "invite_token" in session:
                     connected = _connect_pending_inviter(user)
                     if connected:
-                        # Redirect to friends page to show the new connection
+                        app.logger.info(
+                            "[invite_friendship_created] user_id=%s source=email_login_fallback",
+                            user.id,
+                        )
                         return redirect(url_for("friends"))
 
                 # Return to trip invite landing if coming from trip invite link
                 if "trip_invite_token" in session:
                     _ttok = session["trip_invite_token"]
                     return redirect(url_for("trip_invite_token_landing", token=_ttok))
-
-                # Return to any pending post-login destination (e.g. QR connect flow)
-                _post_login = session.pop("post_login_redirect", None)
-                if _post_login:
-                    return redirect(_post_login)
 
                 return redirect(url_for("home"))
 
@@ -3537,39 +3551,56 @@ def _invite_landing_initials(user):
 @app.route("/invite/<token>")
 def invite_token_landing(token):
     """Invite landing page — shows a holding page before any acceptance occurs."""
+    app.logger.info(
+        "[invite_link_opened] token=%.8s... auth=%s",
+        token, current_user.is_authenticated,
+    )
     invite = InviteToken.query.filter_by(token=token).first()
 
     # 1. Token not found
     if not invite:
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=not_found", token)
         return render_template("invite_invalid.html")
 
     # 2. Token expired
     if invite.is_expired():
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=expired", token)
         return render_template("invite_expired.html")
 
     inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=inviter_missing", token)
         return render_template("invite_expired.html")
 
     # 3. Token already used — explicit single-use enforcement
     if invite.is_used():
         if current_user.is_authenticated:
-            # If the current user is already connected to the inviter, redirect cleanly
+            # If the current user is already connected to the inviter, show the
+            # success screen — they may have been redirected back here after auth.
             existing = Friend.query.filter_by(
                 user_id=current_user.id, friend_id=inviter.id
             ).first()
             if existing:
-                flash(f"You're already connected with {inviter.first_name}.", "info")
-                return redirect(url_for("friends"))
-        # Used token, not already connected (or logged-out) — no longer active
+                app.logger.info(
+                    "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
+                    current_user.id, inviter.id, token,
+                )
+                session.pop("invite_token", None)
+                return render_template("invite_accepted.html", inviter=inviter)
+        # Used token — could not link to a confirmed friendship for this user
+        app.logger.info(
+            "[invite_failed_reason] token=%.8s... reason=used auth=%s",
+            token, current_user.is_authenticated,
+        )
         return render_template("invite_expired.html")
 
     # 4. Inviter is the current user — self-invite guard
     if current_user.is_authenticated and current_user.id == inviter.id:
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=self_invite user_id=%s", token, current_user.id)
         flash("That's your own invite link.", "info")
         return redirect(url_for("friends"))
 
-    # 5. Already friends (unused token) — mark used and redirect cleanly
+    # 5. Already friends (unused token) — mark used and show success screen
     if current_user.is_authenticated:
         existing = Friend.query.filter_by(
             user_id=current_user.id, friend_id=inviter.id
@@ -3577,13 +3608,21 @@ def invite_token_landing(token):
         if existing:
             invite.used_at = datetime.utcnow()
             db.session.commit()
-            flash(f"You're already connected with {inviter.first_name}.", "info")
-            return redirect(url_for("friends"))
+            app.logger.info(
+                "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
+                current_user.id, inviter.id, token,
+            )
+            session.pop("invite_token", None)
+            return render_template("invite_accepted.html", inviter=inviter)
 
     # ── Show the holding page — no automatic acceptance ───────────────────────
     # Authenticated users see "Connect with [Name]?" and must confirm explicitly.
     # Unauthenticated users see "Accept Invite" and are routed to auth on confirm.
     initials = _invite_landing_initials(inviter)
+    app.logger.info(
+        "[invite_landing_rendered] token=%.8s... auth=%s",
+        token, current_user.is_authenticated,
+    )
     return render_template(
         "invite_landing.html",
         inviter=inviter,
@@ -3599,18 +3638,29 @@ def invite_token_confirm(token):
     landing page. Re-validates the token on every POST (guards against replays,
     expiry races, and double-submits).
     """
+    app.logger.info(
+        "[invite_confirm_attempted] token=%.8s... auth=%s",
+        token, current_user.is_authenticated,
+    )
     validate_csrf_request()
     invite = InviteToken.query.filter_by(token=token).first()
 
     if not invite or invite.is_expired() or invite.is_used():
+        app.logger.info(
+            "[invite_failed_reason] token=%.8s... reason=%s at=confirm",
+            token,
+            "not_found" if not invite else ("expired" if invite.is_expired() else "used"),
+        )
         return render_template("invite_expired.html")
 
     inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=inviter_missing at=confirm", token)
         return render_template("invite_expired.html")
 
     # Self-invite guard (user may have signed in on the landing page in another tab)
     if current_user.is_authenticated and current_user.id == inviter.id:
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=self_invite at=confirm user_id=%s", token, current_user.id)
         flash("That's your own invite link.", "info")
         return redirect(url_for("friends"))
 
@@ -3620,10 +3670,15 @@ def invite_token_confirm(token):
             user_id=current_user.id, friend_id=inviter.id
         ).first()
         if existing:
-            # Already connected — mark token used and show the success screen
-            # rather than silently redirecting. Idempotent: safe to call twice.
+            # Already connected — mark token used and show the success screen.
+            # Idempotent: safe to call even if token was already marked used.
             invite.used_at = datetime.utcnow()
             db.session.commit()
+            app.logger.info(
+                "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
+                current_user.id, inviter.id, token,
+            )
+            session.pop("invite_token", None)
             return render_template("invite_accepted.html", inviter=inviter)
 
         # If the user is mid-onboarding, create the friendship now but let
@@ -3633,10 +3688,24 @@ def invite_token_confirm(token):
             session["post_onboarding_redirect"] = url_for("friends")
 
         _apply_invite_token(invite, current_user)
+        app.logger.info(
+            "[invite_friendship_created] user_id=%s inviter_id=%s token=%.8s...",
+            current_user.id, inviter.id, token,
+        )
+        session.pop("invite_token", None)
         return render_template("invite_accepted.html", inviter=inviter)
 
-    # ── Unauthenticated: store token and route through auth ───────────────────
+    # ── Unauthenticated: preserve token through auth, then return to invite ───
+    # Storing the token in session keeps invite-aware copy on the auth page.
+    # post_login_redirect sends the user back to GET /invite/<token> after login
+    # so they see "Connect with [Name]?" and confirm explicitly — this ensures
+    # the success screen always appears and the token is validated in one place.
+    # post_onboarding_redirect covers the signup → onboarding path.
+    app.logger.info("[invite_auth_required] token=%.8s...", token)
     session["invite_token"] = token
+    session["post_login_redirect"] = url_for("invite_token_landing", token=token)
+    session["post_onboarding_redirect"] = url_for("invite_token_landing", token=token)
+    app.logger.info("[invite_context_stored] token=%.8s...", token)
     return redirect(url_for("auth"))
 
 
@@ -11955,11 +12024,30 @@ def auth_google_callback():
         # Founder login alert (non-blocking, throttled to 1×/user/day)
         _queue_founder_login_push(user.id, user.email)
 
+        # Return to any pending post-login destination.
+        # Checked FIRST so /invite/<token> redirect (set by invite_token_confirm)
+        # takes precedence over the inline _connect_pending_inviter fallback.
+        _post_login = session.pop("post_login_redirect", None)
+        if _post_login:
+            app.logger.info(
+                "[invite_context_restored] user_id=%s source=google redirect=%s",
+                user.id, _post_login,
+            )
+            if not user.is_core_profile_complete:
+                # New Google user needs onboarding first — preserve the destination.
+                session["post_onboarding_redirect"] = _post_login
+                return redirect(url_for("onboarding"))
+            return redirect(_post_login)
+
+        # Fallback: consume invite token inline when no post_login_redirect is set.
         if "invite_token" in session:
-            session["post_onboarding_redirect"] = url_for("friends")
+            if not session.get("post_onboarding_redirect"):
+                session["post_onboarding_redirect"] = url_for("friends")
             _connect_pending_inviter(user)
-            # New Google users must complete onboarding before landing on /friends.
-            # Existing users (profile complete) go straight to /friends.
+            app.logger.info(
+                "[invite_friendship_created] user_id=%s source=google_fallback",
+                user.id,
+            )
             if not user.is_core_profile_complete:
                 return redirect(url_for("onboarding"))
             return redirect(url_for("friends"))
@@ -11977,11 +12065,6 @@ def auth_google_callback():
                 )
                 return redirect(url_for("onboarding"))
             return redirect(url_for("trip_invite_token_landing", token=_ttok))
-
-        # Return to any pending post-login destination (e.g. QR connect flow).
-        _post_login = session.pop("post_login_redirect", None)
-        if _post_login:
-            return redirect(_post_login)
 
         if not user.is_core_profile_complete:
             return redirect(url_for("onboarding"))

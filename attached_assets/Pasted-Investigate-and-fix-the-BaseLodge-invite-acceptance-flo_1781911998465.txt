@@ -1,0 +1,89 @@
+Investigate and fix the BaseLodge invite acceptance flow end-to-end. This is production-critical.
+
+Problem:
+A real user received an invite link, downloaded/opened the app, clicked the invite, and the invite did not work. The invite system must reliably connect the inviter and recipient after the recipient accepts, whether the recipient is already logged in, newly signed up, coming from mobile web, or coming from the installed app.
+
+Scope:
+Audit and test all invite-related flows, but focus first on the personal friend invite link flow:
+
+- GET /invite
+- GET /invite/<token>
+- POST /invite/<token>/confirm
+- GET /my-qr
+- GET /connect/<user_id>
+- POST /connect/<user_id>/add
+- POST /api/friends/invite
+- POST /api/friends/invite/<id>/accept
+- Any login/signup redirects that preserve or lose invite context
+- Any mobile app / Capacitor behavior around opening invite URLs
+
+Required investigation:
+1. Trace exactly what happens when a logged-out recipient clicks https://app.baselodgeapp.com/invite/<token>
+2. Trace what happens if they have the app installed
+3. Trace what happens if they do not have the app installed and install it first
+4. Trace what happens if they sign up after landing on the invite page
+5. Trace what happens if they log in after landing on the invite page
+6. Confirm whether invite token context survives:
+   - browser to login
+   - browser to signup
+   - mobile web to installed app
+   - app cold start
+   - app already-open state
+7. Confirm whether tokens are being marked used too early
+8. Confirm whether expired tokens are being generated or reused incorrectly
+9. Confirm whether the friend relationship is actually inserted after acceptance
+10. Confirm whether duplicate friendship handling is safe and user-friendly
+
+Required fix:
+Make the invite flow reliable and forgiving.
+
+Expected behavior:
+- If recipient is logged in and clicks a valid invite link, they should see the invite landing page and be able to connect
+- If recipient is logged out, the invite token must be preserved through login/signup and acceptance must work afterward
+- If recipient is a brand-new user, they should be able to create an account and then complete the friend connection
+- If recipient opens the invite from the mobile app, the token must still resolve correctly
+- If recipient already has a friendship with inviter, show a success/already-connected state, not an error
+- If token is expired or already used, show a clear user-facing message and offer a fallback path
+- Do not consume or invalidate the token until the friendship is successfully created
+- Do not let the inviter accept their own invite
+- Do not create duplicate friendships
+
+Implementation guidance:
+- Add a persistent pending_invite_token mechanism using session and/or a safe URL redirect param
+- When logged-out users hit /invite/<token>, store token in session before redirecting to login/signup
+- After login/signup, redirect them back to /invite/<token> or directly to the acceptance page
+- Ensure Capacitor/mobile app opens the same canonical web route and does not drop the token
+- Make invite confirmation idempotent
+- Add clear logging around invite lifecycle events:
+  - invite_link_opened
+  - invite_landing_rendered
+  - invite_auth_required
+  - invite_context_stored
+  - invite_context_restored
+  - invite_confirm_attempted
+  - invite_friendship_created
+  - invite_already_connected
+  - invite_failed_reason
+- Add production-safe server logs with token prefixes only, never full tokens
+
+Testing requirements:
+Create or update tests that prove:
+1. Logged-in recipient can accept invite
+2. Logged-out recipient can click invite, log in, and accept invite
+3. Logged-out recipient can click invite, sign up, and accept invite
+4. Invite token is not marked used before successful friendship creation
+5. Already-connected users see success/already-connected
+6. Self-invite is blocked
+7. Expired token shows a clean message
+8. Used token shows a clean message
+9. Duplicate friendship does not crash
+10. Mobile user-agent / app webview path preserves token
+
+Deliverables:
+- Explain root cause
+- List files changed
+- Show exact code changes
+- Run tests
+- Confirm production behavior with a manual QA checklist
+
+Do not change unrelated friend/trip invite behavior unless necessary. Preserve existing analytics and Founder Pulse invite-share tracking.
