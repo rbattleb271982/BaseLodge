@@ -1,0 +1,52 @@
+Implement task 201 - Friend Invite Reliability Fixes exactly as specified.
+
+Rules:
+
+* No schema changes
+* No new third-party SDKs
+* Do not change TripInviteToken expiration behavior
+* Do not remove legacy Invitation flow
+* Preserve explicit confirm tap
+* Keep existing invite e2e behavior passing
+
+Required changes:
+
+1. In get_or_create_invite_token(), make newly created friend invite tokens permanent by setting expires_at=None.
+2. In invite_token_landing(), treat legacy friend invite tokens with expires_at in the past and used_at=None as valid. Render invite_landing.html, not invite_expired.html.
+3. Only show invite_expired.html when the token is expired and already used, or when the inviter no longer exists.
+4. Confirm used token + already-friends authenticated users render invite_accepted.html.
+5. In connect_via_qr(), when unauthenticated, set both:
+    * session["post_login_redirect"]
+    * session["post_onboarding_redirect"]
+    Both should point to the QR confirm URL.
+6. In apple_app_site_association() and assetlinks_json(), read:
+    * BASELODGE_APPLE_TEAM_ID
+    * BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT
+    Substitute real values when present. If absent, log a warning and keep current placeholders. Do not crash.
+7. In static/js/bl-native.js, add a safe Capacitor appUrlOpen listener. It should:
+    * only run when the Capacitor App plugin is available
+    * do nothing safely in browser/non-Capacitor contexts
+    * navigate to /invite/... or /trip-invite/... paths when opened from a Universal Link/App Link
+    * include a comment that Xcode Associated Domains and Android android:autoVerify still need native project configuration
+8. Add tests/test_invite_reliability.py using the same Flask test client + real DB pattern as tests/test_invite_flow_e2e.py.
+
+Test coverage required:
+
+* past expires_at + used_at=None renders invite landing
+* expires_at=None renders invite landing
+* used token + already-friends authenticated user renders invite accepted
+* unauthenticated POST /invite/<token>/confirm sets invite_token, post_login_redirect, and post_onboarding_redirect
+* unauthenticated GET /connect/<user_id> sets both redirect session values
+* trip invite landing behavior remains unchanged
+
+After implementation, run:
+
+python tests/test_invite_reliability.py
+python tests/test_invite_flow_e2e.py
+
+Report:
+
+* files changed
+* exact behavior changed
+* test results
+* whether all 53 existing invite e2e scenarios still pass

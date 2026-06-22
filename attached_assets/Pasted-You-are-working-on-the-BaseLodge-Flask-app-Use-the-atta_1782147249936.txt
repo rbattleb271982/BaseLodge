@@ -1,0 +1,78 @@
+You are working on the BaseLodge Flask app.
+
+Use the attached Invite Architecture Audit as source of truth. Do not make broad rewrites. Implement the lowest-risk fixes needed to make friend invites reliable across web, installed app, signup, login, and QR flows.
+
+Primary goals:
+
+1. Stop friend invite links from expiring for normal users
+2. Preserve invite context through login and signup
+3. Improve installed-app behavior where possible from this repo
+4. Fix QR connect losing context after onboarding
+5. Keep legacy InviteToken links working
+6. Do not break trip invites
+
+Tasks:
+
+1. Make friend invite links effectively permanent
+
+* Change get_or_create_invite_token() so new InviteToken records do not expire
+* Set expires_at=None for new friend invite tokens
+* Keep InviteToken.is_expired() backward-compatible: expires_at=None means never expired
+* Do not change password reset expiration
+* Do not change TripInviteToken behavior in this pass
+
+2. Update expired invite UX
+
+* If a friend InviteToken is expired only because it has an old expires_at, allow it if used_at is still None
+* If token is used and the current user is already friends with inviter, show invite_accepted.html
+* If token is invalid, keep invite_invalid.html
+* Avoid showing “expired” for normal friend invite links unless truly unrecoverable
+
+3. Preserve QR connect through signup/onboarding
+
+* In connect_via_qr(), when unauthenticated, set both:
+    session[“post_login_redirect”] = url_for(“connect_via_qr”, user_id=user_id)
+    session[“post_onboarding_redirect”] = url_for(“connect_via_qr”, user_id=user_id)
+* Ensure new users who scan a QR code, sign up, and complete onboarding return to the QR confirm page
+
+4. Deep link config cleanup
+
+* Replace placeholder Apple Team ID and Android SHA-256 only if real environment variables exist
+* Add safe env-based config:
+    BASELODGE_APPLE_TEAM_ID
+    BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT
+* If env vars are missing, keep current placeholders but log a warning
+* Do not hardcode private credentials
+
+5. Add Capacitor app URL handling guidance where repo allows
+
+* Search the repo for Capacitor/native JS entry points
+* If there is a shared JS file loaded globally, add a safe listener for appUrlOpen if @capacitor/app is available
+* The handler should navigate the webview to /invite/ or /trip-invite/ when a matching URL opens
+* If the native project is not present, document the missing native change in comments and do not invent files
+
+6. Add tests or verification script
+    Cover:
+
+* Existing InviteToken with expires_at in the past but used_at=None still lands correctly
+* InviteToken with expires_at=None lands correctly
+* Used token + already friends renders accepted state
+* Unauthenticated invite confirm sets invite_token, post_login_redirect, and post_onboarding_redirect
+* QR unauthenticated path sets both post_login_redirect and post_onboarding_redirect
+* Trip invite behavior unchanged
+
+Constraints:
+
+* Do not modify unrelated routes
+* Do not change database schema unless absolutely required
+* Do not remove legacy Invitation flow
+* Do not auto-connect silently on signup in this pass
+* Do not modify password reset token logic
+* Keep changes small and production-safe
+
+After changes, provide:
+
+1. Files changed
+2. Exact behavior changes
+3. Tests run
+4. Any remaining native app work that cannot be completed from this repo
