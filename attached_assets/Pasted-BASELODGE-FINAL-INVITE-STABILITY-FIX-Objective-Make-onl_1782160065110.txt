@@ -1,0 +1,95 @@
+BASELODGE — FINAL INVITE STABILITY FIX
+
+Objective
+
+Make only the final pre-release invite stability fixes identified in the audits.
+
+Do not refactor.
+Do not redesign.
+Do not add user-to-user push notifications.
+Do not change the invite architecture.
+Do not change onboarding.
+Do not change navigation.
+Do not touch unrelated files.
+
+Scope is limited to:
+
+1. RB-01: Fix _connect_pending_inviter()
+2. Clean up obsolete InviteToken expiration references
+
+---
+
+## FIX 1 — RB-01
+
+Find _connect_pending_inviter().
+
+It currently still rejects pending friend invites if invite.is_expired() is true.
+
+This is inconsistent with the permanent InviteToken policy and with the already-fixed GET/POST invite landing and confirm routes.
+
+Change:
+
+if not invite or invite.is_used() or invite.is_expired():
+
+to:
+
+if not invite or invite.is_used():
+
+Do not change any other behavior in this function.
+
+---
+
+## FIX 2 — CLEAN UP STALE EXPIRATION REFERENCES
+
+Find obsolete friend InviteToken references that still imply a 48-hour expiration policy.
+
+Specifically check:
+
+* INVITE_EXPIRY_HOURS = 48
+* InviteToken docstring
+* comments mentioning 48-hour expiration
+* comments saying friend invite links expire
+* tests or labels that describe friend InviteTokens as expiring
+
+Update them to reflect the current policy:
+
+Friend InviteToken links are permanent until used, deleted, or invalidated by account/friendship state.
+
+Important:
+
+Do not change TripInviteToken behavior unless the code/comment explicitly confuses it with friend InviteToken behavior.
+
+---
+
+## TESTING
+
+After making the minimal changes, run invite-related tests only.
+
+Run:
+
+* tests/test_invite_flow_e2e.py
+* tests/test_invite_reliability.py
+
+Also run any existing tests that directly cover:
+
+* _connect_pending_inviter()
+* invite_token_landing()
+* invite_token_confirm()
+* auth redirect preservation
+* onboarding redirect preservation
+
+---
+
+## FINAL REPORT
+
+Report:
+
+1. Files changed
+2. Exact lines changed
+3. Tests run
+4. Test results
+5. Confirmation that no push notification changes were made
+6. Confirmation that no navigation/onboarding/app shell changes were made
+7. Whether the app is ready for iOS and Android build submission
+
+Do not make any additional recommendations unless a test fails.

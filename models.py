@@ -985,10 +985,8 @@ class Invitation(db.Model):
         return f'<Invitation {self.invite_type.value} from {self.sender_id} to {self.receiver_id} trip={self.trip_id}>'
 
 
-INVITE_EXPIRY_HOURS = 48
-
 class InviteToken(db.Model):
-    """Invite token with 48-hour expiration."""
+    """Friend invite token. Permanent until used — expires_at is retained for legacy rows only."""
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(64), unique=True, nullable=False, index=True)
     inviter_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -999,10 +997,13 @@ class InviteToken(db.Model):
     inviter = db.relationship("User", backref="invite_tokens")
 
     def is_expired(self):
-        """Return True if the token is past its 48-hour validity window.
+        """Return True if the token has a past expires_at timestamp.
 
-        Tokens with no expires_at (legacy rows created before the field existed)
-        are treated as non-expired so existing links continue to work.
+        New tokens are created with expires_at=None (permanent). Legacy rows from
+        before the permanent-token policy may have a past expires_at, but the invite
+        landing and connection paths do NOT call this method — used_at is the sole
+        validity signal. This method is retained only for the unfriend token-expiry
+        path (which deliberately sets expires_at to invalidate a shared link).
         """
         if self.expires_at is None:
             return False

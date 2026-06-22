@@ -2970,7 +2970,7 @@ def auth():
     _invite_token_str = session.get("invite_token")
     if _invite_token_str:
         _invite_obj = InviteToken.query.filter_by(token=_invite_token_str).first()
-        if _invite_obj and not _invite_obj.is_used() and not _invite_obj.is_expired():
+        if _invite_obj and not _invite_obj.is_used():
             _invite_inviter = db.session.get(User, _invite_obj.inviter_id)
             if _invite_inviter:
                 _invite_trips_count = get_upcoming_trip_count(_invite_inviter)
@@ -3484,7 +3484,7 @@ def location_setup():
 def _apply_invite_token(invite, user):
     """
     Core invite connection logic given a pre-loaded, pre-validated InviteToken and recipient user.
-    Caller must have already confirmed: invite is not None, not expired, inviter != user.
+    Caller must have already confirmed: invite is not None, not used, inviter != user.
 
     - Creates mutual Friend rows if not already connected (idempotent)
     - Sets user.invited_by_user_id if not already set
@@ -3518,8 +3518,8 @@ def _connect_pending_inviter(user):
         return False
 
     invite = InviteToken.query.filter_by(token=invite_token_str).first()
-    # Check if token is invalid, already used, or expired
-    if not invite or invite.is_used() or invite.is_expired():
+    # Tokens are permanent — used_at is the sole validity signal; expiry is not checked
+    if not invite or invite.is_used():
         session.pop("invite_token", None)
         return False
 
