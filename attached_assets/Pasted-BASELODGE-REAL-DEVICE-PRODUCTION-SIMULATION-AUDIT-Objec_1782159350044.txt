@@ -1,0 +1,233 @@
+BASELODGE — REAL DEVICE PRODUCTION SIMULATION AUDIT
+
+Objective
+
+Validate the actual user experience on physical devices before submitting the next iOS and Android builds.
+
+This audit must simulate real-world user behavior and verify that every invite flow works correctly across:
+
+* iOS
+* Android
+* Mobile web
+* Logged-in users
+* Logged-out users
+* New users
+* Existing users
+
+Do not modify code.
+
+Only test and report.
+
+---
+
+## TEST ACCOUNTS
+
+Use only:
+
+Founder Account:
+[richardbattlebaxter@gmail.com](mailto:richardbattlebaxter@gmail.com)
+
+And create temporary QA users:
+
+[qa_sender@test.baselodge.local](mailto:qa_sender@test.baselodge.local)
+[qa_receiver@test.baselodge.local](mailto:qa_receiver@test.baselodge.local)
+[qa_trip@test.baselodge.local](mailto:qa_trip@test.baselodge.local)
+
+Do not send notifications to production users.
+
+---
+
+## PHASE 1 — DEEP LINK VALIDATION
+
+Generate fresh:
+
+* Friend invite links
+* Trip invite links
+
+For each link test:
+
+1. iPhone with app installed
+2. iPhone without app installed
+3. Android with app installed
+4. Android without app installed
+
+Verify:
+
+* Does the link open the app?
+* Does the link open the browser?
+* Does the correct screen load?
+* Is invite state preserved?
+* Is trip state preserved?
+* Are redirects correct?
+
+Document exact behavior.
+
+---
+
+## PHASE 2 — MESSAGES APP TEST
+
+Simulate links arriving through:
+
+* iMessage
+* SMS
+* Email
+* Copy/Paste
+
+For each:
+
+Verify:
+
+* Link preview
+* Tap behavior
+* Universal Link behavior
+* App launch behavior
+* Browser fallback behavior
+
+Document all differences.
+
+---
+
+## PHASE 3 — FRIEND INVITE JOURNEY
+
+Test:
+
+Scenario A:
+Existing user → Existing user
+
+Scenario B:
+Existing user → Logged-out existing user
+
+Scenario C:
+Existing user → Brand-new account
+
+Scenario D:
+Already connected users
+
+Scenario E:
+Self invite
+
+Scenario F:
+Invite accepted twice
+
+For every scenario verify:
+
+* Landing page
+* Login flow
+* Signup flow
+* Onboarding flow
+* Friendship creation
+* Friend list update
+* Notifications
+* Success page
+
+Capture screenshots if possible.
+
+---
+
+## PHASE 4 — TRIP INVITE JOURNEY
+
+Test:
+
+Existing user joins trip
+New user joins trip
+Already joined user
+Trip owner opening invite
+Invalid invite
+Cancelled invite
+
+Verify:
+
+* Trip membership
+* Participant visibility
+* Redirects
+* Notifications
+* Activity feed updates
+
+---
+
+## PHASE 5 — PUSH NOTIFICATION AUDIT
+
+Generate every notification currently supported.
+
+For each notification document:
+
+* Trigger
+* Recipient
+* Payload
+* OneSignal data
+* Destination screen
+
+Then verify:
+
+When tapped:
+
+* What screen opens?
+* What screen SHOULD open?
+
+Identify all gaps.
+
+---
+
+## PHASE 6 — APP SHELL AUDIT
+
+Navigate entire app as a user.
+
+Verify:
+
+Friends
+Trips
+Mountains
+Profile
+Notifications
+Settings
+Invite pages
+
+Identify:
+
+* Dead ends
+* Blank states
+* Broken buttons
+* Unexpected redirects
+* Missing navigation paths
+* Pages that require multiple taps to complete a simple action
+
+---
+
+## PHASE 7 — NEW USER FIRST 15 MINUTES
+
+Create a brand-new user.
+
+Complete:
+
+* Signup
+* Onboarding
+* Friend invite acceptance
+* Trip invite acceptance
+* Browse mountains
+* Create trip
+* Connect friend
+
+Document every friction point.
+
+Answer:
+
+"Would a first-time user understand what to do next at every step?"
+
+---
+
+FINAL REPORT
+
+Provide:
+
+1. Screens tested
+2. Devices tested
+3. Pass/Fail matrix
+4. Screenshot evidence (if available)
+5. UX findings
+6. Deep-link findings
+7. Notification findings
+8. Release blockers
+9. Recommended fixes
+10. Updated Release Readiness Score
+
+This audit is intended to validate real-world user behavior, not backend code correctness.
