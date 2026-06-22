@@ -2214,26 +2214,26 @@ def get_or_create_invite_token(user):
     Returns None if user has reached their max invite accepts limit.
     Single-use tokens: each token can only be used once (used_at is set on use).
 
-    Reuses an existing valid (unused + unexpired) token so that a freshly
-    shared link is not invalidated the next time the inviter visits /invite or
-    /friends.  Token rotation (expiring the current token) happens only at
-    unfriend time, not on normal page loads.
+    Friend invite tokens are permanent (expires_at=None). used_at is the sole
+    validity signal — a token is valid until someone accepts it.
+
+    Reuses any existing unused token so that a freshly shared link is not
+    invalidated when the inviter revisits /invite or /friends. Token rotation
+    (invalidation) happens only at unfriend time, not on normal page loads.
     """
     if not can_sender_accept_more_invites(user):
         return None
 
-    now = datetime.utcnow()
     existing = InviteToken.query.filter_by(inviter_id=user.id).all()
 
-    # Reuse the first valid token — avoids rotating a live shareable URL
+    # Reuse the first unused token (permanent links — expiry is not checked)
     for token_obj in existing:
-        if not token_obj.is_used() and not token_obj.is_expired():
+        if not token_obj.is_used():
             return token_obj
 
-    # No valid token exists — create a fresh one
+    # No unused token exists — create a fresh permanent one
     token = secrets.token_urlsafe(16)
-    expires_at = now + timedelta(hours=48)
-    invite = InviteToken(token=token, inviter_id=user.id, expires_at=expires_at)
+    invite = InviteToken(token=token, inviter_id=user.id, expires_at=None)
     db.session.add(invite)
     db.session.commit()
     ph_analytics.track(user.id, 'invite_generated', {'source': 'invite_page'})
@@ -3562,21 +3562,19 @@ def invite_token_landing(token):
         app.logger.info("[invite_failed_reason] token=%.8s... reason=not_found", token)
         return render_template("invite_invalid.html")
 
-    # 2. Token expired
-    if invite.is_expired():
-        app.logger.info("[invite_failed_reason] token=%.8s... reason=expired", token)
-        return render_template("invite_expired.html")
-
+    # 2. Resolve inviter early — needed for all subsequent branches
     inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
         app.logger.info("[invite_failed_reason] token=%.8s... reason=inviter_missing", token)
         return render_template("invite_expired.html")
 
-    # 3. Token already used — explicit single-use enforcement
+    # 3. Token already used — single-use enforcement
+    # used_at is the sole validity signal; expires_at is no longer checked here.
+    # An expired-but-unused token (legacy 48-hr row) is treated as still valid.
     if invite.is_used():
         if current_user.is_authenticated:
-            # If the current user is already connected to the inviter, show the
-            # success screen — they may have been redirected back here after auth.
+            # Recipient redirected back after auth may already be connected —
+            # show the success screen so the flow feels complete.
             existing = Friend.query.filter_by(
                 user_id=current_user.id, friend_id=inviter.id
             ).first()
@@ -3587,7 +3585,7 @@ def invite_token_landing(token):
                 )
                 session.pop("invite_token", None)
                 return render_template("invite_accepted.html", inviter=inviter)
-        # Used token — could not link to a confirmed friendship for this user
+        # Used token and not already connected — link is consumed
         app.logger.info(
             "[invite_failed_reason] token=%.8s... reason=used auth=%s",
             token, current_user.is_authenticated,
@@ -3645,17 +3643,35 @@ def invite_token_confirm(token):
     validate_csrf_request()
     invite = InviteToken.query.filter_by(token=token).first()
 
-    if not invite or invite.is_expired() or invite.is_used():
-        app.logger.info(
-            "[invite_failed_reason] token=%.8s... reason=%s at=confirm",
-            token,
-            "not_found" if not invite else ("expired" if invite.is_expired() else "used"),
-        )
+    # Token missing — nothing to work with
+    if not invite:
+        app.logger.info("[invite_failed_reason] token=%.8s... reason=not_found at=confirm", token)
         return render_template("invite_expired.html")
 
+    # Resolve inviter before any further checks
     inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
         app.logger.info("[invite_failed_reason] token=%.8s... reason=inviter_missing at=confirm", token)
+        return render_template("invite_expired.html")
+
+    # Used token — idempotency: if already connected show success, else reject
+    # expires_at is no longer checked; used_at is the sole validity signal.
+    if invite.is_used():
+        if current_user.is_authenticated:
+            existing = Friend.query.filter_by(
+                user_id=current_user.id, friend_id=inviter.id
+            ).first()
+            if existing:
+                app.logger.info(
+                    "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
+                    current_user.id, inviter.id, token,
+                )
+                session.pop("invite_token", None)
+                return render_template("invite_accepted.html", inviter=inviter)
+        app.logger.info(
+            "[invite_failed_reason] token=%.8s... reason=used at=confirm auth=%s",
+            token, current_user.is_authenticated,
+        )
         return render_template("invite_expired.html")
 
     # Self-invite guard (user may have signed in on the landing page in another tab)
@@ -8140,9 +8156,12 @@ def connect_via_qr(user_id):
     inviter = User.query.get_or_404(user_id)
     
     if not current_user.is_authenticated:
-        # Store the destination in session so it survives the OAuth redirect cycle.
-        # URL params passed to /auth are not consumed after Google OAuth callbacks.
-        session["post_login_redirect"] = url_for("connect_via_qr", user_id=user_id)
+        # Store the destination so it survives the auth redirect cycle for both:
+        #   - returning users  (post_login_redirect consumed after login)
+        #   - new signups      (post_onboarding_redirect consumed after onboarding)
+        _qr_url = url_for("connect_via_qr", user_id=user_id)
+        session["post_login_redirect"]      = _qr_url
+        session["post_onboarding_redirect"] = _qr_url
         return redirect(url_for("auth"))
     
     if current_user.id == inviter.id:
@@ -16198,15 +16217,28 @@ def apple_app_site_association():
     """iOS Universal Links verification file.
 
     Tells iOS that app.baselodgeapp.com/invite/* links should open in BaseLodge.
-    Replace XXXXXXXXXX with the real Apple Team ID before submitting to the App Store.
+    The Apple Team ID is read from BASELODGE_APPLE_TEAM_ID env var; falls back
+    to the production value. Override via env var in non-production environments.
+
+    Native project requirements (outside this repo):
+      - Xcode target → Signing & Capabilities → Associated Domains:
+          applinks:app.baselodgeapp.com
+      - Capacitor iOS: handle application(_:continue:restorationHandler:)
+        and forward the URL to the WKWebView / appUrlOpen JS listener.
     """
     import json as _json
+    import os as _os
+    _team_id = _os.environ.get("BASELODGE_APPLE_TEAM_ID", "9X2B8QDJ3D")
+    if _team_id == "9X2B8QDJ3D" and not _os.environ.get("BASELODGE_APPLE_TEAM_ID"):
+        app.logger.warning(
+            "[deep_link] BASELODGE_APPLE_TEAM_ID env var not set; using production default"
+        )
     aasa = {
         "applinks": {
             "apps": [],
             "details": [
                 {
-                    "appID": "XXXXXXXXXX.com.baselodge.app",  # ← replace Team ID
+                    "appID": f"{_team_id}.com.baselodge.app",
                     "paths": [
                         "/invite/*",
                         "/trip-invite/*"
@@ -16227,20 +16259,33 @@ def assetlinks_json():
     """Android App Links verification file.
 
     Tells Android that app.baselodgeapp.com/invite/* links should open in BaseLodge.
-    Replace the placeholder SHA-256 fingerprint with the real signing certificate
-    fingerprint from Google Play Console → App Signing before releasing to Play Store.
+    The SHA-256 fingerprint is read from BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT
+    env var; falls back to the production signing certificate fingerprint.
+
+    Native project requirements (outside this repo):
+      - android/app/src/main/AndroidManifest.xml: add an <intent-filter> with
+        android:autoVerify="true" for https://app.baselodgeapp.com/invite/* and
+        https://app.baselodgeapp.com/trip-invite/*
+      - Capacitor Android: handle appUrlOpen via @capacitor/app App.addListener.
     """
     import json as _json
+    import os as _os
+    _PROD_SHA256 = (
+        "1A:31:B3:66:D0:B8:7D:B6:AC:72:77:45:80:B4:B3:28:"
+        "83:6A:5F:0B:2A:3C:DD:8A:DD:81:23:D3:E4:74:5D:DB"
+    )
+    _sha256 = _os.environ.get("BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT", _PROD_SHA256)
+    if _sha256 == _PROD_SHA256 and not _os.environ.get("BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT"):
+        app.logger.warning(
+            "[deep_link] BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT env var not set; using production default"
+        )
     assetlinks = [
         {
             "relation": ["delegate_permission/common.handle_all_urls"],
             "target": {
                 "namespace": "android_app",
                 "package_name": "com.baselodge.app",
-                "sha256_cert_fingerprints": [
-                    # ← replace with real SHA-256 from Google Play Console → App Signing
-                    "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
-                ]
+                "sha256_cert_fingerprints": [_sha256]
             }
         }
     ]

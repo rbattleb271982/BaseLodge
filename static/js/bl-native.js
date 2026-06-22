@@ -1087,3 +1087,74 @@ document.addEventListener('DOMContentLoaded', function() {
     })();
   });
 })();
+
+/* ── Capacitor deep-link handler (appUrlOpen) ────────────────────────────────
+   When the native app is opened via a Universal Link (iOS) or App Link
+   (Android) that matches /invite/* or /trip-invite/*, the Capacitor App
+   plugin fires an "appUrlOpen" event.  This listener reads the URL and
+   navigates the WKWebView to the correct path so the invite or trip-invite
+   landing page loads with the existing session cookie — no re-auth needed.
+
+   NATIVE PROJECT REQUIREMENTS (outside this repo):
+   ─────────────────────────────────────────────────
+   iOS (Xcode):
+     1. Target → Signing & Capabilities → + Associated Domains
+        Add:  applinks:app.baselodgeapp.com
+     2. AppDelegate.swift — implement:
+          func application(_ application: UIApplication,
+                           continue userActivity: NSUserActivity,
+                           restorationHandler: ...) -> Bool
+        Forward the userActivity.webpageURL to Capacitor:
+          ApplicationDelegateProxy.shared.application(application,
+            continue: userActivity, restorationHandler: restorationHandler)
+
+   Android (Android Studio):
+     1. android/app/src/main/AndroidManifest.xml — inside <activity>:
+          <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https"
+                  android:host="app.baselodgeapp.com"
+                  android:pathPrefix="/invite/" />
+          </intent-filter>
+          <!-- repeat for /trip-invite/ -->
+
+   Without these native changes, this JS listener is unreachable
+   even though it is registered — the OS never fires the event.
+   ─────────────────────────────────────────────────────────────── */
+(function () {
+  'use strict';
+
+  /* Only run inside a Capacitor WKWebView/WebView — no-op in Safari/browser. */
+  var _cap = window.Capacitor;
+  if (!_cap || typeof _cap.isNativePlatform !== 'function' || !_cap.isNativePlatform()) {
+    return;
+  }
+
+  var _plugins = (_cap.Plugins || {});
+  var _App = _plugins.App;
+  if (!_App || typeof _App.addListener !== 'function') {
+    console.warn('[DeepLink] @capacitor/app App plugin unavailable — appUrlOpen not registered');
+    return;
+  }
+
+  _App.addListener('appUrlOpen', function (event) {
+    try {
+      var url = event && (event.url || event.URL || '');
+      if (!url) return;
+
+      var parsed = new URL(url);
+      var path = parsed.pathname + parsed.search + parsed.hash;
+
+      if (path.indexOf('/invite/') === 0 || path.indexOf('/trip-invite/') === 0) {
+        console.log('[DeepLink] navigating to', path);
+        window.location.href = path;
+      }
+    } catch (e) {
+      console.warn('[DeepLink] appUrlOpen handler error:', e);
+    }
+  });
+
+  console.log('[DeepLink] appUrlOpen listener registered');
+})();

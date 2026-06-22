@@ -1,0 +1,111 @@
+Implement the remaining BaseLodge invite fixes from the Invite Status Audit.
+
+Scope:
+Implement **Gap 1, Gap 2, and Gap 3 exactly as identified in the audit**.
+
+Do not modify schema. Do not change `TripInviteToken` expiration behavior. Do not remove the legacy `Invitation` flow. Preserve the explicit confirm tap.
+
+Production values:
+
+* Invite domain: `app.baselodgeapp.com`
+* Apple Team ID: `9X2B8QDJ3D`
+* Android SHA-256 certificate fingerprint: `1A:31:B3:66:D0:B8:7D:B6:AC:72:77:45:80:B4:B3:28:83:6A:5F:0B:2A:3C:DD:8A:DD:81:23:D3:E4:74:5D:DB`
+
+Gap 1 — Friend invite links should not expire
+
+Update both invite GET and POST expiry logic together.
+
+Required behavior:
+
+* New friend invite links should be permanent
+* Old unused friend invite links should still work even if their `expires_at` is in the past
+* `expires_at` should no longer control friend invite validity
+* `used_at` should be the source of truth
+
+Implementation:
+
+* In `get_or_create_invite_token()`, set `expires_at=None` for newly created `InviteToken` rows
+* In `invite_token_landing()`, do not reject friend invite tokens because `token.is_expired()` is true
+* Treat any friend invite token with `used_at=None` as valid forever, even if `expires_at` is in the past
+* Render `invite_expired.html` only when:
+
+  * inviter is deleted, or
+  * token is already used and visitor is not already friends with inviter
+* Used token + already friends should render `invite_accepted.html`
+* In `invite_token_confirm()`, do not reject friend invite tokens because `token.is_expired()` is true
+* Reject confirm only when:
+
+  * token is missing
+  * inviter is deleted
+  * token is already used and the current user is not already friends with inviter
+* Make sure expired-but-unused tokens can both render the landing page and successfully confirm
+
+Gap 2 — QR connect loses new users after onboarding
+
+Implementation:
+
+* In `connect_via_qr()`, when unauthenticated, set both:
+
+  * `session["post_login_redirect"]`
+  * `session["post_onboarding_redirect"]`
+* Both should point to the QR confirm URL
+* Returning users should still be routed back after login
+* New users should be routed back after onboarding
+
+Gap 3 — Deep link infrastructure incomplete
+
+Server-side deep-link verification:
+
+* In `apple_app_site_association()`, use Apple Team ID `9X2B8QDJ3D`
+* Preserve env-var support with `BASELODGE_APPLE_TEAM_ID`
+* If env var is present, use it
+* If env var is absent, log a warning and use `9X2B8QDJ3D`
+* In `assetlinks_json()`, use Android SHA-256 fingerprint `1A:31:B3:66:D0:B8:7D:B6:AC:72:77:45:80:B4:B3:28:83:6A:5F:0B:2A:3C:DD:8A:DD:81:23:D3:E4:74:5D:DB`
+* Preserve env-var support with `BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT`
+* If env var is present, use it
+* If env var is absent, log a warning and use the production fingerprint above
+* Keep path support for `/invite/*` and `/trip-invite/*`
+
+Capacitor app opening:
+
+* In `static/js/bl-native.js`, add a guarded Capacitor `appUrlOpen` listener
+* It must not throw in browser or non-Capacitor contexts
+* When the opened URL path starts with `/invite/` or `/trip-invite/`, navigate the WebView to that path
+* Preserve query string and hash
+* Add a comment explaining that iOS Associated Domains and Android App Links intent filters are still required in native projects
+
+Native project audit:
+
+* Determine whether iOS and Android native Capacitor projects exist in this repo
+* If they exist, report exact files and whether Associated Domains / Android intent filters are configured
+* If they do not exist, state that native project changes must be completed wherever the Capacitor iOS/Android projects are maintained
+* Also determine whether the iOS and Android native Capacitor projects appear to exist elsewhere in the workspace/repo structure
+* Report the exact manual native changes still required for invite links to open the installed app
+
+Tests:
+Create or update `tests/test_invite_reliability.py` covering:
+
+* past `expires_at` + `used_at=None` renders invite landing
+* past `expires_at` + `used_at=None` can successfully confirm
+* `expires_at=None` renders invite landing
+* used token + already-friends authenticated user renders invite accepted
+* used token + not already friends renders invite expired
+* unauthenticated POST `/invite/<token>/confirm` sets `invite_token`, `post_login_redirect`, and `post_onboarding_redirect`
+* unauthenticated GET `/connect/<user_id>` sets both redirect session values
+* trip invite landing behavior remains unchanged
+
+Run:
+
+```bash
+python tests/test_invite_reliability.py
+python tests/test_invite_flow_e2e.py
+```
+
+Report back:
+
+* files changed
+* exact behavior changed
+* test results
+* whether all existing invite e2e tests still pass
+* whether iOS/Android native projects are present in this repo or elsewhere
+* what manual native app changes are still required for installed-app opening

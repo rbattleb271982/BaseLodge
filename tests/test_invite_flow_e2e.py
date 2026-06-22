@@ -448,7 +448,11 @@ def scenario_5():
 # ═════════════════════════════════════════════════════════════════════════════
 
 def scenario_6():
-    print("\n─── S6: Expired token ─────────────────────────────────────────────")
+    print("\n─── S6: Legacy expired-but-unused token (permanent policy) ───────")
+    # Gap 1 fix: friend invite tokens are now permanent — used_at is the sole
+    # validity signal.  An expired-but-unused token must still show the landing
+    # page and allow acceptance.  The old "expired → invite_expired.html"
+    # behaviour has been intentionally removed.
     with app.test_client() as c:
         with app.app_context():
             inv = make_user("s6i")
@@ -462,16 +466,17 @@ def scenario_6():
             _created_token_strs.append(tok.token)
             tok_str = tok.token
 
+        # S6.1: expired-but-unused GET → invite landing (not expired screen)
         r = c.get(f"/invite/{tok_str}")
         b = body_ok(r)
-        check(r.status_code == 200 and is_expired_screen(b),
-              "S6.1  expired token GET → invite_expired.html", notes=str(r.status_code))
+        check(r.status_code == 200 and not is_expired_screen(b),
+              "S6.1  expired-but-unused token GET → invite landing (not expired)",
+              notes=str(r.status_code))
 
-        # POST confirm on expired token
+        # S6.2: POST confirm on expired-but-unused token (anon) → redirect to /auth
         r_post = invite_confirm(c, tok_str)
-        b_post = body_ok(r_post)
-        check(r_post.status_code == 200 and is_expired_screen(b_post),
-              "S6.2  POST confirm expired token → invite_expired.html",
+        check(r_post.status_code in (302, 200),
+              "S6.2  POST confirm expired-but-unused token → auth redirect or landing",
               notes=str(r_post.status_code))
 
 
