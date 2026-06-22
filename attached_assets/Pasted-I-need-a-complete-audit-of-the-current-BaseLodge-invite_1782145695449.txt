@@ -1,0 +1,213 @@
+I need a complete audit of the current BaseLodge invite architecture before we make any changes.
+
+DO NOT MODIFY ANY CODE.
+DO NOT CREATE COMMITS.
+DO NOT OPEN PRs.
+DO NOT REFACTOR.
+
+Produce a REPORT ONLY.
+
+======================================================================
+1. INVITE MODELS
+======================================================================
+
+Find and document all database models related to:
+
+- InviteToken
+- TripInviteToken
+- Invitation
+- InviteShareEvent
+- Friendship
+- SkiTripParticipant
+
+For each model provide:
+
+- File location
+- Fields
+- Constraints
+- Relationships
+- Current usage
+- Expiration behavior (if any)
+
+======================================================================
+2. INVITE ROUTES
+======================================================================
+
+Identify every route involved in:
+
+A) Friend invites
+Examples:
+- /invite
+- /invite/<token>
+- /invite/<token>/confirm
+
+B) QR connect
+Examples:
+- /connect/<user_id>
+- /connect/<user_id>/add
+
+C) In-app invitations
+Examples:
+- /api/friends/invite
+- /api/friends/invite/<id>/accept
+
+For each route provide:
+
+- Route
+- Method
+- Function name
+- File location
+- Login required? (Y/N)
+- Purpose
+- Success path
+- Failure path
+
+======================================================================
+3. EXPIRATION LOGIC
+======================================================================
+
+Find EVERY location where invite expiration is enforced.
+
+Document:
+
+- Which invite types expire
+- Duration
+- Where expiration is checked
+- Exact file and function
+- What UI is shown when expired
+- Whether expiration appears security-related or simply a product decision
+
+Provide exact code references.
+
+======================================================================
+4. DEEP LINKING AUDIT
+======================================================================
+
+Audit all current support for:
+
+- Universal Links (iOS)
+- Android App Links
+- Smart App Banner
+- Open in App banner
+- Capacitor deep linking
+- Associated Domains
+- apple-app-site-association
+- assetlinks.json
+
+For each item determine:
+
+- Exists? (Y/N)
+- File location
+- Current implementation
+- Current limitations
+
+======================================================================
+5. END-TO-END FLOW TRACE
+======================================================================
+
+Document exactly what happens today in each scenario.
+
+SCENARIO A
+-----------
+User HAS BaseLodge installed and clicks a friend invite.
+
+Trace every step.
+
+SCENARIO B
+-----------
+User DOES NOT have BaseLodge installed and clicks a friend invite.
+
+Trace every step.
+
+SCENARIO C
+-----------
+User installs BaseLodge after clicking an invite.
+
+Trace every step.
+
+SCENARIO D
+-----------
+User signs up after clicking an invite.
+
+Trace every step.
+
+Include:
+
+- Route transitions
+- Redirects
+- Session values
+- Authentication steps
+- Onboarding steps
+- Friendship creation steps
+
+======================================================================
+6. FAILURE ANALYSIS
+======================================================================
+
+Identify ALL ways the current invite process can fail.
+
+Examples:
+
+- Token expired
+- Token consumed
+- Self-invite
+- Session lost
+- App install loses context
+- Deep link not captured
+- Login redirect issue
+- Onboarding redirect issue
+
+For each failure mode provide:
+
+- Root cause
+- User experience
+- Severity
+- Likelihood
+
+======================================================================
+7. FUTURE-STATE RECOMMENDATION
+======================================================================
+
+Based on the CURRENT architecture, propose the LOWEST-RISK path from:
+
+CURRENT:
+- Expiring InviteToken links
+
+TO:
+
+FUTURE:
+- Permanent referral links
+- Smart landing page
+- Open app if installed
+- App Store / Play Store if not installed
+- Preserve inviter through install/signup
+- Auto-connect after signup
+
+DO NOT IMPLEMENT.
+
+Only provide:
+
+- Recommended architecture
+- Migration approach
+- Risks
+- Estimated files requiring changes
+- Estimated routes requiring changes
+- Estimated models requiring changes
+
+======================================================================
+OUTPUT FORMAT
+======================================================================
+
+Provide a structured engineering audit with:
+
+- File names
+- Function names
+- Route names
+- Model names
+- Exact code references where possible
+
+REPORT ONLY.
+
+NO CODE CHANGES.
+NO COMMITS.
+NO IMPLEMENTATION.
