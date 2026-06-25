@@ -1,0 +1,62 @@
+BaseLodge invite flow investigation only. Do not modify code yet.
+
+Context:
+I tested a friend invite link on iPhone. Current observed flow:
+1. iMessage unfurls “Join me on BaseLodge” from app.baselodgeapp.com
+2. Tapping opens the invite landing page in browser/App Clip style view
+3. Page says “Connect with Danielle?”
+4. I am signed in as Richard Battle-Baxter
+5. I tap “Connect with Danielle”
+6. Success page says “You’re connected with Danielle”
+7. Success page shows CTA “Open BaseLodge”
+8. Tapping “Open BaseLodge” fails and says it can’t open BaseLodge
+
+Important:
+I have NOT created a new native build yet after the deep link changes, so determine whether this is expected because the installed app does not yet contain the latest Universal Link / appUrlOpen / entitlement changes, or whether the web CTA itself is wrong.
+
+Please investigate the entire invite flow end-to-end, especially:
+
+1. What exact URL is being generated and shared for friend invites
+2. What route handles the invite landing page
+3. What route handles invite confirmation
+4. What template renders the success page
+5. What href / JS action the “Open BaseLodge” CTA uses
+6. Whether the CTA points to:
+   - universal link
+   - custom scheme
+   - /friends
+   - /invite path
+   - app store fallback
+   - something else
+7. Whether iOS Universal Links are correctly configured in:
+   - apple-app-site-association
+   - app entitlements
+   - capacitor config
+   - native iOS project files
+8. Whether Android App Links are correctly configured in:
+   - assetlinks.json
+   - AndroidManifest intent filters
+   - package name
+   - SHA-256 fingerprint
+9. Whether the Capacitor appUrlOpen listener correctly routes:
+   - /invite/<token>
+   - /trip-invite/<token>
+   - /friends
+   - success/accepted invite paths if applicable
+10. Whether the current production web files are already updated
+11. Whether the currently installed App Store/TestFlight build could possibly support this without a new build
+12. Whether iMessage preview/unfurl behavior is separate from actual deep linking
+13. Whether the “Open BaseLodge” CTA should be changed to a universal link, custom scheme fallback, or App Store fallback pattern
+14. Whether the post-connect success page should detect app availability better
+15. Whether invite acceptance should remain valid and complete even if app opening fails
+
+Please produce:
+- A full route/template/code audit
+- The exact current flow map
+- Root cause of the Open BaseLodge failure
+- Whether this is fixed by a new native build or requires web code changes
+- Any missing files/configuration
+- A recommended implementation plan
+- A QA test plan for iOS and Android
+
+Do not make changes yet. Report only.
