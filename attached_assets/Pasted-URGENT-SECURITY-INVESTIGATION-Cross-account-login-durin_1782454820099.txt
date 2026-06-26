@@ -1,0 +1,111 @@
+URGENT SECURITY INVESTIGATION — Cross-account login during invite flow
+
+Context:
+We have now seen two separate invite-related cross-account incidents:
+
+1. Danielle opened an invite and was logged in as Solo.
+2. Enid opened an invite from Danielle to connect and was logged in as Isaac.
+   This second incident happened on the regular webpage, not just inside the native app/WebView.
+
+This needs to be treated as a P0 auth/session bug until proven otherwise.
+
+Goal:
+Investigate only. Do not make code changes yet unless I explicitly approve them.
+
+Please perform a full root-cause investigation of how a user can open an invite link and end up authenticated as a different user.
+
+Investigate these areas:
+
+1. Invite routes
+- GET /invite/<token>
+- POST /invite/<token>/confirm
+- /auth redirect handling
+- post_login_redirect
+- post_onboarding_redirect
+- _apply_invite_token()
+- _connect_pending_inviter()
+- any QR connect routes if they share logic
+
+Check whether these routes blindly trust current_user if a session already exists.
+
+2. Flask session handling
+- login_user()
+- logout_user()
+- remember=True / remember cookies
+- session.clear()
+- session.permanent
+- PERMANENT_SESSION_LIFETIME
+- REMEMBER_COOKIE_DURATION
+- REMEMBER_COOKIE_NAME
+- cookie domain/path/samesite/secure settings
+- whether sessions are regenerated after login
+
+Check for session fixation risk or stale remember-token reuse.
+
+3. Google OAuth login
+- /auth/google
+- /auth/google/callback
+- any state/session logic
+- whether an existing logged-in user can be reused accidentally
+- whether the callback clears or preserves an old session
+- whether Google account identity is always matched to the correct local user
+
+4. Email/password login
+- whether login clears the previous session before authenticating the new user
+- whether login_user() is called with the correct user object
+- whether any fallback path keeps the prior current_user
+
+5. User-loader logic
+- Flask-Login user_loader
+- how user IDs are stored in session
+- whether deleted, duplicate, or stale users could resolve incorrectly
+- whether user IDs are ever cast or looked up incorrectly
+
+6. Invite recipient identity assumptions
+Determine whether the invite system has any way to know the intended recipient.
+If personal invite links are generic/reusable, confirm whether opening the link while already logged in as another user will connect that logged-in user.
+If so, identify the UX/security gap:
+The page should clearly say “You are currently signed in as Isaac. Is this you?” before accepting Danielle’s invite.
+
+7. Audit logs / DB evidence
+Use available logs and database queries to reconstruct:
+- Danielle → Solo incident if possible
+- Danielle → Enid → Isaac incident if possible
+- invite token used
+- current_user at landing
+- current_user at confirm
+- created Friend rows
+- session/login events if available
+- User-Agent/IP if available
+- timestamps
+
+Important:
+Do not assume this is just a shared-browser issue. Prove it.
+
+Deliverables:
+1. Root-cause hypothesis ranked by likelihood
+2. Exact routes/functions involved
+3. Whether this is:
+   - expected stale session behavior,
+   - remember-cookie behavior,
+   - OAuth callback issue,
+   - session fixation issue,
+   - user_loader issue,
+   - or invite UX flaw
+4. Security severity assessment
+5. Recommended fix plan, but do not implement yet
+6. Specific test cases to reproduce and verify the fix
+
+Testing expectations:
+Include tests for:
+- logged-out user opens invite
+- correct logged-in user opens invite
+- wrong logged-in user opens invite
+- browser previously logged into another account opens invite
+- Google login after invite
+- email/password login after invite
+- logout/switch-account flow
+- native WebView stale session
+- normal web stale session
+
+Do not make code changes yet. Investigation report only.
