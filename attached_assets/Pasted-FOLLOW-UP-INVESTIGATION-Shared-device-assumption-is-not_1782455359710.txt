@@ -1,0 +1,77 @@
+FOLLOW-UP INVESTIGATION — Shared-device assumption is not sufficient
+
+Important new fact:
+Isaac and Enid do not know each other. They should not have shared a device, browser, or account.
+
+The prior report concluded the likely cause was Isaac’s stale remember-me cookie being present on Enid’s browser/device. That is now not enough. We need to prove how Enid’s invite flow arrived at the server as current_user=Isaac.
+
+Please investigate further before any fixes.
+
+Questions to answer:
+
+1. Was Isaac’s remember cookie actually restored on the request?
+- Find logs around the incident showing [auth_restore] method=remember_cookie user_id=34.
+- Provide timestamp, route, IP, User-Agent, session identifiers if available.
+- Confirm whether the request that accepted Danielle’s invite had current_user.id=34.
+
+2. Did the incident request come from Isaac’s device or Enid’s device?
+- Compare IP/User-Agent for:
+  - Isaac’s normal logins
+  - Enid’s normal logins
+  - Danielle’s invite token landing/confirm requests
+- Determine whether the accepting request resembles Isaac, Enid, Danielle, or an unknown client.
+
+3. Could Isaac have opened the link instead of Enid?
+- Check whether Danielle’s invite was sent/shared to Enid only, or could Isaac have received it too?
+- Check invite share logs, SMS/email/share events if available.
+- Confirm whether Isaac had access to the invite URL.
+
+4. Check for session or cookie leakage
+- Confirm cookie settings:
+  - SESSION_COOKIE_DOMAIN
+  - SESSION_COOKIE_PATH
+  - SESSION_COOKIE_NAME
+  - REMEMBER_COOKIE_NAME
+  - REMEMBER_COOKIE_DOMAIN
+  - REMEMBER_COOKIE_PATH
+  - SameSite
+  - Secure
+  - HttpOnly
+- Confirm whether staging, production, Replit preview, app.baselodgeapp.com, or baselodgeapp.com share cookie scope in a risky way.
+- Check whether different environments could overwrite or reuse cookies.
+
+5. Check login/session instrumentation
+- Is there enough logging to trace:
+  - login_user()
+  - user_loader()
+  - remember-cookie restore
+  - logout_user()
+  - invite landing current_user
+  - invite confirm current_user
+- If not, recommend temporary diagnostic logging before making assumptions.
+
+6. Check whether invite_token or post_login_redirect could have crossed users
+- Look for session keys surviving logout.
+- Look for post_login_redirect being consumed by a different user.
+- Check whether any session key references user_id separately from current_user.
+
+7. Check for account mapping bug
+- Confirm Enid’s email maps only to Enid’s user_id.
+- Confirm Isaac’s email maps only to Isaac’s user_id.
+- Confirm no duplicate or malformed emails.
+- Confirm no fallback login path could return Isaac when Enid signs in.
+- Confirm password login and Google OAuth both query users by the correct email.
+
+8. Check Friend row creation path
+- In _apply_invite_token(), confirm the invite recipient is always current_user.
+- Confirm there is no code path that uses invite.invited_user_id, invited_by_user_id, pending_inviter_id, session["user_id"], or stale invite context incorrectly.
+- Confirm why Isaac specifically was chosen.
+
+Deliverables:
+1. Do not rely on “shared device” as the explanation unless proven.
+2. Reconstruct the exact sequence of requests that created Friend rows 333 and 334.
+3. Identify IP/User-Agent for each request if available.
+4. Confirm whether Isaac authenticated via active session, remember cookie, fresh login, OAuth, or another path.
+5. Explain how Isaac became current_user during Enid’s invite flow.
+6. If logs are insufficient, state that clearly and recommend diagnostic logging.
+7. Do not make code changes yet.
