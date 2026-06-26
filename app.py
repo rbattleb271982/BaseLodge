@@ -2212,26 +2212,29 @@ def get_or_create_invite_token(user):
     """Return a valid invite token for user, creating one only when necessary.
 
     Returns None if user has reached their max invite accepts limit.
-    Single-use tokens: each token can only be used once (used_at is set on use).
 
-    Friend invite tokens are permanent (expires_at=None). used_at is the sole
-    validity signal — a token is valid until someone accepts it.
+    Friend invite tokens are permanent and reusable: any number of different
+    recipients can accept the same link. used_at records the first acceptance
+    for analytics only — it does NOT invalidate the token for subsequent recipients.
 
-    Reuses any existing unused token so that a freshly shared link is not
-    invalidated when the inviter revisits /invite or /friends. Token rotation
-    (invalidation) happens only at unfriend time, not on normal page loads.
+    Token rotation (creating a fresh token with a new URL) happens only at
+    unfriend time — the unfriend path stamps expires_at to mark the old token
+    inactive, so a link shared before the unfriend can no longer reconnect them.
+
+    Reuses any existing permanent token (expires_at IS NULL) so the same link
+    URL stays stable across inviter page loads.
     """
     if not can_sender_accept_more_invites(user):
         return None
 
     existing = InviteToken.query.filter_by(inviter_id=user.id).all()
 
-    # Reuse the first unused token (permanent links — expiry is not checked)
+    # Reuse the first permanent (non-rotated) token — reusable regardless of used_at
     for token_obj in existing:
-        if not token_obj.is_used():
+        if token_obj.expires_at is None:
             return token_obj
 
-    # No unused token exists — create a fresh permanent one
+    # No permanent token exists (all rotated out by unfriend) — create a new one
     token = secrets.token_urlsafe(16)
     invite = InviteToken(token=token, inviter_id=user.id, expires_at=None)
     db.session.add(invite)
@@ -2970,7 +2973,7 @@ def auth():
     _invite_token_str = session.get("invite_token")
     if _invite_token_str:
         _invite_obj = InviteToken.query.filter_by(token=_invite_token_str).first()
-        if _invite_obj and not _invite_obj.is_used():
+        if _invite_obj:
             _invite_inviter = db.session.get(User, _invite_obj.inviter_id)
             if _invite_inviter:
                 _invite_trips_count = get_upcoming_trip_count(_invite_inviter)
@@ -3484,11 +3487,12 @@ def location_setup():
 def _apply_invite_token(invite, user):
     """
     Core invite connection logic given a pre-loaded, pre-validated InviteToken and recipient user.
-    Caller must have already confirmed: invite is not None, not used, inviter != user.
+    Caller must have already confirmed: invite is not None, inviter != user.
 
-    - Creates mutual Friend rows if not already connected (idempotent)
+    - Creates mutual Friend rows if not already connected (idempotent via UniqueConstraint)
     - Sets user.invited_by_user_id if not already set
-    - Marks invite.used_at
+    - Stamps invite.used_at on first acceptance only (informational — does NOT block
+      subsequent recipients; the same token may be accepted by multiple different users)
     - Commits
 
     Returns True if a new connection was made, False if users were already friends.
@@ -3505,8 +3509,9 @@ def _apply_invite_token(invite, user):
                 user.invited_by_user_id = inviter.id
             connected = True
             app.logger.info(f"Connected {user.id} with inviter {inviter.id} via token")
-        # Mark token used whether or not they were already friends (prevent reuse)
-        invite.used_at = datetime.utcnow()
+        # Record first-use timestamp for analytics only; token remains reusable afterwards
+        if invite.used_at is None:
+            invite.used_at = datetime.utcnow()
         db.session.commit()
     return connected
 
@@ -3518,8 +3523,8 @@ def _connect_pending_inviter(user):
         return False
 
     invite = InviteToken.query.filter_by(token=invite_token_str).first()
-    # Tokens are permanent — used_at is the sole validity signal; expiry is not checked
-    if not invite or invite.is_used():
+    # Tokens are reusable — only reject if the token no longer exists
+    if not invite:
         session.pop("invite_token", None)
         return False
 
@@ -3566,46 +3571,20 @@ def invite_token_landing(token):
     inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
         app.logger.info("[invite_failed_reason] token=%.8s... reason=inviter_missing", token)
-        return render_template("invite_expired.html")
+        return render_template("invite_invalid.html")
 
-    # 3. Token already used — single-use enforcement
-    # used_at is the sole validity signal; expires_at is no longer checked here.
-    # An expired-but-unused token (legacy 48-hr row) is treated as still valid.
-    if invite.is_used():
-        if current_user.is_authenticated:
-            # Recipient redirected back after auth may already be connected —
-            # show the success screen so the flow feels complete.
-            existing = Friend.query.filter_by(
-                user_id=current_user.id, friend_id=inviter.id
-            ).first()
-            if existing:
-                app.logger.info(
-                    "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
-                    current_user.id, inviter.id, token,
-                )
-                session.pop("invite_token", None)
-                return render_template("invite_accepted.html", inviter=inviter)
-        # Used token and not already connected — link is consumed
-        app.logger.info(
-            "[invite_failed_reason] token=%.8s... reason=used auth=%s",
-            token, current_user.is_authenticated,
-        )
-        return render_template("invite_expired.html")
-
-    # 4. Inviter is the current user — self-invite guard
+    # 3. Inviter is the current user — self-invite guard
     if current_user.is_authenticated and current_user.id == inviter.id:
         app.logger.info("[invite_failed_reason] token=%.8s... reason=self_invite user_id=%s", token, current_user.id)
         flash("That's your own invite link.", "info")
         return redirect(url_for("friends"))
 
-    # 5. Already friends (unused token) — mark used and show success screen
+    # 4. Already friends — show success screen (token stays reusable for others)
     if current_user.is_authenticated:
         existing = Friend.query.filter_by(
             user_id=current_user.id, friend_id=inviter.id
         ).first()
         if existing:
-            invite.used_at = datetime.utcnow()
-            db.session.commit()
             app.logger.info(
                 "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
                 current_user.id, inviter.id, token,
@@ -3646,33 +3625,13 @@ def invite_token_confirm(token):
     # Token missing — nothing to work with
     if not invite:
         app.logger.info("[invite_failed_reason] token=%.8s... reason=not_found at=confirm", token)
-        return render_template("invite_expired.html")
+        return render_template("invite_invalid.html")
 
     # Resolve inviter before any further checks
     inviter = db.session.get(User, invite.inviter_id)
     if not inviter:
         app.logger.info("[invite_failed_reason] token=%.8s... reason=inviter_missing at=confirm", token)
-        return render_template("invite_expired.html")
-
-    # Used token — idempotency: if already connected show success, else reject
-    # expires_at is no longer checked; used_at is the sole validity signal.
-    if invite.is_used():
-        if current_user.is_authenticated:
-            existing = Friend.query.filter_by(
-                user_id=current_user.id, friend_id=inviter.id
-            ).first()
-            if existing:
-                app.logger.info(
-                    "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
-                    current_user.id, inviter.id, token,
-                )
-                session.pop("invite_token", None)
-                return render_template("invite_accepted.html", inviter=inviter)
-        app.logger.info(
-            "[invite_failed_reason] token=%.8s... reason=used at=confirm auth=%s",
-            token, current_user.is_authenticated,
-        )
-        return render_template("invite_expired.html")
+        return render_template("invite_invalid.html")
 
     # Self-invite guard (user may have signed in on the landing page in another tab)
     if current_user.is_authenticated and current_user.id == inviter.id:
@@ -3686,10 +3645,7 @@ def invite_token_confirm(token):
             user_id=current_user.id, friend_id=inviter.id
         ).first()
         if existing:
-            # Already connected — mark token used and show the success screen.
-            # Idempotent: safe to call even if token was already marked used.
-            invite.used_at = datetime.utcnow()
-            db.session.commit()
+            # Already connected — show success screen (token stays reusable for others).
             app.logger.info(
                 "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
                 current_user.id, inviter.id, token,
@@ -16241,7 +16197,8 @@ def apple_app_site_association():
                     "appID": f"{_team_id}.com.baselodge.app",
                     "paths": [
                         "/invite/*",
-                        "/trip-invite/*"
+                        "/trip-invite/*",
+                        "/friends"
                     ]
                 }
             ]

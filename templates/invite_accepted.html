@@ -171,39 +171,49 @@
         var isIOS     = /iPhone|iPad|iPod/i.test(ua);
         var isAndroid = /Android/i.test(ua);
 
-        var fallbackUrl = isIOS
-            ? 'https://apps.apple.com/app/id6764206581'
-            : isAndroid
-                ? 'https://play.google.com/store/apps/details?id=com.baselodge.app'
-                : '/download';
+        // Inside the Capacitor native app — navigate the webview directly.
+        // No deep link scheme needed; we are already inside the app.
+        var inNative = window.Capacitor
+            && typeof window.Capacitor.isNativePlatform === 'function'
+            && window.Capacitor.isNativePlatform();
 
-        // Attempt to open the installed app via custom URL scheme.
-        // If the scheme is not handled (app not installed or scheme not registered),
-        // the browser ignores it and the fallback timer fires instead.
-        window.location = 'baselodge://friends';
+        if (inNative) {
+            window.location.href = '/friends';
+            return;
+        }
 
-        // Start fallback countdown — cancelled if the page loses focus
-        // (meaning the OS handed off to the app or App Store).
-        var fallbackTimer = setTimeout(function() {
-            window.location = fallbackUrl;
-        }, 1500);
+        // Android browser — Intent URL opens the app if installed, Play Store otherwise.
+        if (isAndroid) {
+            window.location.href = 'intent://app.baselodgeapp.com/friends'
+                + '#Intent;scheme=https;package=com.baselodge.app;'
+                + 'S.browser_fallback_url='
+                + encodeURIComponent('https://play.google.com/store/apps/details?id=com.baselodge.app')
+                + ';end';
+            return;
+        }
 
-        // Page loses visibility when the app (or App Store) opens.
-        function onVisibilityChange() {
-            if (document.hidden) {
-                clearTimeout(fallbackTimer);
-                document.removeEventListener('visibilitychange', onVisibilityChange);
+        // iOS browser — Universal Link; iOS intercepts and opens the app if installed
+        // and the new build with Associated Domains is active. Falls back to App Store
+        // after 2 s if the page is still visible (app not installed or UL not yet active).
+        if (isIOS) {
+            var iosTimer = setTimeout(function() {
+                window.location.href = 'https://apps.apple.com/app/id6764206581';
+            }, 2000);
+            function cancelIos() {
+                clearTimeout(iosTimer);
+                document.removeEventListener('visibilitychange', onVis);
                 window.removeEventListener('blur', onBlur);
             }
-        }
-        function onBlur() {
-            clearTimeout(fallbackTimer);
-            document.removeEventListener('visibilitychange', onVisibilityChange);
-            window.removeEventListener('blur', onBlur);
+            function onVis()  { if (document.hidden) { cancelIos(); } }
+            function onBlur() { cancelIos(); }
+            document.addEventListener('visibilitychange', onVis);
+            window.addEventListener('blur', onBlur);
+            window.location.href = 'https://app.baselodgeapp.com/friends';
+            return;
         }
 
-        document.addEventListener('visibilitychange', onVisibilityChange);
-        window.addEventListener('blur', onBlur);
+        // Desktop browser — go to the download page.
+        window.location.href = '/download';
     });
 })();
 </script>

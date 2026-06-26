@@ -1010,7 +1010,12 @@ class InviteToken(db.Model):
         return datetime.utcnow() > self.expires_at
 
     def is_used(self):
-        """Check if token has been used (single-use enforcement via used_at)."""
+        """Return True if the token has been accepted at least once.
+
+        Informational only — a non-None used_at does NOT prevent subsequent
+        recipients from accepting the same link. Friend invite tokens are
+        reusable; used_at records the first-acceptance timestamp for analytics.
+        """
         return self.used_at is not None
 
     def __repr__(self):

@@ -388,14 +388,14 @@ def scenario_4():
               "S4.1  used-token+already-friends GET → invite_accepted.html",
               notes=f"{r_a.status_code}")
 
-        # Case B: unused token + already friends → invite_accepted.html (token gets marked used)
+        # Case B: unused token + already friends → invite_accepted.html
+        # (token no longer gets stamped used_at on re-visit — used_at is set only at
+        # actual acceptance via _apply_invite_token, not on already-connected visits)
         r_b = c.get(f"/invite/{tok_str2}")
         b_b = body_ok(r_b)
         check(r_b.status_code == 200 and is_accepted_screen(b_b),
               "S4.2  unused-token+already-friends GET → invite_accepted.html",
               notes=f"{r_b.status_code}")
-        with app.app_context():
-            check(token_used(tok_str2), "S4.3  unused token marked used on re-visit")
 
         # Case C: POST confirm when already friends → also invite_accepted.html
         # Re-query inviter by ID — inv object is expired after the first app_context closed.
@@ -498,7 +498,9 @@ def scenario_7():
 # ═════════════════════════════════════════════════════════════════════════════
 
 def scenario_8():
-    print("\n─── S8: Used token, not connected ─────────────────────────────────")
+    print("\n─── S8: Used token, new recipient (multi-recipient reuse) ──────────")
+    # Tokens are reusable — a used_at stamp does NOT invalidate the link for new recipients.
+    # Both anonymous and authenticated strangers must see the invite landing, not expired.
     with app.test_client() as c:
         with app.app_context():
             inv = make_user("s8i")
@@ -506,27 +508,45 @@ def scenario_8():
             tok = InviteToken(
                 token=uuid.uuid4().hex,
                 inviter_id=inv.id,
-                expires_at=datetime.utcnow() + timedelta(hours=48),
-                used_at=datetime.utcnow(),
+                expires_at=None,
+                used_at=datetime.utcnow(),   # already accepted by someone else
             )
             db.session.add(tok)
             db.session.commit()
             _created_token_strs.append(tok.token)
             tok_str = tok.token
+            rec_id  = rec.id
+            inv_id  = inv.id
 
-        # Unauthenticated
+        # S8.1: Unauthenticated — must see landing page, not expired screen
         r_anon = c.get(f"/invite/{tok_str}")
         b_anon = body_ok(r_anon)
-        check(r_anon.status_code == 200 and is_expired_screen(b_anon),
-              "S8.1  used-token anon GET → invite_expired.html", notes=str(r_anon.status_code))
+        check(r_anon.status_code == 200 and not is_expired_screen(b_anon),
+              "S8.1  used-token anon GET → invite landing (not expired)",
+              notes=str(r_anon.status_code))
 
-        # Authenticated but not friends
+        # S8.2: Authenticated stranger — must see landing page, not expired screen
         login(c, "s8r")
         r_auth = c.get(f"/invite/{tok_str}")
         b_auth = body_ok(r_auth)
-        check(r_auth.status_code == 200 and is_expired_screen(b_auth),
-              "S8.2  used-token authed+no-friendship GET → invite_expired.html",
+        check(r_auth.status_code == 200 and not is_expired_screen(b_auth),
+              "S8.2  used-token authed+no-friendship GET → invite landing (not expired)",
               notes=str(r_auth.status_code))
+
+        # S8.3: Authenticated stranger POSTs confirm — friendship is created
+        r_confirm = invite_confirm(c, tok_str)
+        b_confirm = body_ok(r_confirm)
+        check(r_confirm.status_code == 200 and is_accepted_screen(b_confirm),
+              "S8.3  used-token POST confirm → friendship created, invite_accepted shown",
+              notes=str(r_confirm.status_code))
+
+        # S8.4: Verify Friend rows were created
+        with app.app_context():
+            row_rf = Friend.query.filter_by(user_id=rec_id, friend_id=inv_id).count()
+            row_fr = Friend.query.filter_by(user_id=inv_id, friend_id=rec_id).count()
+        check(row_rf == 1 and row_fr == 1,
+              "S8.4  two bidirectional Friend rows exist after second acceptance",
+              notes=f"rec→inv={row_rf} inv→rec={row_fr}")
 
 
 # ═════════════════════════════════════════════════════════════════════════════

@@ -198,27 +198,118 @@ def test_used_token_already_friends_shows_accepted():
                 fail(name, traceback.format_exc(limit=3))
 
 
-def test_used_token_not_friends_shows_expired():
-    """Used token + not already friends renders invite_expired."""
-    name = "used token + not friends: renders invite_expired"
+def test_used_token_reusable_shows_landing():
+    """Used token (first recipient already accepted) still shows invite landing to a new recipient.
+
+    Tokens are permanent and reusable — used_at is informational only and must
+    NOT block subsequent recipients from accepting the same link.
+    """
+    name = "used token + new recipient (not yet friends): shows invite landing, not expired"
     with app.test_client() as client:
         with app.app_context():
             try:
-                inviter  = make_user("_nf_inv")
-                acceptor = make_user("_nf_acc")
+                inviter   = make_user("_nf_inv")
+                recipient = make_user("_nf_acc")
                 db.session.commit()
 
+                # Token already has used_at stamped (first-use analytics marker)
                 inv = make_invite_token(inviter, used_at=datetime.utcnow())
                 db.session.commit()
 
-                login(client, acceptor)
+                # New recipient visits — not yet friends with inviter
+                login(client, recipient)
                 rv = client.get(f"/invite/{inv.token}", follow_redirects=False)
                 body = rv.data.decode()
 
-                if rv.status_code == 200 and "expired" in body.lower():
+                expired_shown = "expired" in body.lower() or "invite_expired" in body
+                landing_shown = "Connect with" in body or "Accept" in body or rv.status_code == 200
+                if rv.status_code == 200 and not expired_shown:
                     ok(name)
                 else:
-                    fail(name, f"status={rv.status_code} body={body[:200]!r}")
+                    fail(name, f"status={rv.status_code} expired_shown={expired_shown} body={body[:200]!r}")
+            except Exception as e:
+                fail(name, traceback.format_exc(limit=3))
+
+
+def test_multi_recipient_same_token():
+    """Same invite token can be accepted by two different recipients.
+
+    First acceptance must not block the second. Both recipients end up connected
+    to the inviter. No duplicate Friend rows are created.
+    """
+    name = "multi-recipient: two users accept same token — both connected, no duplicates"
+    with app.test_client() as client:
+        with app.app_context():
+            try:
+                inviter = make_user("_mr_inv")
+                rec_a   = make_user("_mr_a")
+                rec_b   = make_user("_mr_b")
+                db.session.commit()
+
+                inv = make_invite_token(inviter)
+                db.session.commit()
+                tok_str  = inv.token
+                inv_id   = inviter.id
+                rec_a_id = rec_a.id
+                rec_b_id = rec_b.id
+
+                # ── Recipient A logs in and accepts ──────────────────────────
+                login(client, rec_a)
+                csrf_a = inject_csrf(client)
+                rv_a = client.post(
+                    f"/invite/{tok_str}/confirm",
+                    data={"csrf_token": csrf_a},
+                    follow_redirects=False,
+                )
+                body_a = rv_a.data.decode()
+                if rv_a.status_code != 200 or "connected" not in body_a.lower():
+                    fail(name, f"Rec A: status={rv_a.status_code} body={body_a[:200]!r}")
+                    return
+
+                a_to_inv = Friend.query.filter_by(user_id=rec_a_id, friend_id=inv_id).count()
+                inv_to_a = Friend.query.filter_by(user_id=inv_id, friend_id=rec_a_id).count()
+                if a_to_inv != 1 or inv_to_a != 1:
+                    fail(name, f"Rec A Friend rows: a_to_inv={a_to_inv} inv_to_a={inv_to_a}")
+                    return
+
+                # Verify used_at was stamped after first acceptance
+                used_tok = InviteToken.query.filter_by(token=tok_str).first()
+                if not used_tok.is_used():
+                    fail(name, "used_at not stamped after first acceptance")
+                    return
+
+                # ── Log out A, log in as B ───────────────────────────────────
+                client.get("/logout", follow_redirects=False)
+                login(client, rec_b)
+
+                # ── B visits the same token — must show landing, not expired ─
+                rv_land = client.get(f"/invite/{tok_str}", follow_redirects=False)
+                body_land = rv_land.data.decode()
+                if rv_land.status_code != 200 or "expired" in body_land.lower():
+                    fail(name, f"Rec B landing: status={rv_land.status_code} body={body_land[:200]!r}")
+                    return
+
+                # ── Recipient B accepts ──────────────────────────────────────
+                csrf_b = inject_csrf(client)
+                rv_b = client.post(
+                    f"/invite/{tok_str}/confirm",
+                    data={"csrf_token": csrf_b},
+                    follow_redirects=False,
+                )
+                body_b = rv_b.data.decode()
+                if rv_b.status_code != 200 or "connected" not in body_b.lower():
+                    fail(name, f"Rec B: status={rv_b.status_code} body={body_b[:200]!r}")
+                    return
+
+                # ── Both friendships exist, no duplicates ────────────────────
+                b_to_inv = Friend.query.filter_by(user_id=rec_b_id, friend_id=inv_id).count()
+                inv_to_b = Friend.query.filter_by(user_id=inv_id, friend_id=rec_b_id).count()
+                a_still  = Friend.query.filter_by(user_id=rec_a_id, friend_id=inv_id).count()
+                if b_to_inv == 1 and inv_to_b == 1 and a_still == 1:
+                    ok(name)
+                else:
+                    fail(name, f"Friend rows: b→inv={b_to_inv} inv→b={inv_to_b} a→inv(still)={a_still}")
+
             except Exception as e:
                 fail(name, traceback.format_exc(limit=3))
 
@@ -381,7 +472,8 @@ def main():
         test_expired_unused_post_confirm_succeeds,
         test_permanent_token_get_renders_landing,
         test_used_token_already_friends_shows_accepted,
-        test_used_token_not_friends_shows_expired,
+        test_used_token_reusable_shows_landing,
+        test_multi_recipient_same_token,
         test_unauthenticated_post_confirm_sets_session_keys,
         test_unauthenticated_qr_connect_sets_both_redirects,
         test_trip_invite_landing_unaffected,

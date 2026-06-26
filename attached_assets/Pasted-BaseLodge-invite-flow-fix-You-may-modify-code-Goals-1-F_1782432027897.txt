@@ -1,0 +1,81 @@
+BaseLodge invite flow fix. You may modify code.
+
+Goals:
+1. Fix the broken “Open BaseLodge” CTA after invite acceptance.
+2. Friend invite links should never expire.
+3. Friend invite links should be reusable by multiple different recipients, like a group chat invite link.
+
+Important behavior:
+A personal friend invite link is not a one-time invite. If Richard shares his link in a group chat, Danielle, Solo, and multiple other users should each be able to tap that same link and connect with Richard.
+
+Requirements:
+
+1. Open BaseLodge CTA fix
+- Remove use of baselodge://friends.
+- Do not add a custom URL scheme yet.
+- If running inside Capacitor/native app, navigate directly to /friends.
+- If running in iOS or Android browser, attempt https://app.baselodgeapp.com/friends with App Store / Play Store fallback.
+- If desktop browser, navigate to /download.
+- Add /friends to apple-app-site-association if needed.
+- Do not break /invite/* or /trip-invite/*.
+
+2. Friend invite links never expire
+- Verify InviteToken links do not expire.
+- Remove or bypass any remaining expires_at / is_expired() checks for friend invite tokens.
+- Update stale comments/docstrings saying friend invite links expire.
+- Do not change TripInviteToken behavior unless required.
+
+3. Friend invite links are reusable by multiple recipients
+- Do not mark a personal friend InviteToken as globally used after one person accepts.
+- used_at should NOT invalidate the entire personal invite link for everyone.
+- A used_at field can remain for analytics or first-use tracking, but it must not prevent another recipient from accepting the same link.
+- The correct invalidation rules should be:
+  - invalid token: blocked
+  - self-invite: blocked
+  - already connected: show connected/success state
+  - new recipient using same valid token: create friendship
+- Prevent duplicate Friend rows.
+- Keep bidirectional friendship creation:
+  - inviter → recipient
+  - recipient → inviter
+
+4. Audit related logic
+Please inspect:
+- InviteToken model
+- get_or_create_invite_token()
+- /invite route
+- /invite/<token> landing route
+- /invite/<token>/confirm route
+- _connect_pending_inviter()
+- _apply_invite_token()
+- invite_landing.html
+- invite_accepted.html
+- invite_expired.html
+- auth and onboarding redirect logic related to invite tokens
+- any dashboard/admin metrics that assume friend invite tokens are one-time use
+
+5. Naming / UX
+- If invite_expired.html is still used for friend invite tokens, either stop using it for reusable friend links or rename/copy the template so friend-link failure states are not described as “expired.”
+- User-facing copy should not imply the link expired if the actual issue is invalid, self-invite, or already used by that same user.
+
+6. Tests
+Add or update tests proving:
+- old unused friend invite token still works
+- friend invite token with past expires_at still works
+- same friend invite link can be accepted by multiple different users
+- first acceptance does not block second acceptance
+- already-connected recipient does not create duplicate Friend rows
+- self-invite is blocked
+- invalid token is blocked
+- invite confirmation still creates two Friend rows
+- Open BaseLodge CTA no longer points to baselodge://friends
+- /friends is included in AASA
+- trip invite behavior is unchanged
+
+Return:
+- files changed
+- exact behavior before vs after
+- whether database migration is required
+- test results
+- any risks
+- whether a new native iOS/Android build is still required for Universal Links/App Links
