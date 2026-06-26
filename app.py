@@ -281,15 +281,20 @@ def _on_user_loaded_from_cookie(sender, user, **kwargs):
     Does NOT log passwords, tokens, or cookie contents.
     """
     try:
+        _xff = (request.headers.get("X-Forwarded-For") or "")[:80]
         app.logger.info(
             "[auth_restore] method=remember_cookie user_id=%s email=%s "
-            "ua=%.100s ts=%s ip=%s",
+            "ua=%.150s ts=%s ip=%s xff=%s path=%s method=%s",
             user.id,
             user.email,
             request.user_agent.string,
             datetime.utcnow().isoformat(),
             request.remote_addr,
+            _xff,
+            request.path,
+            request.method,
         )
+        session["_bl_auth_method"] = "remember_cookie"
     except Exception:
         pass
 
@@ -2907,6 +2912,7 @@ def reset_password(token=None):
         db.session.commit()
 
         login_user(user)
+        session["_bl_auth_method"] = "reset"
         # Founder login alert (non-blocking, throttled to 1×/user/day)
         _queue_founder_login_push(user.id, user.email)
         flash("Your password has been reset.", "success")
@@ -3017,6 +3023,7 @@ def auth():
             db.session.commit()
             
             login_user(new_user, remember=True)
+            session["_bl_auth_method"] = "signup"
             session.modified = True
 
             # Analytics: alias anon browser id → new user id, then identify
@@ -3071,7 +3078,9 @@ def auth():
 
             if user and _check:
                 user.last_active_at = datetime.utcnow()
-                login_user(user, remember=True)
+                _remember_me = bool(request.form.get("remember_me"))
+                login_user(user, remember=_remember_me)
+                session["_bl_auth_method"] = "email"
                 session['_last_active_stamp'] = time.time()
                 session.modified = True
                 db.session.commit()
@@ -3556,9 +3565,11 @@ def _invite_landing_initials(user):
 @app.route("/invite/<token>")
 def invite_token_landing(token):
     """Invite landing page — shows a holding page before any acceptance occurs."""
+    _xff_il = (request.headers.get("X-Forwarded-For") or "")[:80]
     app.logger.info(
-        "[invite_link_opened] token=%.8s... auth=%s",
+        "[invite_link_opened] token=%.8s... auth=%s ua=%.150s ip=%s xff=%s",
         token, current_user.is_authenticated,
+        request.user_agent.string, request.remote_addr, _xff_il,
     )
     invite = InviteToken.query.filter_by(token=token).first()
 
@@ -3597,8 +3608,16 @@ def invite_token_landing(token):
     # Unauthenticated users see "Accept Invite" and are routed to auth on confirm.
     initials = _invite_landing_initials(inviter)
     app.logger.info(
-        "[invite_landing_rendered] token=%.8s... auth=%s",
-        token, current_user.is_authenticated,
+        "[invite_landing_rendered] token=%.8s... auth=%s user_id=%s email=%s "
+        "auth_method=%s ua=%.150s ip=%s xff=%s",
+        token,
+        current_user.is_authenticated,
+        current_user.id if current_user.is_authenticated else None,
+        current_user.email if current_user.is_authenticated else None,
+        session.get("_bl_auth_method", "unknown"),
+        request.user_agent.string,
+        request.remote_addr,
+        _xff_il,
     )
     return render_template(
         "invite_landing.html",
@@ -3615,9 +3634,18 @@ def invite_token_confirm(token):
     landing page. Re-validates the token on every POST (guards against replays,
     expiry races, and double-submits).
     """
+    _xff_ic = (request.headers.get("X-Forwarded-For") or "")[:80]
     app.logger.info(
-        "[invite_confirm_attempted] token=%.8s... auth=%s",
-        token, current_user.is_authenticated,
+        "[invite_confirm_attempted] token=%.8s... auth=%s user_id=%s email=%s "
+        "auth_method=%s ua=%.150s ip=%s xff=%s",
+        token,
+        current_user.is_authenticated,
+        current_user.id if current_user.is_authenticated else None,
+        current_user.email if current_user.is_authenticated else None,
+        session.get("_bl_auth_method", "unknown"),
+        request.user_agent.string,
+        request.remote_addr,
+        _xff_ic,
     )
     validate_csrf_request()
     invite = InviteToken.query.filter_by(token=token).first()
@@ -3661,8 +3689,10 @@ def invite_token_confirm(token):
 
         _apply_invite_token(invite, current_user)
         app.logger.info(
-            "[invite_friendship_created] user_id=%s inviter_id=%s token=%.8s...",
+            "[invite_friendship_created] user_id=%s inviter_id=%s token=%.8s... "
+            "ua=%.150s ip=%s xff=%s",
             current_user.id, inviter.id, token,
+            request.user_agent.string, request.remote_addr, _xff_ic,
         )
         session.pop("invite_token", None)
         return render_template("invite_accepted.html", inviter=inviter)
@@ -11210,6 +11240,19 @@ def update_trip_equipment_override(trip_id):
 @app.route("/trip-invite/<token>")
 def trip_invite_token_landing(token):
     """External trip invite landing — validates token and shows accept screen."""
+    _xff_til = (request.headers.get("X-Forwarded-For") or "")[:80]
+    app.logger.info(
+        "[trip_invite_landing] token=%.8s... auth=%s user_id=%s email=%s "
+        "auth_method=%s ua=%.150s ip=%s xff=%s",
+        token,
+        current_user.is_authenticated,
+        current_user.id if current_user.is_authenticated else None,
+        current_user.email if current_user.is_authenticated else None,
+        session.get("_bl_auth_method", "unknown"),
+        request.user_agent.string,
+        request.remote_addr,
+        _xff_til,
+    )
     tit = TripInviteToken.query.filter_by(token=token).first()
     if not tit or not tit.is_active:
         return render_template("invite_invalid.html",
@@ -11255,6 +11298,18 @@ def trip_invite_token_landing(token):
 @login_required
 def trip_invite_token_accept(token):
     """Accept a trip invite via external token."""
+    _xff_tia = (request.headers.get("X-Forwarded-For") or "")[:80]
+    app.logger.info(
+        "[trip_invite_accept_attempted] token=%.8s... user_id=%s email=%s "
+        "auth_method=%s ua=%.150s ip=%s xff=%s",
+        token,
+        current_user.id,
+        current_user.email,
+        session.get("_bl_auth_method", "unknown"),
+        request.user_agent.string,
+        request.remote_addr,
+        _xff_tia,
+    )
     tit = TripInviteToken.query.filter_by(token=token).first()
     if not tit or not tit.is_active:
         return render_template("invite_invalid.html",
@@ -11916,7 +11971,24 @@ def logout():
     # _remember='clear' flag, which prevents the remember_token cookie from being
     # deleted and causes the user to be silently re-authenticated on the next request.
     # logout_user() already removes _user_id, _fresh, and _id from the session.
+
+    # Clear app-owned transient session keys so a subsequent login on the same
+    # browser does not inherit invite context, stale redirects, or auth-method
+    # tags from the previous session.
+    for _sk in ("invite_token", "post_login_redirect", "post_onboarding_redirect",
+                "trip_invite_token", "_auth_session_logged", "_last_active_stamp",
+                "_bl_auth_method"):
+        session.pop(_sk, None)
+
     session['ph_reset'] = True
+
+    # If the user came from an invite landing and clicked "Sign out and use another
+    # account", return them directly to the invite page (unauthenticated view) so
+    # the next user can sign in and accept without needing to re-navigate.
+    _return_to = request.args.get("return_to", "")
+    if _return_to and _return_to.startswith("/invite/"):
+        return redirect(_return_to)
+
     return redirect(url_for("auth"))
 
 
@@ -11992,7 +12064,8 @@ def auth_google_callback():
 
         user.last_active_at = datetime.utcnow()
         db.session.commit()
-        login_user(user, remember=True)
+        login_user(user, remember=False)
+        session["_bl_auth_method"] = "google"
         session['_last_active_stamp'] = time.time()
         session.modified = True
 
@@ -12272,6 +12345,7 @@ def delete_account():
             _fresh = db.session.get(User, user_id)
             if _fresh:
                 login_user(_fresh, remember=True)
+                session["_bl_auth_method"] = "change_password"
         except Exception:
             pass
         return redirect(url_for("profile"))

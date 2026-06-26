@@ -79,6 +79,39 @@
         text-align: center;
         margin: 0;
     }
+    .ti-identity-note {
+        width: 100%;
+        background: #fff;
+        border: 1.5px solid #5C1219;
+        border-radius: var(--bl-radius-md);
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        text-align: center;
+    }
+    .ti-identity-note-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5C1219;
+        margin-bottom: 4px;
+    }
+    .ti-identity-note-name {
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 17px;
+        font-weight: 400;
+        color: var(--bl-color-text);
+        margin-bottom: 4px;
+    }
+    .ti-identity-note-sub {
+        font-size: 12px;
+        color: var(--bl-color-text-muted);
+    }
+    .ti-identity-note-sub a {
+        color: #5C1219;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
 </style>
 {% endblock %}
 
@@ -97,6 +130,15 @@
         {% endif %}
     </div>
 
+    <div class="ti-identity-note" role="alert">
+        <p class="ti-identity-note-label">You are signed in as</p>
+        <p class="ti-identity-note-name">{{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}</p>
+        <p class="ti-identity-note-sub">
+            The trip will be joined as {{ current_user.first_name }}.
+            <a href="{{ url_for('logout') }}">Not you? Sign out.</a>
+        </p>
+    </div>
+
     <div class="ti-actions">
         {% if participant and participant.status.value == 'invited' %}
         <p class="ti-status-note">You have a pending invite for this trip.</p>
@@ -105,7 +147,7 @@
         {% endif %}
 
         <form method="POST" action="{{ url_for('trip_invite_token_accept', token=token) }}">
-            <button type="submit" class="ti-accept-btn">Accept trip invite</button>
+            <button type="submit" class="ti-accept-btn">Accept as {{ current_user.first_name }}</button>
         </form>
         <a href="{{ url_for('home') }}" class="ti-back">Not now</a>
     </div>

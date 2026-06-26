@@ -189,18 +189,35 @@
         }
         .il-btn-secondary:active { opacity: 0.72; }
 
-        /* ── Logged-in-as notice (authenticated only) ─────────────────────── */
-        .il-logged-in-as {
-            font-size: 13px;
-            color: #888;
+        /* ── Blocking identity card (authenticated only) ──────────────────── */
+        .il-identity-card {
+            width: 100%;
+            background: #fff;
+            border: 1.5px solid #5C1219;
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 28px;
             text-align: center;
-            line-height: 1.5;
-            margin-bottom: 24px;
         }
-        .il-logged-in-as a {
+        .il-identity-card-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
             color: #5C1219;
-            text-decoration: underline;
-            text-underline-offset: 2px;
+            margin-bottom: 6px;
+        }
+        .il-identity-card-name {
+            font-family: Georgia, "Times New Roman", Times, serif;
+            font-size: 20px;
+            font-weight: 400;
+            color: #1A1A1A;
+            margin-bottom: 8px;
+        }
+        .il-identity-card-action {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.55;
         }
 
         /* ── Footer note ──────────────────────────────────────────────────── */
@@ -290,16 +307,17 @@
 
     {% if current_user.is_authenticated %}
 
-        {# ── Authenticated view: show whose invite it is, confirm logged-in identity ── #}
+        {# ── Authenticated view: blocking identity card first, then inviter info ── #}
+        <div class="il-identity-card" role="alert">
+            <p class="il-identity-card-label">You are signed in as</p>
+            <p class="il-identity-card-name">{{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}</p>
+            <p class="il-identity-card-action">Accepting will connect <strong>{{ inviter.first_name }}</strong> with <strong>{{ current_user.first_name }}</strong>'s account</p>
+        </div>
         <div class="il-avatar" aria-hidden="true">{{ initials }}</div>
         <h1 class="il-headline">Connect with {{ inviter.first_name }}?</h1>
         <p class="il-body">
             {{ inviter.first_name }} invited you to connect on BaseLodge —
             see their trips, plan ski weekends together, and coordinate who's going where.
-        </p>
-        <p class="il-logged-in-as">
-            Signed in as {{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}.
-            Not you? <a href="{{ url_for('logout') }}">Sign out</a> and switch accounts.
         </p>
 
     {% else %}
@@ -324,7 +342,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         {% if current_user.is_authenticated %}
             <button type="submit" class="il-btn-primary">
-                Connect with {{ inviter.first_name }}
+                Continue as {{ current_user.first_name }}
             </button>
         {% else %}
             <button type="submit" class="il-btn-primary">
@@ -333,7 +351,12 @@
         {% endif %}
     </form>
 
-    {% if not current_user.is_authenticated %}
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('logout') }}?return_to={{ url_for('invite_token_landing', token=token) | urlencode }}"
+       class="il-btn-secondary">
+        Sign out and use another account
+    </a>
+    {% else %}
     <button id="openBrowser" class="il-btn-secondary" type="button">
         Continue in Browser
     </button>

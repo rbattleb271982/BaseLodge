@@ -1,0 +1,174 @@
+URGENT FIX — Invite cross-account prevention + diagnostic logging
+
+Context:
+We have had invite incidents where a user accepted a friend invite while the browser/app was authenticated as the wrong account. Investigation proved the friend rows are created by POST /invite/<token>/confirm using Flask-Login current_user. The remaining unknown is how the wrong user's cookie/session reached the request.
+
+Goal:
+Implement targeted fixes to prevent accidental wrong-account invite accepts and make any future incident diagnosable.
+
+Do not redesign the full invite system. Keep the existing permanent/reusable invite-token architecture.
+
+Required changes:
+
+1. Add blocking identity confirmation on invite landing
+
+When current_user.is_authenticated on GET /invite/<token>, the page must make the authenticated account impossible to miss.
+
+Replace the soft small text like:
+“Signed in as Isaac D. Not you? Sign out”
+
+With a prominent blocking card:
+
+“You are currently signed in as Isaac D.”
+“Continuing will connect Danielle with Isaac D.”
+
+Buttons:
+- “Continue as Isaac D”
+- “Sign out and use another account”
+
+Important:
+- The primary button text must include the current user's first name or display name.
+- The page must not show a generic “Connect with Danielle” button for authenticated users.
+- The user must explicitly choose “Continue as [current user]” before POST /invite/<token>/confirm is submitted.
+- The sign-out option should send the user to logout and then back to the invite flow if possible.
+
+2. Add the same protection to trip invites if they use the same authenticated accept pattern
+
+Audit trip invite landing/confirm routes.
+If a logged-in user can accept a trip invite with one generic button, update it to show:
+“You are signed in as [Name]. Continuing will accept this invite as [Name].”
+
+3. Clear invite-related session keys on logout
+
+In /logout, keep logout_user(), but also clear only app-owned transient keys.
+
+Do NOT call session.clear() if it would break Flask-Login's remember-cookie clearing.
+
+After logout_user(), remove:
+
+invite_token
+post_login_redirect
+post_onboarding_redirect
+trip_invite_token
+_auth_session_logged
+_last_active_stamp
+_bl_auth_method
+
+Use session.pop(key, None).
+
+4. Add durable diagnostic logging
+
+Add UA/IP/user/auth-method logging to:
+
+GET /invite/<token>
+POST /invite/<token>/confirm
+GET/POST trip invite equivalents
+all login_user() call sites
+/logout
+
+At each login_user() call site, set:
+
+session["_bl_auth_method"] = "email"
+
+or:
+session["_bl_auth_method"] = "google"
+session["_bl_auth_method"] = "reset"
+session["_bl_auth_method"] = "remember_cookie" where applicable if feasible
+
+For invite landing and confirm, log:
+
+token first 8 chars
+route/action
+auth true/false
+current_user.id if authenticated
+current_user.email if authenticated
+session.get("_bl_auth_method", "unknown")
+request.user_agent.string truncated to 150 chars
+request.remote_addr
+request.headers.get("X-Forwarded-For") if present
+
+Example format:
+
+[invite_landing_rendered] token=abc12345 auth=True user_id=34 email=... auth_method=email ua="..." ip=... xff=...
+
+[invite_confirm_attempted] token=abc12345 auth=True user_id=34 email=... auth_method=email ua="..." ip=... xff=...
+
+[invite_friendship_created] token=abc12345 user_id=34 inviter_id=116 ua="..." ip=... xff=...
+
+5. Track remember-cookie restore more explicitly
+
+There is already an _on_user_loaded_from_cookie signal and before_request auth_restore logging.
+Ensure it includes:
+- user_id
+- email
+- ua
+- ip
+- x_forwarded_for
+- timestamp
+- route/path
+- method
+
+Also set session["_bl_auth_method"] = "remember_cookie" when this fires.
+
+6. Make remember-me optional or shorten it
+
+Current issue:
+Every login path uses login_user(user, remember=True) with no user opt-out.
+
+Implement the least risky of these two options:
+
+Preferred:
+- Add a “Remember me” checkbox to email login
+- Default unchecked
+- Pass remember=True only when checked
+- For OAuth, use remember=False unless there is a clear remember-me UI
+
+Acceptable simpler fix:
+- Reduce REMEMBER_COOKIE_DURATION from 30 days to 7 days
+- Keep all login behavior otherwise unchanged
+
+Do not implement session_protection='strong' yet unless tests prove it does not create bad mobile logout behavior.
+
+7. Add tests
+
+Create or update tests for:
+
+A. Authenticated wrong-user invite landing
+- User Isaac is logged in
+- Opens Danielle's invite
+- Page prominently says Isaac
+- Button says Continue as Isaac
+- Generic Connect button is not present
+
+B. Sign out and switch account
+- Isaac is logged in
+- Opens Danielle invite
+- Clicks sign out
+- invite context is preserved correctly enough for another user to log in and accept
+- Enid logs in
+- Enid sees Continue as Enid
+- Enid accepts
+- Friend rows are Danielle ↔ Enid, not Danielle ↔ Isaac
+
+C. Logout clears transient session keys
+- Set invite_token, post_login_redirect, post_onboarding_redirect, trip_invite_token
+- Call logout
+- Confirm they are removed
+
+D. Invite confirm logging does not crash
+- Confirm unauthenticated and authenticated POST attempts log user/auth/device fields
+
+E. Existing happy path
+- Logged-out user opens invite
+- Authenticates
+- Accepts
+- Correct friendship is created
+
+F. Trip invite equivalent if applicable
+
+Deliverables:
+1. Code changes
+2. Test results
+3. Summary of files changed
+4. Any behavior tradeoffs, especially remember-me changes
+5. Confirmation that no broad invite architecture changes were made
