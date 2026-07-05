@@ -1,0 +1,71 @@
+BaseLodge Production Investigation Only — Do NOT modify any code.
+
+A new iOS user downloaded the production app from the Apple App Store and cannot create an account.
+
+Symptoms:
+- Device: iPhone
+- Distribution: Production App Store build
+- Signup reaches the server
+- User receives a generic "Server Error" during account creation
+- This is a brand-new user (not an existing account)
+
+I want a COMPLETE root cause investigation.
+
+Please perform the following:
+
+1. Inspect the production server logs for the failed signup attempt.
+   - Find the full Python traceback.
+   - Include the exact exception.
+   - Identify the file and line number.
+   - Identify the HTTP status code returned to the client.
+
+2. Trace the entire signup flow from request to response.
+   - Route entered
+   - Validation
+   - User creation
+   - Password hashing
+   - Database commit
+   - Session/login
+   - Response returned
+
+3. Determine exactly where the failure occurs.
+
+4. Check whether the error is caused by:
+   - SQLAlchemy/database constraint
+   - Missing migration
+   - Missing required column
+   - Environment variable
+   - Apple Sign In configuration
+   - Google Sign In configuration
+   - Email/password signup
+   - CSRF
+   - Session/cookie
+   - Supabase/Postgres connectivity
+   - Flask configuration
+   - Production-only configuration differences
+   - Any recently introduced regression
+
+5. Verify that every table, column, index, and constraint expected by the signup code exists in production.
+
+6. Compare production configuration against the current code to identify any mismatch.
+
+7. If multiple signup methods exist (Email, Apple, Google), determine whether all fail or only one.
+
+8. Search for any recent exceptions related to signup within the last 24 hours.
+
+9. Produce a report containing:
+   - Root cause
+   - Evidence
+   - Exact traceback
+   - Exact file and line numbers
+   - Why the client receives "Server Error"
+   - Whether this affects every new user or only specific conditions
+
+IMPORTANT:
+- Do NOT modify code.
+- Do NOT apply fixes.
+- Do NOT create commits.
+- Do NOT change the database.
+- This is an investigation only.
+
+If the logs do not contain enough information, explain exactly why and identify the additional logging needed to determine the root cause.
