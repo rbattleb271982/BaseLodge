@@ -192,22 +192,13 @@
             return;
         }
 
-        // iOS browser — Universal Link; iOS intercepts and opens the app if installed
-        // and the new build with Associated Domains is active. Falls back to App Store
-        // after 2 s if the page is still visible (app not installed or UL not yet active).
+        // iOS browser — Universal Link: iOS intercepts and opens the app if installed
+        // and the new build with Associated Domains is active. If not installed,
+        // Safari remains on this page — the Smart App Banner provides the download CTA.
+        // No automatic App Store redirect: the user decides explicitly via the banner
+        // or the Download button. A timer-based redirect can misfire when the app IS
+        // installed (e.g., user previously dismissed "Always Open in App" in Safari).
         if (isIOS) {
-            var iosTimer = setTimeout(function() {
-                window.location.href = 'https://apps.apple.com/app/id6764206581';
-            }, 2000);
-            function cancelIos() {
-                clearTimeout(iosTimer);
-                document.removeEventListener('visibilitychange', onVis);
-                window.removeEventListener('blur', onBlur);
-            }
-            function onVis()  { if (document.hidden) { cancelIos(); } }
-            function onBlur() { cancelIos(); }
-            document.addEventListener('visibilitychange', onVis);
-            window.addEventListener('blur', onBlur);
             window.location.href = 'https://app.baselodgeapp.com/friends';
             return;
         }

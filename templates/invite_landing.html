@@ -371,25 +371,29 @@
 
 <script>
 (function() {
-    // ── "Continue in Browser" button (Capacitor native shell only) ────────
+    // ── "Continue in Browser" button ─────────────────────────────────────
+    // When inside the Capacitor native app, hide this button entirely.
+    // Submitting the form stores session["invite_token"] + session["post_login_redirect"]
+    // on the server and redirects to /auth inside the WKWebView — preserving full
+    // token continuity across sign-in, sign-up, and onboarding without any
+    // session separation between the webview and the system browser.
     var btn = document.getElementById('openBrowser');
     if (btn) {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            var inNative = window.Capacitor
-                && typeof window.Capacitor.isNativePlatform === 'function'
-                && window.Capacitor.isNativePlatform();
+        var inNativeCheck = window.Capacitor
+            && typeof window.Capacitor.isNativePlatform === 'function'
+            && window.Capacitor.isNativePlatform();
 
-            if (inNative) {
-                // INTENTIONAL: opens this invite URL in the system browser so a
-                // new user can sign up on the web, complete onboarding, and return.
-                // This is the ONLY intentional app-shell escape in BaseLodge.
-                // Do NOT replicate this pattern for internal navigation.
-                window.open(window.location.href, '_system');
-            } else {
+        if (inNativeCheck) {
+            // Hide: the primary "Sign in to connect" button already handles this
+            // flow correctly inside the app. Opening a system browser would create
+            // a separate session with no invite token, breaking post-login redirect.
+            btn.style.display = 'none';
+        } else {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
                 document.getElementById('acceptForm').submit();
-            }
-        });
+            });
+        }
     }
 
     // ── "Open in App" bar (mobile browser only, not Capacitor) ───────────

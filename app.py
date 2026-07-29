@@ -16539,6 +16539,20 @@ def assetlinks_json():
         app.logger.warning(
             "[deep_link] BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT env var not set; using production default"
         )
+    # Validate SHA256 format: 32 colon-separated uppercase hex pairs (59 chars total).
+    # An invalid fingerprint causes Android to silently reject App Link verification.
+    import re as _re
+    _sha256_ok = bool(_re.match(r'^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$', _sha256))
+    if not _sha256_ok:
+        app.logger.error(
+            "[deep_link] BASELODGE_ANDROID_SHA256_CERT_FINGERPRINT has unexpected format "
+            "(expected 59-char colon-separated hex XX:XX:...:XX): %r — App Links may not verify",
+            _sha256[:20] + "..."
+        )
+    else:
+        app.logger.info(
+            "[deep_link] assetlinks.json served; SHA256 prefix=%s", _sha256[:8]
+        )
     assetlinks = [
         {
             "relation": ["delegate_permission/common.handle_all_urls"],

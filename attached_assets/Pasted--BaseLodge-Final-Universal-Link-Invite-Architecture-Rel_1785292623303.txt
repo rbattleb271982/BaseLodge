@@ -1,0 +1,335 @@
+# BaseLodge — Final Universal Link & Invite Architecture Release
+
+## Objective
+
+Implement the remaining improvements to the BaseLodge invite architecture before I create and submit the next iOS and Android builds.
+
+This is the final implementation pass before release.
+
+The Universal Link / Android App Link architecture is already implemented. Preserve the existing architecture while addressing the remaining issues identified during the Universal Link & Invite Architecture Audit.
+
+Implement only the work described below.
+
+---
+
+# Background
+
+The following are already implemented and working:
+
+- iOS Universal Links
+- Android App Links
+- Capacitor appUrlOpen listener
+- Invite token preservation
+- Post-login redirect
+- Post-signup redirect
+- Post-onboarding redirect
+- Friend invite flow
+- Removal of the old baselodge:// URL scheme
+- AASA
+- assetlinks.json
+- Android intent filters
+- iOS entitlements
+
+These native changes have NOT yet been included in the production App Store or Google Play builds, making this the ideal time to complete the remaining improvements before syncing Capacitor and submitting new builds.
+
+---
+
+# Task 1 — Bring Friend & Trip Invites to Feature Parity
+
+Review the complete friend invite flow and trip invite flow.
+
+Compare:
+
+- landing pages
+- authentication
+- onboarding
+- deep linking
+- navigation
+- success pages
+- token preservation
+- Open in App behavior
+- Smart App Banner
+- Android Intent fallback
+- Capacitor behavior
+- iOS behavior
+- Android behavior
+- desktop behavior
+
+Where differences are NOT intentional business rules, make the behavior consistent.
+
+Document any intentional differences that remain.
+
+Avoid unnecessary code duplication. If shared helpers reduce maintenance while preserving behavior, use them.
+
+---
+
+# Task 2 — Add Missing Open in App Experience
+
+Review:
+
+templates/trip_invite_token_landing.html
+
+Bring it to feature parity with the friend invite landing page.
+
+Requirements:
+
+- Support Universal Links
+- Support Android App Links
+- Support Android Intent fallback
+- Support Smart App Banner
+- Support Capacitor detection
+- Preserve trip invite tokens
+- Do not regress existing behavior
+
+---
+
+# Task 3 — Remove the Legacy iOS App Store Timer
+
+Review:
+
+templates/invite_accepted.html
+
+Currently a 2000ms timer automatically redirects users to the App Store if the Universal Link does not immediately open.
+
+Replace this with a safer user experience.
+
+Requirements:
+
+- Never automatically redirect users to the App Store.
+- Preserve Universal Link behavior.
+- Preserve Android Intent behavior.
+- Preserve Capacitor behavior.
+- Prefer explicit user actions such as:
+  - Open BaseLodge
+  - Download BaseLodge
+  - Retry Opening App
+
+Choose the solution that provides the best overall user experience.
+
+---
+
+# Task 4 — Fix the Continue in Browser Flow
+
+Review:
+
+templates/invite_landing.html
+
+The current Continue in Browser flow launches the system browser from inside the Capacitor app.
+
+Determine whether this creates:
+
+- invite token loss
+- authentication inconsistencies
+- duplicate login
+- broken onboarding
+- broken post-login redirect
+- session separation between the WebView and the system browser
+
+If so:
+
+Redesign the flow.
+
+Goal:
+
+If the user already has the BaseLodge app installed, they should remain inside the app whenever possible.
+
+Preserve invite-token continuity across authentication, onboarding, and acceptance.
+
+---
+
+# Task 5 — Improve Cold-Start Reliability
+
+Review:
+
+static/js/bl-native.js
+
+Currently only:
+
+App.addListener("appUrlOpen")
+
+is used.
+
+Determine whether implementing:
+
+App.getLaunchUrl()
+
+would materially improve Universal Link handling during cold starts.
+
+If it improves reliability:
+
+- Implement it.
+- Prevent duplicate processing.
+- Prevent duplicate navigation.
+- Prevent processing the same invite twice.
+
+If it does not improve reliability:
+
+Document why appUrlOpen alone is sufficient.
+
+---
+
+# Task 6 — Android Certificate Robustness
+
+Review the assetlinks.json generation.
+
+Determine whether low-risk validation or warning logic should be added around the SHA256 fingerprint configuration.
+
+If appropriate:
+
+Implement it.
+
+Otherwise explain why it should remain unchanged.
+
+---
+
+# Task 7 — Review Permanent Invite Token Security
+
+Friend invite links are intentionally permanent.
+
+Do NOT restore expiration.
+
+Instead evaluate whether any low-risk improvements should be implemented, including:
+
+- invite regeneration
+- invite revocation
+- token rotation
+- multiple active invite links
+- abuse protection
+
+Only implement changes that improve security without changing the intended product behavior.
+
+---
+
+# Task 8 — Resolve the Remaining Audit Findings
+
+Implement the remaining issues identified during the Universal Link & Invite Architecture Audit:
+
+- Bring trip invite landing pages to feature parity.
+- Remove the legacy iOS App Store timer.
+- Fix the Continue in Browser session separation issue.
+- Improve cold-start robustness if appropriate.
+- Improve Android certificate robustness if appropriate.
+- Review permanent invite token security.
+
+Search for any remaining inconsistencies between:
+
+- friend invites
+- trip invites
+- deep linking
+- authentication
+- navigation
+- invite acceptance
+- success pages
+- post-login flow
+- post-onboarding flow
+- token preservation
+
+Where inconsistencies are not intentional business rules, make them consistent.
+
+---
+
+# Task 9 — Reduce Maintenance Risk
+
+Search for duplicate logic between:
+
+- friend invites
+- trip invites
+- Universal Link handling
+- authentication redirects
+- invite acceptance
+- deep-link routing
+
+If shared helpers or reusable functions reduce maintenance while preserving behavior, refactor accordingly.
+
+Avoid unnecessary refactoring.
+
+Behavior must remain unchanged.
+
+---
+
+# Regression Testing
+
+Verify all of the following after implementation:
+
+- Friend invite
+- Trip invite
+- Universal Links
+- Android App Links
+- Cold start
+- Warm start
+- Background resume
+- Email login
+- Google login
+- Apple login
+- Signup
+- Onboarding
+- Existing friendship detection
+- Existing participant detection
+- Already accepted invite
+- Invite token preservation
+- Post-login redirect
+- Post-onboarding redirect
+- Capacitor navigation
+- Browser navigation
+- Deep links from Messages
+- Deep links from Mail
+- Deep links from Safari
+- Deep links from Chrome
+- No duplicate processing
+- No duplicate friendships
+- No duplicate trip participants
+
+---
+
+# Deliverables
+
+Return:
+
+## 1. Executive Summary
+
+## 2. Files Changed
+
+Include exact filenames and line numbers.
+
+## 3. Before vs After
+
+Explain every behavioral improvement.
+
+## 4. Regression Results
+
+List every tested flow.
+
+## 5. Remaining Risks
+
+List anything that should still be monitored after release.
+
+## 6. Native Build Impact
+
+Explicitly state whether these changes require:
+
+- Server deployment
+- Capacitor sync
+- New iOS build
+- New Android build
+
+## 7. Manual Test Plan
+
+Provide a concise manual testing checklist for iOS and Android before App Store and Play Store submission.
+
+## 8. Future Recommendations
+
+Include any worthwhile improvements that should be deferred until after this release.
+
+## Scope Constraint
+
+Limit implementation to the issues identified in the Universal Link & Invite Architecture Audit and any directly related code required to implement those fixes correctly.
+
+Do not broaden the scope.
+
+Do not redesign unrelated architecture.
+
+Do not make unrelated refactors.
+
+If you discover an issue that must be addressed to safely implement these changes, document it separately and explain why it is required before implementing it.
+
+Do not create commits until all implementation is complete and regression testing has passed.
