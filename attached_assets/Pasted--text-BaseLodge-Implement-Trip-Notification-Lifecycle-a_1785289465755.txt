@@ -1,0 +1,541 @@
+```text
+BaseLodge — Implement Trip Notification Lifecycle and Fix Trip-Accept Success Wording
+
+Use the completed Push Notification Audit as the source of truth.
+
+This is an implementation task. First inspect every affected route and confirm the existing execution paths before editing. Then implement the approved notification behavior below.
+
+Do not introduce new notification infrastructure, queues, schedulers, delays, undo windows, background workers, or cancellation mechanisms.
+
+Use the existing:
+
+- emit_messaging_event() orchestration
+- EventSpec registry
+- OneSignal delivery provider
+- notification preference checks
+- MessageEventLog records
+- one-hour duplicate suppression
+- existing trip deep-link pattern
+
+Preserve all existing database behavior unless a change is explicitly required below.
+
+IMPORTANT PRODUCT SEMANTICS
+
+In BaseLodge, accepting a trip invitation does not necessarily mean the user is definitely traveling.
+
+Trips can have:
+
+- Planning status
+- Going status
+
+Notification and UI wording must not imply confirmed attendance unless the trip is actually in Going status.
+
+PART 1 — Preserve existing notification wording
+
+Do not change these existing push notifications.
+
+1. Trip invitation sent
+
+Trigger:
+An existing BaseLodge friend is invited through the in-app Invite Friends flow.
+
+Recipient:
+Invited user.
+
+Title:
+
+{Inviter name} invited you to a trip
+
+Body:
+
+You've been invited to {resort}.
+
+2. Trip invitation accepted — owner notification
+
+Trigger:
+An invited user accepts a trip invitation.
+
+Recipient:
+Trip owner.
+
+Title:
+
+{Name} accepted your invite
+
+Body:
+
+They're joining you for {resort}.
+
+Keep this wording unchanged. “Joining” is sufficiently neutral for both Planning and Going trips.
+
+3. Friend request accepted
+
+Trigger:
+A user accepts a friend request.
+
+Recipient:
+Original requester.
+
+Title:
+
+{Name} accepted your request
+
+Body:
+
+You're now connected on BaseLodge.
+
+Do not change friend-request notification behavior.
+
+Friend-request declines and friend removals must remain silent.
+
+PART 2 — Verify and fix the trip-acceptance success message
+
+The audit found hardcoded calls similar to:
+
+flash("You're going!", "success")
+
+in trip-acceptance routes.
+
+Before changing the text, verify whether Flask flash messages are currently visible in:
+
+- the regular web application
+- the Capacitor iOS app
+- the Capacitor Android app
+
+Trace:
+
+- the flash() call
+- the redirect
+- the destination template
+- the layout or component that renders flashed messages
+- any JavaScript that converts, hides, replaces, or dismisses them
+
+Determine whether the message appears as:
+
+- an alert
+- toast
+- banner
+- snackbar
+- another component
+- or is not visibly rendered
+
+If the message is user-visible, update both acceptance routes so the text matches the trip status.
+
+Affected routes include at least:
+
+- POST /trips/<trip_id>/respond
+- POST /trip-invite/<token>/accept
+
+Required wording:
+
+If trip.trip_status == "going":
+
+You're going!
+
+Otherwise:
+
+You're planning!
+
+Use the trip status after the successful database commit.
+
+Although the external TripInviteToken flow is currently hidden from the UI, keep both acceptance routes consistent.
+
+Do not change:
+
+- participant acceptance behavior
+- database statuses
+- acceptance push notification text
+- notification recipients
+- notification delivery infrastructure
+
+If the flash message is not currently user-visible, do not create a new UI component as part of this task. Report why it is not visible and whether the text-only change would have any effect.
+
+PART 3 — Notify the owner when an invitation is declined
+
+Trigger:
+An invited participant declines a trip invitation.
+
+Recipient:
+Trip owner only.
+
+Title:
+
+{Name} declined your invite
+
+Body:
+
+They won't be participating in the {resort} trip.
+
+Requirements:
+
+- Dispatch only after the decline is successfully committed.
+- Do not notify the declining user.
+- Do not notify other trip participants.
+- Use the same trip deep link as the existing trip-acceptance notification.
+- Use the existing preference, logging, and deduplication infrastructure.
+- A repeated decline or repeated request must not create duplicate pushes.
+- Confirm every route through which a trip invitation can be declined and make behavior consistent where appropriate.
+
+PART 4 — Notify existing participants when an invitation is accepted
+
+The trip owner already receives the existing personalized acceptance push:
+
+{Name} accepted your invite
+They're joining you for {resort}.
+
+Keep that notification unchanged.
+
+In addition, notify the other existing accepted participants when someone accepts an invitation.
+
+Recipients:
+
+- Existing accepted participants
+- Exclude the person who just accepted
+- Do not send the generic notification to the owner if the owner already receives the personalized owner notification
+- Do not send duplicate notifications to any recipient
+
+Generic participant notification:
+
+Title:
+
+Someone accepted an invitation
+
+Body:
+
+A new participant has been added to the {resort} trip.
+
+This wording is intentionally generic because not every participant will necessarily be friends with or know the accepting person.
+
+It also avoids implying that the accepting person is definitely going.
+
+Requirements:
+
+- Dispatch after the acceptance transaction commits.
+- Only notify users who are already accepted participants at that point.
+- Do not notify pending or declined invitees.
+- Preserve the owner’s existing personalized acceptance notification.
+- Use the existing trip deep link.
+- Ensure both acceptance routes behave consistently.
+- Use existing duplicate suppression.
+
+PART 5 — Notify participants when someone leaves a trip
+
+This applies when a participant who previously accepted voluntarily removes themselves or leaves the trip.
+
+Recipients:
+
+- Trip owner
+- All remaining accepted participants
+- Exclude the person who left
+- Do not notify pending invitees
+- Do not notify declined invitees
+
+Title:
+
+A participant left the trip
+
+Body:
+
+A participant has left the {resort} trip.
+
+Requirements:
+
+- Keep the wording generic.
+- Dispatch only after the participant has successfully been removed or their status has been updated.
+- Identify every current route that allows an accepted participant to leave.
+- Do not confuse leaving after acceptance with declining a pending invitation.
+- Prevent duplicate pushes if the leave action is repeated.
+- Use the trip deep link and current notification infrastructure.
+
+PART 6 — Notify a participant when the owner removes them
+
+This applies when the trip owner removes a participant.
+
+Recipient:
+
+- Removed participant only
+
+Do not notify:
+
+- the owner
+- remaining participants
+- pending invitees unrelated to the action
+
+Title:
+
+You've been removed from the trip
+
+Body:
+
+You're no longer participating in the {resort} trip.
+
+Requirements:
+
+- Dispatch after the removal transaction commits.
+- Confirm whether the same route can remove accepted and pending participants.
+- If a pending invite is withdrawn through this route, determine whether this wording is still accurate. Do not guess. Report the state distinctions and use status-appropriate logic if necessary.
+- Use the trip deep link only if the removed user can still open a meaningful destination.
+- If the removed user will no longer have authorization to open the trip, use the safest existing destination, such as the Trips page, rather than deep-linking to an inaccessible page.
+- Do not expose private information about other participants.
+- Use existing preferences, logging, and deduplication.
+
+PART 7 — Notify participants when a trip is cancelled or deleted
+
+Trigger:
+The trip owner cancels or deletes the entire trip.
+
+Recipients:
+
+- All accepted participants
+- All currently invited participants
+- Exclude the owner
+- Exclude declined or previously removed users unless the current data model still treats them as active recipients
+
+Title:
+
+{Resort} trip cancelled
+
+Body:
+
+The trip has been cancelled by the organizer.
+
+Requirements:
+
+- Determine the actual deletion or cancellation routes.
+- Determine whether the trip is hard-deleted, soft-deleted, archived, or status-updated.
+- Notification recipient information must be captured before a hard delete removes the records needed to identify recipients.
+- Pushes must not be sent before the database action is known to have succeeded.
+- If the trip is hard-deleted, the notification must not deep-link to a now-missing trip page.
+- Use an existing valid destination such as the Trips page when the original trip URL will no longer work.
+- Prevent duplicate cancellation notifications.
+- Do not notify the owner who performed the cancellation.
+
+PART 8 — Notify participants when important trip details are updated
+
+Trigger:
+The trip owner makes a meaningful change to the trip.
+
+Recipients:
+
+- Accepted participants
+- Invited participants
+- Exclude the owner
+- Exclude declined, removed, or otherwise inactive participants
+
+Title:
+
+Trip updated from {name}
+
+Body:
+
+The details of the {resort} trip have changed.
+
+First identify all editable trip fields and the routes used to update them.
+
+Classify which changes should trigger this notification.
+
+At minimum investigate:
+
+- resort or destination
+- trip dates
+- trip status, including Planning to Going
+- lodging or accommodation information
+- other fields shown as core trip details
+
+Do not send this push for inconsequential technical changes such as:
+
+- timestamps
+- internal IDs
+- analytics fields
+- unrelated metadata
+- updates that do not change a user-visible value
+
+Requirements:
+
+- Send one notification per completed update action, not one per changed field.
+- Dispatch only after the update commits.
+- Do not send a notification when the submitted values are unchanged.
+- Avoid generating a notification from background or internal updates that were not performed by the trip owner.
+- Use the trip deep link.
+- Use existing preferences, logging, and duplicate suppression.
+- Confirm that rapid legitimate updates will not be incorrectly lost because the existing one-hour deduplication key is too broad. If the current deduplication design would suppress distinct trip updates, report the issue and use an event/object strategy that prevents accidental duplicates without hiding separate valid updates.
+
+PART 9 — Events that must remain silent
+
+Do not add push notifications for:
+
+- Friend request declined
+- One user removing another as a friend
+
+Do not modify those flows beyond regression testing.
+
+PART 10 — Transaction and delivery safety
+
+For every new notification, verify:
+
+- Database changes commit before push dispatch.
+- A push failure does not roll back or corrupt the underlying action.
+- Push exceptions are caught and logged using existing behavior.
+- No push can be delivered for a database action that later rolls back.
+- Recipient lists are calculated safely for hard-delete operations.
+- A user cannot receive two versions of the same event.
+- The actor is excluded where appropriate.
+- Notification preferences are respected.
+- Invalid device-token handling remains unchanged.
+- MessageEventLog records are written consistently.
+- Existing one-hour duplicate suppression is applied appropriately.
+
+Do not use:
+
+- time.sleep()
+- JavaScript setTimeout() as notification infrastructure
+- a new queue
+- Celery
+- RQ
+- APScheduler
+- background threads
+- delayed jobs
+- a pending-notification table
+- an undo endpoint
+- a grace period
+
+Those remain out of scope.
+
+PART 11 — In-app activity behavior
+
+The audit found that some events create an in-app activity record while others only send a push.
+
+Do not build a new Activity Center or redesign in-app notifications.
+
+For each event implemented here, report whether:
+
+- an in-app activity already exists
+- a new in-app activity is necessary for consistency
+- adding one would require a broader product decision
+
+Do not add broad new in-app notification infrastructure without explicit approval.
+
+If a matching existing activity helper already exists and is clearly intended for the same event, it may be reused. Otherwise, report the inconsistency rather than expanding scope.
+
+PART 12 — Validation scenarios
+
+Create or use controlled test users and trips to verify all behavior.
+
+Test at minimum:
+
+1. Trip invite sent
+
+- Invited user receives exactly one existing push.
+- Existing wording remains unchanged.
+
+2. Planning trip accepted
+
+- Owner receives existing personalized acceptance push.
+- Other accepted participants receive the generic participant-added push.
+- Accepter does not receive either push.
+- User-visible success message says “You're planning!” if flashes are rendered.
+
+3. Going trip accepted
+
+- Owner receives existing personalized acceptance push.
+- Other accepted participants receive the generic participant-added push.
+- User-visible success message says “You're going!” if flashes are rendered.
+
+4. Invitation declined
+
+- Owner receives exactly one decline push.
+- Other participants receive nothing.
+- Declining user receives nothing.
+
+5. Accepted participant leaves
+
+- Owner and remaining accepted participants receive the generic leave push.
+- Person who left receives nothing.
+- Pending invitees receive nothing.
+
+6. Owner removes an accepted participant
+
+- Removed participant receives exactly one removal push.
+- Remaining participants receive nothing.
+- Destination opens a valid page.
+
+7. Owner withdraws a pending invitation
+
+- Verify the actual behavior and status.
+- Confirm whether a notification is appropriate under the approved removal rule.
+- Do not use accepted-participant wording if the person never joined.
+
+8. Trip cancelled or deleted
+
+- All active invited and accepted participants receive exactly one push.
+- Owner receives nothing.
+- Notification destination remains valid after deletion.
+
+9. Trip details updated
+
+- One meaningful update creates one push per eligible recipient.
+- A no-op save creates no push.
+- Internal or non-user-visible updates create no push.
+- Owner receives no push.
+
+10. Friend behavior
+
+- Friend request accepted notification remains unchanged.
+- Friend request decline remains silent.
+- Friend removal remains silent.
+
+11. Duplicate and failure testing
+
+- Repeated requests do not create duplicate pushes.
+- A simulated OneSignal failure does not reverse the database action.
+- A failed database action does not send a push.
+- Users with push notifications disabled do not receive a push.
+- Users without an active device token do not cause route failures.
+
+PART 13 — Regression protection
+
+Verify that these existing functions remain operational:
+
+- Invite existing BaseLodge friends to a trip
+- Accept a trip invitation
+- Decline a trip invitation
+- Leave a trip
+- Remove a trip participant
+- Cancel or delete a trip
+- Edit trip details
+- Accept a friend request
+- Invite-link acceptance
+- QR connection flow
+- Friends page
+- Trips page
+- Trip detail page
+- Push deep-link routing on iOS
+- Push deep-link routing on Android
+
+Do not alter the hidden external TripInviteToken product entry point beyond keeping shared acceptance logic and wording consistent.
+
+RETURN A FULL IMPLEMENTATION REPORT
+
+Return:
+
+1. Summary of behavior implemented.
+2. Exact files and line numbers changed.
+3. Every new or modified EventSpec.
+4. Every route modified.
+5. Every notification recipient rule.
+6. Exact title, body, and destination for every event.
+7. Before-and-after code for each material change.
+8. Flash-message rendering findings for web, iOS, and Android.
+9. Test results for Planning and Going trips.
+10. Test results for decline, leave, removal, cancellation, and updates.
+11. Confirmation that existing notification wording remained unchanged.
+12. Confirmation that friend declines and friend removals remain silent.
+13. Transaction-ordering confirmation.
+14. Duplicate-suppression behavior.
+15. Any discovered route inconsistencies.
+16. Any flow where a database action still has no corresponding approved notification.
+17. Regression risks.
+18. Confidence level.
+
+Do not push, deploy, create a production build, or modify notification infrastructure beyond the approved event additions. Stop after implementation and validation so I can review the findings.
+```
