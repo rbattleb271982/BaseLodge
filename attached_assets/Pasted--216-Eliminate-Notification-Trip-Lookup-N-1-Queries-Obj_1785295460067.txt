@@ -1,0 +1,104 @@
+#216 - Eliminate Notification Trip Lookup N+1 Queries
+
+## Objective
+
+Remove the remaining N+1 database query pattern in the notifications route.
+
+This is a narrowly scoped performance implementation.
+
+Do not change notification behavior, ordering, filtering, permissions, rendering, or user-visible content.
+
+---
+
+## Current Finding
+
+In the notifications route, notification records are loaded first, and the rendering loop calls `act.get_trip()` for individual Activity records.
+
+When the related SkiTrip is not already present in SQLAlchemy's identity map, this can issue an additional database query for each distinct trip.
+
+---
+
+## Required Implementation
+
+1. Review the complete notifications route and the `Activity.get_trip()` implementation.
+
+2. Collect all non-null trip IDs needed by the notifications being rendered.
+
+3. Load all required SkiTrip records in one database query before the rendering loop.
+
+4. Build a dictionary keyed by trip ID.
+
+5. Reuse the preloaded trip records inside the loop.
+
+6. Preserve existing behavior for:
+   - notifications without a trip
+   - deleted or missing trips
+   - duplicate trip IDs
+   - notification ordering
+   - the 50-notification limit
+   - date filtering
+   - notification types
+   - permissions and visibility
+   - existing fallback behavior
+
+7. Do not introduce a new query inside the notification loop.
+
+---
+
+## Constraints
+
+Do not:
+
+- change database models
+- add migrations or indexes
+- modify templates unless absolutely required
+- change notification copy
+- alter Activity.get_trip() globally unless necessary
+- add caching
+- add threading
+- change OneSignal behavior
+- refactor unrelated notification code
+- make architectural changes
+
+Prefer a localized change inside the notifications route.
+
+---
+
+## Verification
+
+Verify:
+
+- The notification list is identical before and after.
+- Notifications linked to the same trip reuse one preloaded record.
+- Notifications with no trip still render correctly.
+- Notifications referencing a deleted trip still follow the existing fallback path.
+- The rendering loop performs zero SkiTrip database queries.
+- Notification ordering remains unchanged.
+- The route still limits results correctly.
+- No JavaScript, native, or template regressions occur.
+
+Where possible, report the expected query count before and after.
+
+---
+
+## Deliverables
+
+Provide:
+
+### Executive Summary
+
+### Files Changed
+
+### Before and After Code
+
+### Query Behavior Before and After
+
+### Edge Cases Verified
+
+### Regression Results
+
+### Native Build Impact
+
+### Remaining Performance Work
+
+Do not implement any performance changes outside this notification N+1 fix.

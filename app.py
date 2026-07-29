@@ -9612,6 +9612,30 @@ def notifications():
     if app.debug:
         print(f"[ROUTE_PERF] notifications.raw_activities={time.perf_counter()-_t:.4f}s count={len(raw_activities)}")
 
+    # --- Pre-load all SkiTrip records referenced by this notification batch ---
+    # Collects every distinct trip ID needed by the rendering loop and fetches
+    # them in a single query with joinedload(resort), so the loop below performs
+    # zero per-trip DB hits. Activities without a trip (object_type != 'trip' or
+    # object_id is None) are excluded from the set. Deleted trips are absent from
+    # the result and the dict lookup returns None, preserving the existing fallback.
+    _t = time.perf_counter()
+    _trip_ids = {
+        act.object_id
+        for act in raw_activities
+        if act.object_type == 'trip' and act.object_id is not None
+    }
+    _trips_map: dict = {}
+    if _trip_ids:
+        _trip_rows = (
+            SkiTrip.query
+            .options(joinedload(SkiTrip.resort))
+            .filter(SkiTrip.id.in_(_trip_ids))
+            .all()
+        )
+        _trips_map = {t.id: t for t in _trip_rows}
+    if app.debug:
+        print(f"[ROUTE_PERF] notifications.trip_prefetch={time.perf_counter()-_t:.4f}s ids={len(_trip_ids)} loaded={len(_trips_map)}")
+
     _t = time.perf_counter()
     notifs = []
     today = datetime.utcnow()
@@ -9620,7 +9644,9 @@ def notifications():
         actor_first = (actor.first_name or 'Someone') if actor else 'Someone'
         actor_name = f"{actor.first_name or ''} {actor.last_name or ''}".strip() if actor else 'Someone'
 
-        trip = act.get_trip() if act.object_type == 'trip' else None
+        # Reuse the pre-loaded trip record; no DB query issued here.
+        # Returns None for non-trip activities and for trips that no longer exist.
+        trip = _trips_map.get(act.object_id) if act.object_type == 'trip' else None
         trip_name = None
         if trip:
             if trip.resort:
