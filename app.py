@@ -10932,7 +10932,14 @@ def trip_detail(trip_id):
         friend_ids = [f.friend_id for f in friend_links]
         if friend_ids:
             friends = User.query.filter(User.id.in_(friend_ids)).all()
-            
+            # Sort alphabetically by first name (case-insensitive, leading/trailing
+            # spaces stripped), with last name as a tie-breaker — matches the
+            # alphabetical ordering used by the Friends page (alpha_groups, line ~7540).
+            friends.sort(key=lambda u: (
+                (u.first_name or '').strip().lower(),
+                (u.last_name  or '').strip().lower(),
+            ))
+
             # Check which friends are already invited or accepted.
             # Use already-loaded lists to avoid a redundant lazy-load of trip.participants.
             existing_participants = {p.user_id: p.status for p in invited_participants + accepted_participants}
