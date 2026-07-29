@@ -1,0 +1,73 @@
+BaseLodge Native Launch Screen Update
+
+Please investigate and implement a branded startup screen for the BaseLodge Capacitor app.
+
+CURRENT ISSUE
+
+When the user taps the BaseLodge app icon, the app briefly displays a completely blank cream screen while the Capacitor WebView and Home page load.
+
+I want that startup period to display:
+
+Opening BaseLodge...
+
+Do not recreate the full Home screen. Do not display personalized information, trip counts, profile details, or navigation controls.
+
+DESIGN REQUIREMENTS
+
+Use the existing BaseLodge visual styling:
+
+- Use the exact cream background color already used by the app
+- Center the text horizontally and vertically
+- Text: Opening BaseLodge...
+- Use the existing BaseLodge burgundy color
+- Use a clean font consistent with the app
+- Do not add a spinner
+- Do not add a progress bar
+- Do not add a tagline
+- Do not add additional copy
+- Keep the design minimal
+
+FUNCTIONAL REQUIREMENTS
+
+1. Inspect the current Capacitor version and existing splash-screen configuration before making changes.
+
+2. Determine whether the blank screen is:
+   - the native iOS launch screen,
+   - the Capacitor splash screen,
+   - an unloaded WebView,
+   - or a combination of these.
+
+3. Update the appropriate native iOS and Android splash-screen assets/configuration so that “Opening BaseLodge...” appears during startup.
+
+4. Prevent the Capacitor splash screen from disappearing before the initial app interface is ready.
+
+5. Hide the splash screen as soon as the initial BaseLodge page has rendered and is ready to display.
+
+6. Do not use an unnecessarily long fixed delay. The splash should remain only as long as needed to prevent the blank intermediate screen.
+
+7. Include a fallback maximum timeout so that a loading error cannot leave the splash screen displayed indefinitely.
+
+8. Preserve all current routing, authentication, session restoration, deep-link handling, invite handling, and Home page behavior.
+
+9. Do not redesign or modify the actual Home page.
+
+10. Apply the solution consistently to both iOS and Android where platform behavior permits.
+
+11. Use the existing @capacitor/splash-screen package if it is already installed. Do not upgrade Capacitor or unrelated dependencies unless absolutely necessary.
+
+12. Run the appropriate existing tests and confirm that the web application still loads normally in a browser.
+
+13. Do not commit changes until the implementation has been reviewed.
+
+REPORT BACK WITH
+
+- What caused the blank screen
+- Current Capacitor version
+- Files changed
+- Exact visual implementation
+- How the splash knows when to disappear
+- Maximum fallback timeout
+- Any differences between iOS and Android
+- Whether new App Store and Play Store builds will be required
+- Testing performed
+- One thing you recommend checking before release
