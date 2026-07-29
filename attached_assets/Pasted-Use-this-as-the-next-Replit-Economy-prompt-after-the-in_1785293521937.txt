@@ -1,0 +1,542 @@
+Use this as the **next Replit Economy prompt after the invite work is complete**:
+
+# BaseLodge — App Performance and Screen Transition Audit
+
+## Objective
+
+Perform a comprehensive performance audit of BaseLodge to identify where users experience slow loading, delayed navigation, lag between screens, or unnecessary waiting.
+
+This is an investigation and recommendation task only.
+
+Do not make code changes.
+
+Do not refactor.
+
+Do not create commits.
+
+The goal is to determine:
+
+1. Which screens and user flows are slow.
+2. What specifically causes each delay.
+3. Which improvements would have the greatest impact on overall app speed.
+4. Which fixes are low risk versus architecturally significant.
+
+Base the audit on actual code paths, database queries, network requests, templates, JavaScript, native behavior, and available logs. Do not speculate without evidence.
+
+---
+
+# Scope
+
+Audit performance across:
+
+* Flask server routes
+* Database queries
+* SQLAlchemy relationships and loading behavior
+* API endpoints
+* Jinja templates
+* JavaScript
+* Capacitor WebView behavior
+* Native-to-web navigation
+* Authentication
+* Page redirects
+* External services
+* Image and asset loading
+* Notifications
+* Background tasks
+* Session handling
+* Startup behavior
+* Navigation between screens
+
+Review both perceived performance and actual technical performance.
+
+---
+
+# Task 1 — Map the Major User Flows
+
+Identify the primary user journeys and map every screen, route, request, query, redirect, and external dependency involved.
+
+At minimum include:
+
+* App launch
+* Login
+* Signup
+* Onboarding
+* Home/dashboard loading
+* Friends list
+* Friend profile
+* Friend invite
+* Trip invite
+* Trip list
+* Trip detail
+* Creating a trip
+* Editing a trip
+* Joining or accepting a trip
+* Notifications
+* Profile
+* Settings
+* Search or discovery flows
+* Any trip-planning or overlap-planning screens
+* Returning to the app from a Universal Link or App Link
+
+For each flow, show:
+
+* Starting screen
+* Destination screen
+* Route or endpoint
+* Redirects
+* Database queries
+* API calls
+* External services
+* JavaScript processing
+* Template rendered
+* Potential delay points
+
+---
+
+# Task 2 — Identify Slow Screen Transitions
+
+Review navigation between every major screen.
+
+Look specifically for:
+
+* Multiple sequential redirects
+* Full page reloads that could be avoided
+* Routes that perform expensive work before rendering
+* Repeated authentication or session checks
+* Duplicate API calls
+* Requests that block rendering
+* JavaScript waiting for the DOM or Capacitor bridge
+* Navigation that waits for nonessential work
+* WebView-to-browser or browser-to-WebView transitions
+* Pages that reload data already available on the prior screen
+* Flash messages or intermediate screens that add unnecessary steps
+
+For each slow transition, report:
+
+* From screen
+* To screen
+* What happens during the transition
+* Why it may feel slow
+* Whether the delay is server-side, database, network, JavaScript, native, or UX-related
+* Estimated severity: Critical, High, Medium, or Low
+* Recommended fix
+
+---
+
+# Task 3 — Database Query Audit
+
+Inspect the database behavior of all major routes.
+
+Look for:
+
+* N+1 queries
+* Queries executed inside loops
+* Missing eager loading
+* Missing indexes
+* Large unbounded queries
+* Loading full ORM objects when only a few fields are needed
+* Repeated queries for the same user, trip, friend, participant, or notification data
+* Relationship access that triggers additional queries
+* Sorting or filtering in Python instead of SQL
+* Recalculating derived data on every request
+* Expensive counts or aggregates
+* Queries performed solely to determine display state
+* Duplicate queries executed within the same request
+* Database queries triggered from templates
+
+For each issue, include:
+
+* File
+* Function or route
+* Exact query pattern
+* Why it is inefficient
+* Expected user-facing impact
+* Recommended improvement
+* Whether an index is needed
+* Risk level of the fix
+
+Pay particular attention to:
+
+* Home/dashboard
+* Friends list
+* Friend profiles
+* Trip list
+* Trip detail
+* Invite flows
+* Notifications
+* Planning and overlap calculations
+
+---
+
+# Task 4 — Route and API Performance
+
+Audit all significant Flask routes and API endpoints.
+
+Identify:
+
+* Routes doing too much work synchronously
+* Routes performing multiple unrelated responsibilities
+* Expensive calculations before rendering
+* Serial external API calls
+* Notification creation or sending inside the user request
+* Email or push delivery that blocks navigation
+* File generation during the request
+* Repeated permission checks
+* Repeated serialization
+* Large JSON responses
+* Endpoints returning data the frontend does not use
+* Routes that could return before nonessential work completes
+* Routes that should use pagination
+
+For each route, classify it as:
+
+* Fast and acceptable
+* Potential concern
+* Likely bottleneck
+* Critical bottleneck
+
+---
+
+# Task 5 — Frontend and Template Performance
+
+Review templates and JavaScript for:
+
+* Large scripts loaded on every page
+* Scripts loaded where they are not needed
+* Render-blocking JavaScript
+* Render-blocking CSS
+* Repeated event listeners
+* Duplicate initialization
+* Multiple DOMContentLoaded handlers doing overlapping work
+* Large inline scripts
+* Heavy DOM manipulation
+* Repeated polling
+* Timers that delay navigation or display
+* Expensive calculations in the browser
+* Large HTML payloads
+* Templates rendering large lists without pagination
+* Images without dimensions
+* Oversized or uncompressed images
+* Assets without caching
+* Resources loaded from third parties
+* Code that waits for Capacitor unnecessarily
+* Code that causes duplicate navigation or requests
+
+For each issue, explain whether it affects:
+
+* Initial load
+* Time to visible content
+* Time to interactive
+* Screen-to-screen navigation
+* Scrolling
+* Perceived responsiveness
+
+---
+
+# Task 6 — Capacitor and Native App Performance
+
+Review the Capacitor configuration and native app startup flow.
+
+Inspect:
+
+* server.url behavior
+* Initial WebView load
+* Splash-screen timing
+* Authentication restoration
+* Session initialization
+* appUrlOpen
+* getLaunchUrl
+* Native plugin initialization
+* Push-notification initialization
+* App resume behavior
+* Universal Link and App Link navigation
+* Asset bundling
+* Remote versus bundled assets
+* Network dependence during startup
+
+Determine:
+
+* What happens from tapping the BaseLodge icon until the first usable screen appears
+* What must complete before the user can interact
+* Whether any work can be deferred
+* Whether the app reloads more often than necessary
+* Whether WebView navigation is causing avoidable delays
+* Whether app startup speed depends too heavily on server response time
+
+Document the likely startup bottlenecks separately for:
+
+* iOS
+* Android
+* Cold start
+* Warm start
+* Resume from background
+* Launch from invite link
+
+---
+
+# Task 7 — External Services and Blocking Work
+
+Identify every external dependency that can affect screen speed, including:
+
+* Email providers
+* Push notifications
+* Maps
+* Weather
+* Geocoding
+* Image hosting
+* Analytics
+* Authentication providers
+* Google or Apple authentication
+* Third-party APIs
+* Object storage
+* CDN resources
+
+For each dependency, determine:
+
+* Which user flow uses it
+* Whether the app waits for it before rendering
+* Timeout behavior
+* Failure behavior
+* Whether the call is cached
+* Whether the call could be deferred or made asynchronous
+* Whether the app has a fallback
+
+Do not recommend adding infrastructure unless the benefit clearly justifies the complexity.
+
+---
+
+# Task 8 — Perceived Performance and UX
+
+Identify screens that may technically load correctly but feel slow because of poor feedback.
+
+Look for:
+
+* Blank screens
+* Frozen buttons
+* No loading indicators
+* Loading indicators shown too late
+* Buttons that remain active after submission
+* No skeleton state
+* No optimistic UI
+* Long waits followed by abrupt navigation
+* Users able to submit twice
+* Large pages appearing all at once
+* No cached or stale data shown while refreshing
+* Unnecessary confirmation screens
+* Redirect chains that make the app feel slower
+
+Recommend where perceived performance can be improved without changing core architecture.
+
+---
+
+# Task 9 — Caching and Reuse Opportunities
+
+Identify data that is repeatedly loaded or recalculated and could safely be cached or reused.
+
+Examples:
+
+* Current user data
+* Friend counts
+* Trip counts
+* Notification counts
+* Resort information
+* Static location data
+* User avatars
+* Shared trip details
+* Permission state
+* Invite metadata
+* Weather data
+* Planning calculations
+
+For each opportunity, state:
+
+* What would be cached
+* Where it should be cached
+* Safe expiration or invalidation approach
+* Risk of stale data
+* Expected performance gain
+* Complexity
+
+Do not recommend caching data where correctness or authorization could be compromised.
+
+---
+
+# Task 10 — Instrumentation Gaps
+
+Determine whether BaseLodge currently has enough performance instrumentation to identify slow requests.
+
+Review whether the app records:
+
+* Route duration
+* Database query count
+* Slow-query duration
+* External API duration
+* Template-render duration
+* Frontend page-load timing
+* Navigation timing
+* JavaScript errors
+* Native startup timing
+* Device and operating system
+* App version
+* Network type
+* Timeout frequency
+
+Recommend the minimum useful instrumentation needed to measure performance after fixes.
+
+Prefer low-cost, low-maintenance solutions.
+
+Do not implement instrumentation during this audit.
+
+---
+
+# Required Evidence
+
+Every reported bottleneck must include evidence from the repository.
+
+Use:
+
+* Exact filenames
+* Functions
+* Routes
+* Queries
+* Templates
+* JavaScript functions
+* Configuration
+* Logs, if available
+
+Do not claim that something is slow solely because it looks complex.
+
+Clearly distinguish between:
+
+1. Confirmed bottleneck
+2. Highly likely bottleneck
+3. Potential optimization
+4. Unable to validate without runtime measurement
+
+---
+
+# Prioritization Framework
+
+Rank recommendations using:
+
+## P0 — Critical
+
+Severe delays, broken navigation, timeouts, duplicate work, or issues affecting nearly every user.
+
+## P1 — High Impact
+
+Major improvements to startup or frequently used screens.
+
+## P2 — Medium Impact
+
+Noticeable improvement to important but less frequent flows.
+
+## P3 — Low Impact
+
+Minor optimization or polish.
+
+For each recommendation, also provide:
+
+* Expected speed improvement
+* User flows affected
+* Engineering effort: Small, Medium, or Large
+* Regression risk: Low, Medium, or High
+* Server deployment required
+* Native rebuild required
+* Database migration required
+
+---
+
+# Deliverables
+
+Return the audit in the following format.
+
+## 1. Executive Summary
+
+Identify the five most important performance issues.
+
+## 2. App Startup Analysis
+
+Explain what happens during cold start, warm start, background resume, and invite-link launch.
+
+## 3. Slowest Screen Transitions
+
+Provide a ranked table containing:
+
+* Rank
+* From screen
+* To screen
+* Route
+* Cause
+* Severity
+* Evidence
+* Recommended improvement
+
+## 4. Route Performance Audit
+
+List the most expensive or concerning server routes.
+
+## 5. Database Performance Audit
+
+List N+1 queries, missing indexes, duplicate queries, large queries, and inefficient ORM usage.
+
+## 6. Frontend Performance Audit
+
+List JavaScript, template, asset, image, and rendering issues.
+
+## 7. Capacitor and Native Performance Audit
+
+Separate findings for iOS and Android where applicable.
+
+## 8. External Dependency Audit
+
+Explain which external services can delay the app.
+
+## 9. Perceived Performance Improvements
+
+Identify loading-state and UX improvements that would make the app feel faster.
+
+## 10. Prioritized Improvement Roadmap
+
+Organize recommendations into:
+
+* Immediate low-risk improvements
+* High-impact next phase
+* Longer-term architectural improvements
+
+## 11. Top 10 Recommended Fixes
+
+For each fix include:
+
+* Exact issue
+* Files involved
+* Expected benefit
+* Effort
+* Risk
+* Build or deployment impact
+
+## 12. Measurement Plan
+
+Explain how to establish a baseline and verify that each future fix improves performance.
+
+## 13. Items Requiring Runtime Testing
+
+List anything that cannot be conclusively determined from code review alone.
+
+## Scope Constraint
+
+This is an audit only.
+
+Do not make code changes.
+
+Do not create tasks automatically.
+
+Do not create commits.
+
+Do not infer performance problems without code evidence.
+
+Do not broaden the audit into unrelated product or architecture redesign.
+
+If runtime data is unavailable, clearly state what must be measured rather than claiming a confirmed performance issue.
+
+This should be a separate Economy run after the invite validation is completed.
