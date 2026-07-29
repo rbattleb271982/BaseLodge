@@ -1,0 +1,78 @@
+Please revise Task #218 before implementation.
+
+The overall approach is approved, but make these technical corrections:
+
+1. NATIVE FALLBACK
+
+Do not use a JavaScript setTimeout as the only 8-second fallback.
+
+Because BaseLodge loads from the remote URL app.baselodgeapp.com, bl-native.js will never execute if the remote page fails to load. With launchAutoHide set to false, that could leave the splash screen visible indefinitely.
+
+Instead, configure @capacitor/splash-screen with:
+
+- launchAutoHide: true
+- launchShowDuration: 8000
+- launchFadeOutDuration: 300
+- backgroundColor: "#F5F1E8"
+
+Then still call SplashScreen.hide() from bl-native.js as soon as the initial BaseLodge interface is ready.
+
+This must create two exit paths:
+
+- Normal startup: JavaScript hides the splash as soon as the first usable screen has rendered.
+- Failed or unusually slow startup: the native plugin automatically hides it after 8 seconds, even if the remote page or JavaScript never loads.
+
+Remove the JavaScript setTimeout fallback if it is no longer necessary.
+
+2. READINESS SIGNAL
+
+Do not hide the splash merely when the Capacitor bridge becomes available or immediately at the beginning of DOMContentLoaded.
+
+After DOMContentLoaded:
+
+- Confirm the app is running on a native Capacitor platform.
+- Wait until the primary BaseLodge app shell is present in the DOM, such as the main page container or bottom navigation.
+- Allow one or two requestAnimationFrame cycles so the browser has painted the first visible frame.
+- Then call SplashScreen.hide({ fadeOutDuration: 300 }).
+
+Use a lightweight readiness check that works across the app’s authenticated, unauthenticated, onboarding, invite, and deep-link destinations. Do not require a Home-page-only element.
+
+3. ANDROID ASSET VALIDATION
+
+Before replacing Android splash images, inspect how the current drawable is scaled and displayed on:
+
+- Android versions before Android 12
+- Android 12 and later
+- Portrait and landscape orientations
+
+Do not assume the proposed portrait dimensions are correct solely from density naming.
+
+Ensure:
+
+- “Opening BaseLodge...” remains centered
+- The text is not cropped
+- The background fills the full screen
+- The implementation follows the existing Capacitor 8 Android splash structure
+- Any Android 12 splash-theme requirements are handled correctly
+
+Do not make unrelated Android theme or app-icon changes.
+
+4. TYPOGRAPHY
+
+Use a system-style font that can be legally generated and included without adding or distributing external font files.
+
+The final screen should contain only:
+
+Opening BaseLodge...
+
+Use:
+
+- Background: #F5F1E8
+- Text: #5C1219
+- No logo
+- No spinner
+- No tagline
+- No progress bar
+- No additional copy
+
+Update the plan with these corrections and report the revised exact implementation. Do not begin implementation or commit changes yet.
