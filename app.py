@@ -10953,14 +10953,11 @@ def trip_detail(trip_id):
                     'label': 'Already on trip' if status == GuestStatus.ACCEPTED else ('Invite sent' if status == GuestStatus.INVITED else None)
                 })
     
-    # Generate trip-specific invite URL for external sharing (owner only)
+    # External trip invite URL intentionally disabled.
+    # The TripInviteToken flow is not product-ready: it creates trip membership but
+    # does not handle friendship creation, new-user onboarding continuity, or identity
+    # mismatch. Hide the section until the full non-user invite flow is complete.
     trip_invite_url = None
-    if is_owner:
-        try:
-            _titok = get_or_create_trip_invite_token(trip.id, current_user.id)
-            trip_invite_url = f"{BASE_URL}{url_for('trip_invite_token_landing', token=_titok.token)}" if _titok else None
-        except Exception:
-            trip_invite_url = None
 
     # Get trip owner info
     owner = db.session.get(User, trip.user_id)

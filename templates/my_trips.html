@@ -435,7 +435,7 @@
                     {% else %}
                         {% set trip_loc = trip.state %}
                     {% endif %}
-                    {% set people = trip.accepted_count %}
+                    {% set people = trip.accepted_guest_count %}
                     <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="trip-row">
                         <div class="trip-row-content">
                             <p class="trip-row-dest">{{ mountain_name }}{% if trip_loc %}, {{ trip_loc }}{% endif %}</p>
@@ -445,8 +445,8 @@
                                 {%- if ts == 'going' %} · <span style="color: var(--bl-color-primary); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">Going</span>{% else %} · <span style="color: var(--bl-color-text-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">Planning</span>{% endif %}
                                 {%- if trip.user_id != current_user.id %} · <span style="color: var(--bl-color-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">You're a guest</span>{% endif %}
                             </p>
-                            {% if people and people > 1 %}
-                            <p class="trip-row-people">{{ people }} going</p>
+                            {% if people and people > 0 %}
+                            <p class="trip-row-people">{{ people }} {{ 'going' if (trip.trip_status or 'planning') == 'going' else 'planning' }}</p>
                             {% endif %}
                         </div>
                     </a>

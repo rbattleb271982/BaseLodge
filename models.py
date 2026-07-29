@@ -764,7 +764,15 @@ class SkiTrip(db.Model):
     def accepted_count(self):
         """Return count of accepted participants."""
         return len(self.get_accepted_participants())
-    
+
+    @property
+    def accepted_guest_count(self):
+        """Return count of accepted GUEST-role participants (excludes the trip owner)."""
+        return len([
+            p for p in self.participants
+            if p.status == GuestStatus.ACCEPTED and p.role == ParticipantRole.GUEST
+        ])
+
     @property
     def invite_summary(self):
         """Return formatted invite summary for trip tiles (e.g., '3 invited · 1 accepted')."""

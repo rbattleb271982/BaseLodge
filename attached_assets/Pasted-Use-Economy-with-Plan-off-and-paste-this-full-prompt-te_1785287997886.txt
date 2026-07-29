@@ -1,0 +1,148 @@
+Use **Economy with Plan off** and paste this full prompt:
+
+```text
+Implement #203 and #204 together:
+
+#203 — Fix Trip “X Going” Count and Label
+#204 — Temporarily Hide External Trip Invite Section
+
+Use the completed investigation findings as the source of truth. Make only the changes described below.
+
+PART 1 — Fix the Trips page participant count and label
+
+Problem:
+
+The Trips page currently uses trip.accepted_count, which includes the trip owner because the owner is stored as:
+
+status = GuestStatus.ACCEPTED
+role = ParticipantRole.OWNER
+
+This inflates the displayed count by one.
+
+For example, the Courchevel trip currently shows “2 going,” but the actual records are:
+
+- Trip creator: OWNER / ACCEPTED
+- Friend A: GUEST / ACCEPTED
+- Friend B: GUEST / INVITED
+
+Only Friend A should count. Friend B is still pending, and the owner should not be counted as an accepted guest.
+
+There is also a label problem: trips in Planning status still display “X going.”
+
+Implementation requirements:
+
+1. In models.py, add a new SkiTrip property named:
+
+accepted_guest_count
+
+2. The property must count only participants where:
+
+- status == GuestStatus.ACCEPTED
+- role == ParticipantRole.GUEST
+
+3. Do not modify the existing accepted_count property. It may be used elsewhere and must remain unchanged.
+
+4. In templates/my_trips.html:
+
+- Replace trip.accepted_count with trip.accepted_guest_count for this display only.
+- Change the display threshold from greater than 1 to greater than 0.
+- Display:
+  - “X going” when trip.trip_status == 'going'
+  - “X planning” for any other trip status, including the default Planning state
+
+5. Preserve singular grammar naturally:
+- 1 planning
+- 1 going
+
+Do not add “person” or “people” unless the existing design already requires it.
+
+Expected behavior:
+
+- Owner only, no accepted guests: show no participant-count line
+- 1 accepted guest on a Planning trip: show “1 planning”
+- 2 accepted guests on a Planning trip: show “2 planning”
+- 1 accepted guest on a Going trip: show “1 going”
+- 2 accepted guests on a Going trip: show “2 going”
+- Pending invited guests never count
+- Declined guests never count
+- The owner never counts
+
+Do not change:
+
+- Trip Detail participant display
+- SkiTrip.accepted_count
+- invite_summary
+- admin pages
+- database records
+- participant statuses
+- invitation acceptance logic
+
+PART 2 — Temporarily hide external trip invitations
+
+Problem:
+
+The “Invite someone not on BaseLodge” section exposes a TripInviteToken flow that is not product-ready. The flow creates trip membership but does not fully handle friendship creation, onboarding continuity, identity mismatch, or the intended relationship between the inviter and recipient.
+
+The entire section should be hidden for now.
+
+Implementation requirements:
+
+1. In app.py, disable trip_invite_url generation for the trip detail route by setting:
+
+trip_invite_url = None
+
+2. Add a short comment explaining that external trip invitations are intentionally disabled until the complete non-user onboarding, friendship, and trip-acceptance flow is finished.
+
+3. Do not change templates/trip_detail.html unless the existing {% if trip_invite_url %} conditional fails to hide the entire section.
+
+4. Do not remove or modify:
+
+- TripInviteToken model
+- Existing token records
+- /trip-invite/<token> routes
+- Existing previously shared invite links
+- blShareTrip()
+- blCopyInviteLink()
+- Friend invites for existing BaseLodge users
+- Trip participation logic
+
+Expected behavior:
+
+- “INVITE SOMEONE NOT ON BASELODGE” is no longer visible
+- “Share via text” is no longer visible
+- “Copy invite link” is no longer visible
+- “Friends on BaseLodge” remains visible
+- The friend checklist remains visible
+- “Send invites” remains functional
+- Previously shared TripInviteToken links continue to resolve normally
+
+Validation required:
+
+1. Verify accepted_guest_count returns:
+   - 0 for owner only
+   - 1 for owner + one ACCEPTED GUEST
+   - still 1 after adding one INVITED GUEST
+   - still 1 after adding one DECLINED GUEST
+
+2. Verify the Trips page renders:
+   - no line at guest count 0
+   - “1 planning” for one accepted guest on a Planning trip
+   - “2 going” for two accepted guests on a Going trip
+
+3. Verify Courchevel now displays “1 planning,” not “2 going.”
+
+4. Verify the external invite section is absent from the Invite Friends modal.
+
+5. Verify inviting existing BaseLodge friends still works.
+
+6. Verify no JavaScript or server errors are introduced.
+
+After implementation, return:
+
+- Exact files and lines changed
+- Before-and-after code for each change
+- Validation results for every scenario above
+- Confirmation that accepted_count was not changed
+- Confirmation that existing TripInviteToken routes and links remain active
+- Any remaining risks or edge cases
+```
