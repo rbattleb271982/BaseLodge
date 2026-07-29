@@ -1,0 +1,78 @@
+Implement Task #219 exactly as written.
+
+Before making changes, create a checkpoint so the current working state can be restored if needed.
+
+Implementation requirements:
+
+- Do not expand the scope beyond Task #219.
+- Do not redesign the Home page or any web page.
+- Do not alter authentication, routing, session restoration, deep links, invite handling, push registration, or app navigation.
+- Do not upgrade Capacitor or unrelated dependencies.
+- Do not commit changes yet.
+
+During implementation:
+
+1. Confirm the actual universal app-shell selector before using it in bl-native.js. It must work across:
+   - authenticated pages
+   - login and signup
+   - onboarding
+   - friend invites
+   - trip invites
+   - deep-linked destinations
+
+2. Keep the splash logic separate from the existing push-notification registration logic.
+
+3. Use:
+   - launchAutoHide: true
+   - launchShowDuration: 8000
+   - launchFadeOutDuration: 300
+   - backgroundColor: "#F5F1E8"
+
+4. Hide the splash early only after:
+   - DOMContentLoaded
+   - native Capacitor platform confirmed
+   - Capacitor bridge ready
+   - universal app-shell element present
+   - two requestAnimationFrame cycles completed
+
+5. Catch splash-related errors so they cannot prevent the app from loading.
+
+6. Generate all splash assets using only an available system or Pillow-bundled font. Do not download, add, or distribute any font files.
+
+7. Verify the text is visually centered and not cropped in:
+   - the 2732×2732 iOS image
+   - the 320×480 Android portrait image
+   - the 480×320 Android landscape image
+
+8. Preserve the existing Android theme behavior. Add only the minimum Android 12+ override needed for the cream splash background.
+
+9. Run:
+   - npx cap sync
+   - the appropriate Flask startup check
+   - JavaScript syntax validation for bl-native.js
+   - any existing relevant tests
+
+10. Review the final diff for accidental unrelated changes.
+
+Report back with:
+
+- Root cause confirmed
+- Exact universal app-shell selector used and why it is safe
+- Package version installed
+- Files created
+- Files modified
+- Exact Capacitor splash configuration
+- How normal early hiding works
+- How the native 8-second fallback works
+- iOS implementation details
+- Android pre-12 implementation details
+- Android 12+ implementation details
+- Asset dimensions generated
+- Testing completed and results
+- Whether any tests failed
+- Whether App Store and Play Store rebuilds are required
+- One thing to verify manually on a real iPhone
+- One thing to verify manually on a real Android device
+- Git diff summary
+
+Do not commit until I review the implementation report.

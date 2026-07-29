@@ -13,6 +13,94 @@
 
    No Jinja2 syntax in this file — plain static JS, fully cacheable.        */
 
+/* ── Splash screen hide — native Capacitor shell only ───────────────────────
+   @capacitor/splash-screen is configured with launchAutoHide:true and
+   launchShowDuration:8000, which provides a guaranteed 8-second native
+   fallback that fires even if bl-native.js never executes (e.g. the remote
+   page at app.baselodgeapp.com fails to load).
+
+   This block provides the early exit path: once DOMContentLoaded fires,
+   the Capacitor bridge is confirmed ready, and the first page frame has
+   been painted, SplashScreen.hide() is called to dismiss the branded
+   "Opening BaseLodge..." screen as quickly as possible.
+
+   Selector rationale: document.body.firstElementChild is guaranteed to be
+   non-null after DOMContentLoaded on every app page — auth, home, onboarding,
+   invite, deep-linked destinations — because every template is server-rendered
+   and always has at least one body child element. This avoids a selector that
+   only matches pages extending base_app.html (e.g. .app-shell would miss the
+   standalone auth and invite templates).
+
+   Fully isolated from push-notification and OneSignal logic. No-op in
+   browsers — gated on window.Capacitor.isNativePlatform().                   */
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    // Gate: native Capacitor platform only — exit immediately in browsers
+    var _capSp = window.Capacitor;
+    var _wkSp  = window.webkit;
+    var _isNativeSp = !!(_capSp
+      && typeof _capSp.isNativePlatform === 'function'
+      && _capSp.isNativePlatform());
+    var _hasWkSp = !!(_wkSp
+      && _wkSp.messageHandlers
+      && _wkSp.messageHandlers.capacitor);
+    if (!_isNativeSp && !_hasWkSp) return;
+
+    (async function _blSplashHide() {
+      try {
+        // Wait for Capacitor bridge to be available (up to 2 s in 100 ms steps).
+        // Capacitor v8 + remote server URL can inject the bridge slightly after
+        // DOMContentLoaded in some build configurations.
+        var _spDeadline = Date.now() + 2000;
+        while (Date.now() < _spDeadline) {
+          if (window.Capacitor
+              && typeof window.Capacitor.isNativePlatform === 'function'
+              && window.Capacitor.isNativePlatform()) {
+            break;
+          }
+          await new Promise(function(r) { setTimeout(r, 100); });
+        }
+
+        var Cap = window.Capacitor;
+        if (!Cap || !Cap.isNativePlatform()) return; // not native after wait, bail
+
+        // Confirm a page shell element is present in the DOM.
+        // document.body.firstElementChild is always non-null after DOMContentLoaded
+        // on every server-rendered page (auth, home, invite, onboarding, etc.).
+        if (!document.body || !document.body.firstElementChild) return;
+
+        // Allow two requestAnimationFrame cycles so the browser has committed and
+        // painted the first visible frame before we dismiss the splash.
+        await new Promise(function(r) {
+          requestAnimationFrame(function() { requestAnimationFrame(r); });
+        });
+
+        // Resolve the SplashScreen plugin from the Capacitor bridge.
+        var SplashScreen = null;
+        if (Cap.Plugins && Cap.Plugins.SplashScreen) {
+          SplashScreen = Cap.Plugins.SplashScreen;
+        } else if (typeof Cap.registerPlugin === 'function') {
+          try { SplashScreen = Cap.registerPlugin('SplashScreen'); } catch (_rpe) {}
+        }
+        if (!SplashScreen || typeof SplashScreen.hide !== 'function') {
+          console.warn('[Splash] SplashScreen plugin not available — relying on native auto-hide');
+          return;
+        }
+
+        SplashScreen.hide({ fadeOutDuration: 300 });
+        console.log('[Splash] hide() called — early dismiss after first paint');
+
+      } catch (_innerE) {
+        // Swallow all errors — splash logic must never prevent the app from loading
+        console.warn('[Splash] hide error (non-fatal):', _innerE);
+      }
+    })();
+
+  } catch (_outerE) {
+    // Belt-and-suspenders outer catch
+  }
+});
+
 /* ── Form submit loader ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('submit', function(e) {
