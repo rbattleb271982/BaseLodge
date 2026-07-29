@@ -1,0 +1,211 @@
+TASK #220 — Verify, Commit, and Push the Native Splash Screen Changes to GitHub
+
+Background
+
+Your previous implementation report states that the branded native splash screen redesign is complete. However, GitHub does not contain those changes, and my local repository reports it is already up to date with origin/main.
+
+Your job is to determine exactly what happened and ensure the completed splash implementation exists in GitHub.
+
+Do NOT redesign the splash unless the files are actually missing.
+
+Do NOT republish.
+
+Do NOT run Capacitor sync.
+
+Do NOT modify unrelated files.
+
+--------------------------------------------------
+PHASE 1 — VERIFY THE CURRENT WORKSPACE
+--------------------------------------------------
+
+First determine the actual state of the repository.
+
+Report:
+
+- git status --short
+- git branch --show-current
+- git remote -v
+- git log --oneline -5
+- git diff --stat
+
+Then verify the existence of ALL expected splash files:
+
+ios/App/App/Base.lproj/LaunchScreen.storyboard
+
+ios/App/App/Assets.xcassets/Wordmark.imageset/
+- Contents.json
+- wordmark.png
+- wordmark@2x.png
+- wordmark@3x.png
+
+android/app/src/main/res/drawable/splash.png
+
+android/app/src/main/res/drawable-port-mdpi/splash.png
+android/app/src/main/res/drawable-port-hdpi/splash.png
+android/app/src/main/res/drawable-port-xhdpi/splash.png
+android/app/src/main/res/drawable-port-xxhdpi/splash.png
+android/app/src/main/res/drawable-port-xxxhdpi/splash.png
+
+android/app/src/main/res/drawable-land-mdpi/splash.png
+android/app/src/main/res/drawable-land-hdpi/splash.png
+android/app/src/main/res/drawable-land-xhdpi/splash.png
+android/app/src/main/res/drawable-land-xxhdpi/splash.png
+android/app/src/main/res/drawable-land-xxxhdpi/splash.png
+
+static/js/bl-native.js
+
+Also verify whether bl-native.js now hides the splash using:
+
+window.load
+
+instead of
+
+DOMContentLoaded
+
+--------------------------------------------------
+PHASE 2 — DETERMINE WHICH CASE APPLIES
+--------------------------------------------------
+
+Case A
+
+Files exist but are modified or untracked.
+
+→ Stage ONLY splash-related files.
+→ Commit.
+→ Push.
+
+Case B
+
+Files are already committed locally but have not been pushed.
+
+→ Push the existing commit.
+
+Case C
+
+Workspace is clean but origin/main does not contain the splash implementation.
+
+→ Determine why.
+
+Check:
+
+git rev-parse HEAD
+git rev-parse origin/main
+git log origin/main..HEAD
+git log HEAD..origin/main
+
+Identify whether this is:
+
+• wrong branch
+• detached HEAD
+• wrong remote
+• repository mismatch
+• another Git issue
+
+Correct it WITHOUT losing work.
+
+Then push.
+
+Case D
+
+The splash files do not actually exist.
+
+This means the previous implementation report described work that is no longer present.
+
+In that case:
+
+Reapply ONLY the implementation already described in the previous report.
+
+Do NOT redesign it.
+
+Use the exact implementation:
+
+• Auto Layout LaunchScreen.storyboard
+• Wordmark.imageset
+• regenerated Android splash assets
+• window.load splash dismissal
+• identical layout and positioning previously described
+
+Then validate.
+
+--------------------------------------------------
+PHASE 3 — COMMIT
+--------------------------------------------------
+
+If a commit is required:
+
+Stage ONLY the splash-related files.
+
+Do NOT use:
+
+git add .
+
+Use an explicit file list.
+
+Commit message:
+
+Redesign branded native splash screen
+
+--------------------------------------------------
+PHASE 4 — PUSH
+--------------------------------------------------
+
+Push to:
+
+origin/main
+
+Return the commit hash.
+
+--------------------------------------------------
+PHASE 5 — VERIFY
+--------------------------------------------------
+
+After pushing, verify GitHub contains the changes.
+
+Run:
+
+git fetch origin
+
+git rev-parse HEAD
+
+git rev-parse origin/main
+
+These MUST match.
+
+Then run:
+
+git show --stat --oneline HEAD
+
+Finally verify that origin/main now contains:
+
+• LaunchScreen.storyboard
+• Wordmark.imageset
+• all Android splash PNGs
+• bl-native.js
+
+using git ls-tree.
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return:
+
+1. Which case applied (A/B/C/D)
+
+2. Root cause of why the previous report claimed completion while GitHub did not contain the changes
+
+3. Exact files committed
+
+4. Commit hash
+
+5. Push result
+
+6. Confirmation that HEAD == origin/main
+
+7. Confirmation that GitHub now contains the splash implementation
+
+8. Confirmation that it is now safe for me to run:
+
+git pull origin main
+
+Do NOT say the task is complete until you have verified that the splash changes are present in origin/main.
