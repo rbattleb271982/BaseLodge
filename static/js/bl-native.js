@@ -1088,20 +1088,21 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 })();
 
-/* ── Capacitor deep-link handler (getLaunchUrl + appUrlOpen) ────────────────
+/* ── Capacitor deep-link handler (appUrlOpen) ───────────────────────────────
    Handles Universal Links (iOS) and App Links (Android) for /invite/* and
-   /trip-invite/* paths.  Two strategies work together to cover every start type:
+   /trip-invite/* paths.
 
-   1. getLaunchUrl()  — called once at startup for cold starts.  The OS may hand
-      the launch URL to the native layer before the Capacitor bridge fires any
-      events; reading it explicitly avoids a potential race on slow devices.
+   appUrlOpen is fired by the Capacitor App plugin for warm starts, background
+   resumes, and cold starts.  Capacitor explicitly queues cold-start events and
+   delivers them after the bridge is ready, so this single listener covers all
+   start types reliably.  No getLaunchUrl() supplement is needed: both APIs
+   surface the same URL and getLaunchUrl() adds no reliability benefit when the
+   app uses a remote server.url (the bridge cannot miss an event that is queued
+   for it before the WKWebView/WebView finishes loading).
 
-   2. appUrlOpen      — fired by the Capacitor App plugin for warm starts,
-      background resumes, and cold starts (Capacitor queues the event until the
-      bridge is ready).  This is the primary handler.
-
-   Duplicate prevention: _lastHandledDeepLinkUrl tracks the last processed URL
-   so getLaunchUrl() and appUrlOpen never navigate to the same path twice.
+   _lastHandledDeepLinkUrl + _handleDeepLinkUrl provide a shared entry point
+   so future callers (e.g. a second listener) cannot navigate to the same path
+   twice without any architectural change.
 
    NATIVE PROJECT REQUIREMENTS (outside this repo):
    ─────────────────────────────────────────────────
@@ -1147,8 +1148,7 @@ document.addEventListener('DOMContentLoaded', function() {
     return;
   }
 
-  /* Last URL handled — prevents getLaunchUrl() and appUrlOpen from both
-     navigating when they carry the same launch URL (cold-start dedup). */
+  /* Last URL handled — prevents any future duplicate navigation attempts. */
   var _lastHandledDeepLinkUrl = null;
 
   /* Shared handler: parse the URL and navigate if it is an invite path. */
@@ -1168,26 +1168,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  /* Cold-start: getLaunchUrl() reads the URL that caused the app to launch
-     before the appUrlOpen event fires.  On Capacitor with a remote server URL,
-     this supplements appUrlOpen for maximum cold-start reliability. */
-  if (typeof _App.getLaunchUrl === 'function') {
-    _App.getLaunchUrl().then(function (result) {
-      if (result && result.url) {
-        console.log('[DeepLink] getLaunchUrl:', result.url);
-        _handleDeepLinkUrl(result.url);
-      }
-    }).catch(function (e) {
-      console.warn('[DeepLink] getLaunchUrl error:', e);
-    });
-  }
-
-  /* Warm-start / background-resume / cold-start (Capacitor queues this event
-     until the bridge is ready, so it fires even on cold start). */
+  /* Covers warm-start, background-resume, and cold-start.  Capacitor queues
+     this event until the bridge is ready, so it never fires before JS is live. */
   _App.addListener('appUrlOpen', function (event) {
     var url = event && (event.url || event.URL || '');
     _handleDeepLinkUrl(url);
   });
 
-  console.log('[DeepLink] getLaunchUrl + appUrlOpen handlers registered');
+  console.log('[DeepLink] appUrlOpen handler registered');
 })();
