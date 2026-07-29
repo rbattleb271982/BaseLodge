@@ -1,0 +1,217 @@
+BaseLodge — Push Notification Audit for Trip Invites and Friend Acceptances
+
+Do not make any code changes yet. Complete a full investigation report first.
+
+I need to determine whether BaseLodge currently sends push notifications for these events:
+
+1. A user invites an existing BaseLodge friend to a trip
+2. The invited user accepts the trip invitation
+3. A user accepts a friend request
+4. Any related decline, cancellation, removal, or invitation-update events that already exist
+
+I also need to know whether notifications are sent immediately or whether there is any delay, queue, grace period, cancellation window, or undo mechanism before delivery.
+
+Important product question:
+
+For notifications triggered by an action such as sending a trip invite, accepting a trip invite, or accepting a friend request, determine whether the push is dispatched immediately inside the request or scheduled for later.
+
+The reason for investigating a delay is to understand whether there is currently any protection if the user taps the wrong person or performs an action by mistake. Do not implement a delay yet. Report how the system currently works and what would be required to add one safely.
+
+PART 1 — Trip invitation sent
+
+Trace the full flow when a user selects an existing BaseLodge friend in the Invite Friends modal and taps “Send invites.”
+
+Identify:
+
+- Frontend form or JavaScript entry point
+- Backend route
+- Invitation or participant record created or updated
+- Status assigned
+- Notification helper called, if any
+- Push notification title, body, URL/deep link, and recipient
+- Whether an in-app notification is also created
+- Whether duplicate notifications are prevented
+- Whether an already-invited or already-accepted person can trigger another push
+- Whether a database transaction commits before or after the notification is dispatched
+- What happens if database creation succeeds but push delivery fails
+- What happens if push delivery succeeds but the database transaction later fails
+
+Confirm whether the invited user receives a push notification when invited to a trip through the in-app friend checklist.
+
+PART 2 — Trip invitation accepted
+
+Trace the full flow when an invited BaseLodge user accepts a trip invitation.
+
+Identify:
+
+- Every route or UI path that can accept the invitation
+- Participant status before and after acceptance
+- Whether the trip owner/inviter receives a push
+- Whether any other trip members receive a push
+- Push title, body, URL/deep link, and recipient
+- Whether an in-app notification is created
+- Whether accepting twice could create duplicate notifications
+- Whether accepting from a push, Friends page, Trips page, or direct URL uses the same notification logic
+- Whether the notification language says the person is “going,” “planning,” or something else
+- Whether that wording matches the trip’s current status and product semantics
+
+Confirm whether the trip owner is notified when an invited user accepts.
+
+PART 3 — Friend request accepted
+
+Trace the full flow when a user accepts a friend request.
+
+Identify:
+
+- Every friend-request acceptance route
+- Friendship rows created or updated
+- Whether the original requester receives a push notification
+- Push title, body, URL/deep link, and recipient
+- Whether an in-app notification is created
+- Whether both directions of the friendship are created before notification delivery
+- Whether duplicate acceptance or repeated requests can create duplicate notifications
+- Whether friend acceptance through invite links, QR codes, pending requests, or other flows uses the same notification behavior
+
+Confirm which friend-connection flows notify the other person and which do not.
+
+PART 4 — Notification delivery architecture
+
+Trace the complete notification system, including:
+
+- Push notification model or service
+- Device-token storage
+- APNs implementation
+- Firebase Cloud Messaging implementation
+- iOS and Android differences
+- Notification preference checks
+- Permission checks
+- Invalid-token handling
+- Background jobs
+- Queues
+- schedulers
+- task workers
+- retry logic
+- deduplication
+- notification logs
+- in-app notification records
+- deep-link routing
+
+Search for terms including:
+
+push
+notification
+send_push
+send_notification
+notify
+APNs
+FCM
+Firebase
+device token
+push token
+trip invite
+trip invitation
+accepted
+friend request
+friend accepted
+friendship
+queue
+task
+worker
+scheduler
+delay
+eta
+countdown
+undo
+cancel
+grace period
+retry
+deep link
+url_template
+
+PART 5 — Timing and mistake-protection audit
+
+For each of these events:
+
+- Trip invitation sent
+- Trip invitation accepted
+- Friend request accepted
+
+Report precisely when the push is dispatched relative to the database action.
+
+Classify each as one of:
+
+- Synchronous and immediate
+- Asynchronous but effectively immediate
+- Scheduled with a fixed delay
+- Queued with variable delivery time
+- No notification exists
+
+Determine whether any of the following currently exist:
+
+- Delay before enqueueing
+- Delay before sending
+- Undo action
+- Cancellation endpoint
+- Grace period
+- Scheduled notification record that can be cancelled
+- Database state allowing the action to be reversed before delivery
+- UI confirmation step before the action
+- Idempotency or deduplication key
+
+Then analyze what would be required to support a short cancellation window safely.
+
+Do not recommend using a blocking sleep or setTimeout.
+
+Compare these potential approaches:
+
+1. Confirmation screen before the action is committed
+2. Immediate action with an Undo option, while delaying the push
+3. Scheduled notification job with a cancellable pending state
+4. Immediate push with no cancellation window
+
+For each approach, explain:
+
+- User experience
+- Required backend changes
+- Required database fields or tables
+- Queue or scheduler dependency
+- Race conditions
+- What happens if the app closes
+- Whether the underlying invitation or friendship would also be reversed
+- Whether only the notification is delayed or the actual action is delayed
+- Risks of the recipient seeing the action inside the app before receiving the delayed push
+
+Do not decide on or implement a delay. Establish the current behavior and provide options.
+
+Return:
+
+1. A PASS/FAIL matrix:
+
+Event | Push exists? | Recipient | In-app notification? | Immediate or delayed? | Deep link | Duplicate protection
+
+2. Exact file paths and line numbers for every relevant route, helper, model, template, and JavaScript function.
+
+3. The full execution path for:
+- Sending a trip invitation
+- Accepting a trip invitation
+- Accepting a friend request
+
+4. The exact notification text and destination used for each existing push.
+
+5. Confirmation of whether each database transaction occurs before, after, or independently of push delivery.
+
+6. Any flow where the database changes but no notification is sent.
+
+7. Any flow where notification behavior is inconsistent across acceptance methods.
+
+8. Any incorrect wording, especially “going” versus “planning.”
+
+9. Whether a delivery delay, undo window, or cancellation mechanism currently exists.
+
+10. Recommended product and technical options for mistake protection, without implementing one.
+
+11. Regression risks.
+
+12. Confidence level.
+
+Do not modify any code until I review and approve the findings.
