@@ -1,0 +1,145 @@
+Paste this into Replit:
+
+```text
+TASK: Verify that the branded splash-screen changes described in your last report actually exist in the current Replit workspace and are committed and pushed to GitHub.
+
+Important:
+Do not redesign the splash again unless the files are missing.
+Do not republish.
+Do not run Capacitor sync yet.
+Do not modify unrelated files.
+Do not assume the previous implementation report means the changes are currently present.
+
+Background:
+Your last report stated that these splash-screen changes were completed:
+
+- iOS LaunchScreen.storyboard rewritten using Auto Layout
+- New iOS Wordmark.imageset with:
+  - Contents.json
+  - wordmark.png
+  - wordmark@2x.png
+  - wordmark@3x.png
+- 11 Android splash PNGs replaced
+- static/js/bl-native.js changed from DOMContentLoaded to window.load
+- Total diff described as 13 files
+- cap sync and JS syntax checks reportedly passed
+
+However, GitHub does not appear to show the new splash implementation, and the local Mac repository reports that it is already up to date with origin/main.
+
+Your task is to investigate the discrepancy and make GitHub accurately contain the completed splash changes.
+
+PHASE 1: VERIFY THE CURRENT REPLIT WORKSPACE
+
+Run and report the exact output of:
+
+1. git status --short
+2. git branch --show-current
+3. git log -5 --oneline
+4. ls -la ios/App/App/Assets.xcassets/Wordmark.imageset
+5. grep -n "window.load\|DOMContentLoaded" static/js/bl-native.js
+6. git diff -- ios/App/App/Base.lproj/LaunchScreen.storyboard
+7. git diff -- static/js/bl-native.js
+8. git diff --stat
+9. git status
+
+Also verify that all of these files exist:
+
+ios/App/App/Base.lproj/LaunchScreen.storyboard
+ios/App/App/Assets.xcassets/Wordmark.imageset/Contents.json
+ios/App/App/Assets.xcassets/Wordmark.imageset/wordmark.png
+ios/App/App/Assets.xcassets/Wordmark.imageset/wordmark@2x.png
+ios/App/App/Assets.xcassets/Wordmark.imageset/wordmark@3x.png
+android/app/src/main/res/drawable/splash.png
+android/app/src/main/res/drawable-port-mdpi/splash.png
+android/app/src/main/res/drawable-port-hdpi/splash.png
+android/app/src/main/res/drawable-port-xhdpi/splash.png
+android/app/src/main/res/drawable-port-xxhdpi/splash.png
+android/app/src/main/res/drawable-port-xxxhdpi/splash.png
+android/app/src/main/res/drawable-land-mdpi/splash.png
+android/app/src/main/res/drawable-land-hdpi/splash.png
+android/app/src/main/res/drawable-land-xhdpi/splash.png
+android/app/src/main/res/drawable-land-xxhdpi/splash.png
+android/app/src/main/res/drawable-land-xxxhdpi/splash.png
+static/js/bl-native.js
+
+PHASE 2: DETERMINE WHICH SITUATION APPLIES
+
+Situation A:
+The files exist and are modified or untracked in Replit, but are not committed.
+
+Action:
+- Stage only the splash-related files.
+- Commit them with:
+  "Redesign branded native splash screen"
+- Push the current branch to origin/main.
+- Confirm the pushed commit hash.
+
+Situation B:
+The files exist and are already committed locally, but the commit has not been pushed.
+
+Action:
+- Identify the exact unpushed commit.
+- Push it to origin/main.
+- Confirm the pushed commit hash.
+
+Situation C:
+The files exist and Git says the workspace is clean, but origin/main does not contain them.
+
+Action:
+- Compare:
+  git rev-parse HEAD
+  git rev-parse origin/main
+  git log origin/main..HEAD --oneline
+  git log HEAD..origin/main --oneline
+- Determine whether Replit is on the wrong branch, wrong remote, detached HEAD, or another repository.
+- Correct the repository/branch issue without deleting the splash work.
+- Push the correct splash commit to origin/main.
+- Confirm the pushed commit hash.
+
+Situation D:
+The files do not exist in the current Replit workspace.
+
+Action:
+- State clearly that the previous implementation was not persisted in the current workspace.
+- Reapply the exact splash implementation described in the prior report.
+- Do not create a different design.
+- Validate every required file.
+- Stage only the splash-related files.
+- Commit with:
+  "Redesign branded native splash screen"
+- Push to origin/main.
+- Confirm the pushed commit hash.
+
+PHASE 3: VERIFY GITHUB AFTER PUSH
+
+After pushing, run:
+
+git fetch origin
+git status
+git rev-parse HEAD
+git rev-parse origin/main
+git show --stat --oneline HEAD
+
+Then confirm that HEAD and origin/main are the same commit.
+
+Also run:
+
+git ls-tree -r --name-only origin/main | grep -E "Wordmark.imageset|LaunchScreen.storyboard|static/js/bl-native.js|drawable.*/splash.png"
+
+Confirm that the expected splash files are visible in origin/main.
+
+FINAL REPORT
+
+Return:
+
+1. Which situation applied: A, B, C, or D
+2. Why Replit previously said the work was complete while GitHub did not show it
+3. Exact files committed
+4. Commit hash
+5. Push result
+6. Confirmation that HEAD equals origin/main
+7. Confirmation that the Wordmark.imageset, storyboard, Android splash assets, and window.load change now exist in GitHub
+8. Whether it is now safe for me to run git pull on my Mac
+
+Do not say the task is complete unless the splash changes are confirmed in origin/main.
+```
