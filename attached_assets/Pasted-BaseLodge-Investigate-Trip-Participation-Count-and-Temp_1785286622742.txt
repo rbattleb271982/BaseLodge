@@ -1,0 +1,111 @@
+BaseLodge — Investigate Trip Participation Count and Temporarily Remove External Trip Invites
+
+Do not make code changes yet. Complete the investigation report first.
+
+There are two separate issues on the Trips and Trip Detail experiences.
+
+ISSUE 1 — “Going” count is inaccurate
+
+On the Trips page, the Courchevel trip displays “2 going.”
+
+That is not accurate:
+
+- One person accepted the trip invitation for planning.
+- The other person was invited but has not accepted.
+- A pending invitation must not be counted as “going.”
+- We also need to verify whether accepting an invitation to participate in planning should automatically be represented as “going,” or whether the current label is semantically inaccurate.
+
+Investigate the complete data and display flow for the trip-participant count.
+
+Trace:
+
+1. The Trips page query and template that produce “X going.”
+2. The Trip Detail page participant and invite data.
+3. All relevant trip invitation models, participation models, status fields, and relationships.
+4. The exact meaning of each state, including:
+   - invited
+   - pending
+   - accepted
+   - declined
+   - owner/creator
+   - planner
+   - attendee/going
+   - any other status that exists
+5. Whether the trip creator is included in the count.
+6. Whether pending invitations are currently included.
+7. Whether accepted invitations are being interpreted as confirmed attendance.
+8. Whether friendship status affects the count.
+9. Whether duplicate records can cause someone to be counted more than once.
+10. Whether different pages use different definitions of “going.”
+
+Determine:
+
+- Exactly why Courchevel shows “2 going.”
+- Which database rows are included in that count.
+- What the correct count should be based on the current product logic.
+- Whether the issue is only a filtering bug or whether the label “going” is itself inconsistent with the underlying meaning of an accepted planning invitation.
+- What wording and count logic are used elsewhere in BaseLodge for trip participants.
+
+Do not assume that “accepted invitation” automatically means “going.” Establish the actual product semantics from the existing code and data model.
+
+ISSUE 2 — External trip-invite section should not be exposed yet
+
+At the bottom of the Invite Friends modal, the section labeled:
+
+“INVITE SOMEONE NOT ON BASELODGE”
+
+contains:
+
+- Share via text
+- Copy invite link
+
+The buttons currently do not work. However, do not investigate this merely as a broken-button issue.
+
+We have not yet completed or approved the end-to-end product logic for inviting someone who is not on BaseLodge, including:
+
+- opening the invitation
+- installing or opening BaseLodge
+- account creation or login
+- accepting the trip invitation
+- connecting the recipient to the inviter as a friend
+- connecting the recipient to the correct trip
+- handling existing accounts
+- handling mismatched email or phone identity
+- preventing duplicate users, friendships, invitations, or trip memberships
+- preserving the invitation across authentication and onboarding
+
+Because this experience is not product-ready, the entire external-invite section should likely be hidden from users temporarily rather than repaired now.
+
+Investigate:
+
+1. The HTML/template and JavaScript that render this section.
+2. The functions called by “Share via text” and “Copy invite link.”
+3. The backend routes and token models, if any, behind those buttons.
+4. Whether these buttons currently use friend-invite links, trip-invite links, or another token type.
+5. Whether a complete recipient acceptance flow actually exists.
+6. Whether accepting such a link currently:
+   - creates a friendship
+   - creates trip membership
+   - does both
+   - does neither
+7. Whether the flow is safe for existing and new users.
+8. Whether hiding the section can be done without affecting invitations to existing BaseLodge friends.
+
+Return:
+
+- Exact files and line numbers involved.
+- The complete query and calculation responsible for “X going.”
+- The exact Courchevel records and statuses being counted.
+- A status-by-status table showing whether each state currently counts and whether it should count.
+- Whether the creator is included.
+- Whether “going” is the correct label.
+- Recommended corrected count and wording.
+- The complete external-invite component and route trace.
+- What is currently incomplete or unsafe about the non-user invitation flow.
+- The safest minimal method to hide the entire external-invite section temporarily.
+- Confirmation that hiding it would not affect inviting existing BaseLodge friends.
+- Recommended implementation plan.
+- Regression risks.
+- Confidence level.
+
+Do not make any code changes until I review and approve the findings.
