@@ -2147,45 +2147,76 @@ run_perf_index_migration()
 
 def _run_pass_mapping_correction_migration():
     """
-    Corrects 78 confirmed resort-to-ski-pass mapping errors in the ResortPass table.
+    Corrects ski-pass mapping errors in the ResortPass table.
 
-    Source of truth: pass_mountain_audit.csv cross-referenced against live DB records
-    for each resort, using stable slug identifiers. Verified pre-flight: every slug was
-    confirmed to exist in the database before inclusion.
+    Task #218 initial run: applied 78 corrections from pass_mountain_audit.csv.
+    Task #219 verification: official pass-provider source verification against
+    ikonpass.com and epicpass.com destination pages, NSAA ownership records
+    (updated Feb 2025), and resort-owned websites identified 5 incorrect entries:
 
-    For each correction:
-      - Adds the missing pass row (using ON CONFLICT protection via prior existence check).
-      - Removes an incorrect 'Other' row where the resort's only existing mapping was Other
-        (i.e., Other was a placeholder, not a legitimate secondary pass).
-      - Updates Resort.pass_brands_json to keep the legacy backfill source aligned.
+      - Loon Mountain was mapped Epic; it is an Ikon destination (Boyne-owned;
+        ikonpass.com/en/destinations/loon-mountain; loonmtn.com confirms "largest
+        Ikon destination closest to Boston"). Corrected to Ikon.
+      - Hafjell and Kvitfjell (Norway) were mapped Epic; Norway is absent from the
+        Epic Pass Europe destination page for 25/26 (tabs: Switzerland/Italy/
+        France/Austria only). Alpinco website shows only its own Mountain Pass.
+        Epic partnership is no longer current. Epic rows reverted.
+      - Perfect North Slopes was mapped Epic; NSAA ownership (Feb 2025) shows it
+        is owned by "Perfect Family" (independent, not Vail Resorts). Its own
+        website lists only its own passes with zero Epic mention. Reverted.
+      - Wintergreen was mapped Epic; not listed under Vail Resorts in NSAA
+        ownership. Own website does not advertise Epic. Cannot confirm current
+        official affiliation. Reverted per spec instruction for ambiguous mappings.
 
-    Idempotent: re-running after the first successful application produces no additional
-    changes (already-correct rows are skipped, already-removed rows are absent).
+    Final verified set: 74 corrections (11 Epic + 63 Ikon).
+
+    Structure:
+      Phase 1 — _REVERTS: remove incorrect/stale pass rows applied in the original
+                run. Must run before Phase 2 so that Loon Mountain's Epic row is
+                gone before the Ikon row is added.
+      Phase 2 — _CORRECTIONS: add verified pass rows (idempotent).
+
+    Idempotent: re-running after the first successful application produces no
+    additional changes.
     """
+    # ── Phase 1: Reverts ──────────────────────────────────────────────────────
+    # These resorts received an incorrect pass in the original Task #218 run.
+    # Each entry removes the named pass row if it still exists.
+    # (slug, pass_to_remove, reason)
+    _REVERTS = [
+        ('loon-mountain-us',        'Epic',
+         'Loon is Ikon (Boyne-owned); corrected to Ikon in Phase 2'),
+        ('hafjell-no',              'Epic',
+         'No longer current: Norway absent from Epic Europe page 25/26'),
+        ('kvitfjell-no',            'Epic',
+         'No longer current: Norway absent from Epic Europe page 25/26'),
+        ('perfect-north-slopes-us', 'Epic',
+         'Unsupported: independent "Perfect Family" owner; no Vail/Epic affiliation'),
+        ('wintergreen-us',          'Epic',
+         'Ambiguous: not in NSAA Vail list; own website does not advertise Epic'),
+    ]
+
+    # ── Phase 2: Verified corrections ────────────────────────────────────────
     # (slug, pass_to_add, remove_incorrect_other)
-    # remove_incorrect_other=True means the resort's only existing ResortPass row was 'Other'
-    # acting as a placeholder; it should be removed when the real pass is added.
-    # For resorts with both MountainCollective+Other (Jackson Hole, Snowbird, Sugarbush,
-    # Sun Valley, Taos), Other is also removed because it misrepresents their Ikon affiliation.
+    # remove_incorrect_other=True: resort's only existing ResortPass row was 'Other'
+    # acting as a placeholder; remove it when the real pass is added.
+    # For resorts with MountainCollective+Other (Jackson Hole, Snowbird, Sugarbush,
+    # Sun Valley, Taos), Other is also removed — it misrepresents Ikon affiliation.
     _CORRECTIONS = [
-        # ── Epic ──────────────────────────────────────────────────────────────
+        # ── Epic (11 verified — Hafjell, Kvitfjell, Loon Mountain, Perfect North
+        #          Slopes, and Wintergreen removed after official-source review) ──
         ('fernie-alpine-resort-ca',  'Epic', False),
-        ('hafjell-no',               'Epic', False),
         ('heavenly-us',              'Epic', True),
         ('kicking-horse-mountain-ca','Epic', False),
         ('kirkwood-us',              'Epic', True),
-        ('kvitfjell-no',             'Epic', False),
-        ('loon-mountain-us',         'Epic', True),
         ('madonna-di-campiglio-it',  'Epic', False),
         ('mount-sunapee-us',         'Epic', False),
         ('nakiska-ca',               'Epic', False),
         ('northstar-us',             'Epic', True),
-        ('perfect-north-slopes-us',  'Epic', False),
         ('pontedilegnotonale-it',    'Epic', False),
         ('snow-trails-us',           'Epic', False),
         ('telluride-us',             'Epic', False),
-        ('wintergreen-us',           'Epic', True),
-        # ── Ikon ──────────────────────────────────────────────────────────────
+        # ── Ikon (63 verified — Loon Mountain corrected from Epic to Ikon) ────
         ('alta-us',                  'Ikon', True),
         ('alta-badia-it',            'Ikon', False),
         ('alyeska-us',               'Ikon', True),
@@ -2211,6 +2242,7 @@ def _run_pass_mapping_correction_migration():
         ('la-parva-cl',              'Ikon', False),
         ('la-thuile-it',             'Ikon', False),
         ('lake-louise-ca',           'Ikon', True),
+        ('loon-mountain-us',         'Ikon', True),   # corrected from Epic; Boyne-owned Ikon destination
         ('lutsen-mountains-us',      'Ikon', False),
         ('mammoth-mountain-us',      'Ikon', True),
         ('marmot-basin-ca',          'Ikon', True),
@@ -2252,6 +2284,32 @@ def _run_pass_mapping_correction_migration():
 
     with app.app_context():
         try:
+            # ── Phase 1: Remove incorrect/stale pass rows ─────────────────────
+            revert_slugs = [s for s, _, _ in _REVERTS]
+            revert_resorts = Resort.query.filter(Resort.slug.in_(revert_slugs)).all()
+            revert_by_slug = {r.slug: r for r in revert_resorts}
+
+            reverted = already_reverted = 0
+            for slug, pass_to_remove, _reason in _REVERTS:
+                resort = revert_by_slug.get(slug)
+                if not resort:
+                    continue
+                rp_row = ResortPass.query.filter_by(
+                    resort_id=resort.id, pass_name=pass_to_remove
+                ).first()
+                if rp_row:
+                    db.session.delete(rp_row)
+                    reverted += 1
+                    # Sync pass_brands_json to remove the reverted pass.
+                    corrected_pbj = [
+                        p for p in (resort.pass_brands_json or [])
+                        if p != pass_to_remove
+                    ]
+                    resort.pass_brands_json = corrected_pbj  # [] is valid (no pass)
+                else:
+                    already_reverted += 1
+
+            # ── Phase 2: Apply verified corrections ───────────────────────────
             slugs = [s for s, _, _ in _CORRECTIONS]
             resorts = Resort.query.filter(Resort.slug.in_(slugs)).all()
             resort_by_slug = {r.slug: r for r in resorts}
@@ -2310,6 +2368,7 @@ def _run_pass_mapping_correction_migration():
 
             print(
                 f"pass_mapping_migration: complete — "
+                f"reverted={reverted} already_reverted={already_reverted} "
                 f"added={added} removed_Other={removed} "
                 f"already_correct={skipped} not_found={not_found}"
             )

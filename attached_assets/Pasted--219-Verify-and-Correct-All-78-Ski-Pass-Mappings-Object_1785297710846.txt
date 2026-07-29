@@ -1,0 +1,458 @@
+#219 - Verify and Correct All 78 Ski Pass Mappings
+
+## Objective
+
+Perform a complete verification of the 78 resort-to-pass corrections introduced in Task #218, correct any inaccurate mappings, resolve all inconsistencies in the implementation report, and leave BaseLodge with a fully defensible and auditable ski-pass mapping set.
+
+The current report contains a material inconsistency:
+
+* It states that 77 of 78 corrections were corroborated by at least two independent sources.
+* It separately identifies multiple resorts whose legacy `pass_brands` value was empty and whose correction relied only on `pass_mountain_audit.csv`.
+
+Those statements cannot both be correct.
+
+Do not merely rewrite the report. Verify the actual mapping data and correct the implementation if necessary.
+
+---
+
+# Scope
+
+Review all 78 mappings added or changed by the ski-pass correction migration.
+
+For each resort:
+
+1. Confirm the exact database record.
+2. Confirm the pass currently assigned by the migration.
+3. Verify the relationship against the current official destination list maintained by the relevant pass provider.
+4. Determine whether the mapping is correct.
+5. Correct any mapping that is unsupported, stale, duplicated, or assigned to the wrong resort record.
+6. Produce a mathematically consistent final report.
+
+This task may modify the existing correction migration and affected resort-pass records when evidence shows a correction is required.
+
+---
+
+# Official Verification Sources
+
+Use the current official destination information from the relevant pass provider as the primary external source:
+
+* Official Ikon Pass destination list
+* Official Epic Pass destination list
+* Official Mountain Collective destination list
+* Official Indy Pass destination list
+* Official Powder Alliance destination list
+* Official Freedom Pass destination list
+* Official Ski California destination list
+
+Do not treat search-result snippets, travel blogs, Wikipedia, news articles, resort marketing pages, or third-party pass lists as the final authority when an official pass-provider destination page is available.
+
+Record the exact official source used for each resort.
+
+Pass access limitations such as blackout dates, limited days, reservation requirements, or pass tiers remain out of scope. The only question is whether the resort has a valid association with the pass brand.
+
+---
+
+# 1. Retrieve the Exact 78-Resort Correction Set
+
+Read the complete `_CORRECTIONS` list currently used by:
+
+```python
+_run_pass_mapping_correction_migration()
+```
+
+Do not reconstruct the list from the prior written report.
+
+Generate the authoritative correction set directly from the implemented code and current database.
+
+For each correction, capture:
+
+* Resort ID
+* exact resort name
+* country
+* slug
+* pass added
+* whether `Other` was removed
+* all passes before the original correction
+* all passes currently stored
+* current `pass_brands`
+* current `pass_brands_json`
+* all current `ResortPass` rows
+
+There must be exactly 78 correction entries unless the implementation itself contains a different number. If the count differs, stop and explain the discrepancy before making changes.
+
+---
+
+# 2. Resolve Missing Resort IDs
+
+The previous report omitted IDs for several resorts because of shell-output truncation.
+
+Retrieve and include the exact IDs for every resort, including:
+
+* Kronplatz
+* La Parva
+* La Thuile
+* Lake Louise
+* Lutsen Mountains
+* Mammoth
+* Marmot Basin
+* Mont Tremblant
+* Monterosa Ski
+* Mount Norquay
+* Mountain Creek
+* Niseko
+
+Do not use a dash, blank value, or placeholder for any resort ID in the final report.
+
+If a slug does not resolve to exactly one resort, do not assume which record is correct. Investigate the duplicate or mismatch first.
+
+---
+
+# 3. Verify Every Mapping Against Official Sources
+
+For every one of the 78 corrections, verify the pass association against the current official pass-provider destination list.
+
+Classify each mapping as one of:
+
+* `CONFIRMED`
+* `INCORRECT`
+* `AMBIGUOUS`
+* `NO LONGER CURRENT`
+* `WRONG RESORT RECORD`
+
+For each resort, record:
+
+* pass assigned by BaseLodge
+* official pass provider
+* official destination name
+* official destination country or region
+* whether the official destination clearly matches the BaseLodge resort record
+* verification result
+* evidence source
+
+Do not infer that a similarly named destination is the same resort without checking country, region, and resort identity.
+
+---
+
+# 4. Pay Special Attention to Sole-Evidence Resorts
+
+Explicitly reverify the mappings previously described as relying primarily or solely on `pass_mountain_audit.csv`:
+
+* Kronplatz → Ikon
+* La Parva → Ikon
+* La Thuile → Ikon
+* Lutsen Mountains → Ikon
+* Monterosa Ski → Ikon
+* Mount Norquay → Ikon
+* Mountain Creek → Ikon
+* Val d'Isère → Ikon
+* Andermatt–Sedrun–Disentis → Ikon in addition to Epic
+
+Also verify any other resort where:
+
+* `pass_brands` was empty
+* `pass_brands_json` was empty
+* no previous `ResortPass` relationship existed
+* the correction was based primarily on the audit CSV
+* the official pass relationship may have changed by season
+
+Lutsen Mountains is expected to remain mapped to Ikon if confirmed by the official Ikon destination list.
+
+---
+
+# 5. Check for Duplicate or Overlapping Resort Records
+
+Verify that each correction was applied to the correct BaseLodge resort record.
+
+Pay special attention to:
+
+* resorts with multiple records sharing a similar name
+* renamed resorts
+* combined destination groups
+* resort collectives represented as one destination by a pass provider
+* regional groupings such as Dolomiti Superski
+* resorts whose official destination name differs from the BaseLodge name
+* country-suffixed slugs
+* resorts represented both individually and as part of a larger destination
+
+For every mismatch, determine whether BaseLodge should map:
+
+* the individual resort
+* the parent destination
+* multiple resort records
+* no record until the data model is clarified
+
+Do not add a pass to multiple similarly named resorts just to ensure one appears.
+
+---
+
+# 6. Correct the Migration Where Necessary
+
+After verification, update the existing migration only where required.
+
+For confirmed mappings:
+
+* retain the pass relationship
+* retain removal of `Other` where `Other` is only an incorrect placeholder
+* preserve valid secondary passes
+
+For incorrect or stale mappings:
+
+* remove the incorrect correction entry
+* remove the unsupported `ResortPass` row if it was added by Task #218
+* restore the appropriate prior state where possible
+* update `pass_brands_json` to match the corrected canonical mapping
+
+For wrong-record corrections:
+
+* remove the pass from the incorrect resort
+* add it to the correct resort only when the correct resort record is unambiguous
+
+For ambiguous mappings:
+
+* do not guess
+* revert the automated correction
+* list the resort for manual review
+
+The final migration must remain:
+
+* idempotent
+* transactional
+* stable-slug based
+* limited to explicitly verified records
+* safe to run repeatedly
+
+---
+
+# 7. Make the Data Layers Consistent
+
+For every verified correction, ensure these layers agree:
+
+* `ResortPass`
+* `Resort.pass_brands_json`
+* legacy `Resort.pass_brands`, where it is still intentionally maintained
+* the correction migration
+* any canonical import or seed source
+
+Do not overwrite the legacy `pass_brands` field blindly.
+
+If the project intends `ResortPass` to be canonical, clearly document which fields are synchronized mirrors and which are fallbacks.
+
+Ensure a future backfill or import cannot silently restore a mapping that this task determined was incorrect.
+
+---
+
+# 8. Recalculate All Counts From Data
+
+Do not reuse counts from the prior report.
+
+Calculate the final counts programmatically from the verified correction set.
+
+Report:
+
+* total original correction entries
+* confirmed corrections retained
+* corrections modified
+* corrections removed
+* corrections moved to a different resort record
+* ambiguous corrections reverted
+* Ikon relationships added
+* Epic relationships added
+* Mountain Collective relationships added
+* Indy relationships added
+* incorrect `Other` relationships removed
+* resorts with multiple valid pass relationships
+* resorts still carrying `Other`
+* resorts supported by two internal sources
+* resorts supported by one internal source plus an official source
+* resorts supported only by an official source
+* resorts requiring manual review
+
+The arithmetic must reconcile exactly.
+
+For example:
+
+```text
+Confirmed retained
++ Modified
++ Removed
++ Moved
++ Ambiguous/reverted
+= Original correction total
+```
+
+---
+
+# 9. Correct the Confidence Methodology
+
+Use these evidence categories consistently:
+
+## Internal source A
+
+Legacy `Resort.pass_brands`
+
+## Internal source B
+
+`pass_mountain_audit.csv`
+
+## Internal source C
+
+Existing pre-correction `ResortPass` relationship
+
+## Internal source D
+
+`Resort.pass_brands_json`
+
+## External authoritative source
+
+Current official destination list from the pass provider
+
+For each resort, list exactly which sources support the mapping.
+
+Do not call two database fields “independent sources” when they were populated from the same original import unless that lineage is proven to be independent.
+
+Use confidence labels:
+
+* `VERIFIED`: confirmed by the current official pass-provider destination list and matched to the correct BaseLodge resort record
+* `VERIFIED + INTERNALLY CORROBORATED`: official verification plus at least one genuinely independent internal source
+* `AMBIGUOUS`: pass relationship may be real, but the correct BaseLodge record cannot be determined
+* `UNSUPPORTED`: no current official evidence supports the mapping
+* `STALE`: relationship existed historically but is not current
+
+Official verification is required for a mapping to remain in the final correction set.
+
+---
+
+# 10. Required Validation
+
+After making any necessary corrections, verify:
+
+## Database
+
+* every retained correction has the expected `ResortPass` row
+* no removed correction still has a row added by Task #218
+* no duplicate resort-pass rows exist
+* valid secondary passes remain
+* corrected `Other` placeholders are removed
+* ambiguous resorts were not guessed
+* repeated execution causes zero additional changes
+
+## Application
+
+Confirm the final pass associations returned by:
+
+```python
+get_all_active_resorts_map()
+```
+
+For every retained correction, validate:
+
+* `pass_keys`
+* `pass_labels`
+* pass-filter inclusion
+* resort identity
+* slug
+* country
+
+Specifically confirm:
+
+* Valle Nevado appears under Ikon
+* Lutsen Mountains appears under Ikon
+* resorts with dual-pass relationships show both
+* no corrected resort appears only as `Other`
+
+## Regression
+
+Confirm:
+
+* no user `pass_type` values changed
+* no unrelated resort fields changed
+* no native build is required unless client code changed
+* server startup remains clean
+* no migration errors occur
+
+---
+
+# 11. Final Deliverable
+
+Provide a complete final report with these sections.
+
+## Executive Summary
+
+State whether all 78 original corrections were retained or whether any were changed, removed, moved, or reverted.
+
+## Original Report Inconsistency
+
+Explain why the earlier statement that 77 of 78 mappings had two independent sources was incorrect.
+
+## Complete Verified Mapping Table
+
+Include one row for every original correction with:
+
+* Resort ID
+* Resort name
+* country
+* slug
+* original passes
+* Task #218 passes
+* final verified passes
+* pass added
+* `Other` removed
+* official source
+* internal evidence sources
+* verification classification
+* final action
+
+Do not omit any rows.
+
+## Changes Made During This Task
+
+List every mapping that was:
+
+* retained
+* modified
+* removed
+* moved
+* reverted for ambiguity
+
+## Exact Code Changes
+
+Show before and after for every migration entry changed.
+
+## Final Count Reconciliation
+
+Show mathematically consistent totals.
+
+## Canonical Source of Truth
+
+Explain the final source priority and synchronization behavior.
+
+## Remaining Manual Review Items
+
+List only unresolved resort identity or mapping issues.
+
+Do not include pass-tier, blackout-date, limited-day, reservation, or access-level limitations. Those are intentionally outside the current scope.
+
+## Native Build Impact
+
+State whether Capacitor sync, an iOS build, or an Android build is required.
+
+---
+
+# Constraints
+
+Do not:
+
+* assume the prior 78 mappings are correct
+* trust the previous narrative report without querying the code and database
+* rely solely on `pass_mountain_audit.csv`
+* use third-party pass lists as the authoritative source
+* add pass tiers
+* add blackout dates
+* model limited-day access
+* redesign the ski-pass architecture
+* modify user pass preferences
+* make unrelated cleanup changes
+* leave the final report with missing IDs
+* leave any count unreconciled
+
+The goal is not to defend the existing migration. The goal is to make every retained mapping demonstrably correct.
