@@ -16,26 +16,37 @@
 /* ── Splash screen hide — native Capacitor shell only ───────────────────────
    @capacitor/splash-screen is configured with launchAutoHide:true and
    launchShowDuration:8000, which provides a guaranteed 8-second native
-   fallback that fires even if bl-native.js never executes (e.g. the remote
-   page at app.baselodgeapp.com fails to load).
+   fallback at the platform level. This fires even if bl-native.js never
+   executes (e.g. the remote page at app.baselodgeapp.com fails to load).
 
-   This block provides the early exit path: once DOMContentLoaded fires,
-   the Capacitor bridge is confirmed ready, and the first page frame has
-   been painted, SplashScreen.hide() is called to dismiss the branded
-   "Opening BaseLodge..." screen as quickly as possible.
+   This block provides the early hide path. The key design choice is
+   triggering on window.load rather than DOMContentLoaded:
 
-   Selector rationale: document.body.firstElementChild is guaranteed to be
-   non-null after DOMContentLoaded on every app page — auth, home, onboarding,
-   invite, deep-linked destinations — because every template is server-rendered
-   and always has at least one body child element. This avoids a selector that
-   only matches pages extending base_app.html (e.g. .app-shell would miss the
-   standalone auth and invite templates).
+     DOMContentLoaded — HTML is parsed but images/fonts are still loading.
+       Hiding here reveals the page before the wordmark image has loaded,
+       causing the blank-screen flash (user sees cream background, then
+       logo pops in a moment later).
 
-   Fully isolated from push-notification and OneSignal logic. No-op in
+     window.load — ALL resources (images, stylesheets) have finished loading.
+       The login-screen wordmark is already painted when the splash fades out,
+       creating the seamless "splash → login screen appears immediately" feel.
+
+   After window.load:
+     1. Confirm Capacitor bridge is ready (should already be at window.load,
+        but a short retry loop handles any edge case).
+     2. Two requestAnimationFrame cycles — browser has committed the frame.
+     3. SplashScreen.hide({ fadeOutDuration: 300 }).
+
+   The native 8-second auto-hide (launchAutoHide:true) ensures the splash
+   never stays up indefinitely if window.load is delayed or never fires.
+
+   Fully isolated from push-notification / OneSignal logic. No-op in
    browsers — gated on window.Capacitor.isNativePlatform().                   */
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
   try {
-    // Gate: native Capacitor platform only — exit immediately in browsers
+    // Synchronous native-platform check — exits immediately in browsers.
+    // webkit.messageHandlers.capacitor is the WKWebView bridge injection
+    // point and is present even before Capacitor fully initializes.
     var _capSp = window.Capacitor;
     var _wkSp  = window.webkit;
     var _isNativeSp = !!(_capSp
@@ -45,12 +56,16 @@ document.addEventListener('DOMContentLoaded', function() {
       && _wkSp.messageHandlers
       && _wkSp.messageHandlers.capacitor);
     if (!_isNativeSp && !_hasWkSp) return;
+  } catch (_outerE) { return; }
 
-    (async function _blSplashHide() {
+  // _blDoHide: called once window.load has fired (all page resources loaded).
+  // Uses an async IIFE so we can await the bridge-ready check and rAF cycles.
+  function _blDoHide() {
+    (async function() {
       try {
-        // Wait for Capacitor bridge to be available (up to 2 s in 100 ms steps).
-        // Capacitor v8 + remote server URL can inject the bridge slightly after
-        // DOMContentLoaded in some build configurations.
+        // Wait for Capacitor bridge (up to 2 s in 100 ms steps).
+        // At window.load time the bridge is almost always already ready, but
+        // this loop handles any race on slow devices.
         var _spDeadline = Date.now() + 2000;
         while (Date.now() < _spDeadline) {
           if (window.Capacitor
@@ -62,20 +77,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         var Cap = window.Capacitor;
-        if (!Cap || !Cap.isNativePlatform()) return; // not native after wait, bail
+        if (!Cap || !Cap.isNativePlatform()) return; // not native, bail
 
-        // Confirm a page shell element is present in the DOM.
-        // document.body.firstElementChild is always non-null after DOMContentLoaded
-        // on every server-rendered page (auth, home, invite, onboarding, etc.).
-        if (!document.body || !document.body.firstElementChild) return;
-
-        // Allow two requestAnimationFrame cycles so the browser has committed and
-        // painted the first visible frame before we dismiss the splash.
+        // Two rAF cycles — browser paints the fully-loaded frame before we fade.
         await new Promise(function(r) {
           requestAnimationFrame(function() { requestAnimationFrame(r); });
         });
 
-        // Resolve the SplashScreen plugin from the Capacitor bridge.
+        // Resolve the SplashScreen plugin.
         var SplashScreen = null;
         if (Cap.Plugins && Cap.Plugins.SplashScreen) {
           SplashScreen = Cap.Plugins.SplashScreen;
@@ -83,23 +92,28 @@ document.addEventListener('DOMContentLoaded', function() {
           try { SplashScreen = Cap.registerPlugin('SplashScreen'); } catch (_rpe) {}
         }
         if (!SplashScreen || typeof SplashScreen.hide !== 'function') {
-          console.warn('[Splash] SplashScreen plugin not available — relying on native auto-hide');
+          console.warn('[Splash] plugin unavailable — relying on native auto-hide');
           return;
         }
 
         SplashScreen.hide({ fadeOutDuration: 300 });
-        console.log('[Splash] hide() called — early dismiss after first paint');
+        console.log('[Splash] hide() called after window.load + 2rAF');
 
       } catch (_innerE) {
-        // Swallow all errors — splash logic must never prevent the app from loading
+        // Swallow all errors — splash logic must never block the app
         console.warn('[Splash] hide error (non-fatal):', _innerE);
       }
     })();
-
-  } catch (_outerE) {
-    // Belt-and-suspenders outer catch
   }
-});
+
+  // Attach to window.load. If the page has somehow already finished loading
+  // (readyState === 'complete') before this script runs, fire immediately.
+  if (document.readyState === 'complete') {
+    _blDoHide();
+  } else {
+    window.addEventListener('load', _blDoHide, { once: true });
+  }
+})();
 
 /* ── Form submit loader ──────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function() {

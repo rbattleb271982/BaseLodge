@@ -1,0 +1,81 @@
+TASK: Redesign the iOS/Android native splash screen to match the login screen branding and eliminate the blank loading screen.
+
+Current issues:
+1. The splash screen is zoomed/cropped and only shows part of the BaseLodge logo.
+2. After the splash disappears, there is a blank cream screen before the login page loads.
+3. The splash does not visually match the login screen.
+
+Goal:
+The splash screen should feel like the first state of the login screen, creating a seamless transition into the app.
+
+Visual Requirements:
+
+• Use the exact same warm cream background color as the login screen.
+• Use the exact same BaseLodge wordmark/logo asset currently used on the login page.
+• Center the logo horizontally.
+• Position the logo higher on the screen (approximately the upper 35–40% of the display), matching the login screen layout.
+• Place the existing tagline directly underneath using the exact same styling:
+
+  The best days on the mountain
+  don't just happen. They're made.
+
+• Match the login screen's typography, spacing, colors, and alignment exactly.
+• Remove ALL other UI elements:
+  - No buttons
+  - No login fields
+  - No checkboxes
+  - No footer links
+  - No loading spinner
+• Leave generous whitespace below the tagline.
+• The splash should feel clean, premium, minimal, and consistent with the BaseLodge brand.
+
+Technical Requirements:
+
+1. Determine whether the project is using:
+   - Capacitor Splash Screen
+   - Native iOS LaunchScreen.storyboard
+   - LaunchScreen.xib
+   - Android SplashScreen API
+   - Android drawable resources
+   - or another implementation.
+
+2. Update BOTH iOS and Android so the splash experience is visually identical.
+
+3. Eliminate the current logo cropping/zoom issue on every supported screen size.
+
+4. If the splash is image-based, regenerate the asset at the proper dimensions rather than stretching the existing asset.
+
+5. If the splash is layout-based (Storyboard/XML), recreate the layout so it matches the login screen instead of using a full-screen image.
+
+6. Keep all changes committed to the repository so GitHub remains the single source of truth.
+
+Loading Experience Requirements:
+
+The splash screen should remain visible until the app is actually ready to display the login screen.
+
+There should NEVER be a blank cream screen between the splash screen and the login screen.
+
+Instead, the transition should be:
+
+Native splash
+    ↓
+Login screen appears immediately
+
+The splash should only dismiss after:
+• Capacitor has initialized.
+• The WebView is fully loaded.
+• The login page is ready to render.
+
+The goal is for users to perceive one smooth transition rather than:
+Splash → blank screen → login.
+
+Please determine the best implementation for Capacitor to accomplish this (for example, delaying SplashScreen.hide() until the app is fully initialized) rather than relying on arbitrary timeout values.
+
+Deliverables:
+
+• Explain the current splash implementation.
+• List every file modified.
+• Explain why the logo was being cropped.
+• Explain how the blank loading screen was eliminated.
+• Explain how the splash is now synchronized with app readiness.
+• Provide before/after screenshots or descriptions of the expected appearance on both iOS and Android.

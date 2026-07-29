@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="17132" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
-    <device id="retina4_7" orientation="portrait" appearance="light"/>
+<!--
+    BaseLodge LaunchScreen.storyboard
+    Matches the auth/login screen visual design:
+      • Cream background #F5F1E8
+      • BaseLodge wordmark horizontally centered, upper 35% of the screen
+        (spacer view height = 30% → wordmark center at ~35%)
+      • Tagline directly below in rgba(0,0,0,0.55), system 15pt, centered
+    
+    Used by both the OS launch (Phase 1) and @capacitor/splash-screen overlay
+    (Phase 2 — Capacitor 8 instantiates this storyboard as its splash view on iOS).
+-->
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB"
+          version="3.0" toolsVersion="21701" targetRuntime="iOS.CocoaTouch"
+          propertyAccessControl="none" useAutolayout="YES" launchScreen="YES"
+          useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES"
+          initialViewController="01J-lp-oVM">
+    <device id="retina6_1" orientation="portrait" appearance="light"/>
     <dependencies>
         <deployment identifier="iOS"/>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="17105"/>
-        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="21701"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -12,21 +26,146 @@
         <scene sceneID="EHf-IW-A2E">
             <objects>
                 <viewController id="01J-lp-oVM" sceneMemberID="viewController">
-                    <imageView key="view" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" id="snD-IY-ifK">
-                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
-                        <autoresizingMask key="autoresizingMask"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                    </imageView>
+                    <view key="view" contentMode="scaleToFill" id="rRg-J3-aLT">
+                        <rect key="frame" x="0.0" y="0.0" width="390" height="844"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <!-- Cream background: #F5F1E8 -->
+                        <color key="backgroundColor"
+                               red="0.9607843137254902"
+                               green="0.9450980392156862"
+                               blue="0.9098039215686274"
+                               alpha="1"
+                               colorSpace="custom" customColorSpace="sRGB"/>
+                        <subviews>
+                            <!-- Transparent spacer: height = 30% of root height.
+                                 Positions the content block so the wordmark center
+                                 sits at ~35% from the top of the screen. -->
+                            <view contentMode="scaleToFill"
+                                  translatesAutoresizingMaskIntoConstraints="NO"
+                                  id="blv-spacer-001">
+                                <rect key="frame" x="0.0" y="0.0" width="390" height="253.2"/>
+                                <color key="backgroundColor"
+                                       red="0.9607843137254902"
+                                       green="0.9450980392156862"
+                                       blue="0.9098039215686274"
+                                       alpha="1"
+                                       colorSpace="custom" customColorSpace="sRGB"/>
+                            </view>
+
+                            <!-- Vertical stack: wordmark + tagline.
+                                 Width = 71.8% of root width → 280pt on a 390pt screen,
+                                 matching the login page .wordmark { width: 280px } rule. -->
+                            <stackView axis="vertical"
+                                       spacing="12"
+                                       alignment="fill"
+                                       distribution="fill"
+                                       translatesAutoresizingMaskIntoConstraints="NO"
+                                       id="blv-stack-001">
+                                <rect key="frame" x="55.1" y="253.2" width="279.8" height="131"/>
+                                <subviews>
+
+                                    <!-- BaseLodge wordmark image.
+                                         scaleAspectFit preserves the aspect ratio within
+                                         the stack view width. Fixed height = 75pt matches
+                                         the login page rendering (280pt wide × 241/900 ≈ 75pt). -->
+                                    <imageView clipsSubviews="YES"
+                                               userInteractionEnabled="NO"
+                                               contentMode="scaleAspectFit"
+                                               horizontalHuggingPriority="251"
+                                               verticalHuggingPriority="251"
+                                               translatesAutoresizingMaskIntoConstraints="NO"
+                                               image="Wordmark"
+                                               id="blv-wmark-001">
+                                        <rect key="frame" x="0.0" y="0.0" width="279.8" height="75"/>
+                                        <constraints>
+                                            <constraint firstAttribute="height" constant="75" id="blc-wm-h"/>
+                                        </constraints>
+                                    </imageView>
+
+                                    <!-- Tagline label: matches .auth-tagline on the login screen.
+                                         • Font: system 15pt (San Francisco on iOS = closest to
+                                           the login page -apple-system body font)
+                                         • Color: rgba(0,0,0,0.55) — matches .auth-tagline color
+                                         • Center aligned, 2 lines, word wrap -->
+                                    <label opaque="NO"
+                                           userInteractionEnabled="NO"
+                                           contentMode="left"
+                                           horizontalHuggingPriority="251"
+                                           verticalHuggingPriority="251"
+                                           text="The best days on the mountain&#10;don&#x2019;t just happen. They&#x2019;re made."
+                                           textAlignment="center"
+                                           lineBreakMode="wordWrap"
+                                           numberOfLines="2"
+                                           translatesAutoresizingMaskIntoConstraints="NO"
+                                           id="blv-label-001">
+                                        <rect key="frame" x="0.0" y="87" width="279.8" height="44"/>
+                                        <fontDescription type="system" pointSize="15"/>
+                                        <color key="textColor"
+                                               red="0.0" green="0.0" blue="0.0" alpha="0.55"
+                                               colorSpace="custom" customColorSpace="sRGB"/>
+                                        <nil key="highlightedColor"/>
+                                    </label>
+
+                                </subviews>
+                            </stackView>
+                        </subviews>
+
+                        <constraints>
+                            <!-- Spacer: top / leading / trailing pinned to root -->
+                            <constraint firstItem="blv-spacer-001"
+                                        firstAttribute="top"
+                                        secondItem="rRg-J3-aLT"
+                                        secondAttribute="top"
+                                        id="blc-sp-top"/>
+                            <constraint firstItem="blv-spacer-001"
+                                        firstAttribute="leading"
+                                        secondItem="rRg-J3-aLT"
+                                        secondAttribute="leading"
+                                        id="blc-sp-lead"/>
+                            <constraint firstItem="blv-spacer-001"
+                                        firstAttribute="trailing"
+                                        secondItem="rRg-J3-aLT"
+                                        secondAttribute="trailing"
+                                        id="blc-sp-trail"/>
+                            <!-- Spacer height = 30% of root height (proportional) -->
+                            <constraint firstItem="blv-spacer-001"
+                                        firstAttribute="height"
+                                        secondItem="rRg-J3-aLT"
+                                        secondAttribute="height"
+                                        multiplier="0.3"
+                                        id="blc-sp-h"/>
+                            <!-- Stack top = spacer bottom -->
+                            <constraint firstItem="blv-stack-001"
+                                        firstAttribute="top"
+                                        secondItem="blv-spacer-001"
+                                        secondAttribute="bottom"
+                                        id="blc-st-top"/>
+                            <!-- Stack centered horizontally -->
+                            <constraint firstItem="blv-stack-001"
+                                        firstAttribute="centerX"
+                                        secondItem="rRg-J3-aLT"
+                                        secondAttribute="centerX"
+                                        id="blc-st-cx"/>
+                            <!-- Stack width = 71.8% of root (280pt on a 390pt iPhone 14 screen) -->
+                            <constraint firstItem="blv-stack-001"
+                                        firstAttribute="width"
+                                        secondItem="rRg-J3-aLT"
+                                        secondAttribute="width"
+                                        multiplier="0.718"
+                                        id="blc-st-w"/>
+                        </constraints>
+                    </view>
                 </viewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                <placeholder placeholderIdentifier="IBFirstResponder"
+                             id="iYj-Kq-Ea1"
+                             userLabel="First Responder"
+                             sceneMemberID="firstResponder"/>
             </objects>
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
     <resources>
-        <image name="Splash" width="1366" height="1366"/>
-        <systemColor name="systemBackgroundColor">
-            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-        </systemColor>
+        <!-- Wordmark asset at @1x/2x/3x in Wordmark.imageset -->
+        <image name="Wordmark" width="900" height="241"/>
     </resources>
 </document>
