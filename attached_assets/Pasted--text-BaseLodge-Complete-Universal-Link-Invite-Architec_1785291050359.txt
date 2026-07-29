@@ -1,0 +1,530 @@
+```text
+# BaseLodge — Complete Universal Link & Invite Architecture Investigation
+
+## Objective
+
+Perform a complete investigation of the BaseLodge invite architecture.
+
+This is an investigation only.
+
+Do NOT modify any code.
+Do NOT create commits.
+Do NOT create checkpoints.
+Do NOT run migrations.
+Do NOT change build numbers.
+Do NOT deploy anything.
+
+I want to determine whether the complete Universal Link / App Link invite architecture is already implemented, whether it has been included in the currently published iOS and Android apps, and whether a new native build is still required.
+
+---
+
+# Background
+
+Historically, BaseLodge invite links opened the mobile website instead of the native application, which created a confusing experience.
+
+Example:
+
+https://app.baselodgeapp.com/invite/<token>
+
+If someone already had the BaseLodge app installed, tapping the invite should open the app—not the mobile website.
+
+We redesigned the intended architecture so there would be one canonical invite URL.
+
+Desired behavior:
+
+• User has app installed
+→ Universal Link / Android App Link opens BaseLodge directly.
+
+• User does not have app installed
+→ Mobile invite landing page opens.
+
+• User installs the app
+→ Original invite token is preserved.
+
+• User signs in
+→ Original invite resumes automatically.
+
+• User creates an account
+→ Original invite resumes automatically.
+
+• User finishes onboarding
+→ Original invite resumes automatically.
+
+• User is already inside the Capacitor app
+→ Internal navigation occurs instead of attempting another deep link.
+
+We also previously removed the old custom URL scheme approach (baselodge://friends) and replaced it with Universal Link/App Link behavior.
+
+I am NOT sure whether those changes made it into the production native builds.
+
+---
+
+# Investigation
+
+I want you to inspect every part of this architecture.
+
+---
+
+## Part 1 — Invite Entry Points
+
+Locate every route, controller, template, JavaScript file, Capacitor listener, native configuration file and helper involved in:
+
+Friend invites
+
+Trip invites
+
+/invite/<token>
+
+/trip-invite/<token>
+
+invite landing pages
+
+invite acceptance
+
+Open BaseLodge button
+
+post-login redirect
+
+post-signup redirect
+
+post-onboarding redirect
+
+For each file provide:
+
+• filename
+
+• function
+
+• line numbers
+
+• responsibility
+
+• whether it is:
+
+Server code
+
+Web code
+
+Capacitor code
+
+iOS native
+
+Android native
+
+---
+
+## Part 2 — Universal Links (iOS)
+
+Audit the entire iOS implementation.
+
+Confirm:
+
+Associated Domains entitlement
+
+applinks domain
+
+supported paths
+
+bundle identifier
+
+team identifier
+
+Capacitor configuration
+
+native listeners
+
+routing logic
+
+token preservation
+
+Inspect:
+
+apple-app-site-association
+
+Confirm:
+
+correct path
+
+correct MIME type
+
+no redirects
+
+correct bundle ID
+
+correct Team ID
+
+contains:
+
+/invite/*
+
+/trip-invite/*
+
+Determine whether the currently published app would support these links.
+
+---
+
+## Part 3 — Android App Links
+
+Inspect:
+
+assetlinks.json
+
+AndroidManifest.xml
+
+Intent Filters
+
+autoVerify
+
+SHA256 fingerprint
+
+package name
+
+Capacitor listeners
+
+routing
+
+token preservation
+
+Confirm support for:
+
+/invite/*
+
+/trip-invite/*
+
+Determine whether the published Play Store version contains these changes.
+
+---
+
+## Part 4 — Capacitor Deep Link Handling
+
+Find every listener including:
+
+App.addListener("appUrlOpen")
+
+Initial launch URL
+
+Resume from background
+
+Warm start
+
+Cold start
+
+Determine:
+
+How URLs are parsed
+
+How tokens are preserved
+
+How duplicate processing is prevented
+
+How malformed URLs are handled
+
+How friend invites differ from trip invites
+
+Explain exactly what happens for:
+
+/invite/ABC123
+
+/trip-invite/XYZ789
+
+---
+
+## Part 5 — Invite Landing Pages
+
+Audit every invite page.
+
+Determine behavior when:
+
+App installed
+
+App not installed
+
+Logged in
+
+Logged out
+
+Already friends
+
+Invite already accepted
+
+Planning invite accepted
+
+Trip invite pending
+
+Trip attendee
+
+Inspect every button including:
+
+Accept
+
+Continue
+
+Open BaseLodge
+
+Download
+
+App Store
+
+Play Store
+
+For every button report:
+
+Destination
+
+JavaScript
+
+URL
+
+Platform behavior
+
+Whether the invite token survives.
+
+---
+
+## Part 6 — Search Entire Repository
+
+Search the repository for:
+
+baselodge://
+
+window.location
+
+window.location.href
+
+window.location.assign
+
+Universal Links
+
+Intent URLs
+
+App Store redirects
+
+Play Store redirects
+
+Deep link helpers
+
+Fallback timers
+
+Report any remaining legacy implementation.
+
+---
+
+## Part 7 — Git Investigation
+
+Search Git history.
+
+Find every commit related to:
+
+Universal Links
+
+Android App Links
+
+Invite redesign
+
+Open BaseLodge
+
+Capacitor deep links
+
+Invite token preservation
+
+For each commit report:
+
+SHA
+
+Date
+
+Files changed
+
+Whether it modifies:
+
+Server
+
+Web
+
+Capacitor
+
+iOS native
+
+Android native
+
+Determine whether those commits likely exist in the currently published iOS build.
+
+Determine whether those commits likely exist in the currently published Android build.
+
+If the repository cannot prove this, explain exactly why.
+
+---
+
+## Part 8 — Build Impact
+
+For every discovered change classify whether it requires:
+
+Nothing
+
+Server deployment
+
+Web asset deployment
+
+Capacitor sync
+
+New iOS build
+
+New Android build
+
+Both native builds
+
+---
+
+## Part 9 — Testing Matrix
+
+Create a complete manual testing matrix.
+
+Test:
+
+iPhone
+
+Android
+
+Safari
+
+Chrome
+
+Messages
+
+Mail
+
+Gmail
+
+App installed
+
+App not installed
+
+Logged in
+
+Logged out
+
+App running
+
+App closed
+
+Backgrounded
+
+Foreground
+
+Each test should include:
+
+Test URL
+
+Expected behavior
+
+Expected destination
+
+Expected invite state
+
+Expected authentication state
+
+Expected friendship state
+
+Pass criteria
+
+Failure criteria
+
+---
+
+## Part 10 — Risk Assessment
+
+Identify every possible edge case including:
+
+Token loss
+
+Universal Link failures
+
+Browser fallback failures
+
+Invite duplication
+
+Duplicate friendships
+
+Duplicate trip participation
+
+Planning invitation becoming attendee
+
+Expired sessions
+
+OAuth login
+
+Email login
+
+Signup
+
+Onboarding
+
+App upgrades
+
+Cold starts
+
+Warm starts
+
+Background resume
+
+Race conditions
+
+Anything that could produce inconsistent behavior.
+
+---
+
+# Final Report
+
+Return:
+
+1. Executive Summary
+
+2. Current Invite Architecture
+
+3. Universal Link Status
+
+4. Android App Link Status
+
+5. Capacitor Deep Link Status
+
+6. Web Invite Status
+
+7. Native Build Status
+
+8. Files and Line Numbers
+
+9. Relevant Git Commits
+
+10. Testing Matrix
+
+11. Risks
+
+12. Recommendations
+
+Finally provide this table:
+
+| Component | Already Correct | Needs Change | Requires New Build |
+|-----------|-----------------|--------------|--------------------|
+
+Then finish with:
+
+BUILD CONCLUSION
+
+iOS:
+(New build required / Not required / Cannot determine)
+
+Android:
+(New build required / Not required / Cannot determine)
+
+Server Deployment:
+(Required / Not required)
+
+Capacitor Sync:
+(Required / Not required)
+
+---
+
+One thing to add:
+
+While performing this investigation, look beyond the original scope. If you discover any architecture, UX, navigation, authentication, invite-state, friendship-state, planning-state, trip-attendance, or deep-link issue that could cause user confusion or inconsistent behavior in the future, include it in a separate section titled **"Additional Findings and Recommended Improvements"**, even if it is not directly related to Universal Links.
+```
