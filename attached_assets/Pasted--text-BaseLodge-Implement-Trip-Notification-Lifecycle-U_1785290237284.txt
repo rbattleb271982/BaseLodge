@@ -1,0 +1,486 @@
+```text
+BaseLodge — Implement Trip Notification Lifecycle
+
+Use the approved implementation plan and completed Push Notification Audit as the source of truth.
+
+Implement only the functionality described below.
+
+Do not introduce new notification infrastructure, queues, schedulers, delays, undo windows, background workers, cancellation windows, or pending-notification tables.
+
+Continue using the existing:
+
+- emit_messaging_event()
+- EventSpec registry
+- OneSignal provider
+- notification preference checks
+- MessageEventLog
+- duplicate suppression
+- deep-link infrastructure
+
+Maintain existing database behavior unless explicitly stated below.
+
+====================================================
+PART 1 — Existing notification wording
+====================================================
+
+Do NOT change these existing notifications.
+
+Trip invitation sent
+
+Recipient:
+Invited user
+
+Title:
+
+{Inviter name} invited you to a trip
+
+Body:
+
+You've been invited to {resort}.
+
+----------------------------------------------------
+
+Trip invitation accepted (owner)
+
+Recipient:
+Trip owner
+
+Title:
+
+{Name} accepted your invite
+
+Body:
+
+They're joining you for {resort}.
+
+Keep this wording exactly.
+
+----------------------------------------------------
+
+Friend request accepted
+
+Recipient:
+Original requester
+
+Title:
+
+{Name} accepted your request
+
+Body:
+
+You're now connected on BaseLodge.
+
+Do not modify friend-request notifications.
+
+Friend-request declines remain silent.
+
+Friend removals remain silent.
+
+====================================================
+PART 2 — Fix Planning vs Going flash wording
+====================================================
+
+The audit confirmed that Flask flash messages are rendered and visible.
+
+Update BOTH acceptance routes:
+
+- POST /trips/<trip_id>/respond
+- POST /trip-invite/<token>/accept
+
+After a successful database commit:
+
+If
+
+trip.trip_status == "going"
+
+show:
+
+You're going!
+
+Otherwise show:
+
+You're planning!
+
+Do not change:
+
+- acceptance behavior
+- participant status
+- push notification wording
+- recipients
+- database logic
+
+====================================================
+PART 3 — Notify owner when invitation is declined
+====================================================
+
+Trigger:
+
+Invited participant declines a trip invitation.
+
+Recipient:
+
+Trip owner only.
+
+Title:
+
+{Name} declined your invite
+
+Body:
+
+They won't be participating in the {resort} trip.
+
+Requirements:
+
+- send after db.session.commit()
+- use existing EventSpec infrastructure
+- use existing preferences
+- use existing MessageEventLog
+- use existing duplicate suppression
+- use existing trip deep link
+
+Do not notify:
+
+- declining user
+- other participants
+
+====================================================
+PART 4 — Notify existing participants when someone accepts
+====================================================
+
+The owner already receives the personalized acceptance notification.
+
+Leave that unchanged.
+
+In addition:
+
+Notify every OTHER accepted participant.
+
+Recipients:
+
+- accepted participants
+- exclude accepter
+- exclude owner
+- exclude pending invitees
+- exclude declined users
+
+Title:
+
+Someone accepted an invitation
+
+Body:
+
+A new participant has been added to the {resort} trip.
+
+Requirements:
+
+- after commit
+- existing EventSpec
+- existing OneSignal
+- existing duplicate suppression
+- existing deep link
+
+====================================================
+PART 5 — Notify participants when someone leaves
+====================================================
+
+Trigger:
+
+Accepted participant voluntarily leaves.
+
+Recipients:
+
+- owner
+- remaining accepted participants
+
+Exclude:
+
+- person leaving
+- pending invitees
+- declined invitees
+
+Title:
+
+A participant left the trip
+
+Body:
+
+A participant has left the {resort} trip.
+
+Capture recipient IDs before removing the participant.
+
+Dispatch only after commit.
+
+====================================================
+PART 6 — Pending invitation withdrawal
+====================================================
+
+Current behavior:
+
+cancel_trip_invite only withdraws pending invitations.
+
+Approved behavior:
+
+Remain completely silent.
+
+Do NOT send a push.
+
+Do NOT create a new notification.
+
+Do NOT add participant-removal notification logic.
+
+There is currently no route for removing an ACCEPTED participant.
+
+Report that gap only.
+
+Do NOT implement unused notification code.
+
+Specifically:
+
+Do NOT introduce:
+
+TRIP_PARTICIPANT_REMOVED
+
+or an EventSpec for it.
+
+That belongs in a future task once the removal route exists.
+
+====================================================
+PART 7 — Trip cancelled
+====================================================
+
+Trigger:
+
+Owner deletes the trip.
+
+Recipients:
+
+- accepted participants
+- invited participants
+
+Exclude:
+
+- owner
+
+Capture recipients BEFORE deletion.
+
+After successful commit:
+
+Title:
+
+{resort} trip cancelled
+
+Body:
+
+The trip has been cancelled by the organizer.
+
+Use:
+
+/trips
+
+as the destination because the original trip no longer exists.
+
+====================================================
+PART 8 — Trip updates
+====================================================
+
+Notify participants only when meaningful user-visible trip information changes.
+
+Recipients:
+
+accepted participants
+
+invited participants
+
+Exclude:
+
+owner
+
+Use:
+
+Title:
+
+Trip updated from {actor_name}
+
+Body:
+
+The details of the {resort} trip have changed.
+
+Implement notifications for:
+
+- dates changed
+- resort changed
+- accommodation changed
+- full edit where:
+    - resort changes
+    - dates change
+    - trip status changes
+
+Do NOT notify for:
+
+- timestamps
+- IDs
+- metadata
+- pass changes
+- equipment overrides
+- owner-only planning information
+
+Use separate EventName values for:
+
+- trip.dates.updated
+- trip.resort.updated
+- trip.details.updated
+- trip.accommodation.updated
+
+This prevents one meaningful update from suppressing another inside the existing one-hour dedupe window.
+
+====================================================
+PART 9 — Silent events
+====================================================
+
+Remain silent:
+
+Friend request declined
+
+Friend removed
+
+Pending invitation withdrawn
+
+Do not modify these behaviors.
+
+====================================================
+PART 10 — Delivery contract
+====================================================
+
+For every new notification verify:
+
+- commit occurs before dispatch
+- push failure never rolls back DB
+- DB rollback never sends push
+- actor excluded where appropriate
+- preferences respected
+- invalid token handling unchanged
+- MessageEventLog written
+- duplicate suppression applied
+
+Do not change notification infrastructure.
+
+====================================================
+PART 11 — In-app activity
+====================================================
+
+Do not build new activity infrastructure.
+
+If an existing activity helper naturally matches one of these events, reuse it.
+
+Otherwise report the inconsistency.
+
+Do not expand scope.
+
+====================================================
+PART 12 — Validation
+====================================================
+
+Verify:
+
+Planning trip acceptance
+
+- flash reads:
+  You're planning!
+- owner gets existing acceptance push
+- participants get generic participant-added push
+
+Going trip acceptance
+
+- flash reads:
+  You're going!
+- owner gets existing acceptance push
+- participants get generic participant-added push
+
+Invitation declined
+
+- owner receives exactly one push
+- everyone else receives nothing
+
+Participant leaves
+
+- owner notified
+- remaining accepted participants notified
+- leaving participant not notified
+
+Trip cancelled
+
+- all invited + accepted participants notified
+- owner not notified
+- destination works
+
+Trip updated
+
+- one notification per meaningful update
+- no notification when nothing changes
+
+Friend acceptance
+
+- unchanged
+
+Friend decline
+
+- silent
+
+Friend removal
+
+- silent
+
+Pending invitation withdrawal
+
+- silent
+
+Verify duplicate suppression.
+
+Verify notification preferences.
+
+Verify OneSignal failures do not roll back the database.
+
+====================================================
+PART 13 — Regression
+====================================================
+
+Regression-test:
+
+- Invite friends
+- Accept invitation
+- Decline invitation
+- Leave trip
+- Delete trip
+- Edit trip
+- Friend acceptance
+- Friends page
+- Trips page
+- Trip detail page
+- iOS deep links
+- Android deep links
+
+====================================================
+RETURN
+====================================================
+
+Return:
+
+1. Summary of implementation.
+2. Files changed.
+3. Exact line numbers.
+4. EventSpecs added or modified.
+5. Routes modified.
+6. Before/after code.
+7. Recipient rules.
+8. Notification titles and bodies.
+9. Validation results.
+10. Duplicate-suppression verification.
+11. Transaction-order verification.
+12. Regression results.
+13. Remaining product gaps.
+14. Confidence level.
+
+Do not push, deploy, sync Capacitor, or create a production build.
+
+Stop after implementation and validation so I can review everything before merging.
+```

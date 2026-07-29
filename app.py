@@ -4868,6 +4868,28 @@ def update_trip_dates(trip_id):
         db.session.rollback()
         app.logger.error(f"[update_trip_dates] error: {e}")
         return jsonify({"success": False, "error": "Failed to save dates."}), 500
+    # Push notifications after confirmed commit
+    _dates_notify_ids = [
+        p.user_id for p in SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip_id,
+            SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+            SkiTripParticipant.user_id != trip.user_id,
+        ).all()
+    ]
+    for _uid in _dates_notify_ids:
+        emit_messaging_event(
+            event_name=EventName.TRIP_DATES_UPDATED,
+            actor_user_id=current_user.id,
+            recipient_user_id=_uid,
+            entity_type="trip",
+            entity_id=trip_id,
+            metadata={
+                "actor_name": current_user.first_name or current_user.username,
+                "resort":     trip.mountain or "your trip",
+                "trip_id":    trip_id,
+            },
+            source_route="update_trip_dates",
+        )
     nights = (end_date - start_date).days
     return jsonify({"success": True, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "nights": nights})
 
@@ -4903,6 +4925,29 @@ def update_trip_resort(trip_id):
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"[update_trip_resort] notification error: {e}")
+        else:
+            # Push notifications only after the inner commit is confirmed
+            _resort_notify_ids = [
+                p.user_id for p in SkiTripParticipant.query.filter(
+                    SkiTripParticipant.trip_id == trip_id,
+                    SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                    SkiTripParticipant.user_id != trip.user_id,
+                ).all()
+            ]
+            for _uid in _resort_notify_ids:
+                emit_messaging_event(
+                    event_name=EventName.TRIP_RESORT_UPDATED,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=_uid,
+                    entity_type="trip",
+                    entity_id=trip_id,
+                    metadata={
+                        "actor_name": current_user.first_name or current_user.username,
+                        "resort":     trip.mountain or "your trip",
+                        "trip_id":    trip_id,
+                    },
+                    source_route="update_trip_resort",
+                )
     return jsonify({
         "success": True,
         "resort_id": resort.id,
@@ -4950,11 +4995,37 @@ def delete_trip(trip_id):
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
-    
+
+    # Capture notification data before hard delete
+    _del_resort = trip.mountain or "your trip"
+    _del_trip_id = trip.id
+    _del_notify_ids = [
+        p.user_id for p in SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip.id,
+            SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+            SkiTripParticipant.user_id != trip.user_id,
+        ).all()
+    ]
+
     delete_activities_for_trip(trip_id)
     db.session.delete(trip)
     db.session.commit()
-    
+
+    # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
+    for _uid in _del_notify_ids:
+        emit_messaging_event(
+            event_name=EventName.TRIP_CANCELLED,
+            actor_user_id=current_user.id,
+            recipient_user_id=_uid,
+            entity_type="trip",
+            entity_id=_del_trip_id,
+            metadata={
+                "resort":  _del_resort,
+                "trip_id": _del_trip_id,
+            },
+            source_route="delete_trip",
+        )
+
     return jsonify({"success": True})
 
 
@@ -10742,6 +10813,8 @@ def edit_trip_form(trip_id):
     resorts = get_resorts_for_trip_form()
     original_start = trip.start_date
     original_end = trip.end_date
+    original_resort_id = trip.resort_id
+    original_trip_status = trip.trip_status or 'planning'
     user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
     
     # Get current user's participant record for this trip
@@ -10861,6 +10934,35 @@ def edit_trip_form(trip_id):
         try:
             emit_trip_updated_activities(trip, current_user.id, dates_changed=dates_changed)
             db.session.commit()
+            # Push to participants if a meaningful user-visible field changed
+            _edit_meaningful = (
+                trip.resort_id != original_resort_id or
+                trip.start_date != original_start or
+                trip.end_date != original_end or
+                (trip.trip_status or 'planning') != original_trip_status
+            )
+            if _edit_meaningful:
+                _edit_notify_ids = [
+                    p.user_id for p in SkiTripParticipant.query.filter(
+                        SkiTripParticipant.trip_id == trip_id,
+                        SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                        SkiTripParticipant.user_id != trip.user_id,
+                    ).all()
+                ]
+                for _uid in _edit_notify_ids:
+                    emit_messaging_event(
+                        event_name=EventName.TRIP_DETAILS_UPDATED,
+                        actor_user_id=current_user.id,
+                        recipient_user_id=_uid,
+                        entity_type="trip",
+                        entity_id=trip.id,
+                        metadata={
+                            "actor_name": current_user.first_name or current_user.username,
+                            "resort":     trip.mountain or "your trip",
+                            "trip_id":    trip.id,
+                        },
+                        source_route="edit_trip_form",
+                    )
             flash("Changes saved.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
         except Exception as e:
@@ -11191,7 +11293,11 @@ def update_trip_accommodation(trip_id):
     data = request.json
     status = data.get("status")
     link = data.get("link")
-    
+
+    # Capture original values for change detection
+    _orig_accom_status = trip.accommodation_status
+    _orig_accom_link = trip.accommodation_link
+
     if status == 'none_yet' or not status:
         trip.accommodation_status = None
         trip.accommodation_link = None
@@ -11199,7 +11305,32 @@ def update_trip_accommodation(trip_id):
         trip.accommodation_status = status
         trip.accommodation_link = link
 
+    _accom_changed = (trip.accommodation_status != _orig_accom_status or
+                      trip.accommodation_link != _orig_accom_link)
+
     db.session.commit()
+    if _accom_changed:
+        _accom_notify_ids = [
+            p.user_id for p in SkiTripParticipant.query.filter(
+                SkiTripParticipant.trip_id == trip_id,
+                SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                SkiTripParticipant.user_id != trip.user_id,
+            ).all()
+        ]
+        for _uid in _accom_notify_ids:
+            emit_messaging_event(
+                event_name=EventName.TRIP_ACCOMMODATION_UPDATED,
+                actor_user_id=current_user.id,
+                recipient_user_id=_uid,
+                entity_type="trip",
+                entity_id=trip_id,
+                metadata={
+                    "actor_name": current_user.first_name or current_user.username,
+                    "resort":     trip.mountain or "your trip",
+                    "trip_id":    trip_id,
+                },
+                source_route="update_trip_accommodation",
+            )
     return jsonify({"status": "success"})
 
 
@@ -11372,10 +11503,31 @@ def trip_invite_token_accept(token):
         source_route="trip_invite_token_accept",
     )
 
+    # Notify other accepted participants (excluding accepter and owner)
+    _tit_other_accepted = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip.id,
+        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+        SkiTripParticipant.user_id != current_user.id,
+        SkiTripParticipant.user_id != trip.user_id,
+    ).all()
+    for _op in _tit_other_accepted:
+        emit_messaging_event(
+            event_name=EventName.TRIP_PARTICIPANT_ADDED,
+            actor_user_id=current_user.id,
+            recipient_user_id=_op.user_id,
+            entity_type="trip",
+            entity_id=trip.id,
+            metadata={
+                "resort":  trip.mountain or "your trip",
+                "trip_id": trip.id,
+            },
+            source_route="trip_invite_token_accept",
+        )
+
     # Clean up session key if present
     session.pop("trip_invite_token", None)
 
-    flash("You're going!", "trip")
+    flash("You're going!" if (trip.trip_status or 'planning') == 'going' else "You're planning!", "trip")
     return redirect(url_for("trip_detail", trip_id=trip.id))
 
 
@@ -11680,9 +11832,31 @@ def respond_to_trip_invite(trip_id):
             source_route="respond_to_trip_invite_accept",
         )
 
+        # Notify other accepted participants (excluding accepter and owner)
+        _other_accepted = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip.id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.user_id != current_user.id,
+            SkiTripParticipant.user_id != trip.user_id,
+        ).all()
+        for _op in _other_accepted:
+            emit_messaging_event(
+                event_name=EventName.TRIP_PARTICIPANT_ADDED,
+                actor_user_id=current_user.id,
+                recipient_user_id=_op.user_id,
+                entity_type="trip",
+                entity_id=trip.id,
+                metadata={
+                    "resort":  trip.mountain or "your trip",
+                    "trip_id": trip.id,
+                },
+                source_route="respond_to_trip_invite_accept",
+            )
+
+        _accept_msg = "You're going!" if (trip.trip_status or 'planning') == 'going' else "You're planning!"
         if request.is_json:
-            return jsonify({"success": True, "message": "You're going"})
-        flash("You're going", "success")
+            return jsonify({"success": True, "message": _accept_msg})
+        flash(_accept_msg, "success")
         return redirect(url_for("trip_detail", trip_id=trip_id))
     elif action == "decline":
         participant.status = GuestStatus.DECLINED
@@ -11697,8 +11871,9 @@ def respond_to_trip_invite(trip_id):
             entity_type="trip",
             entity_id=trip.id,
             metadata={
-                "trip_id": trip_id,
-                "resort":  trip.mountain or "",
+                "actor_name": current_user.first_name or current_user.username,
+                "trip_id":    trip_id,
+                "resort":     trip.mountain or "your trip",
             },
             source_route="respond_to_trip_invite_decline",
         )
@@ -11807,6 +11982,17 @@ def delete_trip_form(trip_id):
     if trip.user_id != current_user.id:
         abort(403)
 
+    # Capture notification data before hard delete (participant records cascade-delete with trip)
+    _del_resort = trip.mountain or "your trip"
+    _del_trip_id = trip.id
+    _del_notify_ids = [
+        p.user_id for p in SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip.id,
+            SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+            SkiTripParticipant.user_id != trip.user_id,
+        ).all()
+    ]
+
     try:
         # Clean up Invitation rows (bare FK, no cascade)
         Invitation.query.filter(Invitation.trip_id == trip.id).delete()
@@ -11816,6 +12002,20 @@ def delete_trip_form(trip_id):
         delete_activities_for_trip(trip_id)
         db.session.delete(trip)
         db.session.commit()
+        # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
+        for _uid in _del_notify_ids:
+            emit_messaging_event(
+                event_name=EventName.TRIP_CANCELLED,
+                actor_user_id=current_user.id,
+                recipient_user_id=_uid,
+                entity_type="trip",
+                entity_id=_del_trip_id,
+                metadata={
+                    "resort":  _del_resort,
+                    "trip_id": _del_trip_id,
+                },
+                source_route="delete_trip_form",
+            )
         app.logger.info(
             "[delete_trip_form] success route=delete_trip_form trip_id=%s user_id=%s",
             trip_id, current_user.id
@@ -11843,9 +12043,32 @@ def leave_trip(trip_id):
     ).first()
     if not participant:
         abort(403)
+    # Capture recipients before deletion (owner has ACCEPTED status, captured naturally)
+    _leave_resort = trip.mountain or "your trip"
+    _leave_trip_id = trip.id
+    _leave_notify_ids = [
+        p.user_id for p in SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip_id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.user_id != current_user.id,
+        ).all()
+    ]
     try:
         db.session.delete(participant)
         db.session.commit()
+        for _uid in _leave_notify_ids:
+            emit_messaging_event(
+                event_name=EventName.TRIP_PARTICIPANT_LEFT,
+                actor_user_id=current_user.id,
+                recipient_user_id=_uid,
+                entity_type="trip",
+                entity_id=_leave_trip_id,
+                metadata={
+                    "resort":  _leave_resort,
+                    "trip_id": _leave_trip_id,
+                },
+                source_route="leave_trip",
+            )
         app.logger.info(
             "[leave_trip] success trip_id=%s user_id=%s",
             trip_id, current_user.id

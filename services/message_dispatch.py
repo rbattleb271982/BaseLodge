@@ -160,6 +160,117 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         email_eligible=False,
     ),
 
+    # Generic push to other accepted participants when someone accepts
+    EventName.TRIP_PARTICIPANT_ADDED: EventSpec(
+        event_name=EventName.TRIP_PARTICIPANT_ADDED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="Someone accepted an invitation",
+        body_template="A new participant has been added to the {resort} trip.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
+    # Push to owner + remaining accepted participants when someone leaves
+    EventName.TRIP_PARTICIPANT_LEFT: EventSpec(
+        event_name=EventName.TRIP_PARTICIPANT_LEFT,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="A participant left the trip",
+        body_template="A participant has left the {resort} trip.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
+    # Push to accepted+invited participants when trip is hard-deleted
+    # url_template and deep_link_template both use /trips — original page is gone
+    EventName.TRIP_CANCELLED: EventSpec(
+        event_name=EventName.TRIP_CANCELLED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{resort} trip cancelled",
+        body_template="The trip has been cancelled by the organizer.",
+        deep_link_template="/trips",
+        url_template="/trips",
+        screen="trips",
+        context_keys=["resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
+    # Trip update events — separate names prevent cross-event dedupe suppression
+    # (a dates change and a resort change in the same hour must not suppress each other)
+    EventName.TRIP_DATES_UPDATED: EventSpec(
+        event_name=EventName.TRIP_DATES_UPDATED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="Trip updated from {actor_name}",
+        body_template="The details of the {resort} trip have changed.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
+    EventName.TRIP_RESORT_UPDATED: EventSpec(
+        event_name=EventName.TRIP_RESORT_UPDATED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="Trip updated from {actor_name}",
+        body_template="The details of the {resort} trip have changed.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
+    EventName.TRIP_DETAILS_UPDATED: EventSpec(
+        event_name=EventName.TRIP_DETAILS_UPDATED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="Trip updated from {actor_name}",
+        body_template="The details of the {resort} trip have changed.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
+    EventName.TRIP_ACCOMMODATION_UPDATED: EventSpec(
+        event_name=EventName.TRIP_ACCOMMODATION_UPDATED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="Trip updated from {actor_name}",
+        body_template="The details of the {resort} trip have changed.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
     # ── Automation event (active — currently unlogged friend.pass.changed path) ──
 
     EventName.FRIEND_PASS_CHANGED: EventSpec(
@@ -185,7 +296,14 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
     EventName.TRIP_INVITE_DECLINED: EventSpec(
         event_name=EventName.TRIP_INVITE_DECLINED,
         category=Category.TRIP,
-        delivery_strategy=DeliveryStrategy.SILENT,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} declined your invite",
+        body_template="They won't be participating in the {resort} trip.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
         bypass_dedupe=False,
         email_eligible=False,
     ),

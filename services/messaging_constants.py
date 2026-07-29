@@ -11,6 +11,15 @@ class EventName:
     TRIP_INVITE_ACCEPTED    = "trip.invite.accepted"
     TRIP_INVITE_DECLINED    = "trip.invite.declined"
 
+    # Participant lifecycle — active push events
+    TRIP_PARTICIPANT_ADDED      = "trip.participant.added"      # other accepted participants when someone accepts
+    TRIP_PARTICIPANT_LEFT       = "trip.participant.left"       # owner + remaining accepted participants when someone leaves
+    TRIP_CANCELLED              = "trip.cancelled"              # all active participants on trip deletion
+    TRIP_DATES_UPDATED          = "trip.dates.updated"          # active participants on inline date change
+    TRIP_RESORT_UPDATED         = "trip.resort.updated"         # active participants on inline resort change
+    TRIP_DETAILS_UPDATED        = "trip.details.updated"        # active participants on full edit form save
+    TRIP_ACCOMMODATION_UPDATED  = "trip.accommodation.updated"  # active participants on accommodation change
+
     FRIEND_REQUEST_CREATED  = "friend.request.created"
     FRIEND_REQUEST_ACCEPTED = "friend.request.accepted"
 
