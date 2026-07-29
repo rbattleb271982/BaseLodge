@@ -4349,15 +4349,52 @@ def mountains_tab():
     )
 
 
+# ── Per-user server-side response cache for /api/mountains-data ───────────────
+# Key: user_id (int). Value: {'etag': str, 'body': bytes, 'ts': float}.
+# TTL: 300 s — matches the Cache-Control max-age sent to clients.
+# Process-local: safe for both the single-process dev server and multi-worker
+# production deployments (each worker has its own memory; cross-worker
+# inconsistency is bounded by the TTL and is acceptable for resort reference data).
+_MOUNTAINS_CACHE_TTL = 300  # seconds
+_mountains_cache: dict = {}
+
+
 @app.route("/api/mountains-data")
 @login_required
 def api_mountains_data():
     """JSON feed for the Mountains tab. Called client-side on DOMContentLoaded.
     Reuses get_all_active_resorts_map() (Phase 1G lru_cache, ~0 ms) plus the
-    per-user friend_resort_counts query. Response is authenticated — not cached.
+    per-user friend_resort_counts query. Supports ETag / 304 conditional caching
+    and a short server-side per-user memory cache (TTL=300 s) to avoid repeated
+    DB queries and serialization within the same session window.
     """
     user = current_user
     _rp_t0 = time.perf_counter()
+    _now = time.monotonic()
+
+    # ── Server-side per-user cache check ──────────────────────────────────────
+    # If the cached entry is still fresh, skip all DB queries and serialization.
+    # ETag check is still performed so the client can receive a 304.
+    _cached = _mountains_cache.get(user.id)
+    if _cached and (_now - _cached['ts']) < _MOUNTAINS_CACHE_TTL:
+        etag = _cached['etag']
+        client_etag = request.headers.get('If-None-Match', '')
+        if app.debug:
+            print(f"[ROUTE_PERF] api_mountains_data cache_hit user={user.id} "
+                  f"age={_now - _cached['ts']:.0f}s match={client_etag == etag}")
+        if client_etag == etag:
+            _resp = app.response_class(status=304)
+            _resp.headers['ETag'] = etag
+            _resp.headers['Cache-Control'] = f'private, max-age={_MOUNTAINS_CACHE_TTL}'
+            return _resp
+        _resp = app.response_class(
+            response=_cached['body'],
+            status=200,
+            mimetype='application/json',
+        )
+        _resp.headers['ETag'] = etag
+        _resp.headers['Cache-Control'] = f'private, max-age={_MOUNTAINS_CACHE_TTL}'
+        return _resp
 
     _resort_map = get_all_active_resorts_map()
 
@@ -4440,14 +4477,46 @@ def api_mountains_data():
 
     if app.debug:
         print(f"[ROUTE_PERF] api_mountains.data_build={time.perf_counter()-_t:.4f}s resort_count={len(resorts_data)}")
-        print(f"[ROUTE_PERF] route=api_mountains_data total={time.perf_counter()-_rp_t0:.4f}s resort_count={len(resorts_data)}")
 
-    return jsonify({
+    # ── Serialize, compute ETag, cache, and return ─────────────────────────────
+    # sort_keys=True gives a canonical byte representation that is deterministic
+    # across Python versions, dict insertion orders, and process restarts.
+    # separators=(',', ':') produces compact JSON (no extra whitespace).
+    import json as _json_lib
+    _payload = {
         "resorts": resorts_data,
         "states_by_country": states_by_country,
         "all_passes": all_passes,
         "countries": countries,
-    })
+    }
+    _json_bytes = _json_lib.dumps(_payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+
+    # ETag: MD5 of the exact response body — stable across processes and restarts.
+    # Quoted per RFC 7232 §2.3.
+    etag = '"' + _hashlib.md5(_json_bytes).hexdigest() + '"'
+
+    # Store in per-user cache so future requests within the TTL skip DB + serialization.
+    _mountains_cache[user.id] = {'etag': etag, 'body': _json_bytes, 'ts': _now}
+
+    if app.debug:
+        print(f"[ROUTE_PERF] route=api_mountains_data total={time.perf_counter()-_rp_t0:.4f}s "
+              f"resort_count={len(resorts_data)} body_bytes={len(_json_bytes)}")
+
+    # Return 304 if the client already has this version.
+    if request.headers.get('If-None-Match', '') == etag:
+        _resp = app.response_class(status=304)
+        _resp.headers['ETag'] = etag
+        _resp.headers['Cache-Control'] = f'private, max-age={_MOUNTAINS_CACHE_TTL}'
+        return _resp
+
+    _resp = app.response_class(
+        response=_json_bytes,
+        status=200,
+        mimetype='application/json',
+    )
+    _resp.headers['ETag'] = etag
+    _resp.headers['Cache-Control'] = f'private, max-age={_MOUNTAINS_CACHE_TTL}'
+    return _resp
 
 
 @app.route("/trip-ideas")

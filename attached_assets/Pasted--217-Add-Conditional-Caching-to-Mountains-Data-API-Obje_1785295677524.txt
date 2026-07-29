@@ -1,0 +1,208 @@
+#217 - Add Conditional Caching to Mountains Data API
+
+## Objective
+
+Reduce repeated serialization and transfer of the full Mountains dataset returned by `api_mountains_data()`.
+
+The endpoint currently returns approximately 693 resorts whenever the Mountains tab requests the dataset, even when the underlying resort data has not changed.
+
+Implement a narrowly scoped HTTP caching improvement using ETag and appropriate Cache-Control headers.
+
+Do not change the returned JSON structure, resort data, filtering, sorting, permissions, or client behavior.
+
+---
+
+## Required Investigation
+
+Before changing code:
+
+1. Review `api_mountains_data()` completely.
+2. Identify:
+   - how the resort dataset is queried
+   - whether it varies by user
+   - whether any fields depend on session state
+   - whether the response is already compressed
+   - how frequently the underlying resort data changes
+3. Confirm that conditional caching is safe for the exact response produced.
+
+If any portion of the response is user-specific, do not make it publicly cacheable. Use private conditional caching or explain the issue.
+
+---
+
+## Required Implementation
+
+### 1. Add a Stable ETag
+
+Generate an ETag representing the current response content or the underlying data version.
+
+The ETag must change when data included in the response changes.
+
+Prefer a deterministic approach based on:
+
+- serialized response content
+- maximum updated timestamp, if reliable
+- row count plus a reliable data version
+- another existing stable version marker
+
+Do not use Python's built-in `hash()` because it is not stable across processes.
+
+---
+
+### 2. Support `If-None-Match`
+
+When the client sends an `If-None-Match` header matching the current ETag:
+
+- return HTTP 304 Not Modified
+- do not return the full JSON body
+- include the appropriate ETag header
+
+Preserve normal behavior when:
+
+- no `If-None-Match` header is sent
+- the ETag does not match
+- the dataset changes
+
+---
+
+### 3. Add Safe Cache-Control Headers
+
+Add an appropriate Cache-Control policy.
+
+Use a conservative TTL appropriate for resort reference data.
+
+Suggested starting point:
+
+`private, max-age=300`
+
+Use `public` only if the response is fully identical for every user and contains no private or session-specific data.
+
+Do not use `immutable` unless the URL itself is versioned.
+
+---
+
+### 4. Avoid Repeated Work Where Safely Possible
+
+If the endpoint currently:
+
+- queries all resorts
+- builds the same Python dictionaries
+- serializes the same JSON
+
+on every request, consider a short server-side in-process cache only if it can be added safely and locally.
+
+Any server-side cache must:
+
+- have a short TTL
+- be process-safe enough for the current deployment
+- fall back correctly after restart
+- not serve user-specific data to another user
+- not require Redis or new infrastructure
+- not introduce stale data beyond the documented TTL
+
+ETag support is required.
+
+A server-side memory cache is optional and should only be added if clearly safe.
+
+---
+
+## Preserve Existing Behavior
+
+Do not change:
+
+- endpoint URL
+- HTTP method
+- authentication requirements
+- JSON property names
+- JSON value types
+- resort ordering
+- filtering logic
+- null handling
+- error behavior
+- client-side Mountains code
+- templates
+- models
+- database schema
+
+---
+
+## Verification
+
+Verify all of the following:
+
+1. A normal request returns:
+   - HTTP 200
+   - the complete existing JSON body
+   - an ETag header
+   - a Cache-Control header
+
+2. A second request with the matching `If-None-Match` returns:
+   - HTTP 304
+   - no JSON body
+   - the same ETag
+
+3. A request with an incorrect ETag returns:
+   - HTTP 200
+   - the complete JSON body
+
+4. The JSON payload before and after the change is identical.
+
+5. Resort ordering is unchanged.
+
+6. Authentication and permissions are unchanged.
+
+7. The ETag changes when included resort data changes.
+
+8. No JavaScript console errors or Mountains screen regressions occur.
+
+9. Report:
+   - original response byte size
+   - 304 response byte size
+   - endpoint execution time before and after, if measurable
+
+---
+
+## Constraints
+
+Do not:
+
+- add Redis
+- add a background worker
+- add a database migration
+- change JavaScript
+- change the Mountains UI
+- change the response schema
+- cache user-specific data publicly
+- refactor unrelated routes
+- implement any other performance improvements
+
+---
+
+## Deliverables
+
+Provide:
+
+### Executive Summary
+
+### Files Changed
+
+### Existing Endpoint Behavior
+
+### Exact Implementation
+
+### ETag Generation Method
+
+### Cache-Control Policy and Rationale
+
+### Before and After Response Behavior
+
+### Payload and Timing Comparison
+
+### Privacy and User-Specific Data Review
+
+### Regression Results
+
+### Native Build Impact
+
+### Remaining Performance Work
+
+Do not implement anything outside this Mountains API caching task.

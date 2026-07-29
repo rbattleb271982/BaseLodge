@@ -1,0 +1,183 @@
+#218 - Ski Pass Resort Mapping Audit
+
+## Objective
+
+Audit BaseLodge’s complete resort-to-ski-pass mapping data and identify missing, incorrect, outdated, or inconsistent pass relationships.
+
+This is an investigation task only.
+
+Do not change code or data yet.
+
+The issue that triggered this audit is that Valle Nevado appears in BaseLodge but is not shown as an Ikon Pass destination, even though Valle Nevado is currently part of Ikon Pass access.
+
+---
+
+## Scope
+
+Search the entire repository and database-related setup for all ski-pass mappings, including:
+
+- Ikon Pass
+- Ikon Base Pass
+- Epic Pass
+- Epic Local Pass
+- Mountain Collective
+- Indy Pass
+- any regional or custom pass products
+
+Search for:
+
+- resort model fields
+- pass arrays or JSON fields
+- hard-coded resort lists
+- seed files
+- migrations
+- CSV or JSON imports
+- admin tools
+- API responses
+- Mountains filters
+- profile and trip displays
+- duplicated pass logic across Python, templates, and JavaScript
+
+---
+
+## 1. Diagnose Valle Nevado
+
+Determine exactly why Valle Nevado is not displaying as an Ikon destination.
+
+Report:
+
+- the Valle Nevado database record
+- its exact resort ID and normalized name
+- all pass-related fields currently stored
+- the code path used to display its passes
+- whether the issue is missing data, mismatched naming, stale seed data, filtering logic, or UI rendering
+- whether Valle Nevado is duplicated under another spelling or identifier
+
+Do not fix it during this task.
+
+---
+
+## 2. Document the Current Mapping Architecture
+
+Explain:
+
+- where resort-to-pass mappings are stored
+- whether each resort can belong to multiple passes
+- whether full and restricted pass products are distinguished
+- how mappings are created and updated
+- whether mappings are maintained manually
+- whether there is one source of truth
+- whether any mappings are duplicated in multiple files
+
+Provide exact files, functions, model fields, and relevant database structures.
+
+---
+
+## 3. Audit All Existing Resort-Pass Mappings
+
+Review every resort currently associated with each supported pass.
+
+Identify:
+
+- resorts missing from a pass
+- resorts assigned to the wrong pass
+- resorts with incomplete pass assignments
+- duplicate resort records causing mismatches
+- renamed resorts
+- closed or outdated resorts
+- international resorts omitted from mappings
+- pass products treated as equivalent when their access differs
+
+Group findings by pass product.
+
+---
+
+## 4. Review Pass Product Precision
+
+Determine whether BaseLodge currently distinguishes between products such as:
+
+- Ikon Pass
+- Ikon Base Pass
+- Ikon Session Pass
+- Epic Pass
+- Epic Local Pass
+
+Explain whether the current data model can accurately represent:
+
+- unlimited access
+- limited-day access
+- blackout dates
+- partner destinations
+- different access by pass tier
+
+Do not recommend building full blackout-date logic unless necessary to correct current display behavior.
+
+---
+
+## 5. Verify Current Source Data
+
+Identify the source originally used to populate pass mappings.
+
+Determine:
+
+- when it was last updated
+- whether it is still maintained
+- whether there is an existing import or refresh process
+- whether pass mappings are hard-coded and likely to become stale
+
+Where current external verification is required, compare against official pass-provider destination pages only.
+
+Clearly distinguish:
+
+- confirmed BaseLodge data errors
+- current official pass access
+- access limitations that BaseLodge cannot presently represent
+
+---
+
+## 6. Recommend the Smallest Safe Fix
+
+Recommend the smallest implementation needed to correct the data.
+
+Possible outcomes may include:
+
+- update one Valle Nevado record
+- correct a naming mismatch
+- update a seed or import file
+- repair multiple stale mappings
+- create one canonical mapping source
+- add a small data migration
+
+Do not propose a large ski-pass feature redesign unless the audit proves the current architecture cannot support accurate mappings.
+
+---
+
+## 7. Deliverables
+
+Provide:
+
+### Executive Summary
+
+### Valle Nevado Root Cause
+
+### Current Mapping Architecture
+
+### Source of Truth
+
+### Complete Mapping Errors Found
+
+### Pass-Tier Limitations
+
+### Recommended Fix
+
+### Exact Files or Records That Would Change
+
+### Whether a Migration Is Required
+
+### Regression Risks
+
+### Native Build Impact
+
+### Follow-Up Implementation Prompt
+
+Do not implement anything during this task.
