@@ -895,9 +895,19 @@
             line-height: 1;
             border-radius: 4px;
         }
+        /* ── Form inside modal-sheet must be a flex child itself ── */
+        .modal-sheet > form {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
         .modal-body {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
             padding: 16px 20px;
             background-color: var(--bl-color-surface);
         }
@@ -1258,7 +1268,7 @@
         {% if is_owner %}
         <p class="td-section-label">Trip Actions</p>
         <div class="td-swg-card">
-            <button type="button" class="td-swg-row" onclick="handleInviteClick()">
+            <button type="button" class="td-swg-row" onclick="openInviteModal()">
                 <span class="td-swg-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
                 </span>
@@ -1691,8 +1701,62 @@
             } catch (err) { console.error(err); }
         }
 
-        function handleInviteClick() { document.getElementById('inviteModal').classList.add('active'); document.body.classList.add('modal-open'); }
-        function closeInviteModal() { document.getElementById('inviteModal').classList.remove('active'); document.body.classList.remove('modal-open'); }
+        // ── Invite modal open / close with keyboard-aware sizing ──
+        // Single IIFE so _inviteVpUpdate/_inviteVpReset are named references
+        // that can be safely added and removed — no duplicate listeners.
+        (function () {
+            var _inviteVpListening = false;
+
+            function _inviteVpUpdate() {
+                var vp = window.visualViewport;
+                var overlay = document.getElementById('inviteModal');
+                if (!overlay || !vp) return;
+                var sheet = overlay.querySelector('.modal-sheet');
+                if (!sheet) return;
+                // Constrain the overlay to the visible area above the keyboard.
+                // Setting both top+height overrides the CSS bottom:0 on position:fixed.
+                overlay.style.top    = vp.offsetTop + 'px';
+                overlay.style.height = vp.height + 'px';
+                // max-height mirrors the CSS default ratio (85 %) applied to the
+                // visual viewport height — no double-reduction.
+                sheet.style.maxHeight = Math.floor(vp.height * 0.85) + 'px';
+            }
+
+            function _inviteVpReset() {
+                var overlay = document.getElementById('inviteModal');
+                if (!overlay) return;
+                overlay.style.top    = '';
+                overlay.style.height = '';
+                var sheet = overlay.querySelector('.modal-sheet');
+                if (sheet) sheet.style.maxHeight = '';
+            }
+
+            window.openInviteModal = function () {
+                var overlay = document.getElementById('inviteModal');
+                if (!overlay) return;
+                overlay.classList.add('active');
+                document.body.classList.add('modal-open');
+                if (window.visualViewport && !_inviteVpListening) {
+                    window.visualViewport.addEventListener('resize', _inviteVpUpdate);
+                    window.visualViewport.addEventListener('scroll', _inviteVpUpdate);
+                    _inviteVpListening = true;
+                }
+                // Run immediately so the sheet is already sized if keyboard is open.
+                _inviteVpUpdate();
+            };
+
+            window.closeInviteModal = function () {
+                var overlay = document.getElementById('inviteModal');
+                if (overlay) overlay.classList.remove('active');
+                document.body.classList.remove('modal-open');
+                if (window.visualViewport && _inviteVpListening) {
+                    window.visualViewport.removeEventListener('resize', _inviteVpUpdate);
+                    window.visualViewport.removeEventListener('scroll', _inviteVpUpdate);
+                    _inviteVpListening = false;
+                }
+                _inviteVpReset();
+            };
+        }());
         // Fire-and-forget share tracking — never blocks or throws.
         // token is extracted from the URL (last path segment after /trip-invite/).
         // source is always 'trip_detail'.

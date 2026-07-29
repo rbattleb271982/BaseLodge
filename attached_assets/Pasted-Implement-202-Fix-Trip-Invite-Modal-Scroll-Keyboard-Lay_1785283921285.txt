@@ -1,0 +1,110 @@
+Implement #202 — Fix Trip Invite Modal: Scroll + Keyboard Layout.
+
+Use the completed investigation report as the source of truth. Make only the changes required for the three confirmed issues below. Do not redesign the modal or change the invitation/search business logic.
+
+1. Restore the modal flex chain
+
+In templates/trip_detail.html, update form#inviteForm so it correctly participates in the .modal-sheet column layout.
+
+Apply the necessary properties:
+
+display: flex;
+flex-direction: column;
+flex: 1;
+min-height: 0;
+overflow: hidden;
+
+Confirm that:
+
+- .modal-body#friendsList remains the only vertically scrolling friend-list region
+- .modal-body retains flex: 1 and overflow-y: auto
+- the header, search field, footer, and external invite section do not become unintended scroll containers
+- the friend list can shrink within the available modal height
+
+Add appropriate iOS touch-scrolling behavior to .modal-body:
+
+-webkit-overflow-scrolling: touch;
+overscroll-behavior: contain;
+
+Do not apply scrolling to the entire page or modal overlay.
+
+2. Add keyboard-aware sizing for the Invite Friends modal
+
+Implement visualViewport handling for the Invite Friends modal using the existing resort-sheet implementation as a reference, but do not blindly copy a fixed percentage that may unnecessarily reduce the available space twice.
+
+Requirements:
+
+- When the iOS keyboard opens, size and position the invite sheet using the currently available visual viewport
+- Account for both window.visualViewport.height and window.visualViewport.offsetTop where relevant
+- Keep the sheet fully above the keyboard
+- Keep the search input visible
+- Preserve as much usable friend-list height as possible
+- Restore the normal 85vh sizing when the keyboard closes
+- Preserve safe-area behavior
+- Do not alter Android or desktop behavior when visualViewport is unavailable
+
+Use named functions for the resize logic so listeners can be safely added and removed.
+
+Avoid:
+
+- registering duplicate visualViewport listeners every time the modal opens
+- leaving listeners active unnecessarily after the modal closes
+- permanently writing an inline max-height that is not reset
+- using setTimeout as the primary fix
+- relying only on scrollIntoView()
+
+The lifecycle should be explicit:
+
+- Opening the invite modal attaches or activates the viewport handler
+- The handler runs immediately after opening
+- Closing the modal removes or deactivates the handler
+- Closing resets any inline height, max-height, bottom, or transform values added by the handler
+
+Also handle visualViewport scroll events if required on iOS, because offsetTop can change without a resize event.
+
+3. Fix the undefined modal-opening function
+
+The post-trip-creation success card currently calls openInviteModal(), while the existing implementation is named handleInviteClick().
+
+Fix this without duplicating modal-opening logic.
+
+Either:
+
+- rename the existing function and update all references consistently, or
+- expose a deliberate openInviteModal alias that calls the single existing implementation
+
+Search the entire codebase for both function names before changing them. Confirm every Invite Friends entry point opens the same modal through one canonical function.
+
+4. Regression safeguards
+
+Do not change:
+
+- friend filtering logic
+- checkbox selection behavior
+- invite submission
+- external invite functionality
+- resort sheet behavior
+- other trip-detail bottom sheets
+- modal visual design beyond what is necessary for sizing and scrolling
+
+After implementation, report:
+
+- Exact files and lines changed
+- Before-and-after explanation for each change
+- How listener duplication and cleanup are prevented
+- How normal modal sizing is restored after keyboard dismissal and modal close
+- All references found for handleInviteClick and openInviteModal
+- Any limitations of testing iOS WKWebView behavior in the Replit environment
+
+Validation required:
+
+1. Open Invite Friends with a long friend list and confirm the friend rows scroll while the header, search field, and footer remain appropriately positioned.
+2. Enter a search term and confirm filtered results remain visible and scrollable.
+3. Simulate visualViewport shrinking and confirm the sheet fits inside the available viewport.
+4. Restore the viewport and confirm the normal 85vh sizing returns.
+5. Open and close the modal multiple times and verify no duplicate resize or scroll listeners accumulate.
+6. Confirm the post-creation “Invite Friends →” action opens the modal.
+7. Confirm no JavaScript console errors.
+8. Confirm no regression to the resort sheet or other modals.
+
+Make the implementation now, then return the change and validation report.

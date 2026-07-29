@@ -1,0 +1,55 @@
+BaseLodge — iOS Trip Invite Modal Investigation
+
+Do not make any code changes yet. I want a complete investigation report first.
+
+There appear to be at least two UI issues in the "Invite Friends" modal accessed from Trip Setup.
+
+Issue 1 — Friend list cannot scroll
+• Open any trip.
+• Tap Invite Friends.
+• The friend list displays correctly but cannot be vertically scrolled, even though there are more friends than fit on the screen.
+• Determine why touch scrolling is not working.
+• Identify exactly which element is intended to own scrolling.
+• Check for:
+  - overflow: hidden
+  - fixed-height containers
+  - nested scroll views
+  - IonModal / IonContent interactions
+  - gesture handlers intercepting touch events
+  - pointer-events issues
+  - z-index overlays
+  - CSS affecting momentum scrolling on iOS
+  - Capacitor or Ionic scrolling configuration
+
+Issue 2 — Search field with keyboard
+• Tap inside the Search Friends field.
+• When the iOS keyboard appears, the modal no longer lays out correctly.
+• Search results disappear behind the keyboard and the remaining content cannot be scrolled.
+• Determine whether this is caused by:
+  - Capacitor Keyboard resize mode
+  - IonModal sizing
+  - viewport resizing
+  - safe-area handling
+  - fixed heights
+  - keyboard event handling
+  - incorrect CSS calculations
+
+Investigation requirements
+
+1. Identify every component involved from the button tap through modal rendering.
+2. Trace the entire component hierarchy.
+3. Identify which CSS rules control sizing and scrolling.
+4. Explain why this only occurs (or primarily occurs) on iOS.
+5. Determine whether both symptoms share the same root cause or are independent bugs.
+6. List every possible root cause considered and eliminate each one with evidence.
+7. If the cause is identified, describe the proper architectural fix—not a temporary CSS workaround.
+8. Do not modify any code until the investigation is complete.
+
+Deliverables
+
+• Root cause analysis
+• Files involved
+• Components involved
+• Exact lines responsible (if identified)
+• Recommended fix
+• Confidence level

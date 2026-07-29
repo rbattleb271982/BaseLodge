@@ -1,0 +1,90 @@
+Observed behavior:
+
+1. On iOS, the friend list inside the "Invite Friends" modal cannot be vertically scrolled, even though there are more friends than fit on the screen.
+
+2. When the search field is focused and the iOS keyboard appears, the modal layout no longer works correctly. The friend results are obscured behind the keyboard, and the list still cannot be scrolled.
+
+Investigate these two symptoms and determine whether they share the same root cause or are separate issues.
+
+Do not make any code changes yet. Complete the investigation and return the findings first.
+
+Investigate the iOS Trip Invite Modal in this codebase. I need a complete component trace for:
+
+1. The "Invite Friends" button on the Trip Setup/Detail page
+2. The modal that opens, including its component name and file path
+3. The full component hierarchy inside the modal
+4. All CSS rules controlling sizing, height, overflow, and scrolling for the friend list
+5. The search input and keyboard handling
+6. Any IonModal, IonContent, IonList, or related Ionic component usage
+7. Any gesture handlers, touch listeners, overlays, or event interceptors
+8. Capacitor Keyboard plugin configuration
+9. Any fixed heights, max-heights, overflow: hidden, touch-action, pointer-events, or -webkit-overflow-scrolling settings
+10. Any modal breakpoints, initialBreakpoint, expandToScroll, backdropDismiss, or handleBehavior settings
+11. Any global CSS or page-level styles that could affect modal scrolling
+12. Any iOS-specific code or CSS that changes viewport or keyboard behavior
+
+Search for terms including:
+
+InviteFriends
+invite-friends
+TripInvite
+trip-invite
+friend list
+friend-list
+FriendList
+Invite Friends
+IonModal
+IonContent
+IonList
+Keyboard
+keyboardDidShow
+keyboardWillShow
+keyboardDidHide
+keyboardWillHide
+overflow
+touch-action
+pointer-events
+webkit-overflow-scrolling
+initialBreakpoint
+breakpoints
+expandToScroll
+
+Also check:
+
+- capacitor.config files
+- app.module or app bootstrap files
+- Ionic configuration
+- keyboard resize mode
+- global CSS/SCSS
+- any relevant .tsx, .ts, .js, .jsx, .css, .scss, or HTML/template files
+
+For each relevant element, determine:
+
+- Which element is intended to own vertical scrolling
+- Whether that element has a constrained height
+- Whether an ancestor has overflow: hidden
+- Whether nested scroll containers exist
+- Whether the modal content exceeds the viewport
+- Whether touch events are being intercepted
+- Whether keyboard appearance changes the viewport height
+- Whether the modal recalculates its available height after the keyboard opens
+- Whether filtered search results remain mounted but are hidden behind the keyboard
+- Whether the issue is specific to native iOS, Safari, Capacitor, or all environments
+
+Return:
+
+- Exact file paths and line numbers for every relevant component and style
+- The complete component/element tree from the Trip page button through the friend rows
+- Every CSS rule affecting scrolling, overflow, height, positioning, touch behavior, or keyboard layout
+- All IonModal props used
+- All keyboard plugin configuration and keyboard event handling
+- Root Cause A and Root Cause B if the issues are separate
+- A single combined root cause if both symptoms come from the same issue
+- Evidence supporting the diagnosis
+- Alternative causes considered and why they were eliminated
+- The proper architectural fix
+- Any regression risks
+- A recommended test plan for iOS after implementation
+- Confidence level
+
+Do not implement the fix until I review and approve the investigation report.
