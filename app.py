@@ -2072,6 +2072,80 @@ _run_invite_share_event_migration()
 
 
 # ============================================================================
+# PERFORMANCE INDEXES — four composite indexes identified in the App
+# Performance Audit (July 2026). All use CREATE INDEX IF NOT EXISTS so the
+# migration is fully idempotent across restarts.
+#
+# Rollback:
+#   DROP INDEX IF EXISTS idx_activity_recipient_type_time;
+#   DROP INDEX IF EXISTS idx_invitation_receiver_status;
+#   DROP INDEX IF EXISTS idx_ski_trip_user_end_date;
+#   DROP INDEX IF EXISTS idx_ski_trip_participant_user_status;
+# ============================================================================
+def run_perf_index_migration():
+    """Add four performance indexes identified in the July 2026 audit.
+
+    1. idx_activity_recipient_type_time
+       Columns: (recipient_user_id, type, created_at DESC)
+       Supports: inject_notif_count() context processor (runs on every
+       authenticated page load) and notifications() route, both of which
+       filter Activity by recipient_user_id and type. Without this index
+       these queries perform a sequential scan of the entire activity table.
+
+    2. idx_invitation_receiver_status
+       Columns: (receiver_id, status)
+       Partial:  WHERE trip_id IS NULL
+       Supports: inject_pending_friend_count() context processor (runs on
+       every authenticated page load), which filters Invitation by
+       receiver_id, status='pending', and trip_id IS NULL. The existing
+       UniqueConstraint('sender_id', 'receiver_id', 'trip_id') has
+       sender_id as its leading column, making it useless for receiver_id-
+       only lookups. The partial clause restricts the index to friend
+       invitations (trip invites have trip_id set), keeping it small.
+
+    3. idx_ski_trip_user_end_date
+       Columns: (user_id, end_date)
+       Supports: home(), my_trips(), friends(), friend_profile(), and
+       trip_detail() routes, all of which filter SkiTrip on
+       user_id = X AND end_date >= today. No index existed on either
+       column; every trip query performed a full table scan.
+
+    4. idx_ski_trip_participant_user_status
+       Columns: (user_id, status)
+       Supports: accepted-participant lookups across home(), my_trips(),
+       friends(), and trip_detail(). The existing UniqueConstraint
+       ('trip_id', 'user_id') has trip_id as its leading column, making
+       it unusable for user_id-only or user_id+status queries.
+    """
+    try:
+        with app.app_context():
+            with db.engine.begin() as conn:
+                conn.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_activity_recipient_type_time
+                    ON activity (recipient_user_id, type, created_at DESC)
+                """))
+                conn.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_invitation_receiver_status
+                    ON invitation (receiver_id, status)
+                    WHERE trip_id IS NULL
+                """))
+                conn.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_ski_trip_user_end_date
+                    ON ski_trip (user_id, end_date)
+                """))
+                conn.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_ski_trip_participant_user_status
+                    ON ski_trip_participant (user_id, status)
+                """))
+        print("perf_index_migration: all 4 performance indexes ready.")
+    except Exception as _e:
+        print(f"perf_index_migration: skipped ({_e})")
+
+
+run_perf_index_migration()
+
+
+# ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
 from utils.resort_utils import get_ambiguous_resort_names, resort_display_name as _resort_display_name

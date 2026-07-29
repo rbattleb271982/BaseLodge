@@ -1,0 +1,128 @@
+#215 - Database Index Performance Improvements
+
+## Objective
+
+Implement only the database index improvements identified in the App Performance Audit.
+
+Do not make any application logic changes.
+
+Do not refactor queries.
+
+Do not modify routes.
+
+Do not change templates.
+
+Do not alter user-visible behavior.
+
+The goal is only to add the missing indexes that improve the most common query patterns.
+
+---
+
+## Implement
+
+Review the existing SQLAlchemy models and migration approach used by BaseLodge.
+
+Add the following indexes using the project's normal migration strategy.
+
+### 1. Activity
+
+Create an index supporting:
+
+recipient_user_id
+type
+created_at DESC
+
+Used by:
+
+- inject_notif_count()
+- notifications()
+
+---
+
+### 2. Invitation
+
+Create an index supporting:
+
+receiver_id
+status
+
+Only for friend invitations (trip_id IS NULL if using a partial index and supported by the project's database).
+
+---
+
+### 3. SkiTrip
+
+Create an index supporting:
+
+user_id
+end_date
+
+Used by:
+
+- home()
+- my_trips()
+- friends()
+- friend_profile()
+- trip_detail()
+
+---
+
+### 4. SkiTripParticipant
+
+Create an index supporting:
+
+user_id
+status
+
+Used throughout the application for accepted participant lookups.
+
+---
+
+## Requirements
+
+Follow the project's existing migration conventions.
+
+Do not duplicate existing indexes.
+
+If an equivalent index already exists, explain why no change was made.
+
+If PostgreSQL partial indexes or concurrent indexes are appropriate, use them only if they fit the project's migration strategy.
+
+---
+
+## Regression
+
+Verify:
+
+- Existing migrations still apply cleanly.
+- No duplicate indexes.
+- No model behavior changes.
+- No route changes.
+- No template changes.
+- No JavaScript changes.
+
+---
+
+## Deliverables
+
+Provide:
+
+### Executive Summary
+
+### Files Changed
+
+### Exact Index Definitions
+
+### Why Each Index Helps
+
+### Existing Indexes Reviewed
+
+### Migration Verification
+
+### Expected Qualitative Performance Improvement
+
+### Native Build Impact
+
+### Remaining Performance Work
+
+Do not implement any additional optimizations outside the four indexes.
