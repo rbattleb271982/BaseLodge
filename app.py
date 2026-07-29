@@ -2167,8 +2167,11 @@ def _run_pass_mapping_correction_migration():
       - Wintergreen was mapped Epic; not listed under Vail Resorts in NSAA
         ownership. Own website does not advertise Epic. Cannot confirm current
         official affiliation. Reverted per spec instruction for ambiguous mappings.
+      - Snow Trails was mapped Epic; post-verification the Vail Resorts newsroom
+        citation was found to be stale. Snow Trails (OH) is not a current Epic
+        Pass destination. Epic row reverted.
 
-    Final verified set: 74 corrections (11 Epic + 63 Ikon).
+    Final verified set: 73 corrections (10 Epic + 63 Ikon).
 
     Structure:
       Phase 1 — _REVERTS: remove incorrect/stale pass rows applied in the original
@@ -2194,6 +2197,8 @@ def _run_pass_mapping_correction_migration():
          'Unsupported: independent "Perfect Family" owner; no Vail/Epic affiliation'),
         ('wintergreen-us',          'Epic',
          'Ambiguous: not in NSAA Vail list; own website does not advertise Epic'),
+        ('snow-trails-us',           'Epic',
+         'Stale citation: Snow Trails (OH) is not a current Epic Pass destination'),
     ]
 
     # ── Phase 2: Verified corrections ────────────────────────────────────────
@@ -2203,8 +2208,8 @@ def _run_pass_mapping_correction_migration():
     # For resorts with MountainCollective+Other (Jackson Hole, Snowbird, Sugarbush,
     # Sun Valley, Taos), Other is also removed — it misrepresents Ikon affiliation.
     _CORRECTIONS = [
-        # ── Epic (11 verified — Hafjell, Kvitfjell, Loon Mountain, Perfect North
-        #          Slopes, and Wintergreen removed after official-source review) ──
+        # ── Epic (10 verified — Hafjell, Kvitfjell, Loon Mountain, Perfect North
+        #          Slopes, Wintergreen, and Snow Trails removed after review) ──────
         ('fernie-alpine-resort-ca',  'Epic', False),
         ('heavenly-us',              'Epic', True),
         ('kicking-horse-mountain-ca','Epic', False),
@@ -2214,7 +2219,6 @@ def _run_pass_mapping_correction_migration():
         ('nakiska-ca',               'Epic', False),
         ('northstar-us',             'Epic', True),
         ('pontedilegnotonale-it',    'Epic', False),
-        ('snow-trails-us',           'Epic', False),
         ('telluride-us',             'Epic', False),
         # ── Ikon (63 verified — Loon Mountain corrected from Epic to Ikon) ────
         ('alta-us',                  'Ikon', True),

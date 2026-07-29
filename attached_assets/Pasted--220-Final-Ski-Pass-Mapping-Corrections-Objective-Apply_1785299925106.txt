@@ -1,0 +1,510 @@
+#220 - Final Ski Pass Mapping Corrections
+
+## Objective
+
+Apply the final confirmed ski-pass mapping corrections following Task #219.
+
+The required outcomes are:
+
+* Remove the incorrect Epic mapping from Snow Trails.
+* Keep Fernie Alpine Resort on Epic.
+* Keep Kicking Horse Mountain Resort on Epic.
+* Keep Nakiska on Epic.
+* Correct the report language so those three Canadian resorts are described as Epic partner destinations through Resorts of the Canadian Rockies, not as Vail Resorts-owned destinations.
+* Recalculate the final correction totals accurately.
+
+This is a targeted implementation and reporting task.
+
+Do not perform another broad audit of all 78 resorts.
+
+---
+
+# Confirmed Final Decisions
+
+## Snow Trails
+
+Resort:
+
+```text
+ID: 606
+Name: Snow Trails
+Slug: snow-trails-us
+```
+
+Final decision:
+
+```text
+Snow Trails is not an Epic Pass destination.
+```
+
+Required action:
+
+* Remove `snow-trails-us → Epic` from the correction migration.
+* Add `snow-trails-us → Epic` to the idempotent revert phase.
+* Remove the Epic `ResortPass` row created by Task #218.
+* Synchronize `Resort.pass_brands_json` so Epic is no longer present.
+* Preserve all unrelated resort fields.
+* Do not assign Snow Trails to another pass without confirmed evidence.
+
+Final expected state:
+
+```text
+ResortPass rows: none, unless another valid pre-existing pass relationship exists
+pass_brands_json: no Epic value
+Epic filter: Snow Trails does not appear
+```
+
+---
+
+## Fernie Alpine Resort
+
+Resort:
+
+```text
+ID: 133
+Name: Fernie Alpine Resort
+Slug: fernie-alpine-resort-ca
+```
+
+Final decision:
+
+```text
+Fernie Alpine Resort remains Epic.
+```
+
+Do not remove or change its Epic mapping.
+
+Correct the explanation to:
+
+```text
+Epic Pass partner destination through Resorts of the Canadian Rockies.
+```
+
+Do not describe Fernie as owned by Vail Resorts.
+
+---
+
+## Kicking Horse Mountain Resort
+
+Resort:
+
+```text
+ID: 134
+Name: Kicking Horse Mountain Resort
+Slug: kicking-horse-mountain-ca
+```
+
+Final decision:
+
+```text
+Kicking Horse Mountain Resort remains Epic.
+```
+
+Do not remove or change its Epic mapping.
+
+Correct the explanation to:
+
+```text
+Epic Pass partner destination through Resorts of the Canadian Rockies.
+```
+
+Do not describe Kicking Horse as owned by Vail Resorts.
+
+---
+
+## Nakiska
+
+Resort:
+
+```text
+ID: 127
+Name: Nakiska
+Slug: nakiska-ca
+```
+
+Final decision:
+
+```text
+Nakiska remains Epic.
+```
+
+Do not remove or change its Epic mapping.
+
+Correct the explanation to:
+
+```text
+Epic Pass partner destination through Resorts of the Canadian Rockies.
+```
+
+Do not describe Nakiska as owned by Vail Resorts.
+
+---
+
+# 1. Update the Migration
+
+Review:
+
+```python
+_run_pass_mapping_correction_migration()
+```
+
+Make the following exact changes.
+
+## Remove Snow Trails from corrections
+
+Remove the Snow Trails Epic entry from `_CORRECTIONS`.
+
+Expected removal:
+
+```python
+('snow-trails-us', 'Epic', ...)
+```
+
+Use the actual tuple structure currently present in the code.
+
+## Add Snow Trails to reverts
+
+Add Snow Trails to `_REVERTS` using the existing structure.
+
+Example:
+
+```python
+('snow-trails-us', 'Epic')
+```
+
+The revert must:
+
+* locate the resort by exact slug
+* remove only the Epic `ResortPass` row introduced by the correction task
+* leave any unrelated valid pass relationships intact
+* synchronize `pass_brands_json`
+* be safe to run repeatedly
+
+Do not change the existing retained mappings for:
+
+* Fernie Alpine Resort
+* Kicking Horse Mountain Resort
+* Nakiska
+
+---
+
+# 2. Preserve Existing Confirmed Task #219 Changes
+
+Keep these previously confirmed corrections unchanged:
+
+## Loon Mountain
+
+```text
+Epic removed
+Ikon added
+Final state: Ikon
+```
+
+## Hafjell
+
+```text
+Epic removed
+Final state: no confirmed pass
+```
+
+## Kvitfjell
+
+```text
+Epic removed
+Final state: no confirmed pass
+```
+
+## Perfect North Slopes
+
+```text
+Epic removed
+Final state: no confirmed pass
+```
+
+## Wintergreen
+
+```text
+Epic removed
+Final state: no confirmed pass
+```
+
+Do not reintroduce any of these reverted Epic rows.
+
+---
+
+# 3. Correct Evidence and Ownership Language
+
+Search the Task #219 report, code comments, migration comments, and any generated documentation for statements describing these resorts as Vail Resorts-owned:
+
+* Fernie Alpine Resort
+* Kicking Horse Mountain Resort
+* Nakiska
+
+Replace incorrect ownership language with:
+
+```text
+Epic Pass partner destination through Resorts of the Canadian Rockies.
+```
+
+Clearly distinguish:
+
+```text
+Vail Resorts-owned destination
+```
+
+from:
+
+```text
+Epic Pass partner destination
+```
+
+Do not change the pass mapping simply because the previous ownership explanation was inaccurate.
+
+---
+
+# 4. Recalculate Final Counts
+
+Calculate the final numbers directly from the migration and database.
+
+The expected reconciliation is:
+
+```text
+Original Task #218 entries reviewed: 78
+
+Retained unchanged: 72
+Corrected to a different pass: 1
+Reverted: 5
+
+72 + 1 + 5 = 78
+```
+
+The five reverted resorts should be:
+
+1. Hafjell
+2. Kvitfjell
+3. Perfect North Slopes
+4. Wintergreen
+5. Snow Trails
+
+The one corrected resort should be:
+
+1. Loon Mountain: Epic → Ikon
+
+The final active correction set should contain:
+
+```text
+73 verified mappings
+```
+
+This represents:
+
+```text
+72 retained original corrections
++ 1 corrected mapping
+= 73 final verified mappings
+```
+
+Do not reuse old totals without calculating them from the actual final code and database.
+
+---
+
+# 5. Database Validation
+
+After applying the migration, confirm the exact final state.
+
+## Snow Trails
+
+Verify:
+
+* no Epic `ResortPass` row exists
+* `pass_brands_json` does not contain Epic
+* Snow Trails does not appear under the Epic filter
+* no unrelated resort fields changed
+
+## Fernie Alpine Resort
+
+Verify:
+
+* Epic `ResortPass` row exists
+* `pass_brands_json` contains Epic
+* Fernie appears under the Epic filter
+
+## Kicking Horse Mountain Resort
+
+Verify:
+
+* Epic `ResortPass` row exists
+* `pass_brands_json` contains Epic
+* Kicking Horse appears under the Epic filter
+
+## Nakiska
+
+Verify:
+
+* Epic `ResortPass` row exists
+* `pass_brands_json` contains Epic
+* Nakiska appears under the Epic filter
+
+## Previously corrected resorts
+
+Verify:
+
+* Loon Mountain appears under Ikon, not Epic
+* Valle Nevado appears under Ikon
+* Lutsen Mountains appears under Ikon
+* Hafjell does not appear under Epic
+* Kvitfjell does not appear under Epic
+* Perfect North Slopes does not appear under Epic
+* Wintergreen does not appear under Epic
+
+---
+
+# 6. Idempotency Validation
+
+Run the migration twice.
+
+First run should:
+
+* revert Snow Trails Epic
+* preserve all other final states
+* report the exact change
+
+Second run should:
+
+* make zero additional database changes
+* count Snow Trails as already reverted
+* create no duplicate `ResortPass` rows
+* produce no errors
+
+Report both migration logs.
+
+---
+
+# 7. Application Validation
+
+Validate the API output from:
+
+```python
+get_all_active_resorts_map()
+```
+
+Confirm the final `pass_keys` and `pass_labels` for:
+
+* Snow Trails
+* Fernie Alpine Resort
+* Kicking Horse Mountain Resort
+* Nakiska
+* Loon Mountain
+* Valle Nevado
+* Lutsen Mountains
+
+Expected results:
+
+```text
+Snow Trails: no Epic
+Fernie Alpine Resort: Epic
+Kicking Horse Mountain Resort: Epic
+Nakiska: Epic
+Loon Mountain: Ikon
+Valle Nevado: Ikon
+Lutsen Mountains: Ikon
+```
+
+Also confirm:
+
+* no duplicate pass labels
+* no unrelated resort mappings changed
+* no user `pass_type` values changed
+* server startup remains clean
+
+---
+
+# 8. Deliverable
+
+Provide a complete implementation report with these sections.
+
+## Executive Summary
+
+State that Snow Trails was removed from Epic while Fernie, Kicking Horse, and Nakiska remain Epic.
+
+## Files Changed
+
+List every changed file.
+
+## Exact Migration Changes
+
+Show the Snow Trails entry before and after.
+
+## Database Changes
+
+Show:
+
+* Snow Trails before and after
+* Fernie final state
+* Kicking Horse final state
+* Nakiska final state
+
+## Ownership Language Corrections
+
+List every incorrect Vail ownership statement that was corrected.
+
+## Final Count Reconciliation
+
+Show:
+
+```text
+72 retained
+1 corrected
+5 reverted
+78 total reviewed
+73 final verified mappings
+```
+
+Use actual calculated values and explain any difference.
+
+## Validation Results
+
+Include:
+
+* database results
+* API results
+* filter results
+* first migration run
+* second idempotency run
+
+## Native Build Impact
+
+Confirm whether:
+
+* Capacitor sync is required
+* an iOS rebuild is required
+* an Android rebuild is required
+
+Expected answer: no native rebuild, because this is server-side data and Python migration logic only.
+
+---
+
+# Constraints
+
+Do not:
+
+* remove Epic from Fernie
+* remove Epic from Kicking Horse
+* remove Epic from Nakiska
+* assign Snow Trails to another pass
+* re-audit unrelated resorts
+* add pass tiers
+* add blackout dates
+* redesign the ski-pass architecture
+* modify user pass preferences
+* change unrelated resort fields
+* make unrelated cleanup changes
+
+The final result must be:
+
+```text
+Snow Trails: not Epic
+Fernie Alpine Resort: Epic
+Kicking Horse Mountain Resort: Epic
+Nakiska: Epic
+```
