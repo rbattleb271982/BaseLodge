@@ -1,0 +1,378 @@
+#218 - Correct Ski Pass Resort Mappings
+
+## Objective
+
+Correct the confirmed resort-to-ski-pass mapping errors identified during the Ski Pass Resort Mapping Audit.
+
+The immediate known issue is that Valle Nevado is currently displayed as `Other` instead of `Ikon`.
+
+This is an implementation task.
+
+Make only the smallest safe code and data changes needed to ensure that BaseLodge displays accurate ski-pass associations for Valle Nevado and every other resort confirmed as incorrect by the audit.
+
+Do not redesign the ski-pass architecture.
+
+Do not add blackout-date logic.
+
+Do not create pass-tier functionality.
+
+Do not change user pass preferences.
+
+---
+
+# Required Approach
+
+Before changing anything:
+
+1. Complete and document the live-data verification described below.
+2. Confirm the exact source of every incorrect mapping.
+3. Correct all confirmed mapping errors in one controlled update.
+4. Ensure the canonical data source, database records, and displayed results remain aligned.
+
+Do not rely only on CSV files without verifying the live database and current display logic.
+
+---
+
+# 1. Verify the Current Mapping Architecture
+
+Confirm the current behavior of:
+
+* `ResortPass`
+* `Resort.pass_brands_json`
+* legacy `Resort.pass_brands`
+* `_RESORT_PASS_OVERRIDES`
+* `get_all_active_resorts_map()`
+* resort import scripts
+* resort pass backfill scripts
+* admin pass-management tools
+
+Document the exact priority order used to determine which passes are displayed.
+
+Confirm which source is intended to be canonical.
+
+Do not create a new storage system.
+
+---
+
+# 2. Verify Valle Nevado
+
+Query the live database for Valle Nevado and report:
+
+* Resort ID
+* exact resort name
+* slug
+* active status
+* `pass_brands`
+* `pass_brands_json`
+* all associated `ResortPass` rows
+* the final pass value returned by `get_all_active_resorts_map()`
+
+Confirm whether the existing incorrect display is caused by:
+
+* a missing `ResortPass` row
+* an incorrect `ResortPass` row
+* stale import data
+* a name or slug mismatch
+* a legacy fallback
+* an override
+* another issue
+
+Valle Nevado must display as an Ikon destination after the correction.
+
+Do not represent access as unlimited or guaranteed. BaseLodge should only show the pass brand association currently supported by the existing product.
+
+---
+
+# 3. Establish the Confirmed Correction List
+
+Use the completed audit findings and the existing repository files as inputs, including:
+
+* `pass_mountain_audit.csv`
+* `exports/resort_import_validation.csv`
+* `all_resorts_export.csv`
+* `scripts/backfill_resort_passes.py`
+* `scripts/import_resorts.py`
+* any existing admin export or validation files
+
+For every proposed correction, include:
+
+* resort ID
+* resort name
+* slug
+* current stored pass association
+* correct pass association
+* evidence supporting the correction
+* whether the correction affects:
+
+  * `ResortPass`
+  * `pass_brands_json`
+  * legacy `pass_brands`
+  * an import or seed file
+  * an override
+
+Only correct mappings that can be confirmed.
+
+Do not guess.
+
+If an audit finding cannot be verified, list it separately and leave it unchanged.
+
+---
+
+# 4. Correct the Canonical Database Records
+
+Correct all confirmed pass mappings in the canonical database structure.
+
+Requirements:
+
+* Add missing `ResortPass` rows.
+* Remove incorrect `ResortPass` rows.
+* Preserve valid existing pass associations.
+* Support resorts belonging to more than one pass.
+* Avoid duplicate rows.
+* Do not remove valid secondary passes.
+* Do not modify unrelated resort data.
+* Do not modify user pass selections.
+
+Use the project’s normal data-migration or startup-migration convention.
+
+The correction must be:
+
+* idempotent
+* safe across repeated deployments
+* transactional where appropriate
+* logged clearly
+* limited to explicitly identified resort records
+
+Prefer stable identifiers such as resort IDs or slugs rather than loose display-name matching.
+
+If a resort cannot be safely located by a stable identifier, do not update it automatically.
+
+---
+
+# 5. Keep Supporting Data Sources Aligned
+
+Update any repository-controlled source file that would otherwise reintroduce the incorrect mapping during a future import or backfill.
+
+This may include:
+
+* import CSVs
+* validation CSVs
+* seed data
+* backfill dictionaries
+* import mappings
+* audit reference files
+
+Do not update generated exports unless they are intentionally maintained as source files.
+
+Clearly distinguish between:
+
+* canonical source files
+* generated validation output
+* historical audit output
+
+The same mapping error must not return the next time resort data is imported.
+
+---
+
+# 6. Review Existing Display Overrides
+
+Review `_RESORT_PASS_OVERRIDES`.
+
+For each override:
+
+* explain why it exists
+* determine whether the canonical database mapping can now replace it
+* remove it only if the database correction makes it unnecessary and behavior remains identical
+
+Do not automatically remove all overrides.
+
+If an override is still needed for a confirmed reason, retain it and document why.
+
+Do not add Valle Nevado to the override dictionary as the primary fix if the database can be corrected properly.
+
+The preferred solution is accurate canonical data, not another display-only exception.
+
+---
+
+# 7. Preserve Existing Product Behavior
+
+Do not change:
+
+* the pass names currently supported by BaseLodge
+* pass badge styling
+* Mountains filtering behavior except where corrected data naturally changes results
+* resort ordering
+* resort search behavior
+* trip behavior
+* profile behavior
+* user pass preferences
+* authentication
+* permissions
+* native navigation
+* JSON response schemas
+* models unless a model defect is proven
+* unrelated routes or templates
+
+Do not add distinctions for:
+
+* Ikon Base
+* Ikon Session
+* Epic Local
+* restricted days
+* blackout dates
+* limited-day access
+* reservation requirements
+
+Those limitations should remain documented but are outside this implementation.
+
+---
+
+# 8. Required Validation
+
+Verify each corrected resort through every relevant path.
+
+## Database validation
+
+Confirm:
+
+* expected `ResortPass` rows exist
+* incorrect rows no longer exist
+* valid secondary pass rows remain
+* no duplicates exist
+* repeated migration execution produces no additional changes
+* transaction rollback works if an update fails
+
+## Application validation
+
+Confirm corrected passes appear accurately in:
+
+* Mountains data
+* Mountains pass filters
+* resort detail views
+* trip-related resort displays
+* any friend or profile views that show resort pass information
+
+For Valle Nevado specifically, confirm:
+
+* it appears under Ikon filtering
+* it displays the Ikon pass association
+* it no longer displays only as `Other`
+* resort name, country, region, and all unrelated data remain unchanged
+
+## Regression validation
+
+Confirm:
+
+* resorts with multiple pass associations still display all valid passes
+* resorts without a major pass still retain the existing fallback behavior
+* no user pass selections change
+* no unrelated resort records change
+* no JavaScript console errors occur
+* server startup remains clean
+* existing migrations remain clean
+
+---
+
+# 9. Testing
+
+Add or update focused tests where the project’s existing testing approach supports them.
+
+At minimum, test:
+
+1. Valle Nevado resolves to Ikon.
+2. A resort with multiple passes preserves every valid pass.
+3. An incorrect `Other` association is removed only when explicitly confirmed.
+4. The correction is idempotent.
+5. A future backfill or import does not restore the old incorrect mapping.
+6. `get_all_active_resorts_map()` returns the corrected result.
+7. Existing override behavior remains intact where still required.
+
+Do not create a broad new testing framework.
+
+---
+
+# 10. Deliverables
+
+Provide a complete implementation report with the following sections.
+
+## Executive Summary
+
+State what was corrected and the overall result.
+
+## Root Cause
+
+Explain exactly why Valle Nevado and the other affected resorts were incorrect.
+
+## Files Changed
+
+List every changed file.
+
+## Database Records Changed
+
+For each resort, show:
+
+* Resort ID
+* name
+* slug
+* before
+* after
+
+## Exact Code and Data Changes
+
+Show the relevant before-and-after code or data.
+
+## Canonical Source of Truth
+
+State which source now controls resort-pass mappings.
+
+## Overrides Review
+
+List:
+
+* overrides removed
+* overrides retained
+* rationale for each
+
+## Import and Backfill Protection
+
+Explain how future imports are prevented from restoring stale data.
+
+## Validation Results
+
+Report database, route, UI, and regression checks.
+
+## Unverified Audit Findings
+
+List any suspected discrepancies that were intentionally left unchanged because they could not be confirmed.
+
+## Native Build Impact
+
+State whether:
+
+* Capacitor sync is required
+* an iOS rebuild is required
+* an Android rebuild is required
+
+## Remaining Ski-Pass Limitations
+
+Briefly document the existing inability to represent pass tiers, blackout dates, limited days, and similar restrictions.
+
+---
+
+# Constraints
+
+Do not:
+
+* redesign the ski-pass system
+* add a new pass model
+* add pass tiers
+* add blackout-date logic
+* scrape pass-provider websites
+* add scheduled refresh jobs
+* change user pass preferences
+* modify unrelated resort attributes
+* update unverified mappings
+* solve issues through display overrides when canonical data can be corrected
+* make unrelated cleanup changes
+
+Implement only the confirmed resort-to-pass mapping corrections and the minimum supporting changes required to keep them accurate.

@@ -2145,6 +2145,182 @@ def run_perf_index_migration():
 run_perf_index_migration()
 
 
+def _run_pass_mapping_correction_migration():
+    """
+    Corrects 78 confirmed resort-to-ski-pass mapping errors in the ResortPass table.
+
+    Source of truth: pass_mountain_audit.csv cross-referenced against live DB records
+    for each resort, using stable slug identifiers. Verified pre-flight: every slug was
+    confirmed to exist in the database before inclusion.
+
+    For each correction:
+      - Adds the missing pass row (using ON CONFLICT protection via prior existence check).
+      - Removes an incorrect 'Other' row where the resort's only existing mapping was Other
+        (i.e., Other was a placeholder, not a legitimate secondary pass).
+      - Updates Resort.pass_brands_json to keep the legacy backfill source aligned.
+
+    Idempotent: re-running after the first successful application produces no additional
+    changes (already-correct rows are skipped, already-removed rows are absent).
+    """
+    # (slug, pass_to_add, remove_incorrect_other)
+    # remove_incorrect_other=True means the resort's only existing ResortPass row was 'Other'
+    # acting as a placeholder; it should be removed when the real pass is added.
+    # For resorts with both MountainCollective+Other (Jackson Hole, Snowbird, Sugarbush,
+    # Sun Valley, Taos), Other is also removed because it misrepresents their Ikon affiliation.
+    _CORRECTIONS = [
+        # ── Epic ──────────────────────────────────────────────────────────────
+        ('fernie-alpine-resort-ca',  'Epic', False),
+        ('hafjell-no',               'Epic', False),
+        ('heavenly-us',              'Epic', True),
+        ('kicking-horse-mountain-ca','Epic', False),
+        ('kirkwood-us',              'Epic', True),
+        ('kvitfjell-no',             'Epic', False),
+        ('loon-mountain-us',         'Epic', True),
+        ('madonna-di-campiglio-it',  'Epic', False),
+        ('mount-sunapee-us',         'Epic', False),
+        ('nakiska-ca',               'Epic', False),
+        ('northstar-us',             'Epic', True),
+        ('perfect-north-slopes-us',  'Epic', False),
+        ('pontedilegnotonale-it',    'Epic', False),
+        ('snow-trails-us',           'Epic', False),
+        ('telluride-us',             'Epic', False),
+        ('wintergreen-us',           'Epic', True),
+        # ── Ikon ──────────────────────────────────────────────────────────────
+        ('alta-us',                  'Ikon', True),
+        ('alta-badia-it',            'Ikon', False),
+        ('alyeska-us',               'Ikon', True),
+        ('andermattsedrundisentis-ch','Ikon', False),  # also Epic — keep Epic, add Ikon
+        ('arapahoe-basin-us',        'Ikon', True),
+        ('arizona-snowbowl-us',      'Ikon', True),
+        ('aspen-mountain-us',        'Ikon', True),
+        ('banff-sunshine-village-ca','Ikon', False),
+        ('big-sky-resort-us',        'Ikon', True),
+        ('bretton-woods-us',         'Ikon', False),
+        ('camelback-us',             'Ikon', False),
+        ('cervinia-it',              'Ikon', False),
+        ('chamonix-fr',              'Ikon', True),
+        ('cortina-dampezzo-it',      'Ikon', False),
+        ('courmayeur-it',            'Ikon', False),
+        ('davosklosters-ch',         'Ikon', False),
+        ('furano-jp',                'Ikon', False),
+        ('grand-targhee-us',         'Ikon', True),
+        ('jackson-hole-us',          'Ikon', True),   # MountainCollective+Other → add Ikon, rm Other
+        ('jay-peak-us',              'Ikon', True),
+        ('june-mountain-us',         'Ikon', True),
+        ('kronplatz-it',             'Ikon', False),
+        ('la-parva-cl',              'Ikon', False),
+        ('la-thuile-it',             'Ikon', False),
+        ('lake-louise-ca',           'Ikon', True),
+        ('lutsen-mountains-us',      'Ikon', False),
+        ('mammoth-mountain-us',      'Ikon', True),
+        ('marmot-basin-ca',          'Ikon', True),
+        ('mont-tremblant-ca',        'Ikon', True),
+        ('monterosa-ski-it',         'Ikon', False),
+        ('mount-norquay-ca',         'Ikon', False),
+        ('mountain-creek-us',        'Ikon', False),
+        ('niseko-jp',                'Ikon', True),
+        ('palisades-tahoe-us',       'Ikon', True),
+        ('panorama-ca',              'Ikon', True),
+        ('portillo-cl',              'Ikon', False),
+        ('red-mountain-ca',          'Ikon', True),
+        ('revelstoke-ca',            'Ikon', True),
+        ('rusutsu-jp',               'Ikon', True),
+        ('saddleback-us',            'Ikon', True),
+        ('schweitzer-us',            'Ikon', True),
+        ('sierra-at-tahoe-us',       'Ikon', True),
+        ('snowbasin-us',             'Ikon', True),
+        ('snowbird-us',              'Ikon', True),   # MountainCollective+Other → add Ikon, rm Other
+        ('snowshoe-us',              'Ikon', True),
+        ('st-anton-am-arlberg-at',   'Ikon', False),
+        ('st-moritz-ch',             'Ikon', False),
+        ('sugarbush-us',             'Ikon', True),   # MountainCollective+Other → add Ikon, rm Other
+        ('sugarloaf-us',             'Ikon', True),
+        ('sun-peaks-ca',             'Ikon', True),
+        ('sun-valley-us',            'Ikon', True),   # MountainCollective+Other → add Ikon, rm Other
+        ('sunday-river-us',          'Ikon', True),
+        ('sunshine-village-ca',      'Ikon', True),
+        ('taos-us',                  'Ikon', True),   # MountainCollective+Other → add Ikon, rm Other
+        ('thredbo-au',               'Ikon', True),
+        ('val-disere-fr',            'Ikon', False),
+        ('val-di-fassa-it',          'Ikon', False),
+        ('val-di-fiemme-it',         'Ikon', False),
+        ('val-gardena-it',           'Ikon', False),
+        ('valle-nevado-cl',          'Ikon', True),
+        ('waterville-valley-us',     'Ikon', True),
+        ('zermatt-ch',               'Ikon', True),
+    ]
+
+    with app.app_context():
+        try:
+            slugs = [s for s, _, _ in _CORRECTIONS]
+            resorts = Resort.query.filter(Resort.slug.in_(slugs)).all()
+            resort_by_slug = {r.slug: r for r in resorts}
+            resort_ids = [r.id for r in resorts]
+
+            # Pre-load existing ResortPass rows for all affected resorts in one query.
+            # Keyed resort_id → {pass_name: ResortPass object}
+            rp_by_resort = {}
+            for rp in ResortPass.query.filter(ResortPass.resort_id.in_(resort_ids)).all():
+                rp_by_resort.setdefault(rp.resort_id, {})[rp.pass_name] = rp
+
+            added = removed = skipped = not_found = 0
+
+            for slug, pass_name, remove_other in _CORRECTIONS:
+                resort = resort_by_slug.get(slug)
+                if not resort:
+                    app.logger.warning(f"pass_mapping_migration: slug not found: {slug!r}")
+                    not_found += 1
+                    continue
+
+                existing = rp_by_resort.setdefault(resort.id, {})
+
+                # 1. Remove incorrect 'Other' placeholder row if requested.
+                if remove_other and 'Other' in existing:
+                    db.session.delete(existing.pop('Other'))
+                    removed += 1
+
+                # 2. Add missing correct pass row.
+                if pass_name in existing:
+                    skipped += 1
+                    continue
+
+                # is_primary: True when this will be the sole non-Other pass after correction.
+                real_passes = [p for p in existing if p != 'Other']
+                is_primary = (len(real_passes) == 0)
+                new_rp = ResortPass(
+                    resort_id=resort.id,
+                    pass_name=pass_name,
+                    is_primary=is_primary,
+                )
+                db.session.add(new_rp)
+                existing[pass_name] = new_rp
+                added += 1
+
+                # 3. Sync Resort.pass_brands_json so future backfill runs stay aligned.
+                real_now = sorted(p for p in existing if p != 'Other')
+                if set(real_now) != set(resort.pass_brands_json or []):
+                    resort.pass_brands_json = real_now
+
+            db.session.commit()
+
+            # Note: get_all_active_resorts_map.cache_clear() is not called here because
+            # this migration runs at module load time before that function is defined.
+            # The lru_cache is empty at startup, so the next request automatically
+            # reads the corrected ResortPass rows from the database.
+
+            print(
+                f"pass_mapping_migration: complete — "
+                f"added={added} removed_Other={removed} "
+                f"already_correct={skipped} not_found={not_found}"
+            )
+        except Exception as _e:
+            db.session.rollback()
+            print(f"pass_mapping_migration: FAILED — {_e}")
+
+
+_run_pass_mapping_correction_migration()
+
+
 # ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
@@ -2609,24 +2785,6 @@ def get_all_active_resorts_map():
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
 
-    # Display-only slug → pass label overrides for resorts that resolve to 'other'
-    # but belong to a deterministically known pass ecosystem.
-    # Do NOT modify normalize_pass(), CANONICAL_PASSES, or any storage logic.
-    _RESORT_PASS_OVERRIDES = {
-        "palisades-tahoe":              "Ikon",
-        "copper-mountain":              "Ikon",
-        "steamboat":                    "Ikon",
-        "killington":                   "Ikon",
-        "mont-tremblant":               "Ikon",
-        "deer-valley":                  "Ikon",
-        "snowbird":                     "Ikon",
-        "big-sky-resort":               "Ikon",
-        "jackson-hole-mountain-resort": "Ikon",
-        "taos-ski-valley":              "Ikon",
-        "park-city-mountain":           "Epic",
-        "whiteface":                    "Epic",
-    }
-
     result = {}
     for r in _resorts:
         cc = r.country_code or r.country or ""
@@ -2634,10 +2792,6 @@ def get_all_active_resorts_map():
         sn = r.state_name or r.state_full or ""
         cn = r.country_name or COUNTRY_NAMES.get(cc, cc) or ""
         pl, pk = _pass_data(r.id, r.pass_brands or r.brand or "")
-        # Apply display-only override when the resort resolves to generic 'other'
-        slug = r.slug or ""
-        if pk == ["other"] and slug in _RESORT_PASS_OVERRIDES:
-            pl = _RESORT_PASS_OVERRIDES[slug]
         result[r.id] = SimpleNamespace(
             id=r.id,
             name=r.name,
