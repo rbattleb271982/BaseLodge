@@ -4997,12 +4997,13 @@ def delete_trip(trip_id):
         return jsonify({"success": False, "error": "Unauthorized"}), 403
 
     # Capture notification data before hard delete
+    # Only notify ACCEPTED participants — pending invitees, declined, and removed users excluded
     _del_resort = trip.mountain or "your trip"
     _del_trip_id = trip.id
     _del_notify_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
     ]
@@ -11983,12 +11984,13 @@ def delete_trip_form(trip_id):
         abort(403)
 
     # Capture notification data before hard delete (participant records cascade-delete with trip)
+    # Only notify ACCEPTED participants — pending invitees, declined, and removed users excluded
     _del_resort = trip.mountain or "your trip"
     _del_trip_id = trip.id
     _del_notify_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
     ]
