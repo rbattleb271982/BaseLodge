@@ -1394,11 +1394,11 @@
             <div class="sticky-action-buttons">
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" class="accept-form">
                     <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="bl-btn-primary">Accept</button>
+                    <button type="submit" class="bl-btn-primary" data-loading-text="Accepting…">Accept</button>
                 </form>
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
                     <input type="hidden" name="action" value="decline">
-                    <button type="submit" class="td-decline-link">Decline</button>
+                    <button type="submit" class="td-decline-link" data-loading-text="Declining…">Decline</button>
                 </form>
             </div>
         </div>
@@ -1543,7 +1543,7 @@
             <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">This will remove the trip from your profile and friends' activity.</p>
             <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;">Cancel trip</button>
+                <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;" data-loading-text="Cancelling…">Cancel trip</button>
             </form>
         </div>
     </div>
@@ -1557,7 +1557,7 @@
             <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">You'll be removed from this trip, but the trip will remain available to everyone else.</p>
             <form method="POST" action="{{ url_for('leave_trip', trip_id=trip.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;">Leave trip</button>
+                <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;" data-loading-text="Leaving…">Leave trip</button>
             </form>
             <button type="button" class="td-date-sheet-cancel" onclick="closeLeaveSheet()">Keep trip</button>
         </div>

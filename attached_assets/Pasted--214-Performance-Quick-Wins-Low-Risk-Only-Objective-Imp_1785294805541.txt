@@ -1,0 +1,205 @@
+#214 - Performance Quick Wins (Low Risk Only)
+
+## Objective
+
+Implement only the small, evidence-backed performance improvements identified in the App Performance & Screen Transition Audit that are low risk, localized, and unlikely to introduce regressions before the next iOS and Android release.
+
+This is an implementation task.
+
+Do not perform any architectural refactoring.
+
+Do not redesign routes.
+
+Do not change user-visible behavior except where explicitly noted.
+
+---
+
+# Scope
+
+Implement ONLY the following improvements.
+
+## 1. Remove Duplicate Friend Query
+
+Audit Finding:
+The `friend_profile()` route performs the same `Friend.query.filter_by(user_id=user.id, friend_id=friend.id).first()` lookup twice.
+
+Requirements:
+
+- Remove the duplicate query.
+- Execute it once.
+- Reuse the existing result.
+- Verify no behavior changes.
+
+---
+
+## 2. Replace Full ORM Loads Used Only For Counts
+
+Audit Findings:
+
+- `get_upcoming_trip_count()`
+- Friends route trip counts
+
+Requirements:
+
+Where full `SkiTrip` ORM objects are loaded solely to determine counts:
+
+- Replace with SQL COUNT queries or grouped aggregate queries.
+- Do not change returned values.
+- Preserve existing filtering.
+- Preserve duplicate handling.
+- Preserve permissions.
+
+Do NOT optimize queries that require architectural changes.
+
+---
+
+## 3. Disable Production Debug Beacons
+
+Audit Finding:
+
+`bl-native.js` sends multiple `/api/push/beacon` requests during native page initialization.
+
+Requirements:
+
+- Preserve beacon functionality for debugging.
+- Prevent beacon requests from running in production.
+- Gate them behind an explicit debug flag.
+- Ensure no production user generates unnecessary beacon traffic.
+- Do not affect any production push-notification functionality.
+
+---
+
+## 4. Make Google Fonts Non-Blocking
+
+Audit Finding:
+
+`templates/auth.html` loads Google Fonts as a render-blocking stylesheet.
+
+Requirements:
+
+Improve loading by using a non-blocking technique.
+
+Examples include:
+
+- preload
+- font-display: swap
+- async stylesheet loading
+- self-hosting (only if already supported)
+
+Choose the safest implementation.
+
+Do not visually change the page.
+
+---
+
+## 5. Improve Form Submission Feedback
+
+Audit Finding:
+
+Some forms provide no immediate feedback after tapping Submit.
+
+Requirements:
+
+Review major mutation forms including:
+
+- Trip accept
+- Trip decline
+- Leave trip
+- Delete trip
+- Save trip
+- Update trip
+
+Where appropriate:
+
+- disable submit button immediately
+- display loading text or spinner
+- prevent duplicate submissions
+
+Do NOT introduce AJAX.
+
+Do NOT change routing.
+
+Do NOT change server behavior.
+
+Only improve user feedback.
+
+---
+
+# Explicitly Out of Scope
+
+Do NOT implement:
+
+- Database indexes
+- Background threading
+- Session caching
+- Home page redesign
+- Shell + async architecture
+- Skeleton loading screens
+- CSS extraction
+- bl-native.js splitting
+- Mountains caching
+- Notification batching
+- Any runtime instrumentation
+- Any architectural optimization
+
+Those will be handled separately.
+
+---
+
+# Regression Requirements
+
+Verify:
+
+- Friend profile behavior unchanged.
+- Trip counts remain identical.
+- Push notifications still function.
+- Debug beacons still work when debug mode is enabled.
+- Auth page appearance unchanged.
+- All forms still submit correctly.
+- No duplicate submissions occur.
+- No navigation regressions.
+- No JavaScript console errors.
+
+---
+
+# Deliverables
+
+Provide:
+
+## Executive Summary
+
+Overall result.
+
+## Files Changed
+
+Every modified file.
+
+## Exact Changes
+
+For each file:
+
+- before
+- after
+- why
+
+## Regression Results
+
+List every verification performed.
+
+## Performance Benefit
+
+Describe the expected qualitative improvement for each implemented change.
+
+## Native Build Impact
+
+State whether:
+
+- Capacitor sync required
+- iOS rebuild required
+- Android rebuild required
+
+## Remaining High-Priority Performance Work
+
+Briefly list the remaining improvements that were intentionally left out of this implementation.
+
+Do not perform additional optimizations beyond the scope above.

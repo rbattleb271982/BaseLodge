@@ -394,16 +394,18 @@ def get_upcoming_trip_count(user):
         return 0
     
     today = date.today()
-    
-    # 1. Trips owned by the user
-    owned_trips = SkiTrip.query.filter(
-        SkiTrip.user_id == user.id,
-        SkiTrip.end_date >= today
-    ).all()
 
-    # 2. Trips where the user is an ACCEPTED participant
-    participant_trips = (
-        db.session.query(SkiTrip)
+    # 1. IDs of trips owned by the user — ID-only query; no full ORM objects needed.
+    owned_ids = {
+        row[0] for row in db.session.query(SkiTrip.id).filter(
+            SkiTrip.user_id == user.id,
+            SkiTrip.end_date >= today
+        ).all()
+    }
+
+    # 2. IDs of trips where the user is an ACCEPTED participant
+    participant_ids = {
+        row[0] for row in db.session.query(SkiTrip.id)
         .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
         .filter(
             SkiTripParticipant.user_id == user.id,
@@ -411,14 +413,10 @@ def get_upcoming_trip_count(user):
             SkiTrip.end_date >= today
         )
         .all()
-    )
+    }
 
-    # Deduplicate by trip ID
-    all_upcoming_trips = {t.id for t in owned_trips}
-    for t in participant_trips:
-        all_upcoming_trips.add(t.id)
-
-    return len(all_upcoming_trips)
+    # Deduplicate via set union and return the count
+    return len(owned_ids | participant_ids)
 
 
 def get_past_trip_count(user):
@@ -7660,20 +7658,19 @@ def friend_profile(friend_id):
     friend = User.query.get_or_404(friend_id)
     user = current_user
 
-    # Authorization guard: only confirmed friends (or self) may view this profile.
+    # Authorization guard + friendship lookup (single query, reused below).
+    # Self-view is allowed; for any other user, must be a confirmed friend.
+    _friendship = None
     if friend.id != user.id:
-        _auth_friendship = Friend.query.filter_by(
-            user_id=user.id, friend_id=friend.id
-        ).first()
-        if not _auth_friendship:
-            abort(403)
-
-    # Mark profile as viewed — clears the NEW badge on the Friends screen.
-    # Only touches the current user's side of the relationship; no-op if not found.
-    try:
         _friendship = Friend.query.filter_by(
             user_id=user.id, friend_id=friend.id
         ).first()
+        if not _friendship:
+            abort(403)
+
+    # Mark profile as viewed — clears the NEW badge on the Friends screen.
+    # Reuses the friendship record already fetched for the auth guard above.
+    try:
         if _friendship and not _friendship.has_viewed_profile:
             _friendship.has_viewed_profile = True
             db.session.commit()

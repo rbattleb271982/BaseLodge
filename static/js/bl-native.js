@@ -64,6 +64,9 @@ document.addEventListener('focusin', function(e) {
 // Available when this defer script runs: the CSRF fetch-wrapper inline
 // <script> has already patched window.fetch during head parsing.
 function _pushBeacon(step, data) {
+  // Beacons are debug-only diagnostics. In production (BL_NAV_DEBUG not set)
+  // this is a no-op so native users don't generate unnecessary network traffic.
+  if (!window.__BL_NAV_DEBUG__) return;
   try {
     window.fetch('/api/push/beacon', {
       method: 'POST',
