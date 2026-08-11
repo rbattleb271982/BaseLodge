@@ -1,0 +1,330 @@
+BASELODGE — TRIP EDITING / TRIP DETAILS AUDIT ONLY
+
+Do NOT make any code changes.
+
+I want you to investigate the current BaseLodge trip-planning and trip-detail architecture so we can determine the cleanest way to add an owner-facing “Edit trip” experience and a flexible “Trip details / notes” area.
+
+Current user flow:
+
+1. A user creates a trip from the “Plan a trip” screen.
+2. They select:
+   - Mountain
+   - Dates
+   - Planning vs Going
+   - Whether friends can see the trip
+3. They save/confirm the trip.
+4. They land on the existing trip detail page.
+5. The trip detail page currently displays:
+   - Mountain / destination
+   - Dates / nights
+   - Visibility
+   - Planning / Going status
+   - Pass
+   - Equipment
+   - Transportation
+   - Accommodations
+   - Lessons
+   - Invite friends
+   - Friends going / people
+   - Cancel trip
+6. Some individual setup fields appear editable inline, but there is no obvious consolidated way for the trip owner to edit the trip after creation.
+7. There is also no flexible place to add additional trip information that does not fit the existing structured fields.
+
+Desired future UX direction — DO NOT IMPLEMENT YET:
+
+A. Add a clear “Edit” / “Edit trip” action near the trip header for the trip owner.
+
+Example:
+
+Vail, CO
+Aug 20–22, 2026 · 2 nights        [Edit]
+
+B. Tapping Edit would eventually allow the owner to manage the existing trip-level fields in one place, potentially including:
+   - Mountain / destination
+   - Dates
+   - Planning vs Going
+   - Visibility
+   - Pass
+   - Equipment
+   - Transportation
+   - Accommodations
+   - Lessons
+
+C. Add a flexible owner-entered information area on the trip page, tentatively:
+
+TRIP DETAILS
+
+[Trip notes/content]
+
+or, when empty:
+
+Add notes about this trip — e.g. where we’re staying, travel plans, reservations, or anything important.
+
+[+ Add notes]
+
+This could later support richer collaborative trip planning, but this task is ONLY an audit of what exists today and what would be required to support this architecture cleanly.
+
+INVESTIGATE ALL OF THE FOLLOWING:
+
+1. CURRENT TRIP CREATION FLOW
+Identify:
+- Route(s) used to render the “Plan a trip” page
+- POST route(s) used to create/save a trip
+- Template(s)
+- JS involved
+- Relevant forms
+- Model fields written when a trip is created
+- Any validation/default behavior
+- How “Planning” vs “Going” is stored
+- How visibility is stored
+
+Trace the flow from UI submission all the way to database commit and redirect.
+
+2. CURRENT TRIP DETAIL PAGE
+Identify:
+- Route(s)
+- Template(s)
+- JS
+- CSS
+- Data passed into the template
+- How owner vs guest behavior is determined
+- How the trip page determines whether the current user can edit/cancel
+- Where the date header, visibility, status, setup rows, invite actions, people section, and cancel action are rendered
+
+Provide exact file names and relevant function/template names.
+
+3. EXISTING EDIT CAPABILITIES
+Audit every place in the application where a trip can currently be modified after creation.
+
+For each field:
+- destination/mountain
+- start date
+- end date
+- planning/going status
+- visibility
+- pass
+- equipment
+- transportation
+- accommodations
+- lessons
+
+Determine:
+- Is it currently editable?
+- From which UI?
+- Which route handles it?
+- Is it AJAX or full form submission?
+- Which users are authorized?
+- Does it update SkiTrip or another model?
+- Does it trigger notifications or any other side effects?
+
+Important: distinguish between:
+- editing the trip itself
+- editing the current user’s participant/profile information for the trip
+
+I want to know whether the existing “Trip setup” rows are actually trip-level settings, participant-level settings, or a mixture.
+
+4. CURRENT DATA MODEL
+Inspect all models related to:
+- SkiTrip
+- SkiTripParticipant
+- Trip guest/invite objects
+- Any trip preference/setup models
+- Any relevant enums
+
+Document the current schema relevant to this feature.
+
+For SkiTrip specifically, list every existing field and explain what it currently represents.
+
+Determine whether there is already any field suitable for:
+- general trip notes
+- description
+- itinerary
+- URL/link
+- freeform details
+- metadata
+
+Do not assume based on field name. Trace usage.
+
+5. EXISTING “NOTES” OR FREEFORM TEXT PATTERNS ELSEWHERE
+Search the codebase for existing reusable patterns for:
+- notes
+- descriptions
+- comments
+- text areas
+- freeform user-entered text
+- editable cards
+- modal edit forms
+
+If BaseLodge already has a UI/route/model pattern that could be reused, identify it.
+
+6. EXISTING OWNER AUTHORIZATION PATTERN
+Find the canonical way BaseLodge currently verifies:
+
+current user == trip owner
+
+Identify:
+- helper functions
+- route guards
+- inline checks
+- owner-specific template conditions
+
+Determine what should be reused for an Edit Trip feature rather than introducing a new authorization pattern.
+
+7. EXISTING NOTIFICATION / ACTIVITY SIDE EFFECTS
+Determine whether changing any trip details currently:
+- creates notifications
+- notifies participants
+- alters friend overlap functionality
+- changes trip discovery
+- affects invite links
+- affects trip status
+- affects any caching or denormalized data
+
+In particular, investigate implications of changing:
+- destination
+- dates
+- planning vs going
+- visibility
+
+8. DESTINATION / DATE EDITING RISKS
+Investigate whether changing a trip’s mountain or dates after creation has dependencies elsewhere.
+
+Search for logic that references:
+- trip.resort_id / mountain ID
+- dates
+- overlap matching
+- friend suggestions
+- invitations
+- participant records
+- notifications
+- ski-day calculations
+- nights
+- pass matching
+- resort metadata
+
+Explain what could break or need to be recalculated.
+
+9. TRIP DETAILS / NOTES — MINIMUM DATA CHANGE
+Based on the existing architecture, determine the smallest clean data-model change required to support a simple owner-editable trip notes field.
+
+Do NOT implement it.
+
+Tell me whether you recommend something like:
+
+SkiTrip.notes = db.Column(db.Text, nullable=True)
+
+or whether an existing field/table should be used instead.
+
+Explain why.
+
+Also determine whether a DB migration system currently exists and how similar fields have historically been added.
+
+10. BEST ARCHITECTURAL APPROACH FOR “EDIT TRIP”
+Compare these possible approaches against the existing codebase:
+
+OPTION A
+One dedicated Edit Trip page containing all editable trip fields.
+
+OPTION B
+An Edit button that opens a modal/sheet over the trip detail page.
+
+OPTION C
+Keep the existing inline editing rows and make the Edit button switch the page into an edit mode.
+
+OPTION D
+Another approach that fits the existing BaseLodge architecture better.
+
+Do not choose based only on visual preference. Base the recommendation on:
+- current Flask/template architecture
+- existing JS patterns
+- existing routes
+- mobile behavior
+- amount of duplicate logic
+- implementation risk
+- maintainability
+
+11. OWNER VS PARTICIPANT EXPERIENCE
+Explain what should happen for:
+- Trip owner
+- Accepted participant
+- Pending invitee
+- Friend merely viewing a visible trip
+
+Identify which existing permissions already govern those states.
+
+The desired behavior is likely:
+- Only owner can edit core trip details
+- Participants can view those details
+- Participant-specific setup may remain editable by each participant where appropriate
+
+Audit whether that fits the current data model.
+
+12. UI PLACEMENT AUDIT
+Without redesigning the page, identify the exact template area where an Edit button could be inserted next to/near:
+
+Aug 20–22, 2026 · 2 nights
+
+Also identify the cleanest insertion point for a future “Trip details” section.
+
+Do not change markup.
+
+13. DUPLICATION / LEGACY CODE
+Look for:
+- duplicate trip routes
+- old edit routes
+- stale templates
+- unused trip fields
+- multiple implementations of trip update logic
+- AJAX + non-AJAX duplicates
+- desktop/mobile variants
+
+Call these out because I do not want a new Edit Trip feature built on top of obsolete code.
+
+FINAL OUTPUT
+
+Return a structured audit with:
+
+1. Executive Summary
+2. Current Creation Flow
+3. Current Trip Detail Architecture
+4. Current Edit Capabilities
+5. Trip-Level vs Participant-Level Field Matrix
+6. Relevant Data Model
+7. Owner Authorization
+8. Side Effects / Dependencies
+9. Risks of Editing Destination or Dates
+10. Trip Notes Data Recommendation
+11. Recommended Edit Trip Architecture
+12. Exact Files / Routes / Templates That Would Need Changes
+13. Legacy / Duplicate Code Findings
+14. Suggested Implementation Sequence
+
+For the implementation sequence, give me phased steps only. Do NOT implement anything.
+
+Also include a final table:
+
+Feature | Exists Today? | Current Location | Recommended Change | Risk Level
+
+Include at least:
+- Edit destination
+- Edit dates
+- Edit status
+- Edit visibility
+- Edit pass
+- Edit equipment
+- Edit transportation
+- Edit accommodations
+- Edit lessons
+- Trip notes
+- Owner Edit button
+
+IMPORTANT:
+- AUDIT ONLY.
+- DO NOT MODIFY FILES.
+- DO NOT CREATE MIGRATIONS.
+- DO NOT CHANGE DATABASE SCHEMA.
+- DO NOT WRITE NEW ROUTES.
+- DO NOT CHANGE HTML/CSS/JS.
+- DO NOT “FIX” ANYTHING YOU FIND.
+- If you find an obvious bug, report it but do not touch it.
+- Cite exact files, functions, templates, routes, model fields, and relevant line ranges wherever possible.
