@@ -1462,6 +1462,7 @@
                     </div>
                     {% if is_owner %}
                     <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="user_id" value="{{ p.user_id }}">
                         <button type="button" class="td-cancel-link" onclick="showCancelInviteModal(this.closest('form'))">Cancel</button>
                     </form>
@@ -1510,10 +1511,12 @@
         <div class="sticky-action-content">
             <div class="sticky-action-buttons">
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" class="accept-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="accept">
                     <button type="submit" class="bl-btn-primary" data-loading-text="Accepting…">Accept</button>
                 </form>
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="decline">
                     <button type="submit" class="td-decline-link" data-loading-text="Declining…">Decline</button>
                 </form>
@@ -1535,6 +1538,7 @@
                 <button class="modal-close" onclick="closeInviteModal()">&times;</button>
             </div>
             <form method="POST" action="{{ url_for('send_trip_invites', trip_id=trip.id) }}" id="inviteForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="td-invite-section-label">Friends on BaseLodge</p>
                 <div class="modal-search">
                     <input type="text" id="friendSearchInput" placeholder="Search friends..." class="bl-search-input">

@@ -529,6 +529,7 @@
         {% if not is_accepted and participant.status.value != 'declined' %}
         <div class="action-buttons">
             <form method="POST" action="/trips/{{ trip.id }}/respond">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="accept">
                 <button type="submit" class="btn-accept">Accept invite</button>
             </form>
@@ -550,6 +551,7 @@
             <div class="decline-modal-actions">
                 <button type="button" class="btn-cancel-modal" onclick="hideDeclineModal()">Cancel</button>
                 <form method="POST" action="/trips/{{ trip.id }}/respond" style="flex: 1;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="decline">
                     <button type="submit" class="btn-confirm-decline" style="width: 100%;">Decline</button>
                 </form>

@@ -8805,6 +8805,7 @@ def connect_via_qr(user_id):
 @login_required
 @limiter.limit("20 per hour", key_func=_user_or_ip)
 def connect_add(user_id):
+    validate_csrf_request()
     inviter = User.query.get_or_404(user_id)
 
     existing_a_to_b = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
@@ -11099,6 +11100,7 @@ def add_trip():
         prefill_resort = db.session.get(Resort, prefill_resort_id)
 
     if request.method == "POST":
+        validate_csrf_request()
         resort_id = request.form.get("resort_id")
         start_date_str = request.form.get("start_date")
         end_date_str = request.form.get("end_date")
@@ -12087,6 +12089,7 @@ def trip_invite_token_landing(token):
 @login_required
 def trip_invite_token_accept(token):
     """Accept a trip invite via external token."""
+    validate_csrf_request()
     _xff_tia = (request.headers.get("X-Forwarded-For") or "")[:80]
     app.logger.info(
         "[trip_invite_accept_attempted] token=%.8s... user_id=%s email=%s "
@@ -12205,6 +12208,7 @@ def trip_invite_token_accept(token):
 @login_required
 def cancel_trip_invite(trip_id):
     """Cancel a pending invite (trip owner only)."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     
     # Only trip owner can cancel invites
@@ -12233,6 +12237,7 @@ def cancel_trip_invite(trip_id):
 @login_required
 def send_trip_invites(trip_id):
     """Send trip invites to selected friends."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     
     # Only trip owner can invite
@@ -12315,6 +12320,7 @@ def send_trip_invites(trip_id):
 @limiter.limit("20 per hour", key_func=_user_or_ip)
 def request_to_join_trip(trip_id):
     """Create a join request for a trip."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     
     # 1. Trip must not be in the past
@@ -12366,6 +12372,7 @@ def respond_to_join_request(request_id):
     Accept or decline a join request.
     Feature complete as of 2026-01-09. Backend + UI verified.
     """
+    validate_csrf_request()
     invitation = Invitation.query.get_or_404(request_id)
     
     if invitation.invite_type != InviteType.REQUEST:
@@ -12420,6 +12427,7 @@ def respond_to_join_request(request_id):
 @login_required
 def cancel_join_request(request_id):
     """Cancel a pending join request."""
+    validate_csrf_request()
     invitation = Invitation.query.get_or_404(request_id)
     
     if invitation.sender_id != current_user.id:
@@ -12444,6 +12452,7 @@ def cancel_join_request(request_id):
 @login_required
 def respond_to_trip_invite(trip_id):
     """Accept or decline a trip invite."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     
     # Find the user's participant record

@@ -217,6 +217,7 @@
         {% endif %}
 
         <form method="POST" action="{{ url_for('trip_invite_token_accept', token=token) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="ti-accept-btn">Accept as {{ current_user.first_name }}</button>
         </form>
         <a href="{{ url_for('home') }}" class="ti-back">Not now</a>

@@ -1,0 +1,306 @@
+BASELODGE — #239 ADD CSRF TO HIGH-PRIORITY HTML FORM MUTATIONS
+
+Implement ONLY coordinated CSRF protection for the high-priority HTML form routes listed below.
+
+Audit #234 confirmed these routes are browser/session-authenticated mutations that currently lack complete CSRF protection.
+
+Unlike the fetch/API routes, these require BOTH:
+
+1. hidden csrf_token input in the form
+2. validate_csrf_request() in the receiving handler
+
+DO NOT:
+- modify global CSRF infrastructure
+- modify the fetch wrapper
+- change authentication
+- change permissions
+- change notifications
+- change business logic
+- change schema
+- redesign forms
+- touch unrelated routes
+
+==================================================
+1. ROUTES IN SCOPE
+==================================================
+
+Protect these form-based routes:
+
+POST /add_trip
+
+POST /trips/<id>/invite
+
+POST /trips/<id>/invite/cancel
+
+POST /trips/<id>/request-join
+
+POST /trips/requests/<id>/respond
+
+POST /trips/requests/<id>/cancel
+
+POST /trips/<id>/respond
+
+POST /trip-invite/<token>/accept
+
+POST /connect/<id>/add
+
+If exact route names/parameter names differ, use the current definitions.
+
+NOTE:
+
+The legacy /trips/<id>/edit form has already been retired.
+Do NOT resurrect or modify it.
+
+==================================================
+2. TRACE EACH FORM FIRST
+==================================================
+
+Before editing each route:
+
+Identify the exact template/form or JS-generated FormData caller.
+
+Confirm:
+
+- method is POST
+- action/endpoint
+- whether csrf_token already exists
+- whether validate_csrf_request() already exists
+- whether the submission is a normal HTML form or fetch-based
+
+If a route already has full protection:
+do not duplicate it.
+
+If a supposed form route is actually fetch-only and already receives X-CSRF-Token:
+report that and add backend validation only if appropriate.
+
+==================================================
+3. HTML FORM PATTERN
+==================================================
+
+For each true HTML POST form missing a token, add:
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+Place it directly inside the relevant <form>.
+
+Use existing BaseLodge pattern.
+
+Do not alter layout or visible copy.
+
+==================================================
+4. BACKEND VALIDATION
+==================================================
+
+For each in-scope handler that does not already validate CSRF, add:
+
+validate_csrf_request()
+
+before:
+
+- payload/form parsing
+- DB mutation
+- participant/invite changes
+- friendship creation
+- notification dispatch
+
+Preserve all existing auth and permission checks.
+
+==================================================
+5. ADD TRIP REGRESSION
+==================================================
+
+Verify POST /add_trip still preserves:
+
+- resort/location selection
+- dates
+- overlap detection
+- participant creation
+- trip status
+- visibility
+- current creation-time equipment/pass legacy writes
+- notifications/activity behavior
+
+Do not change trip creation logic.
+
+==================================================
+6. DIRECT TRIP INVITE REGRESSION
+==================================================
+
+Verify:
+
+POST /trips/<id>/invite
+POST /trips/<id>/invite/cancel
+POST /trips/<id>/respond
+
+still preserve:
+
+- owner/member permissions
+- INVITED/ACCEPTED/DECLINED behavior
+- duplicate protection
+- Invitation/SkiTripParticipant consistency
+- notifications
+
+Do not change invite semantics.
+
+==================================================
+7. JOIN REQUEST REGRESSION
+==================================================
+
+Verify:
+
+POST /trips/<id>/request-join
+POST /trips/requests/<id>/respond
+POST /trips/requests/<id>/cancel
+
+still preserve:
+
+- requester identity
+- owner authorization
+- pending/accepted/declined states
+- duplicate request protection
+- notifications
+- redirects/responses
+
+==================================================
+8. TRIP INVITE TOKEN ACCEPT REGRESSION
+==================================================
+
+Protect:
+
+POST /trip-invite/<token>/accept
+
+Preserve ALL #233 behavior:
+
+- expired token blocked
+- expires_at=NULL remains valid
+- reusable by multiple users
+- same-user double accept idempotent
+- pending Invitation reconciliation
+- no recipient binding
+- notification behavior unchanged
+
+The landing form should submit a valid csrf_token.
+
+Do not change GET /trip-invite/<token>.
+
+==================================================
+9. CONNECT / QR REGRESSION
+==================================================
+
+Protect:
+
+POST /connect/<id>/add
+
+Preserve:
+
+- current_user identity
+- friend creation behavior
+- duplicate Friend protection
+- QR/deep-link entry flow
+- post-login redirect behavior
+- notifications
+
+Test from the actual connect confirmation form.
+
+==================================================
+10. CSRF TEST MATRIX
+==================================================
+
+For EACH route in scope test:
+
+A. authenticated + valid CSRF
+Expected:
+normal business logic reached
+
+B. authenticated + missing CSRF
+Expected:
+403
+
+C. authenticated + invalid CSRF
+Expected:
+403
+
+D. logged-out where applicable
+Expected:
+existing behavior preserved
+
+For token-only / special invite paths, preserve existing authentication flow.
+
+==================================================
+11. FAILED-CSRF SIDE EFFECTS
+==================================================
+
+Verify missing/invalid CSRF causes no:
+
+- trip creation
+- invitation creation/update
+- participant change
+- join-request change
+- friendship creation
+- notification
+- activity event associated with success
+
+==================================================
+12. DEEP-LINK / CAPACITOR VALIDATION
+==================================================
+
+Pay special attention to:
+
+/trip-invite/<token>/accept
+/connect/<id>/add
+
+Confirm the forms rendered after native/deep-link navigation contain csrf_token.
+
+Do not change:
+
+bl-native.js
+universal-link handling
+post-login redirect logic
+session restore
+
+==================================================
+13. NO DUPLICATE TOKENS
+==================================================
+
+If a form already contains csrf_token:
+leave it alone.
+
+Do not add multiple hidden fields.
+
+If backend already validates:
+leave existing validation intact.
+
+==================================================
+14. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Routes protected
+3. Exact forms/templates updated
+4. Any routes already protected
+5. Any routes discovered to be fetch rather than forms
+6. Placement of validate_csrf_request()
+7. Valid/missing/invalid token test results
+8. Add-trip regression
+9. Direct trip invite regression
+10. Join-request regression
+11. TripInviteToken regression
+12. Connect/QR regression
+13. Deep-link/Capacitor confirmation
+14. Failed-CSRF side-effect confirmation
+15. Any route skipped and why
+16. Any issue encountered
+
+Explicitly confirm:
+
+- all in-scope true HTML forms submit csrf_token
+- all in-scope handlers validate CSRF
+- valid submissions still work
+- missing/invalid tokens return 403
+- no invite semantics changed
+- no trip semantics changed
+- no friendship semantics changed
+- no schema changes
+- no notification changes
