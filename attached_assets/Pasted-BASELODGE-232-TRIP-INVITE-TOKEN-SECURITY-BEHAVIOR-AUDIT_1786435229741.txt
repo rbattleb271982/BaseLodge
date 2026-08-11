@@ -1,0 +1,381 @@
+BASELODGE — #232 TRIP INVITE TOKEN SECURITY & BEHAVIOR AUDIT
+
+AUDIT ONLY.
+
+DO NOT modify code.
+DO NOT change invite behavior.
+DO NOT migrate schema.
+DO NOT delete tokens.
+DO NOT change notifications.
+
+Audit the complete TripInviteToken flow before implementing any fixes.
+
+==================================================
+BACKGROUND
+==================================================
+
+Audit #228 identified two potential issues:
+
+1. TripInviteToken acceptance appears to check:
+   is_active
+   but may not enforce:
+   expires_at
+
+2. Any logged-in user who possesses the token URL may be able to accept and join the trip.
+
+It is currently unclear whether this second behavior is intentional product design or an authorization gap.
+
+We need the exact current behavior before changing anything.
+
+==================================================
+1. INVENTORY THE MODEL
+==================================================
+
+Inspect TripInviteToken.
+
+Return:
+
+- all fields
+- FK relationships
+- uniqueness constraints
+- token generation method
+- is_active behavior
+- expires_at behavior
+- used_at / accepted_at fields if any
+- intended recipient fields if any
+- email/user binding fields if any
+- trip binding
+- inviter binding
+
+Explicitly answer:
+
+Does the model currently have any way to bind a token to:
+- a specific user
+- a specific email
+- a specific phone number
+- a specific Invitation row
+
+==================================================
+2. INVENTORY ALL TOKEN ROUTES
+==================================================
+
+Find every route/function that:
+
+- creates TripInviteToken
+- displays a TripInviteToken landing page
+- previews trip data from a token
+- accepts a token
+- declines a token
+- revokes/deactivates a token
+- reuses an existing token
+
+For each route return:
+
+route
+method
+auth requirement
+purpose
+permission checks
+token checks
+side effects
+
+==================================================
+3. TRACE TOKEN CREATION
+==================================================
+
+Determine exactly how a trip invite token is created.
+
+Answer:
+
+- Who can create one?
+- Owner only?
+- Accepted participant?
+- Does creation require selecting a recipient?
+- Can one link be shared with multiple people?
+- Is the same token intentionally reusable?
+- Is a new token generated per recipient or per trip/share action?
+- Does the UI copy imply "invite this person" or "share this link"?
+
+Inspect templates and JS, not just backend code.
+
+==================================================
+4. TRACE ACCEPTANCE
+==================================================
+
+Inspect the acceptance route in detail.
+
+Return the exact checks in order.
+
+Determine whether acceptance verifies:
+
+- token exists
+- token is active
+- token is expired
+- trip exists
+- current user is already owner
+- current user is already ACCEPTED
+- current user is already INVITED
+- current user was DECLINED
+- current user was REMOVED
+- current user matches an intended recipient
+- token has already been used
+- duplicate participant row exists
+
+Document what happens in each case.
+
+==================================================
+5. expires_at AUDIT
+==================================================
+
+Trace all reads/writes of:
+
+TripInviteToken.expires_at
+
+Determine:
+
+- whether tokens are created with an expiration
+- default expiration period
+- whether expires_at may be NULL
+- whether any helper like is_expired() exists
+- whether acceptance checks it
+- whether landing/preview checks it
+- whether old expired tokens can still be accepted
+
+If possible, verify using a safe test token:
+
+expires_at < current time
+is_active = True
+
+Then test:
+- landing page
+- acceptance
+
+DO NOT modify production data.
+
+==================================================
+6. INTENDED RECIPIENT AUDIT
+==================================================
+
+Determine whether TripInviteToken is conceptually:
+
+A. an open share link:
+"Anyone with this link can join"
+
+or
+
+B. a recipient-specific invitation:
+"Only the person this was sent to should join"
+
+Use evidence from:
+
+- model fields
+- UI copy
+- route behavior
+- notification behavior
+- invitation creation flow
+- existing comments/docstrings
+- historical code if still present
+
+Do not infer solely from the route implementation.
+
+==================================================
+7. MULTI-USER REUSE TEST
+==================================================
+
+Using safe test accounts/data:
+
+Create one valid TripInviteToken.
+
+Test:
+
+User A accepts token.
+Then User B accepts the SAME token.
+
+Report:
+
+- whether both succeed
+- whether token remains active
+- whether duplicate participant rows are prevented
+- whether owner gets two acceptance notifications
+- whether this appears intentional from current product behavior
+
+Do not change the logic.
+
+==================================================
+8. SAME-USER REUSE TEST
+==================================================
+
+Have the same user accept the same token twice.
+
+Determine:
+
+- first response
+- second response
+- duplicate row risk
+- duplicate notifications
+- whether the second attempt is idempotent
+
+==================================================
+9. WRONG-ACCOUNT / SESSION TEST
+==================================================
+
+Test the scenario where:
+
+- invite link is opened while logged into User A
+- token may have been originally shared with User B, if recipient binding exists
+- User A accepts
+
+Determine whether User A can join.
+
+Also inspect whether the app stores invite context in session before login and whether a different login can consume it.
+
+This is important because BaseLodge has previously had cross-account invite issues.
+
+==================================================
+10. PRIVACY EXPOSURE BEFORE ACCEPTANCE
+==================================================
+
+Determine what trip information a token-holder can see BEFORE acceptance.
+
+Check:
+
+- owner name
+- resort/location
+- trip dates
+- participant names
+- planning content
+- private note
+- visibility status
+- other trip details
+
+Verify that possession of a token does not expose more than intended.
+
+==================================================
+11. INVITATION MODEL INTERACTION
+==================================================
+
+Determine relationship between:
+
+TripInviteToken
+Invitation
+SkiTripParticipant
+
+Answer:
+
+- Does token creation create an Invitation row?
+- Does acceptance consume/update an Invitation row?
+- Are these parallel invite systems?
+- Can they conflict?
+- Can a user have both INVITED participant status and a token?
+- Does accepting a token convert an existing INVITED row or create a new row?
+
+Flag duplicate-state risks.
+
+==================================================
+12. NOTIFICATION BEHAVIOR
+==================================================
+
+For token acceptance, verify:
+
+- owner notification
+- other participant notification
+- duplicate notification risk
+- same-user second acceptance behavior
+- multiple users accepting same token
+- declined/removed participant behavior
+
+Do not change notifications.
+
+==================================================
+13. TOKEN REVOCATION
+==================================================
+
+Determine whether owner can revoke/deactivate a TripInviteToken.
+
+If yes:
+- how?
+- does it prevent future acceptance?
+- are previously joined users unaffected?
+
+If no:
+report that.
+
+==================================================
+14. SECURITY CLASSIFICATION
+==================================================
+
+Classify each verified issue:
+
+P0
+Cross-account/security/data exposure
+
+P1
+Broken normal invite behavior
+
+P2
+Real edge-case or access-control concern
+
+P3
+Cleanup/design ambiguity
+
+For every verified issue provide:
+
+- exact route/function
+- evidence
+- reproduction
+- impact
+- recommended fix direction
+
+==================================================
+15. EXPLICIT QUESTIONS
+==================================================
+
+Answer:
+
+A. Is expires_at currently enforced on TripInviteToken acceptance?
+
+B. Can an expired but active token still be accepted?
+
+C. Is TripInviteToken intentionally reusable by multiple different users?
+
+D. Is the token bound to an intended recipient in any way?
+
+E. Can any logged-in user with the URL join?
+
+F. Can the same user accept twice?
+
+G. Can accepting a token create duplicate participant rows?
+
+H. Can accepting a token create duplicate notifications?
+
+I. What trip data is exposed before acceptance?
+
+J. What is the safest product-consistent fix, if any?
+
+==================================================
+16. RETURN FORMAT
+==================================================
+
+Return:
+
+1. Executive Summary
+2. TripInviteToken model
+3. Route inventory
+4. Creation flow
+5. Acceptance flow
+6. expires_at findings
+7. Intended-recipient findings
+8. Multi-user reuse test
+9. Same-user reuse test
+10. Wrong-account/session test
+11. Pre-acceptance privacy exposure
+12. Invitation/participant interaction
+13. Notification behavior
+14. Revocation behavior
+15. Verified issues ranked by severity
+16. Explicit answers A-J
+17. Recommended implementation options
+
+AUDIT ONLY.
+
+DO NOT CHANGE ANY CODE.
