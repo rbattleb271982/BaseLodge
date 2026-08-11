@@ -1,0 +1,710 @@
+BASELODGE — IMPLEMENT #226 PHASE 2
+SINGLE-PAGE OWNER EDIT MODE ON TRIP DETAIL
+
+Implement the next phase of the approved #226 architecture.
+
+Phase 1 is complete:
+- “Trip Setup” is now “My Setup”
+- Pass is participant-level
+- Equipment is participant-level
+- Lessons is participant-level
+- Owner and accepted participants can each edit only their own My Setup values
+
+Now make trip_detail the ONE primary user-facing trip screen for the owner.
+
+Do NOT undo or alter the Phase 1 personal-ownership work.
+
+==================================================
+1. FINAL PRODUCT MODEL
+==================================================
+
+TRIP-LEVEL — OWNER ONLY
+- Location
+- Dates
+- Visibility
+- Planning / Going
+- Private note
+
+PERSONAL — CURRENT USER
+- Pass
+- Equipment
+- Lessons
+
+Important:
+
+“My Setup” remains directly editable at all times for both:
+- owner
+- accepted participant
+
+The owner does NOT need to enter Edit mode to change:
+- Pass
+- Equipment
+- Lessons
+
+Edit mode is only for trip-level information.
+
+==================================================
+2. REMOVE NAVIGATION TO SEPARATE EDIT PAGE
+==================================================
+
+Current owner behavior:
+
+Edit → /trips/<id>/edit
+
+Change this.
+
+On trip_detail:
+
+The owner’s Edit action should NO LONGER navigate away.
+
+Instead:
+
+Edit
+
+should enter a client-side edit mode on the SAME trip_detail page.
+
+Do not delete:
+
+/trips/<id>/edit
+templates/edit_trip.html
+edit_trip_form()
+
+Keep them intact as temporary fallback/legacy behavior.
+
+Do not redirect or remove the route yet.
+
+==================================================
+3. EDIT MODE STATE
+==================================================
+
+Use a simple client-side state on trip_detail.
+
+Preferred approach from audit:
+
+Add/remove a CSS class such as:
+
+td-edit-mode
+
+on the main trip-detail container or page.
+
+Normal owner state:
+
+Edit
+
+Editing state:
+
+Done
+
+No page navigation.
+
+No query parameter required.
+
+No separate server-rendered edit template.
+
+Do not create a third editing route.
+
+==================================================
+4. NORMAL OWNER VIEW
+==================================================
+
+Normal trip page should remain visually clean.
+
+Show:
+
+Vail, CO                       Edit
+Sep 17–19, 2026 · 2 nights
+Visible to friends | Planning
+
+MY SETUP
+Pass
+Equipment
+Lessons
+
+TRIP PLANNING
+...
+
+Invite friends
+
+PEOPLE
+...
+
+Cancel trip
+
+In normal mode:
+
+Location:
+- display only
+
+Dates:
+- preserve existing quick-edit behavior
+- owner may still tap the date and open the current date sheet
+
+Visibility:
+- display badge only
+
+Planning/Going:
+- display badge only
+
+Private note:
+- completely hidden
+
+My Setup:
+- remains directly editable
+- unchanged from Phase 1
+
+==================================================
+5. OWNER EDIT MODE
+==================================================
+
+When owner taps Edit:
+
+Stay on trip_detail.
+
+Change Edit → Done.
+
+Reveal/enable trip-level editing for:
+
+- Location
+- Dates
+- Visibility
+- Planning / Going
+- Private note
+
+Do not make My Setup dependent on Edit mode.
+
+Pass / Equipment / Lessons should continue behaving exactly as they do today.
+
+==================================================
+6. LOCATION EDITING
+==================================================
+
+Reuse the existing trip_detail resort/location editor.
+
+Canonical endpoint:
+
+POST /api/trip/<id>/update-resort
+
+Do not recreate location-save logic.
+
+In edit mode:
+
+Make Location clearly tappable/editable using the existing resort picker.
+
+Normal mode:
+location should not appear as a general edit control.
+
+If there is already existing hidden resort-picker markup/JS on trip_detail, reuse it.
+
+Preserve:
+- validation
+- resort metadata updates
+- TRIP_RESORT_UPDATED notification
+- activity logging
+
+Do not route Location through edit_trip_form.
+
+==================================================
+7. DATES
+==================================================
+
+Preserve the current date quick-edit interaction.
+
+Owner can tap dates in normal mode as today.
+
+Owner can also use the same date sheet while in edit mode.
+
+Canonical endpoint remains:
+
+POST /api/trip/<id>/update-dates
+
+Do not change:
+- validation
+- notifications
+- activity behavior
+- date-sheet UX
+
+==================================================
+8. VISIBILITY — NEW INLINE EDITOR
+==================================================
+
+Visibility currently only saves through edit_trip_form.
+
+Add a narrowly scoped owner-only AJAX endpoint:
+
+POST /api/trip/<id>/update-visibility
+
+or equivalent naming consistent with current code.
+
+Allowed values should map safely to:
+
+trip.is_public
+
+Suggested UI in edit mode:
+
+Visibility
+[ Visible to friends ]
+[ Private ]
+
+Use existing BaseLodge bottom-sheet / segmented-control conventions where practical.
+
+Normal mode:
+show the existing badge only.
+
+Edit mode:
+make Visibility editable.
+
+Server-side requirements:
+- login required
+- owner only
+- validate input
+- update only trip.is_public
+
+==================================================
+9. VISIBILITY NOTIFICATION BEHAVIOR
+==================================================
+
+Audit showed edit_trip_form previously bundled Visibility changes into:
+
+TRIP_DETAILS_UPDATED
+
+Do not accidentally create duplicate notifications.
+
+Choose the smallest consistent behavior.
+
+Preferred:
+if changing visibility historically resulted in TRIP_DETAILS_UPDATED, preserve an equivalent participant notification unless there is clear evidence visibility changes were intentionally silent.
+
+Do not notify:
+- author/owner unnecessarily
+- pending/declined/removed users unless current TRIP_DETAILS_UPDATED behavior already does so
+
+Explicitly document the recipient behavior in the return report.
+
+==================================================
+10. PLANNING / GOING — NEW INLINE EDITOR
+==================================================
+
+Add a narrowly scoped owner-only AJAX endpoint:
+
+POST /api/trip/<id>/update-status
+
+or equivalent.
+
+Valid values only:
+
+planning
+going
+
+Write:
+
+trip.trip_status
+
+Suggested edit-mode UI:
+
+Status
+[ Planning ]
+[ Going ]
+
+Normal mode:
+keep current read-only badge.
+
+Edit mode:
+allow selection.
+
+Do not reuse the legacy generic /api/trip/<id>/edit endpoint.
+
+==================================================
+11. STATUS NOTIFICATION BEHAVIOR
+==================================================
+
+Preserve the intended existing side effect from edit_trip_form.
+
+If status changes currently trigger:
+
+TRIP_DETAILS_UPDATED
+
+then the new endpoint should preserve equivalent behavior.
+
+Do not send duplicate notifications.
+
+No notification if the selected value is unchanged.
+
+Explicitly report:
+- event emitted
+- recipients
+- unchanged-value behavior
+
+==================================================
+12. PRIVATE NOTE ON TRIP DETAIL
+==================================================
+
+Use the existing:
+
+SkiTrip.notes
+
+Do not create another field.
+
+Use the existing canonical AJAX endpoint:
+
+POST /api/trip/<id>/notes
+
+Do not save the note through edit_trip_form from this screen.
+
+In owner Edit mode, show:
+
+PRIVATE NOTE
+Only you can see this.
+
+[textarea]
+
+Max:
+500 characters
+
+Use a character counter if consistent with existing implementation.
+
+Participants must NEVER see:
+- label
+- note value
+- textarea
+- hidden note data
+
+Normal owner mode:
+Private note is not visible.
+
+==================================================
+13. PRIVATE NOTE SAVE UX
+==================================================
+
+Because overall Edit mode uses per-field AJAX:
+
+Do NOT let the owner type a private note and then lose it by tapping Done.
+
+Use one clear save behavior for Private note.
+
+Preferred:
+
+Textarea + explicit:
+
+Save note
+
+button inside the Private note editor.
+
+Behavior:
+
+- button disabled or subdued when unchanged if practical
+- POST /api/trip/<id>/notes
+- trim whitespace server-side using existing endpoint
+- empty value clears note
+- 500-char limit enforced
+- show lightweight success state
+- after successful save, note remains visible while still in Edit mode
+
+Done should NOT silently discard a changed, unsaved note.
+
+If note has unsaved changes and user taps Done:
+either:
+A. save it first
+or
+B. warn that note has unsaved changes
+
+Choose the simplest reliable implementation and report which pattern was used.
+
+==================================================
+14. DONE BUTTON
+==================================================
+
+Done does NOT perform one giant save.
+
+All fields save individually through their canonical AJAX endpoints.
+
+Done should:
+
+- exit td-edit-mode
+- restore Edit label
+- hide Private note
+- return Visibility and Status to normal display state
+- preserve already-saved changes on screen
+
+If an AJAX request is currently in flight:
+prevent Done from creating an inconsistent UI state if practical.
+
+No full page navigation required.
+
+==================================================
+15. MY SETUP MUST REMAIN INDEPENDENT
+==================================================
+
+Do not change the Phase 1 architecture.
+
+MY SETUP:
+
+Pass
+Equipment
+Lessons
+
+remains directly editable regardless of whether owner Edit mode is active.
+
+For owner:
+edits owner participant row.
+
+For accepted participant:
+edits participant’s own row.
+
+Do not move My Setup fields into Edit mode.
+
+Do not make them read-only in normal mode.
+
+==================================================
+16. ACCEPTED PARTICIPANTS
+==================================================
+
+Accepted participant:
+
+- does NOT see Edit
+- cannot enter trip-level edit mode
+- Location read-only
+- Dates read-only
+- Visibility read-only
+- Planning/Going read-only
+- Private note never rendered
+
+They CAN still edit:
+
+MY SETUP
+- Pass
+- Equipment
+- Lessons
+
+They can still access:
+- Trip Planning
+- existing participant features
+
+Do not broaden permissions.
+
+==================================================
+17. LOWER PAGE WHILE EDITING
+==================================================
+
+Keep existing lower sections visible while owner is in edit mode:
+
+- My Setup
+- Trip Planning
+- Invite friends
+- People
+- Cancel trip
+
+Do not hide the entire lower page.
+
+However, do not make unrelated cards look editable just because edit mode is active.
+
+Only the five trip-level fields should receive edit-mode affordances.
+
+==================================================
+18. MOBILE UX
+==================================================
+
+Maintain current mobile behavior.
+
+Use:
+- existing bottom sheets
+- existing spacing
+- existing maroon action styling
+- existing safe-area handling
+
+Avoid introducing a large sticky global Save bar because this architecture uses per-field AJAX.
+
+Edit → Done should feel like changing page mode, not submitting a form.
+
+Private note keyboard behavior should remain usable on iPhone-sized screens.
+
+==================================================
+19. UNSAVED / ERROR STATES
+==================================================
+
+For AJAX editors:
+
+If save fails:
+- keep edit mode active
+- show existing error/toast pattern
+- revert or preserve UI state appropriately
+- do not pretend the change succeeded
+
+For unchanged values:
+avoid unnecessary requests where practical.
+
+For Private note:
+do not silently discard unsaved text.
+
+==================================================
+20. OLD EDIT PAGE — KEEP AS FALLBACK
+==================================================
+
+Do not delete:
+
+templates/edit_trip.html
+edit_trip_form()
+GET/POST /trips/<id>/edit
+
+Do not refactor it in this task.
+
+The trip-detail Edit button should stop linking to it.
+
+But the route remains usable directly.
+
+Also do not modify the add_trip overlap “Edit existing” link yet unless required for this task.
+
+That will be handled in a later deprecation phase.
+
+==================================================
+21. DO NOT CHANGE
+==================================================
+
+Do not change:
+
+- Trip Planning architecture
+- planning posts
+- planning notifications
+- Invite friends
+- People
+- Cancel trip
+- participant membership behavior
+- Pass ownership from Phase 1
+- Equipment ownership from Phase 1
+- Lessons ownership from Phase 1
+- Transportation
+- Accommodations
+- legacy equipment fields
+- legacy trip.pass_type
+- add_trip flow
+- comments/reactions/pinning
+
+No schema changes should be needed in this phase.
+
+==================================================
+22. VALIDATION — OWNER NORMAL MODE
+==================================================
+
+Verify:
+
+1. Owner sees Edit.
+2. Edit does not navigate away.
+3. Location displays normally.
+4. Dates remain tappable with existing quick-edit behavior.
+5. Visibility displays read-only.
+6. Planning/Going displays read-only.
+7. Private note is hidden.
+8. My Setup remains directly editable.
+9. Trip Planning still works.
+10. Invite friends still works.
+11. People still works.
+12. Cancel trip still works.
+
+==================================================
+23. VALIDATION — OWNER EDIT MODE
+==================================================
+
+Verify:
+
+13. Edit changes to Done.
+14. Same page remains loaded.
+15. Location can be changed via existing resort editor.
+16. Dates can be changed via existing date editor.
+17. Visibility can be changed.
+18. Planning/Going can be changed.
+19. Private note becomes visible.
+20. Private note can be added.
+21. Private note can be edited.
+22. Private note can be cleared.
+23. Private note cannot be silently lost by tapping Done.
+24. Done exits edit mode.
+25. Saved values remain correctly displayed after Done.
+26. No full-page edit navigation occurs.
+
+==================================================
+24. VALIDATION — PARTICIPANT
+==================================================
+
+Verify with an accepted participant:
+
+27. No Edit button.
+28. No trip-level editing controls.
+29. Location read-only.
+30. Dates read-only.
+31. Visibility read-only.
+32. Status read-only.
+33. Private note never appears.
+34. Pass remains editable for their own participant row.
+35. Equipment remains editable for their own participant row.
+36. Lessons remains editable for their own participant row.
+37. Trip Planning still accessible.
+
+==================================================
+25. VALIDATION — ENDPOINTS / SIDE EFFECTS
+==================================================
+
+Verify:
+
+38. Resort uses update-resort.
+39. Dates uses update-dates.
+40. Visibility uses new owner-only endpoint.
+41. Status uses new owner-only endpoint.
+42. Private note uses existing /notes endpoint.
+43. My Setup uses participant-scoped endpoints.
+44. No generic /api/trip/<id>/edit use added.
+45. Resort notification behavior preserved.
+46. Date notification behavior preserved.
+47. Visibility notification behavior documented/preserved.
+48. Status notification behavior documented/preserved.
+49. Private note changes remain silent.
+50. No duplicate notifications.
+
+==================================================
+26. REGRESSION
+==================================================
+
+Verify:
+
+51. /trips/<id>/edit still loads directly.
+52. edit_trip.html not deleted.
+53. add_trip overlap behavior unchanged.
+54. My Setup Phase 1 behavior unchanged.
+55. Trip Planning unchanged.
+56. No data-model changes.
+57. No unrelated routes/templates changed.
+
+==================================================
+27. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Edit-mode implementation
+3. Exact Edit → Done behavior
+4. Existing editors reused
+5. Visibility endpoint
+6. Status endpoint
+7. Visibility notification behavior
+8. Status notification behavior
+9. Private note implementation
+10. Private note unsaved-change behavior
+11. Owner normal-mode behavior
+12. Owner edit-mode behavior
+13. Accepted-participant behavior
+14. Confirmation My Setup remained independent
+15. Legacy Edit page fallback status
+16. Validation results
+17. Any issues encountered
+
+EXPLICITLY CONFIRM:
+
+- trip_detail is now the primary owner-facing trip screen.
+- Edit no longer navigates to /trips/<id>/edit.
+- Owner Edit mode controls only Location, Dates, Visibility, Planning/Going, and Private note.
+- Pass, Equipment, and Lessons remain directly editable personal My Setup fields.
+- Accepted participants cannot enter owner Edit mode.
+- Private note is never exposed to participants.
+- Existing Resort and Date AJAX endpoints were reused.
+- Visibility and Status use narrowly scoped owner-only endpoints.
+- Done exits edit mode rather than performing a bulk save.
+- The separate Edit Trip route/template remain intact as fallback.

@@ -65,8 +65,133 @@
             flex-shrink: 0;
             padding: 2px 0 2px 16px;
             -webkit-tap-highlight-color: transparent;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
         }
         .td-edit-link:active { opacity: 0.65; }
+
+        /* ── Location button (edit mode affordance) ── */
+        .td-location-btn {
+            background: none;
+            border: none;
+            padding: 0;
+            margin: 0 0 6px 0;
+            line-height: 1.3;
+            cursor: default;
+            text-align: left;
+            -webkit-tap-highlight-color: transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted, #8A857A);
+            font-family: inherit;
+        }
+        .td-location-caret {
+            display: none;
+            color: #5C1219;
+            font-size: 15px;
+            line-height: 1;
+        }
+        .page-container.td-edit-mode .td-location-btn { cursor: pointer; }
+        .page-container.td-edit-mode .td-location-caret { display: inline; }
+        .page-container.td-edit-mode .td-location-btn:active { opacity: 0.65; }
+
+        /* ── Edit mode controls (Visibility / Status / Private note) ── */
+        .td-edit-controls {
+            display: none;
+            margin-top: 16px;
+            border-top: 1px solid #E8E4DF;
+            padding-top: 16px;
+        }
+        .page-container.td-edit-mode .td-edit-controls { display: block; }
+
+        .td-edit-field-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted, #8A857A);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin: 0 0 7px;
+            display: block;
+        }
+        .td-edit-row { margin-bottom: 18px; }
+
+        /* Segmented control */
+        .td-seg-ctrl {
+            display: flex;
+            border: 1px solid #D6D0CA;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #F5F3F0;
+        }
+        .td-seg-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 9px 8px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--bl-color-text-muted, #8A857A);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            line-height: 1.2;
+            font-family: inherit;
+            transition: background 0.12s, color 0.12s;
+        }
+        .td-seg-btn:not(:last-child) { border-right: 1px solid #D6D0CA; }
+        .td-seg-btn.active { background: #5C1219; color: #fff; font-weight: 600; }
+        .td-seg-btn:not(.active):active { background: rgba(92,18,25,0.08); }
+
+        /* Private note */
+        .td-private-note-wrap { margin-bottom: 4px; }
+        .td-private-note-hint {
+            font-size: 12px;
+            color: var(--bl-color-text-muted, #8A857A);
+            margin: 0 0 10px;
+        }
+        .td-note-textarea {
+            width: 100%;
+            min-height: 96px;
+            padding: 11px 13px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--bl-color-text, #1A1A1A);
+            background: #F5F3F0;
+            border: 1px solid #D6D0CA;
+            border-radius: 8px;
+            resize: vertical;
+            box-sizing: border-box;
+            outline: none;
+            line-height: 1.5;
+            -webkit-appearance: none;
+        }
+        .td-note-textarea:focus { border-color: #5C1219; }
+        .td-note-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        .td-note-char-count { font-size: 12px; color: var(--bl-color-text-muted, #8A857A); }
+        .td-note-save-btn {
+            background: none;
+            border: 1.5px solid #5C1219;
+            color: #5C1219;
+            border-radius: 8px;
+            padding: 7px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            font-family: inherit;
+            transition: background 0.12s, color 0.12s, border-color 0.12s;
+        }
+        .td-note-save-btn:not(:disabled):active { background: rgba(92,18,25,0.08); }
+        .td-note-save-btn.td-note-saved { background: #3A7A3A; border-color: #3A7A3A; color: #fff; }
         .td-header-notice {
             font-size: 14px;
             color: #8A857A;
@@ -1061,12 +1186,12 @@
         <div class="td-header">
             <div class="td-mountain-header">
                 {% if mountain_name %}
-                <p class="td-mountain-name">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</p>
+                <button type="button" class="td-mountain-name td-location-btn" onclick="tdLocationTap()" id="td-location-btn">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}<span class="td-location-caret"> ›</span></button>
                 {% else %}
                 <span></span>
                 {% endif %}
                 {% if is_owner %}
-                <a href="{{ url_for('edit_trip_form', trip_id=trip.id) }}" class="td-edit-link">Edit</a>
+                <button type="button" class="td-edit-link" id="td-edit-toggle-btn" onclick="tdToggleEditMode()">Edit</button>
                 {% endif %}
             </div>
             {% if is_owner %}
@@ -1091,15 +1216,45 @@
             </div>
             {% endif %}
             <div class="td-meta-badges">
-                <div class="td-meta-badge">
+                <div class="td-meta-badge" id="td-vis-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                    {% if trip.is_public %}Visible to friends{% else %}Private{% endif %}
+                    <span id="td-vis-badge-text">{% if trip.is_public %}Visible to friends{% else %}Private{% endif %}</span>
                 </div>
-                <div class="td-meta-badge">
+                <div class="td-meta-badge" id="td-status-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                    {% if ts == 'going' %}Going{% else %}Planning{% endif %}
+                    <span id="td-status-badge-text">{% if ts == 'going' %}Going{% else %}Planning{% endif %}</span>
                 </div>
             </div>
+
+            {% if is_owner %}
+            <!-- Edit mode controls — hidden in normal view, revealed by .td-edit-mode CSS class -->
+            <div class="td-edit-controls" id="td-edit-controls">
+                <div class="td-edit-row">
+                    <span class="td-edit-field-label">Visibility</span>
+                    <div class="td-seg-ctrl" id="td-vis-seg">
+                        <button type="button" class="td-seg-btn {% if trip.is_public %}active{% endif %}" data-val="public" onclick="saveVisibility(true)">Visible to friends</button>
+                        <button type="button" class="td-seg-btn {% if not trip.is_public %}active{% endif %}" data-val="private" onclick="saveVisibility(false)">Private</button>
+                    </div>
+                </div>
+                <div class="td-edit-row">
+                    <span class="td-edit-field-label">Status</span>
+                    <div class="td-seg-ctrl" id="td-status-seg">
+                        <button type="button" class="td-seg-btn {% if ts == 'planning' %}active{% endif %}" data-val="planning" onclick="saveStatus('planning')">Planning</button>
+                        <button type="button" class="td-seg-btn {% if ts == 'going' %}active{% endif %}" data-val="going" onclick="saveStatus('going')">Going</button>
+                    </div>
+                </div>
+                <div class="td-private-note-wrap">
+                    <p class="td-edit-field-label">Private note</p>
+                    <p class="td-private-note-hint">Only you can see this.</p>
+                    <textarea id="td-note-textarea" class="td-note-textarea" maxlength="500" placeholder="Add a private note…" oninput="tdNoteOnInput()">{{ trip.notes or '' }}</textarea>
+                    <div class="td-note-footer">
+                        <span class="td-note-char-count" id="td-note-char-count">{{ (trip.notes or '') | length }}/500</span>
+                        <button type="button" class="td-note-save-btn" id="td-note-save-btn" onclick="saveNote()">Save note</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
         </div>
 
         <!-- My Setup -->
@@ -1764,6 +1919,174 @@
                 row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
             });
         });
+
+        // ── Owner Edit Mode ──
+        {% if is_owner %}
+        (function() {
+            var _tdEditActive = false;
+            // Tracks last committed note value — used to detect unsaved changes on Done.
+            var _tdNoteSaved = {{ (trip.notes or '') | tojson }};
+
+            // Location: only open resort picker when in edit mode.
+            window.tdLocationTap = function() {
+                if (_tdEditActive && window.openResortSheet) openResortSheet();
+            };
+
+            window.tdToggleEditMode = function() {
+                if (_tdEditActive) {
+                    _tdRequestExit();
+                } else {
+                    _tdEnter();
+                }
+            };
+
+            function _tdEnter() {
+                _tdEditActive = true;
+                var btn = document.getElementById('td-edit-toggle-btn');
+                if (btn) btn.textContent = 'Done';
+                var pc = document.querySelector('.page-container');
+                if (pc) pc.classList.add('td-edit-mode');
+                // Sync note textarea to last committed value (handles re-entering after Done).
+                var noteEl = document.getElementById('td-note-textarea');
+                if (noteEl) {
+                    noteEl.value = _tdNoteSaved;
+                    _tdSyncNoteUI();
+                }
+            }
+
+            // Done: auto-save note if there are unsaved changes, then exit.
+            // Option A per spec §13: save first, stay in edit mode on failure.
+            async function _tdRequestExit() {
+                var noteEl = document.getElementById('td-note-textarea');
+                var hasUnsaved = noteEl && (noteEl.value.trim() !== (_tdNoteSaved || '').trim());
+                if (hasUnsaved) {
+                    var ok = await saveNote();
+                    if (!ok) return;   // save failed — stay in edit mode
+                }
+                _tdExit();
+            }
+
+            function _tdExit() {
+                _tdEditActive = false;
+                var btn = document.getElementById('td-edit-toggle-btn');
+                if (btn) btn.textContent = 'Edit';
+                var pc = document.querySelector('.page-container');
+                if (pc) pc.classList.remove('td-edit-mode');
+            }
+
+            // Expose for note textarea oninput
+            window.tdNoteOnInput = function() { _tdSyncNoteUI(); };
+
+            function _tdSyncNoteUI() {
+                var noteEl  = document.getElementById('td-note-textarea');
+                var countEl = document.getElementById('td-note-char-count');
+                var saveBtn = document.getElementById('td-note-save-btn');
+                if (!noteEl) return;
+                if (countEl) countEl.textContent = noteEl.value.length + '/500';
+                // Subdue button when value unchanged (no unnecessary request).
+                if (saveBtn) {
+                    var unchanged = noteEl.value.trim() === (_tdNoteSaved || '').trim();
+                    saveBtn.style.opacity = unchanged ? '0.4' : '1';
+                }
+            }
+
+            // Visibility — silent (historically not in _edit_meaningful in edit_trip_form).
+            window.saveVisibility = async function(isPublic) {
+                const tripId = {{ trip.id }};
+                try {
+                    const res = await fetch(`/api/trip/${tripId}/update-visibility`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_public: isPublic })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        var badgeText = document.getElementById('td-vis-badge-text');
+                        if (badgeText) badgeText.textContent = data.label;
+                        document.querySelectorAll('#td-vis-seg .td-seg-btn').forEach(function(b) {
+                            b.classList.toggle('active', b.dataset.val === (isPublic ? 'public' : 'private'));
+                        });
+                    } else {
+                        blToast(data.error || 'Could not save visibility.');
+                    }
+                } catch(e) {
+                    blToast('Network error. Please try again.');
+                }
+            };
+
+            // Status — emits TRIP_DETAILS_UPDATED to accepted+invited participants when changed.
+            window.saveStatus = async function(status) {
+                const tripId = {{ trip.id }};
+                try {
+                    const res = await fetch(`/api/trip/${tripId}/update-status`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ trip_status: status })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        var badgeText = document.getElementById('td-status-badge-text');
+                        if (badgeText) badgeText.textContent = data.label;
+                        document.querySelectorAll('#td-status-seg .td-seg-btn').forEach(function(b) {
+                            b.classList.toggle('active', b.dataset.val === status);
+                        });
+                    } else {
+                        blToast(data.error || 'Could not save status.');
+                    }
+                } catch(e) {
+                    blToast('Network error. Please try again.');
+                }
+            };
+
+            // Private note — uses existing /api/trip/<id>/notes. Silent (no notification).
+            // Returns true on success, false on failure (used by Done auto-save path).
+            window.saveNote = async function() {
+                const tripId = {{ trip.id }};
+                const noteEl  = document.getElementById('td-note-textarea');
+                const saveBtn = document.getElementById('td-note-save-btn');
+                const notes   = noteEl ? noteEl.value.trim() : '';
+                if (notes.length > 500) {
+                    blToast('Note cannot exceed 500 characters.');
+                    return false;
+                }
+                if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.4'; }
+                try {
+                    const res = await fetch(`/api/trip/${tripId}/notes`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ notes: notes })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        _tdNoteSaved = notes;
+                        if (saveBtn) {
+                            saveBtn.disabled = false;
+                            saveBtn.classList.add('td-note-saved');
+                            saveBtn.textContent = 'Saved ✓';
+                            saveBtn.style.opacity = '1';
+                            setTimeout(function() {
+                                saveBtn.classList.remove('td-note-saved');
+                                saveBtn.textContent = 'Save note';
+                                _tdSyncNoteUI(); // re-apply subdued state
+                            }, 1800);
+                        }
+                        return true;
+                    } else {
+                        blToast(data.message || 'Could not save note.');
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+                        return false;
+                    }
+                } catch(e) {
+                    blToast('Network error. Please try again.');
+                    if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+                    return false;
+                }
+            };
+
+            // Initialise note UI on page load.
+            _tdSyncNoteUI();
+        })();
+        {% endif %}
 
         // ── Resort edit bottom sheet ──
         {% if is_owner %}

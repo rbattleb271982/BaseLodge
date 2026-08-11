@@ -5456,6 +5456,99 @@ def update_trip_pass(trip_id):
     return jsonify({"success": True, "pass_type": normalized, "pass_display": display})
 
 
+@app.route("/api/trip/<int:trip_id>/update-visibility", methods=["POST"])
+@login_required
+def update_trip_visibility(trip_id):
+    """Owner-only inline update of trip.is_public.
+
+    Visibility changes are intentionally silent — edit_trip_form's _edit_meaningful
+    condition did not include is_public, so no TRIP_DETAILS_UPDATED was historically
+    sent for visibility-only changes. This endpoint matches that behaviour.
+    """
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"success": False, "error": "Trip not found."}), 404
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Only the trip owner can change visibility."}), 403
+    data = request.get_json(silent=True) or {}
+    if "is_public" not in data:
+        return jsonify({"success": False, "error": "Missing is_public field."}), 400
+    trip.is_public = bool(data["is_public"])
+    trip.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_visibility] error: {e}")
+        return jsonify({"success": False, "error": "Failed to save."}), 500
+    label = "Visible to friends" if trip.is_public else "Private"
+    return jsonify({"success": True, "is_public": trip.is_public, "label": label})
+
+
+@app.route("/api/trip/<int:trip_id>/update-status", methods=["POST"])
+@login_required
+def update_trip_status(trip_id):
+    """Owner-only inline update of trip.trip_status (planning | going).
+
+    Mirrors edit_trip_form notification behaviour: emits TRIP_DETAILS_UPDATED to
+    all accepted + invited participants (excluding owner) when the value changes.
+    No notification is sent when the value is unchanged.
+    """
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"success": False, "error": "Trip not found."}), 404
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Only the trip owner can change status."}), 403
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get("trip_status") or "").strip().lower()
+    if new_status not in ("planning", "going"):
+        return jsonify({"success": False, "error": "Invalid status. Use 'planning' or 'going'."}), 400
+    original_status = trip.trip_status or "planning"
+    status_changed = new_status != original_status
+    trip.trip_status = new_status
+    trip.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_status] error: {e}")
+        return jsonify({"success": False, "error": "Failed to save."}), 500
+    if status_changed:
+        notify_ids = [
+            p.user_id for p in SkiTripParticipant.query.filter(
+                SkiTripParticipant.trip_id == trip_id,
+                SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                SkiTripParticipant.user_id != trip.user_id,
+            ).all()
+        ]
+        for uid in notify_ids:
+            emit_messaging_event(
+                event_name=EventName.TRIP_DETAILS_UPDATED,
+                actor_user_id=current_user.id,
+                recipient_user_id=uid,
+                entity_type="trip",
+                entity_id=trip.id,
+                metadata={
+                    "actor_name": current_user.first_name or current_user.username,
+                    "resort":     trip.mountain or "your trip",
+                    "trip_id":    trip.id,
+                },
+                source_route="update_trip_status",
+            )
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"[update_trip_status] notification commit error: {e}")
+    label = "Going" if trip.trip_status == "going" else "Planning"
+    return jsonify({
+        "success": True,
+        "trip_status": trip.trip_status,
+        "label": label,
+        "changed": status_changed,
+    })
+
+
 @app.route("/api/trip/<int:trip_id>/delete", methods=["POST"])
 @login_required
 def delete_trip(trip_id):
