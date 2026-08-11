@@ -1,0 +1,709 @@
+BASELODGE — PLAN/AUDIT ONLY
+CONVERT TRIP DETAIL INTO SINGLE-PAGE OWNER EDIT MODE
+
+DO NOT IMPLEMENT YET.
+
+I want to simplify the trip-owner experience so there is ONE primary trip page instead of:
+
+1. trip detail page
+2. separate Edit Trip page
+3. additional inline editors
+
+The desired product direction is:
+
+NORMAL TRIP VIEW
+- Trip summary
+- My setup
+- Trip planning
+- Invite friends
+- People
+- Cancel trip
+
+OWNER TAPS EDIT
+- The SAME trip detail page enters edit mode
+- Mountain/location becomes editable
+- Dates become editable
+- Visibility becomes editable
+- Planning / Going becomes editable
+- Private note appears and becomes editable
+- My setup remains editable
+- Edit changes to Done / Save or another appropriate completion action
+- Owner stays on the same trip page
+
+ACCEPTED PARTICIPANT
+- Does NOT see owner Edit control
+- Cannot edit trip-level fields
+- Can still edit THEIR OWN personal setup:
+  - Pass
+  - Equipment
+  - Lessons
+- Can access Trip Planning
+- Never sees Private note
+
+The separate /trips/<id>/edit page should eventually no longer be part of the user-facing journey once the single-page experience is stable.
+
+For now this task is ONLY an audit and implementation plan.
+
+==================================================
+1. FIRST MAP THE CURRENT EDITING SYSTEM
+==================================================
+
+Trace every current way the owner can modify the trip.
+
+Specifically inspect:
+
+A. trip_detail.html
+B. edit_trip.html
+C. trip_detail() route
+D. edit_trip_form() route
+E. existing AJAX endpoints for:
+- resort/location
+- dates
+- visibility
+- planning/going
+- pass
+- equipment
+- lessons
+- private notes
+
+Document which fields are currently:
+
+- editable directly on trip_detail
+- editable only via edit_trip.html
+- editable both places
+- participant-level
+- trip-level
+
+Do not assume based on UI labels.
+
+Trace the actual model field written.
+
+==================================================
+2. DEFINE THE FIELD OWNERSHIP MODEL
+==================================================
+
+The intended product model is:
+
+TRIP-LEVEL / OWNER ONLY
+- Resort/location
+- Trip start date
+- Trip end date
+- Visibility
+- Planning / Going
+- Private note
+
+PERSONAL / CURRENT USER
+- Pass
+- Equipment
+- Lessons
+
+Important:
+
+Pass is about the PERSON.
+
+The mountain/resort may separately have one or more pass associations.
+
+Example:
+- Vail may be an Epic mountain
+- a participant may personally have Ikon
+- that is valid and should not be treated as an error
+
+Equipment is personal.
+
+Lessons is personal.
+
+Accepted participants should be able to manage their own personal setup without gaining access to owner trip editing.
+
+Audit whether the current data model actually supports this intended ownership cleanly.
+
+If any current field violates this model, identify it.
+
+==================================================
+3. AUDIT CURRENT PASS ARCHITECTURE CAREFULLY
+==================================================
+
+This is especially important.
+
+Determine exactly what the current Pass row on trip_detail represents.
+
+Does it write:
+- SkiTrip.pass_type?
+- a User pass field?
+- a participant field?
+- some other relationship?
+
+We now want Pass to represent the CURRENT USER'S pass, not a shared trip-level pass.
+
+Do not implement anything.
+
+Tell me whether the existing Pass architecture currently matches that product model or whether it will need to change.
+
+Also identify how resort pass associations are stored separately.
+
+==================================================
+4. AUDIT CURRENT EQUIPMENT ARCHITECTURE
+==================================================
+
+Determine what the current Equipment row represents.
+
+We previously identified multiple similarly named fields including:
+
+- trip.trip_equipment_status
+- trip.equipment_override
+- SkiTripParticipant.equipment_status
+
+Map all current equipment-related fields and routes.
+
+Tell me:
+
+- Which one is actually used by the visible Trip Setup row?
+- Is it currently stored on SkiTrip or SkiTripParticipant?
+- Can an accepted participant currently save their own equipment?
+- Could the owner accidentally overwrite another participant's equipment?
+- What should change, if anything, to make Equipment truly personal?
+
+Do not implement.
+
+==================================================
+5. AUDIT CURRENT LESSONS ARCHITECTURE
+==================================================
+
+Lessons should remain personal.
+
+Determine:
+
+- current model field
+- current route
+- current JS
+- current permission behavior
+- whether accepted participant edits their own row
+- whether owner can overwrite another person's value
+
+Confirm whether current behavior already matches the desired model.
+
+==================================================
+6. MAP THE EXISTING TRIP-LEVEL QUICK EDIT CONTROLS
+==================================================
+
+For each trip-level field:
+
+LOCATION
+DATES
+VISIBILITY
+PLANNING / GOING
+
+Determine whether a working reusable control already exists.
+
+Example:
+- Dates currently have a working bottom sheet when the date is tapped.
+- Resort may already have an inline AJAX editor.
+- Visibility and Planning/Going may currently only exist on edit_trip.html.
+
+For each field report:
+
+- existing control
+- existing JS
+- existing endpoint / form handler
+- notification behavior
+- activity logging
+- whether it can safely be reused on trip_detail
+
+The goal is to reuse existing controls rather than recreate them.
+
+==================================================
+7. PRIVATE NOTE
+==================================================
+
+Current state:
+
+SkiTrip.notes now acts as the owner-only Private note on edit_trip.html.
+
+Desired future state:
+
+Private note should be accessible ONLY while the owner is in edit mode on trip_detail.
+
+In normal view:
+- Private note should not be visible
+
+In owner edit mode:
+- Show a Private note textarea
+- “Only you can see this.”
+- 500 character limit
+- owner can add/edit/clear it
+
+Participants never see it.
+
+Audit the cleanest way to reuse the current notes save logic.
+
+Determine whether to:
+- reuse edit_trip_form POST logic
+- reuse /api/trip/<id>/notes if it still exists
+- create/use a dedicated endpoint
+- another existing pattern
+
+Recommend the smallest, safest approach.
+
+==================================================
+8. DEFINE VIEW MODE VS EDIT MODE
+==================================================
+
+Audit how best to implement two visual states on trip_detail.
+
+NORMAL MODE:
+
+Vail, CO                     Edit
+Sep 17–19, 2026 · 2 nights
+Visible to friends | Planning
+
+MY SETUP
+Pass
+Equipment
+Lessons
+
+TRIP PLANNING
+...
+
+Invite friends
+
+PEOPLE
+...
+
+Cancel trip
+
+OWNER EDIT MODE:
+
+Same page, but trip-level fields become editable.
+
+Conceptually:
+
+Vail, CO                     Done/Save
+Location editable
+
+Sep 17–19, 2026 · 2 nights
+Dates editable
+
+Visibility
+editable
+
+Planning / Going
+editable
+
+PRIVATE NOTE
+textarea
+Only you can see this.
+
+MY SETUP
+Pass
+Equipment
+Lessons
+
+These remain personal controls.
+
+Planning / Invite / People may either:
+A. remain visible during edit mode
+B. temporarily collapse/hide while editing
+
+Recommend which is cleaner based on the current markup and mobile UX.
+
+Do not implement.
+
+==================================================
+9. EDIT / DONE / SAVE BEHAVIOR
+==================================================
+
+We need to decide whether owner edit mode should:
+
+OPTION A
+Save each field immediately when changed through its existing AJAX endpoint, then “Done” simply exits edit mode.
+
+OPTION B
+Stage all trip-level changes locally, then one “Save” button commits everything.
+
+OPTION C
+Hybrid:
+- existing quick edits continue saving immediately
+- private note or certain fields save on completion
+
+Audit the current architecture and recommend the cleanest option.
+
+Consider:
+- current AJAX endpoints
+- existing notifications
+- avoiding duplicate edit code
+- validation
+- partial failures
+- mobile UX
+- whether users expect Done vs Save
+
+Do not choose purely based on visual preference.
+
+==================================================
+10. DATE QUICK EDIT
+==================================================
+
+I like the existing behavior where tapping the date opens the date-edit bottom sheet.
+
+Determine whether that interaction should:
+
+A. remain available in normal mode
+AND edit mode
+
+B. remain normal-mode shortcut, with edit mode also using it
+
+C. only work in edit mode
+
+My current preference is to preserve it because it is useful.
+
+Audit whether preserving it creates any inconsistency.
+
+==================================================
+11. WHAT SHOULD THE EDIT BUTTON DO
+==================================================
+
+Currently Edit links to:
+
+/trips/<id>/edit
+
+Desired future behavior:
+
+Edit should toggle the SAME page into owner edit mode.
+
+Audit how to change the existing link safely.
+
+Potential behavior:
+
+Normal:
+Edit
+
+Tap:
+enter edit mode
+
+Editing:
+Done
+or
+Save
+
+After completion:
+return to normal mode without navigating away
+
+Determine whether edit mode should be:
+- client-side state only
+- query param
+- server-rendered mode
+- another existing pattern
+
+Recommend the smallest maintainable solution.
+
+==================================================
+12. SEPARATE EDIT PAGE DEPRECATION
+==================================================
+
+Do NOT delete edit_trip.html or /trips/<id>/edit in this implementation plan.
+
+Instead audit:
+
+- all inbound links to /trips/<id>/edit
+- whether anything besides the current Edit button uses it
+- whether tests depend on it
+- whether external/deep links could use it
+- whether it can remain as a fallback route temporarily
+
+Recommend a staged deprecation:
+
+Phase 1:
+Stop linking users there.
+
+Phase 2:
+Verify no active callers.
+
+Phase 3:
+Remove/deprecate later if safe.
+
+==================================================
+13. ACCEPTED PARTICIPANT EXPERIENCE
+==================================================
+
+Audit the trip page as an accepted participant.
+
+Desired behavior:
+
+NO owner Edit button.
+
+Trip-level fields:
+- visible
+- read-only
+
+MY SETUP:
+- Pass — participant edits their own
+- Equipment — participant edits their own
+- Lessons — participant edits their own
+
+Trip Planning:
+- accessible
+
+Private note:
+- never visible
+
+Invite friends:
+Determine whether accepted participants currently see/use this.
+Do not change behavior in this audit unless necessary.
+
+People:
+unchanged
+
+Leave trip:
+unchanged
+
+Identify any current markup/authorization that prevents this desired behavior.
+
+==================================================
+14. OWNER EXPERIENCE
+==================================================
+
+Desired owner behavior:
+
+Normal mode:
+- sees clean summary
+- personal My Setup is usable
+- can quick-edit dates if we preserve that shortcut
+
+Tap Edit:
+- same screen becomes owner-editable for core trip fields
+- private note becomes visible/editable
+
+Owner should NOT gain special ability to edit other people's:
+- Pass
+- Equipment
+- Lessons
+
+==================================================
+15. INFORMATION ARCHITECTURE / LABEL AUDIT
+==================================================
+
+Since Pass, Equipment, and Lessons are personal, evaluate renaming:
+
+TRIP SETUP
+
+to:
+
+MY SETUP
+
+Does that better match the actual behavior?
+
+Audit whether that label makes sense for:
+- owner
+- accepted participant
+- single-person trip
+
+Recommend final wording.
+
+Also evaluate whether any subtitles are needed.
+
+Prefer less text.
+
+==================================================
+16. DUPLICATE EDITING LOGIC
+==================================================
+
+Identify every piece of duplicated logic between:
+
+trip_detail.html
+edit_trip.html
+edit_trip_form()
+AJAX update endpoints
+
+Especially:
+- resort
+- dates
+- visibility
+- planning status
+
+We do NOT want to create a third implementation.
+
+Recommend which existing logic should become canonical for each field.
+
+==================================================
+17. NOTIFICATIONS / SIDE EFFECTS
+==================================================
+
+For each trip-level edit, document current side effects:
+
+Resort:
+- notification?
+- activity?
+
+Dates:
+- notification?
+- activity?
+
+Visibility:
+- notification?
+
+Planning/Going:
+- notification?
+
+Private note:
+- notification?
+
+If we move editing onto trip_detail, preserve intended existing behavior.
+
+Identify any places where using a different endpoint would accidentally change notifications.
+
+==================================================
+18. MOBILE UX
+==================================================
+
+Evaluate the proposed one-page edit mode against the current mobile structure.
+
+Specifically consider:
+
+- chevrons
+- bottom sheets
+- sticky save/done controls
+- bottom nav
+- long pages
+- keyboard behavior for Private note
+- accidental edits
+- exiting edit mode with unsaved changes
+- Back button behavior
+
+Recommend the simplest mobile pattern.
+
+==================================================
+19. LEGACY / DEAD CODE IMPACT
+==================================================
+
+Identify what may become legacy after this change:
+
+- edit_trip.html
+- edit_trip_form GET
+- edit_trip_form POST
+- generic /api/trip/<id>/edit
+- duplicate resort/date update paths
+- any edit-specific JS/CSS
+
+Do NOT remove anything yet.
+
+Classify each item:
+
+KEEP
+TEMPORARY FALLBACK
+DEPRECATE LATER
+SAFE TO REMOVE LATER
+
+==================================================
+20. RECOMMENDED FINAL PRODUCT BEHAVIOR
+==================================================
+
+After auditing the code, give me a concrete recommended behavior for:
+
+OWNER NORMAL VIEW
+
+OWNER EDIT MODE
+
+ACCEPTED PARTICIPANT VIEW
+
+For each, explicitly state what happens when they interact with:
+
+- Location
+- Dates
+- Visibility
+- Planning/Going
+- Pass
+- Equipment
+- Lessons
+- Private note
+- Trip Planning
+- Invite friends
+- People
+- Cancel/Leave
+
+==================================================
+21. IMPLEMENTATION PHASES
+==================================================
+
+Recommend the safest implementation order.
+
+For example:
+
+Phase 1
+Correct personal field ownership if needed.
+
+Phase 2
+Add trip-detail owner edit mode using existing controls.
+
+Phase 3
+Move Private note.
+
+Phase 4
+Stop linking to edit_trip.html.
+
+Phase 5
+Validate participant behavior.
+
+Phase 6
+Later deprecate old edit route/template.
+
+But base the actual phases on what the code audit finds.
+
+==================================================
+22. FINAL RETURN FORMAT
+==================================================
+
+Return a structured audit with:
+
+1. Executive Summary
+2. Current Editing Architecture
+3. Trip-Level vs Personal Field Matrix
+4. Pass Architecture
+5. Equipment Architecture
+6. Lessons Architecture
+7. Existing Reusable Trip-Level Editors
+8. Private Note Architecture
+9. Recommended View/Edit Mode
+10. Recommended Save Strategy
+11. Owner Behavior
+12. Accepted Participant Behavior
+13. Recommended “Trip Setup” vs “My Setup” Label
+14. Notification / Side-Effect Preservation
+15. Duplicate Logic Findings
+16. Separate Edit Page Deprecation Plan
+17. Exact Files / Routes / JS That Would Change
+18. Risk Areas
+19. Recommended Implementation Phases
+20. Final Feature Matrix
+
+Include a table:
+
+Field | Trip-level or personal? | Current storage | Current editor | Desired editor | Owner permissions | Participant permissions | Change required?
+
+Include:
+- Location
+- Dates
+- Visibility
+- Planning/Going
+- Pass
+- Equipment
+- Lessons
+- Private note
+
+IMPORTANT:
+
+AUDIT / PLAN ONLY.
+
+DO NOT:
+- modify code
+- change templates
+- create routes
+- remove routes
+- change schema
+- change notifications
+- change permissions
+- fix issues
+- refactor code
+
+If you discover a bug or architecture mismatch, report it and explain its impact.
+
+The central question is:
+
+How do we make trip_detail the ONE primary user-facing trip screen, with owner edit mode for trip-level fields and personal setup controls for each individual, while reusing the editing logic BaseLodge already has instead of building another editing system?
