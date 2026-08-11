@@ -1,0 +1,280 @@
+BASELODGE — #236 ADD CSRF VALIDATION TO TRIP FETCH/API MUTATIONS
+
+Implement ONLY backend CSRF validation for the trip-related fetch/API mutation routes listed below.
+
+Audit #234 confirmed that all current frontend callers already send:
+
+X-CSRF-Token
+
+automatically through the global window.fetch wrapper in analytics_head.html.
+
+Therefore:
+
+NO frontend changes should be required for these routes.
+
+DO NOT:
+- modify the fetch wrapper
+- add new CSRF infrastructure
+- change route payloads
+- change permissions
+- change notifications
+- change schema
+- change UI
+- change native/Capacitor behavior
+- touch unrelated routes
+
+==================================================
+1. ROUTES IN SCOPE
+==================================================
+
+Add validate_csrf_request() to these active mutation routes:
+
+POST /api/trip/create
+
+POST /api/trip/<id>/update-dates
+
+POST /api/trip/<id>/update-resort
+
+POST /api/trip/<id>/update-pass
+
+POST /api/trip/<id>/update-visibility
+
+POST /api/trip/<id>/update-status
+
+POST /api/trip/<id>/delete
+
+POST /api/trip/<id>/accommodation
+
+POST /api/trip/<id>/notes
+
+POST /api/trips/<id>/participant/signals
+
+POST /api/trip/<id>/planning-posts
+
+PATCH /api/trip/<trip_id>/planning-posts/<post_id>
+
+DELETE /api/trip/<trip_id>/planning-posts/<post_id>
+
+If the exact route parameter names differ, use the actual current route definitions.
+
+==================================================
+2. VERIFY CALLERS BEFORE EDITING
+==================================================
+
+Before changing each route, confirm its active caller.
+
+Verify the caller uses window.fetch and is rendered from a template that includes:
+
+templates/components/analytics_head.html
+
+Confirm the request already receives:
+
+X-CSRF-Token
+
+Do not rely solely on the previous audit.
+
+If any in-scope route has a caller that does NOT receive the global fetch wrapper:
+
+STOP for that route and report it.
+
+Do not add validation that would knowingly break an active caller.
+
+==================================================
+3. BACKEND VALIDATION
+==================================================
+
+For each confirmed route, add:
+
+validate_csrf_request()
+
+near the beginning of the handler.
+
+Preserve the existing ordering conventions used by BaseLodge.
+
+Do not change:
+
+@login_required
+owner checks
+participant checks
+payload validation
+business logic
+response bodies
+status codes
+database commits
+notification logic
+
+The only intended behavioral difference is:
+
+authenticated mutation + missing/invalid CSRF
+→ 403
+
+==================================================
+4. DO NOT DOUBLE-PROTECT FORM ROUTES
+==================================================
+
+This task is ONLY for the listed fetch/API routes.
+
+Do not touch:
+
+POST /trips/<id>/delete
+
+the HTML form route, because it is already CSRF protected.
+
+Do not touch legacy /trips/<id>/edit redirect behavior.
+
+Do not add hidden form inputs anywhere.
+
+==================================================
+5. API DELETE REGRESSION
+==================================================
+
+For:
+
+POST /api/trip/<id>/delete
+
+preserve all #230 behavior:
+
+- owner-only
+- shared trip deletion cleanup
+- TripInviteToken cleanup
+- Invitation cleanup
+- planning-post cleanup
+- participant cleanup
+- availability-overlap cleanup
+- rollback on failure
+- TRIP_CANCELLED after successful commit only
+
+CSRF validation must not alter any of this.
+
+==================================================
+6. INLINE EDIT REGRESSION
+==================================================
+
+Verify all current inline trip edits still succeed with valid CSRF:
+
+- dates
+- resort
+- pass
+- visibility
+- status
+- private note
+- accommodation if still used
+
+==================================================
+7. MY SETUP REGRESSION
+==================================================
+
+Verify:
+
+POST /api/trips/<id>/participant/signals
+
+still supports current personal values:
+
+- equipment
+- lessons
+- transportation where applicable
+
+Owner and accepted participant must still only update their own participant row.
+
+==================================================
+8. TRIP PLANNING REGRESSION
+==================================================
+
+Verify POST/PATCH/DELETE planning operations with valid CSRF:
+
+- create post
+- edit own post
+- delete own post
+- owner moderation delete
+
+Preserve:
+
+- link_url security from #229
+- permissions
+- 500-char body limit
+- notification behavior
+
+==================================================
+9. CSRF TEST MATRIX
+==================================================
+
+For EACH route in scope, verify using safe test data:
+
+A. authenticated + valid CSRF
+Expected:
+request reaches normal business logic
+
+B. authenticated + missing CSRF
+Expected:
+403
+
+C. authenticated + invalid CSRF
+Expected:
+403
+
+D. logged-out
+Expected:
+existing unauthenticated behavior or 403 depending on decorator/order
+
+Do not alter behavior merely to normalize D.
+
+==================================================
+10. CAPACITOR / WEBVIEW
+==================================================
+
+Verify the current app WebView path still supplies the CSRF header through the existing fetch wrapper.
+
+Do not change:
+
+bl-native.js
+analytics_head.html
+session cookie settings
+
+Confirm no native caller breaks.
+
+==================================================
+11. NO SIDE EFFECTS ON FAILED CSRF
+==================================================
+
+For representative routes verify a failed CSRF request causes:
+
+- no DB write
+- no partial mutation
+- no notification
+- no activity creation
+- no analytics side effect tied to successful mutation
+
+Validation should occur before business mutation.
+
+==================================================
+12. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Exact routes updated
+3. Caller verification for each
+4. Placement of validate_csrf_request()
+5. Valid-token test results
+6. Missing-token test results
+7. Invalid-token test results
+8. Inline Edit regression results
+9. My Setup regression results
+10. Trip Planning regression results
+11. Trip deletion regression results
+12. Capacitor/native confirmation
+13. Failed-CSRF no-side-effect confirmation
+14. Any route skipped and why
+15. Any issue encountered
+
+Explicitly confirm:
+
+- all in-scope active fetch/API trip mutations now validate CSRF
+- current frontend callers already supply the token
+- no frontend changes were required
+- valid app/browser requests still work
+- missing/invalid tokens return 403
+- no schema changes
+- no notification changes
+- no permissions changed

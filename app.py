@@ -5129,8 +5129,9 @@ def get_mountains(state):
 @app.route("/api/trip/create", methods=["POST"])
 @login_required
 def create_trip():
+    validate_csrf_request()
     user = current_user
-    
+
     data = request.get_json()
     resort_id_raw = data.get("resort_id")
     state = data.get("state")
@@ -5258,6 +5259,7 @@ def create_trip():
 @app.route("/api/trip/<int:trip_id>/update-dates", methods=["POST"])
 @login_required
 def update_trip_dates(trip_id):
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
@@ -5323,6 +5325,7 @@ def update_trip_dates(trip_id):
 @app.route("/api/trip/<int:trip_id>/update-resort", methods=["POST"])
 @login_required
 def update_trip_resort(trip_id):
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
@@ -5392,6 +5395,7 @@ def update_trip_pass(trip_id):
     Both the trip owner and accepted participants may update their own value.
     SkiTrip.pass_type is preserved as a legacy field but is no longer written here.
     """
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
@@ -5429,6 +5433,7 @@ def update_trip_visibility(trip_id):
     Visibility changes are intentionally silent — no TRIP_DETAILS_UPDATED is sent
     for visibility-only changes.
     """
+    validate_csrf_request()
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
         return jsonify({"success": False, "error": "Trip not found."}), 404
@@ -5457,6 +5462,7 @@ def update_trip_status(trip_id):
     Emits TRIP_DETAILS_UPDATED to all accepted + invited participants (excluding
     owner) when the value changes. No notification is sent when unchanged.
     """
+    validate_csrf_request()
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
         return jsonify({"success": False, "error": "Trip not found."}), 404
@@ -5540,6 +5546,7 @@ def _delete_trip_related_data(trip):
 @app.route("/api/trip/<int:trip_id>/delete", methods=["POST"])
 @login_required
 def delete_trip(trip_id):
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
@@ -11736,6 +11743,7 @@ def _validate_planning_link_url(raw):
 @login_required
 def planning_posts_create(trip_id):
     """Create a new planning post. Accepted members only."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     if not can_access_trip_planning(trip, current_user):
         return jsonify({"error": "Access denied"}), 403
@@ -11802,6 +11810,7 @@ def planning_posts_create(trip_id):
 @login_required
 def planning_posts_update(trip_id, post_id):
     """Edit a planning post. Author only."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
 
@@ -11835,6 +11844,7 @@ def planning_posts_update(trip_id, post_id):
 @login_required
 def planning_posts_delete(trip_id, post_id):
     """Delete a planning post. Author or trip owner."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
 
@@ -11919,6 +11929,7 @@ def trip_invite_detail(trip_id):
 @login_required
 def update_trip_accommodation(trip_id):
     """Update accommodation status (owner-only)."""
+    validate_csrf_request()
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
         return jsonify({"status": "error", "message": "Trip not found"}), 404
@@ -11974,6 +11985,7 @@ def update_trip_accommodation(trip_id):
 @login_required
 def update_trip_notes(trip_id):
     """Update trip notes (owner-only write)."""
+    validate_csrf_request()
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
         return jsonify({"status": "error", "message": "Trip not found"}), 404
@@ -12525,6 +12537,7 @@ def respond_to_trip_invite(trip_id):
 @login_required
 def update_participant_signals(trip_id):
     """Update current user's transportation, equipment, carpool, and lesson signals for a trip."""
+    validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
     
     # Find the user's participant record

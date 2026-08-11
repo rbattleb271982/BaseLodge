@@ -1,0 +1,153 @@
+BASELODGE — #235 FIX DELETE-ACCOUNT CSRF FORM GAP
+
+Implement ONLY the delete-account CSRF form mismatch identified in Audit #234.
+
+This is a one-route, one-template correctness fix.
+
+DO NOT:
+- add CSRF to any other route
+- change delete_account() deletion logic
+- change account deletion FK cleanup
+- change authentication
+- change session behavior
+- change account deletion copy/UX
+- change schema
+- refactor CSRF infrastructure
+
+==================================================
+BACKGROUND
+==================================================
+
+Current backend:
+
+POST /delete-account
+
+already calls:
+
+validate_csrf_request()
+
+Audit #234 confirmed the corresponding delete-account form does NOT currently submit:
+
+csrf_token
+
+Therefore the normal form can fail with HTTP 403 even when the authenticated user is legitimately trying to delete their own account.
+
+Fix ONLY this frontend/backend mismatch.
+
+==================================================
+1. IDENTIFY THE EXACT FORM
+==================================================
+
+Find the HTML form that submits to:
+
+POST /delete-account
+
+Confirm which template contains it.
+
+Do not assume the file name.
+
+Before editing, verify:
+
+- form method is POST
+- form action resolves to delete_account
+- no existing hidden csrf_token is already present
+
+==================================================
+2. ADD CSRF TOKEN
+==================================================
+
+Inside that exact form add:
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+Use the same existing BaseLodge pattern already used by protected forms such as:
+
+- change password
+- remove friend
+- delete trip
+- leave trip
+
+Do not add another token mechanism.
+
+==================================================
+3. DO NOT CHANGE BACKEND
+==================================================
+
+Do NOT modify:
+
+validate_csrf_request()
+
+Do NOT remove or move its call in:
+
+delete_account()
+
+The backend is already correct.
+
+This task is only about ensuring the legitimate form actually sends the expected token.
+
+==================================================
+4. VALIDATION
+==================================================
+
+Using a safe test account/test client:
+
+Test:
+
+A. Authenticated user + valid CSRF token
+Expected:
+request passes CSRF validation and reaches the existing delete-account business logic.
+
+Do NOT delete a real user just to prove this.
+
+Use rollback/test data or stop before the destructive commit if needed.
+
+B. Authenticated user + missing CSRF token
+Expected:
+403
+
+C. Authenticated user + invalid CSRF token
+Expected:
+403
+
+D. Logged-out user
+Expected:
+existing unauthenticated behavior preserved.
+
+==================================================
+5. UI REGRESSION
+==================================================
+
+Confirm:
+
+- delete-account page renders normally
+- hidden input does not alter layout
+- confirmation inputs/buttons unchanged
+- account deletion copy unchanged
+- no JavaScript behavior changed
+- mobile/Capacitor rendering unchanged
+
+==================================================
+6. RETURN REPORT
+==================================================
+
+Return:
+
+1. File changed
+2. Exact form/template identified
+3. Exact CSRF input added
+4. Confirmation backend was unchanged
+5. Valid-token test result
+6. Missing-token test result
+7. Invalid-token test result
+8. Logged-out behavior
+9. UI regression result
+10. Any issue encountered
+
+Explicitly confirm:
+
+- the normal delete-account form now sends csrf_token
+- POST /delete-account still validates CSRF
+- valid legitimate submissions no longer fail because the token is missing
+- missing/invalid token still returns 403
+- no account-deletion business logic changed
+- no schema changes
