@@ -1309,15 +1309,15 @@
                 <div class="lesson-options-inline" id="equipmentOverrideOptions">
                     <div class="lesson-radio-group">
                         <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_override" value="" {% if not current_user_participant or not current_user_participant.equipment_status %}checked{% endif %} onchange="updateEquipmentPersonal('')">
+                            <input type="radio" name="equipment_status" value="" {% if not current_user_participant or not current_user_participant.equipment_status %}checked{% endif %} onchange="updateEquipmentPersonal('')">
                             <span>From profile</span>
                         </label>
                         <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_override" value="own" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value == 'own' %}checked{% endif %} onchange="updateEquipmentPersonal('own')">
+                            <input type="radio" name="equipment_status" value="own" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value == 'own' %}checked{% endif %} onchange="updateEquipmentPersonal('own')">
                             <span>Have own equipment</span>
                         </label>
                         <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_override" value="renting" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value in ('renting', 'needs_rentals') %}checked{% endif %} onchange="updateEquipmentPersonal('renting')">
+                            <input type="radio" name="equipment_status" value="renting" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value in ('renting', 'needs_rentals') %}checked{% endif %} onchange="updateEquipmentPersonal('renting')">
                             <span>Renting equipment</span>
                         </label>
                     </div>
@@ -1777,29 +1777,6 @@
         function toggleEquipmentOverride() { _tdToggle('equipmentOverrideOptions'); }
         function toggleLessonEditor()      { _tdToggle('lesson-options-inline'); }
 
-        async function updateEquipmentOverride(value) {
-            const tripId = {{ trip.id }};
-            const labels = {
-                'use_default': '{{ current_user.equipment_status|replace("_", " ")|capitalize }}',
-                'have_own_equipment': 'Have own equipment',
-                'renting': 'Renting equipment'
-            };
-            try {
-                const response = await fetch(`/api/trip/${tripId}/equipment-override`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: value })
-                });
-                if (response.ok) {
-                    document.getElementById('equipmentSummaryText').textContent = labels[value] || labels['use_default'];
-                    const subtext = document.querySelector('.lesson-editor-container .lesson-row-header span[style]');
-                    if (subtext) {
-                        subtext.textContent = (value === 'use_default') ? 'From profile' : 'For this trip only';
-                    }
-                    toggleEquipmentOverride();
-                }
-            } catch (err) { console.error(err); }
-        }
 
         (function() {
             // Track last committed lesson value so we can rollback on error.
@@ -2392,13 +2369,13 @@
                         const err = await response.json().catch(() => ({}));
                         blToast(err.error || 'Could not save equipment.');
                         // Rollback radio to last committed value.
-                        document.querySelectorAll('input[name="equipment_override"]').forEach(function(r) {
+                        document.querySelectorAll('input[name="equipment_status"]').forEach(function(r) {
                             r.checked = (r.value === _tdEquipCommitted);
                         });
                     }
                 } catch (err) {
                     blToast('Network error. Please try again.');
-                    document.querySelectorAll('input[name="equipment_override"]').forEach(function(r) {
+                    document.querySelectorAll('input[name="equipment_status"]').forEach(function(r) {
                         r.checked = (r.value === _tdEquipCommitted);
                     });
                 }

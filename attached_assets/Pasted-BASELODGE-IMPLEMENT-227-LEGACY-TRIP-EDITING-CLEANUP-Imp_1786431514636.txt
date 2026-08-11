@@ -1,0 +1,537 @@
+BASELODGE — IMPLEMENT #227
+LEGACY TRIP EDITING CLEANUP
+
+Implement the approved legacy trip-editing cleanup exactly as scoped below.
+
+The new trip architecture has already passed end-to-end QA.
+
+Current canonical experience:
+- trip_detail is the primary owner-facing trip screen
+- Edit trip works inline on trip_detail
+- My Setup is participant-scoped
+- Pass/Equipment/Lessons are personal
+- Visibility/Status have dedicated endpoints
+- Private note saves through /api/trip/<id>/notes
+- Trip Planning is live and validated
+
+This task removes legacy editing paths that are now superseded.
+
+DO NOT DROP DATABASE COLUMNS.
+DO NOT CHANGE TRANSPORTATION / ACCOMMODATION BACKEND.
+DO NOT CHANGE NOTIFICATIONS.
+DO NOT CHANGE add_trip CREATION LOGIC.
+
+==================================================
+1. UPDATE add_trip “EDIT EXISTING” LINK
+==================================================
+
+File:
+templates/add_trip.html
+
+Current overlap flow contains an:
+
+Edit existing
+
+link pointing to:
+
+url_for('edit_trip_form', trip_id=overlap_trip.id)
+
+Change it to:
+
+url_for('trip_detail', trip_id=overlap_trip.id)
+
+Desired behavior:
+
+Edit existing
+→ canonical trip detail page
+
+The owner can then use the inline Edit trip mode there.
+
+Do not change overlap detection logic or copy unless required.
+
+==================================================
+2. RETIRE USER-FACING /trips/<id>/edit PAGE
+==================================================
+
+Current route:
+
+GET/POST /trips/<id>/edit
+edit_trip_form()
+
+The audit confirmed there are no external/deep-link callers that require the old form.
+
+Change the route so GET:
+
+/trips/<id>/edit
+
+redirects with HTTP 302 to:
+
+/trips/<id>
+
+Use url_for('trip_detail', trip_id=trip.id)
+
+Preserve appropriate owner/access validation before redirect if the current route performs it.
+
+The old edit form should no longer render.
+
+==================================================
+3. REMOVE LEGACY POST FORM LOGIC
+==================================================
+
+Remove the POST editing implementation from edit_trip_form().
+
+The old form no longer needs to process:
+
+- resort
+- dates
+- visibility
+- planning/going
+- notes
+- transportation_status
+- trip_equipment_status
+- pass_type
+
+All user-facing editing is now handled by canonical trip_detail controls/endpoints.
+
+Do not move any of that logic elsewhere.
+
+Canonical replacements are already:
+
+Location:
+POST /api/trip/<id>/update-resort
+
+Dates:
+POST /api/trip/<id>/update-dates
+
+Visibility:
+POST /api/trip/<id>/update-visibility
+
+Planning/Going:
+POST /api/trip/<id>/update-status
+
+Private note:
+POST /api/trip/<id>/notes
+
+Pass:
+participant-scoped /api/trip/<id>/update-pass
+
+Equipment/Lessons:
+participant/signals
+
+==================================================
+4. REMOVE edit_trip.html
+==================================================
+
+Delete:
+
+templates/edit_trip.html
+
+only after confirming there are no remaining render_template('edit_trip.html') calls.
+
+Do not leave a broken template reference.
+
+==================================================
+5. REMOVE LEGACY GENERIC API EDIT ENDPOINT
+==================================================
+
+Remove:
+
+POST /api/trip/<id>/edit
+
+and its handler:
+
+edit_trip()
+
+The audit found no callers.
+
+This endpoint writes stale/legacy fields and is fully superseded by dedicated endpoints.
+
+Before removal:
+grep/search for all callers once more.
+
+If any active caller appears that was not identified in the audit:
+STOP and report before deleting.
+
+Otherwise remove it.
+
+==================================================
+6. REMOVE LEGACY EQUIPMENT OVERRIDE ENDPOINT
+==================================================
+
+Remove:
+
+POST /api/trip/<id>/equipment-override
+
+The audit confirmed 0 current UI/JS callers.
+
+Current My Setup Equipment uses:
+
+POST /api/trips/<id>/participant/signals
+
+Do not change the participant-scoped equipment flow.
+
+Do not remove the underlying:
+
+SkiTrip.equipment_override
+
+column yet.
+
+The solo-trip backfill may still read the legacy field directly.
+
+==================================================
+7. REMOVE DEAD updateEquipmentOverride() JS
+==================================================
+
+File:
+templates/trip_detail.html
+
+Remove the dead function:
+
+updateEquipmentOverride()
+
+The audit confirmed:
+- 0 invocations
+- all current equipment radios use updateEquipmentPersonal()
+
+Do not remove updateEquipmentPersonal().
+
+Verify no stale onclick/function references remain.
+
+==================================================
+8. OPTIONAL STALE RADIO NAME CLEANUP
+==================================================
+
+Audit noted that current equipment radios may still use:
+
+name="equipment_override"
+
+even though they now save participant.equipment_status.
+
+If changing this name has no JS/CSS/server dependency, rename it to a clearer local name such as:
+
+equipment_personal
+
+or:
+
+equipment_status
+
+Before changing:
+search for any selector relying on:
+
+input[name="equipment_override"]
+
+If there is any dependency:
+leave the name unchanged.
+
+This is optional clarity cleanup only.
+
+==================================================
+9. UPDATE BOTTOM NAV ACTIVE CHECK
+==================================================
+
+File:
+templates/components/bottom_nav.html
+
+Remove:
+
+edit_trip_form
+
+from the active-endpoint check.
+
+The old edit page is no longer a user-facing navigation destination.
+
+Do not alter any other bottom-nav behavior.
+
+==================================================
+10. RETAIN TRANSPORTATION / ACCOMMODATION BACKEND
+==================================================
+
+Do NOT remove or change:
+
+POST /api/trip/<id>/accommodation
+
+SkiTrip.accommodation_status
+SkiTrip.accommodation_link
+
+SkiTripParticipant.transportation_status
+ParticipantTransportation
+participant/signals transportation support
+
+Do not touch:
+
+get_display_transportation()
+
+if it remains active in participant/people display.
+
+These are intentionally retained.
+
+==================================================
+11. RETAIN add_trip CREATION EQUIPMENT LOGIC
+==================================================
+
+Do NOT remove current add_trip writes to:
+
+SkiTrip.trip_equipment_status
+
+The audit found this is still active during trip creation.
+
+Even though My Setup now uses participant.equipment_status, cleanup of creation-time legacy fields is NOT part of this task.
+
+==================================================
+12. RETAIN LEGACY SCHEMA COLUMNS
+==================================================
+
+Do NOT drop or migrate away:
+
+SkiTrip.pass_type
+SkiTrip.trip_equipment_status
+SkiTrip.equipment_override
+
+After this cleanup:
+
+SkiTrip.pass_type may become dormant except for migration/backfill reads.
+
+SkiTrip.equipment_override may remain available for legacy/backfill data.
+
+SkiTrip.trip_equipment_status is still written during add_trip creation.
+
+Schema cleanup is a later Phase D.
+
+==================================================
+13. RETAIN PASS BACKFILL MIGRATION
+==================================================
+
+Do not remove the migration/backfill logic that reads:
+
+SkiTrip.pass_type
+
+to populate:
+
+SkiTripParticipant.pass_type
+
+The migration is idempotent and may still be needed for environments/databases that have not yet run it.
+
+Do not remove migration code merely because the live UI no longer writes SkiTrip.pass_type.
+
+==================================================
+14. RETAIN CANONICAL CURRENT ENDPOINTS
+==================================================
+
+Do not change:
+
+POST /api/trip/<id>/update-resort
+POST /api/trip/<id>/update-dates
+POST /api/trip/<id>/update-visibility
+POST /api/trip/<id>/update-status
+POST /api/trip/<id>/notes
+POST /api/trip/<id>/update-pass
+POST /api/trips/<id>/participant/signals
+
+Do not change their:
+- permissions
+- payloads
+- validation
+- notifications
+- activity behavior
+
+==================================================
+15. NO NOTIFICATION CHANGES
+==================================================
+
+Do not modify:
+
+TRIP_RESORT_UPDATED
+TRIP_DATES_UPDATED
+TRIP_DETAILS_UPDATED
+Trip Planning events
+recipient queries
+activity emitters
+
+Removing the old edit form should simply remove the duplicate legacy notification path.
+
+Do not compensate by adding new notifications.
+
+==================================================
+16. VALIDATE CALLER REMOVAL
+==================================================
+
+After implementation, search the codebase for:
+
+edit_trip_form
+edit_trip.html
+/api/trip/<id>/edit
+equipment-override
+updateEquipmentOverride
+
+For each remaining hit:
+explain why it remains.
+
+Expected:
+
+edit_trip_form:
+may remain only as GET redirect route/function name if you choose to preserve the route under the same endpoint.
+
+edit_trip.html:
+0 references and file removed.
+
+generic API edit:
+0 route/caller references.
+
+equipment-override:
+possibly model field/backfill references, but no HTTP endpoint or JS caller.
+
+updateEquipmentOverride:
+0 references.
+
+==================================================
+17. VALIDATION — OLD EDIT URL
+==================================================
+
+Verify:
+
+GET /trips/<id>/edit
+
+for owner:
+
+302 → /trips/<id>
+
+Then destination:
+
+200
+
+Verify it does not render edit_trip.html.
+
+If non-owner access previously had restrictions:
+preserve them appropriately.
+
+==================================================
+18. VALIDATION — add_trip OVERLAP FLOW
+==================================================
+
+Verify:
+
+1. Create/plan overlapping trip scenario.
+2. Existing overlap UX appears.
+3. Tap Edit existing.
+4. User lands on:
+   /trips/<existing_id>
+5. Canonical trip page loads.
+6. Owner can use Edit trip inline.
+
+No navigation to old edit form.
+
+==================================================
+19. VALIDATION — MY SETUP
+==================================================
+
+Verify after equipment cleanup:
+
+- Pass still saves
+- Equipment still saves via participant/signals
+- Lessons still saves
+- Saved toast still appears
+- values persist after reload
+
+No equipment radio should call removed:
+
+/api/trip/<id>/equipment-override
+
+==================================================
+20. VALIDATION — INLINE EDIT TRIP
+==================================================
+
+Verify:
+
+- Edit trip works
+- Location works
+- Dates work
+- Visibility works
+- Status works
+- Private note works
+- Done works
+
+No dependency on edit_trip_form remains.
+
+==================================================
+21. VALIDATION — TRIP PLANNING / OTHER REGRESSION
+==================================================
+
+Verify:
+
+- Trip Planning GET 200
+- Planning CRUD works
+- Invite friends works
+- People works
+- Cancel trip works
+- Accepted participant My Setup works
+- Leave trip works
+
+No Transportation/Accommodation regressions.
+
+==================================================
+22. SYNTAX / TEMPLATE VALIDATION
+==================================================
+
+Run:
+
+- Python syntax check for app.py
+- Jinja parse for trip_detail.html
+- Jinja parse for add_trip.html
+- Jinja parse for bottom_nav.html
+
+Confirm server starts normally.
+
+==================================================
+23. DO NOT DO PHASE D YET
+==================================================
+
+Do NOT drop schema columns in this task.
+
+Do NOT remove:
+
+SkiTrip.pass_type
+SkiTrip.trip_equipment_status
+SkiTrip.equipment_override
+
+Do NOT change existing stored values.
+
+We will consider schema cleanup only after this code cleanup is deployed and validated.
+
+==================================================
+24. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed/deleted
+2. add_trip overlap change
+3. /trips/<id>/edit redirect behavior
+4. edit_trip_form POST removal
+5. edit_trip.html deletion
+6. generic /api/trip/<id>/edit removal
+7. equipment-override endpoint removal
+8. updateEquipmentOverride JS removal
+9. bottom-nav cleanup
+10. Any stale equipment radio-name cleanup
+11. Remaining references to each legacy item
+12. Canonical endpoints confirmed intact
+13. Transportation/Accommodation backend confirmed intact
+14. Schema columns confirmed intact
+15. Pass migration confirmed intact
+16. Validation results
+17. Regression results
+18. Any issue encountered
+
+EXPLICITLY CONFIRM:
+
+- add_trip “Edit existing” now opens trip_detail.
+- GET /trips/<id>/edit redirects to trip_detail.
+- edit_trip.html is no longer used.
+- legacy POST edit form behavior is gone.
+- POST /api/trip/<id>/edit is removed.
+- POST /api/trip/<id>/equipment-override is removed.
+- updateEquipmentOverride() JS is removed.
+- current personal Equipment still saves through participant/signals.
+- no schema columns were dropped.
+- Transportation/Accommodation backend was not changed.
+- canonical inline Edit trip behavior remains intact.

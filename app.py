@@ -5239,57 +5239,6 @@ def create_trip():
         }
     })
 
-@app.route("/api/trip/<int:trip_id>/edit", methods=["POST"])
-@login_required
-def edit_trip(trip_id):
-    trip = SkiTrip.query.get_or_404(trip_id)
-    if trip.user_id != current_user.id:
-        return jsonify({"success": False, "error": "Unauthorized"}), 403
-    
-    data = request.get_json()
-    trip.state = data.get("state")
-    trip.mountain = data.get("mountain")
-    start_date_str = data.get("start_date")
-    end_date_str = data.get("end_date")
-    trip.pass_type = data.get("pass_type", trip.pass_type or "No Pass")
-    trip.is_public = data.get("is_public", True)
-    
-    trip.start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date() if start_date_str else None
-    trip.end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date() if end_date_str else None
-    
-    if not trip.start_date or not trip.end_date:
-        return jsonify({"success": False, "error": "Please provide both start and end dates."}), 400
-    
-    if trip.end_date < trip.start_date:
-        return jsonify({"success": False, "error": "End date cannot be before start date."}), 400
-    
-    overlapping = SkiTrip.query.filter(
-        SkiTrip.user_id == current_user.id,
-        SkiTrip.id != trip_id,
-        SkiTrip.start_date <= trip.end_date,
-        SkiTrip.end_date >= trip.start_date
-    ).first()
-    
-    if overlapping:
-        return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
-    
-    trip.updated_at = datetime.utcnow()
-    db.session.commit()
-    
-    return jsonify({
-        "success": True,
-        "trip": {
-            "id": trip.id,
-            "state": trip.state,
-            "state_abbr": STATE_ABBR.get(trip.state, trip.state),
-            "mountain": trip.mountain,
-            "start_date": trip.start_date.isoformat() if trip.start_date else None,
-            "end_date": trip.end_date.isoformat() if trip.end_date else None,
-            "pass_type": trip.pass_type,
-            "is_public": trip.is_public
-        }
-    })
-
 @app.route("/api/trip/<int:trip_id>/update-dates", methods=["POST"])
 @login_required
 def update_trip_dates(trip_id):
@@ -5461,9 +5410,8 @@ def update_trip_pass(trip_id):
 def update_trip_visibility(trip_id):
     """Owner-only inline update of trip.is_public.
 
-    Visibility changes are intentionally silent — edit_trip_form's _edit_meaningful
-    condition did not include is_public, so no TRIP_DETAILS_UPDATED was historically
-    sent for visibility-only changes. This endpoint matches that behaviour.
+    Visibility changes are intentionally silent — no TRIP_DETAILS_UPDATED is sent
+    for visibility-only changes.
     """
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
@@ -5490,9 +5438,8 @@ def update_trip_visibility(trip_id):
 def update_trip_status(trip_id):
     """Owner-only inline update of trip.trip_status (planning | going).
 
-    Mirrors edit_trip_form notification behaviour: emits TRIP_DETAILS_UPDATED to
-    all accepted + invited participants (excluding owner) when the value changes.
-    No notification is sent when the value is unchanged.
+    Emits TRIP_DETAILS_UPDATED to all accepted + invited participants (excluding
+    owner) when the value changes. No notification is sent when unchanged.
     """
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
@@ -11407,203 +11354,11 @@ def can_access_trip_planning(trip, user):
 @app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_trip_form(trip_id):
+    """Legacy trip edit page — redirects to the canonical trip_detail screen."""
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id != current_user.id:
         abort(403)
-    
-    resorts = get_resorts_for_trip_form()
-    original_start = trip.start_date
-    original_end = trip.end_date
-    original_resort_id = trip.resort_id
-    original_trip_status = trip.trip_status or 'planning'
-    user_passes = [p.strip() for p in (current_user.pass_type or "").split(",") if p.strip()]
-    
-    # Get current user's participant record for this trip
-    my_participant = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, user_id=current_user.id
-    ).first()
-    my_transportation = my_participant.transportation_status.value if my_participant and my_participant.transportation_status else None
-
-    countries_map = COUNTRIES
-    states_map = STATE_ABBR_MAP
-
-    if request.method == "POST":
-        resort_id = request.form.get("resort_id")
-        start_date_str = request.form.get("start_date")
-        end_date_str = request.form.get("end_date")
-        is_public = request.form.get("is_public") == "on"
-        transportation_status = request.form.get("transportation_status") or None
-        trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
-        trip_status_raw = request.form.get("trip_status", "planning")
-        trip_status = trip_status_raw if trip_status_raw in ("planning", "going") else "planning"
-        notes_raw = request.form.get("notes", "")
-
-        errors = []
-
-        if not resort_id:
-            errors.append("Please select a resort.")
-        if not start_date_str:
-            errors.append("Please select a start date.")
-        if not end_date_str:
-            errors.append("Please select an end date.")
-
-        resort = None
-        if resort_id:
-            resort = db.session.get(Resort, resort_id)
-            if not resort:
-                errors.append("Invalid resort selected.")
-
-        start_date = None
-        end_date = None
-        today = date.today()
-        if start_date_str and end_date_str:
-            try:
-                start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
-                end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
-                if end_date < start_date:
-                    errors.append("End date cannot be before start date.")
-                dates_changed = (start_date != original_start or end_date != original_end)
-                if dates_changed:
-                    if start_date < today:
-                        errors.append("Start date cannot be in the past.")
-                    if end_date < today:
-                        errors.append("End date cannot be in the past.")
-            except ValueError:
-                errors.append("Invalid date format.")
-
-        notes_trimmed = notes_raw.strip() if notes_raw else ""
-        if len(notes_trimmed) > 500:
-            errors.append("Private note cannot exceed 500 characters.")
-
-        if errors:
-            for e in errors:
-                flash(e, "error")
-            return render_template(
-                "edit_trip.html",
-                trip=trip,
-                resorts=resorts,
-                countries_map=countries_map,
-                states_map=states_map,
-                user=current_user,
-                form_action=url_for("edit_trip_form", trip_id=trip.id),
-                user_passes=user_passes,
-                my_transportation=my_transportation,
-                trip_status=trip_status,
-                posted_notes=notes_raw,
-            )
-        
-        overlapping = SkiTrip.query.filter(
-            SkiTrip.user_id == current_user.id,
-            SkiTrip.id != trip.id,
-            SkiTrip.resort_id == resort.id,
-            SkiTrip.end_date >= today,
-            SkiTrip.start_date <= end_date,
-            SkiTrip.end_date >= start_date
-        ).first()
-        
-        if overlapping:
-            flash("You already have a trip that overlaps these dates.", "error")
-            return render_template(
-                "edit_trip.html",
-                trip=trip,
-                resorts=resorts,
-                countries_map=countries_map,
-                states_map=states_map,
-                user=current_user,
-                form_action=url_for("edit_trip_form", trip_id=trip.id),
-                user_passes=user_passes,
-                my_transportation=my_transportation,
-                trip_status=trip_status,
-                posted_notes=notes_raw,
-            )
-
-        dates_changed = (start_date != original_start or end_date != original_end)
-        
-        trip.resort_id = resort.id
-        trip.state = resort.state_code or resort.state
-        trip.mountain = resort.name
-        trip.start_date = start_date
-        trip.end_date = end_date
-        trip.is_public = is_public
-        trip.trip_status = trip_status
-        trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
-        trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
-        trip.notes = notes_trimmed or None
-        trip.updated_at = datetime.utcnow()
-        
-        # Update current user's transportation_status on their participant record
-        if my_participant and transportation_status:
-            try:
-                my_participant.transportation_status = ParticipantTransportation(transportation_status)
-            except ValueError:
-                pass  # Invalid value, ignore
-        elif my_participant and not transportation_status:
-            my_participant.transportation_status = None
-        
-        try:
-            emit_trip_updated_activities(trip, current_user.id, dates_changed=dates_changed)
-            db.session.commit()
-            # Push to participants if a meaningful user-visible field changed
-            _edit_meaningful = (
-                trip.resort_id != original_resort_id or
-                trip.start_date != original_start or
-                trip.end_date != original_end or
-                (trip.trip_status or 'planning') != original_trip_status
-            )
-            if _edit_meaningful:
-                _edit_notify_ids = [
-                    p.user_id for p in SkiTripParticipant.query.filter(
-                        SkiTripParticipant.trip_id == trip_id,
-                        SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
-                        SkiTripParticipant.user_id != trip.user_id,
-                    ).all()
-                ]
-                for _uid in _edit_notify_ids:
-                    emit_messaging_event(
-                        event_name=EventName.TRIP_DETAILS_UPDATED,
-                        actor_user_id=current_user.id,
-                        recipient_user_id=_uid,
-                        entity_type="trip",
-                        entity_id=trip.id,
-                        metadata={
-                            "actor_name": current_user.first_name or current_user.username,
-                            "resort":     trip.mountain or "your trip",
-                            "trip_id":    trip.id,
-                        },
-                        source_route="edit_trip_form",
-                    )
-            flash("Changes saved.", "trip")
-            return redirect(url_for("trip_detail", trip_id=trip.id))
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"Error updating trip: {e}")
-            flash("Something went wrong while saving your trip. Please try again.", "error")
-            return render_template(
-                "edit_trip.html",
-                trip=trip,
-                resorts=resorts,
-                countries_map=countries_map,
-                states_map=states_map,
-                user=current_user,
-                form_action=url_for("edit_trip_form", trip_id=trip.id),
-                user_passes=user_passes,
-                my_transportation=my_transportation,
-                trip_status=trip_status,
-                posted_notes=notes_raw,
-            )
-
-    return render_template(
-        "edit_trip.html",
-        trip=trip,
-        resorts=resorts,
-        countries_map=countries_map,
-        states_map=states_map,
-        user=current_user,
-        form_action=url_for("edit_trip_form", trip_id=trip.id),
-        user_passes=user_passes,
-        my_transportation=my_transportation,
-        trip_status=(trip.trip_status or 'planning'),
-    )
+    return redirect(url_for("trip_detail", trip_id=trip.id))
 
 @app.route("/trips/<int:trip_id>")
 @login_required
@@ -12134,44 +11889,6 @@ def update_trip_accommodation(trip_id):
                 },
                 source_route="update_trip_accommodation",
             )
-    return jsonify({"status": "success"})
-
-
-@app.route("/api/trip/<int:trip_id>/equipment-override", methods=["POST"])
-@login_required
-def update_trip_equipment_override(trip_id):
-    """Update equipment override status (owner-only)."""
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"status": "error", "message": "Trip not found"}), 404
-    
-    if trip.user_id != current_user.id:
-        return jsonify({"status": "error", "message": "Only the trip organizer can manage equipment overrides"}), 403
-
-    data = request.json
-    status = data.get("status") # use_default, have_own_equipment, renting
-    
-    if status == 'use_default' or not status:
-        trip.equipment_override = None
-    else:
-        trip.equipment_override = status
-
-    db.session.commit()
-    
-    # Update organizer's participant record to match if they are on the trip
-    participant = SkiTripParticipant.query.filter_by(trip_id=trip.id, user_id=current_user.id).first()
-    if participant:
-        if status == 'have_own_equipment':
-            participant.equipment_status = ParticipantEquipment.OWN
-        elif status == 'renting':
-            participant.equipment_status = ParticipantEquipment.RENTING
-        else:
-            # Revert to profile logic in the display helper usually, but let's sync the enum if possible
-            # ParticipantEquipment doesn't have a 'PROFILE' option, it usually stores the explicit state.
-            # For now, we'll let the template/model display property handle the 'None' case.
-            participant.equipment_status = None
-        db.session.commit()
-
     return jsonify({"status": "success"})
 
 
