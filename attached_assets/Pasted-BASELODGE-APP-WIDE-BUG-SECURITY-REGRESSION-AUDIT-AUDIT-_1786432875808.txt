@@ -1,0 +1,645 @@
+BASELODGE — APP-WIDE BUG, SECURITY & REGRESSION AUDIT
+
+AUDIT ONLY.
+
+DO NOT modify code.
+DO NOT refactor.
+DO NOT migrate schema.
+DO NOT delete data.
+DO NOT change notifications.
+DO NOT change production behavior.
+
+The goal is to systematically identify real functional bugs, authorization gaps, data-integrity risks, stale code paths, and frontend/backend mismatches across the entire BaseLodge app.
+
+Recent work has already stabilized:
+
+- Trip Detail inline Edit mode
+- My Setup
+- Trip Planning
+- legacy trip-edit cleanup
+- account-deletion FK handling
+
+Now perform a broad application audit before additional feature work.
+
+==================================================
+1. ROUTE INVENTORY
+==================================================
+
+Inventory every Flask route.
+
+For each route return:
+
+- route
+- HTTP method(s)
+- handler/function
+- login requirement
+- ownership/member/admin restrictions
+- purpose
+- known frontend/template callers
+- ACTIVE / LEGACY / DEAD / UNKNOWN
+
+Flag:
+
+- routes with no callers
+- duplicate routes
+- routes superseded by newer routes
+- state-changing GET routes
+- unexpected public routes
+- suspicious auth gaps
+
+Do not remove anything.
+
+==================================================
+2. SERVER-SIDE AUTHORIZATION / IDOR AUDIT
+==================================================
+
+Audit every route/API accepting identifiers such as:
+
+- user_id
+- trip_id
+- participant_id
+- post_id
+- invite_id
+- friend_id
+- token
+- group_trip_id
+
+Verify server-side permissions.
+
+Look specifically for cases where a logged-in user could manipulate an ID and:
+
+- view another user's private data
+- edit another user's data
+- delete another user's data
+- access a private trip
+- modify another participant's My Setup
+- access another owner's private note
+- edit/delete someone else's planning post
+- manage another user's invite
+- alter another user's friendships
+- modify another user's trip
+
+Do not rely on UI hiding.
+
+For each real gap, give a concrete reproduction path.
+
+==================================================
+3. ROLE / STATE MATRIX
+==================================================
+
+Audit major trip-related behavior for:
+
+- logged-out user
+- authenticated non-member
+- trip owner
+- ACCEPTED participant
+- INVITED participant
+- DECLINED participant
+- removed/former participant
+
+Compare:
+
+frontend visibility
+vs
+backend authorization
+
+Flag any mismatch.
+
+==================================================
+4. COMPLETE FOREIGN-KEY MAP
+==================================================
+
+Build a current FK map from the actual models/schema.
+
+Pay particular attention to FKs referencing:
+
+User
+SkiTrip
+SkiTripParticipant
+
+For every FK determine:
+
+- child table
+- parent
+- nullable?
+- DB cascade?
+- SET NULL?
+- manual cleanup?
+- deletion blocker risk?
+
+Compare this against:
+
+delete_account()
+trip deletion logic
+participant removal logic
+
+Flag any FK that can cause:
+
+- deletion failure
+- orphan data
+- unintended cascade
+- stale references
+
+==================================================
+5. TRIP DELETION AUDIT
+==================================================
+
+Audit all routes/functions that delete a SkiTrip.
+
+Verify cleanup of all related data, including where applicable:
+
+- SkiTripParticipant
+- SkiTripPlanningPost
+- TripInviteToken
+- TripGuest
+- Activity
+- MessageEventLog
+- invite/share records
+- accommodation data
+- transportation-related records
+- other trip-linked tables
+
+Look for duplicate trip-deletion implementations with different behavior.
+
+Flag:
+- FK blockers
+- partial deletion
+- notifications to wrong users
+- pending invitees incorrectly notified
+- orphan data
+
+==================================================
+6. ACCOUNT DELETION AUDIT
+==================================================
+
+Re-audit delete_account() against the current schema after the recent FK fix.
+
+Confirm every FK pointing to User is handled by:
+
+- explicit DELETE
+- SET NULL
+- safe cascade
+
+Flag anything still missing.
+
+Also verify:
+
+- account deletion is atomic
+- rollback occurs on failure
+- user is not logged out before successful commit
+- owned trips are handled consistently
+- authored content on other users' trips is handled safely
+- invite/token data is handled
+
+==================================================
+7. FRONTEND → BACKEND ROUTE MAP
+==================================================
+
+Search templates and JS for:
+
+fetch(
+axios
+XMLHttpRequest
+form action
+url_for
+href
+window.location
+location.href
+
+Map every active frontend call to a backend route.
+
+Flag:
+
+- nonexistent endpoint
+- wrong method
+- outdated endpoint
+- stale caller
+- payload mismatch
+- duplicate caller
+- frontend code pointing to removed routes
+
+==================================================
+8. API RESPONSE CONTRACT AUDIT
+==================================================
+
+Compare active backend JSON responses against frontend JS expectations.
+
+Look for concrete mismatches such as:
+
+- frontend expects `label` but backend returns `display`
+- frontend expects `success`
+- nullable values not handled
+- response.json() used on an HTML/empty response
+- wrong status-code assumptions
+- error response shape mismatch
+- rollback errors still reported as success
+
+Only report verified mismatches.
+
+==================================================
+9. FORM VALIDATION AUDIT
+==================================================
+
+Compare frontend validation, backend validation, and database constraints for:
+
+- signup
+- login
+- profile
+- add trip
+- inline Edit trip
+- My Setup
+- invite flows
+- Trip Planning
+- account deletion
+
+Audit:
+
+- required fields
+- max lengths
+- URL validation
+- date validation
+- enum values
+- null vs empty-string behavior
+- whitespace-only values
+- duplicate records
+- invalid IDs
+
+Flag inconsistencies that can cause runtime errors or bad data.
+
+==================================================
+10. NULL / EDGE-CASE AUDIT
+==================================================
+
+Look for code that assumes related data always exists.
+
+Specifically inspect for:
+
+- missing first/last name
+- user with no profile pass
+- trip with missing resort
+- missing start/end date
+- deleted inviter
+- missing participant row
+- owner-only trip
+- empty participant list
+- missing equipment/lesson value
+- missing planning-post author
+- stale invite token
+- null organizer
+- deleted account references
+
+Flag likely:
+
+AttributeError
+KeyError
+TypeError
+IntegrityError
+500 errors
+
+==================================================
+11. INVITE SYSTEM AUDIT
+==================================================
+
+Audit all invite systems:
+
+- friend invite links
+- trip invite links
+- invite tokens
+- universal/deep links
+- pending invite states
+- accept/decline paths
+
+Look for:
+
+- duplicate friendship creation
+- duplicate participant creation
+- stale expiry logic
+- single-use logic that should now be reusable
+- incorrect token consumption
+- wrong-account acceptance
+- stale session attribution
+- invite accepted by already-existing participant
+- invited user seeing private data before acceptance
+- pending rows never cleaned up
+- duplicate notifications
+
+Do not change behavior.
+
+==================================================
+12. NOTIFICATION / MESSAGING AUDIT
+==================================================
+
+Inventory all messaging events.
+
+For each event report:
+
+- event name
+- trigger
+- recipients
+- exclusions
+- accepted/invited/declined behavior
+- owner behavior
+- duplicate-event risk
+
+Pay special attention to:
+
+- trip created/updated/deleted
+- resort/date/status changes
+- invite accepted
+- friend creation
+- Trip Planning posts
+- participant removal
+- leaving a trip
+
+Flag recipients who should not receive an event.
+
+==================================================
+13. TRANSACTION SAFETY AUDIT
+==================================================
+
+Review mutating operations for transaction integrity.
+
+Prioritize:
+
+- account deletion
+- trip deletion
+- trip creation
+- invite acceptance
+- friendship creation
+- participant removal
+- planning post changes
+
+Flag:
+
+- multiple commits inside one logical operation
+- commit before all validation finishes
+- missing rollback
+- writes outside transaction
+- partial-success risk
+- duplicate inserts under retry/double-click
+
+==================================================
+14. DUPLICATE BUSINESS LOGIC
+==================================================
+
+Find operations implemented in multiple places.
+
+Examples:
+
+- trip deletion
+- invite acceptance
+- friend creation
+- participant creation
+- date/resort changes
+- notifications
+- user cleanup
+- trip membership checks
+
+Compare duplicates for differences in:
+
+- permissions
+- validation
+- notifications
+- logging
+- commit behavior
+- cleanup behavior
+
+Only flag meaningful differences.
+
+==================================================
+15. MODEL / FIELD USAGE CLASSIFICATION
+==================================================
+
+Classify every important field on:
+
+SkiTrip
+SkiTripParticipant
+User
+
+as:
+
+ACTIVE CANONICAL
+ACTIVE LEGACY
+READ ONLY
+WRITE ONLY
+MIGRATION ONLY
+DEAD
+UNKNOWN
+
+Pay particular attention to:
+
+SkiTrip.pass_type
+SkiTrip.trip_equipment_status
+SkiTrip.equipment_override
+SkiTrip.notes
+SkiTrip.is_public
+SkiTrip.trip_status
+SkiTrip.accommodation_status
+SkiTrip.accommodation_link
+SkiTripParticipant.pass_type
+SkiTripParticipant.equipment_status
+SkiTripParticipant.taking_lesson
+SkiTripParticipant.transportation_status
+
+Do not drop anything.
+
+==================================================
+16. DEAD CODE AUDIT
+==================================================
+
+Find high-confidence dead code only.
+
+Search for:
+
+- route handlers with zero callers
+- JS functions with zero invocations
+- templates never rendered
+- helpers with no callers
+- stale CSS selectors
+- old comments/docstrings describing removed behavior
+
+For each candidate include:
+
+- symbol/file
+- caller count
+- confidence HIGH/MEDIUM/LOW
+- safe-to-remove recommendation
+
+Do not count framework/dynamic entry points as dead unless verified.
+
+==================================================
+17. STARTUP / SESSION / AUTH FLOW AUDIT
+==================================================
+
+Audit:
+
+- native splash transition
+- /auth loading surface
+- login
+- logout
+- session restoration
+- deep-link launch
+- post-auth redirect
+- app resume
+
+Look for:
+
+- redirect loops
+- blank screen
+- auth flash
+- stale session state
+- wrong user retained
+- deep-link destination lost after login
+- splash/auth race condition
+
+Do not change splash timing.
+
+==================================================
+18. SECURITY BASICS
+==================================================
+
+Audit for concrete risks involving:
+
+- missing CSRF where required
+- open redirects
+- XSS
+- unsafe external links
+- user-generated URLs
+- unsafe `|safe`
+- sensitive data in logs/templates
+- debug/admin endpoints
+- predictable tokens
+- authorization based only on client input
+
+For Planning links in particular, verify rendering does not create a `javascript:` or HTML injection path.
+
+Do not perform external penetration testing.
+
+==================================================
+19. ERROR HANDLING AUDIT
+==================================================
+
+Find important user flows where expected errors result in:
+
+- generic 500
+- raw exception
+- blank response
+- wrong response type
+- misleading success
+- swallowed error
+- inconsistent rollback
+
+Prioritize mobile-facing flows.
+
+==================================================
+20. AUTOMATED TEST COVERAGE GAP
+==================================================
+
+Identify the highest-value automated tests BaseLodge currently lacks.
+
+Prioritize:
+
+- account deletion
+- trip deletion
+- route authorization
+- invite acceptance
+- duplicate invite handling
+- cross-account/session issues
+- My Setup isolation
+- Trip Planning permissions
+- inline Edit trip
+- notification recipients
+
+Do NOT implement tests yet.
+
+==================================================
+21. SEVERITY
+==================================================
+
+Classify findings as:
+
+P0
+Security issue, data loss, account-crossing bug, or current release blocker
+
+P1
+Likely functional bug affecting a normal user flow
+
+P2
+Real edge-case bug or meaningful integrity/maintenance risk
+
+P3
+Cleanup/dead code only
+
+Also assign:
+
+Confidence:
+HIGH
+MEDIUM
+LOW
+
+==================================================
+22. DO NOT FLOOD THE REPORT
+==================================================
+
+Do not report speculative issues as bugs.
+
+Every P0/P1/P2 finding must have concrete evidence.
+
+For each finding include:
+
+ID
+Severity
+Confidence
+File/function
+Problem
+Impact
+How to reproduce or verify
+Recommended fix direction
+
+Put uncertain observations in a separate “Needs verification” section.
+
+==================================================
+23. TOP FIX PRIORITY
+==================================================
+
+At the end, rank the TOP 10 issues to address next.
+
+Prioritize:
+
+1. security
+2. cross-user data exposure/modification
+3. data loss / FK integrity
+4. broken normal user flows
+5. session/auth problems
+6. notification mistakes
+7. cleanup
+
+==================================================
+24. RETURN FORMAT
+==================================================
+
+Return:
+
+1. Executive Summary
+2. P0 findings
+3. P1 findings
+4. P2 findings
+5. P3 findings
+6. Authorization / IDOR findings
+7. Foreign-key / deletion findings
+8. Frontend/API mismatches
+9. Form/validation mismatches
+10. Invite-system findings
+11. Notification findings
+12. Transaction-safety findings
+13. Startup/session/auth findings
+14. Security findings
+15. Dead-code findings
+16. Test coverage gaps
+17. Needs verification
+18. Top 10 fixes in recommended order
+19. Recommended implementation batches
+
+AUDIT ONLY.
+
+DO NOT MAKE ANY CHANGES.
