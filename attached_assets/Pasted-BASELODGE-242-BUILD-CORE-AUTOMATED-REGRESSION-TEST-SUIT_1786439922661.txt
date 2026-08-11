@@ -1,0 +1,549 @@
+BASELODGE — #242 BUILD CORE AUTOMATED REGRESSION TEST SUITE
+
+Implement a focused automated regression test suite for the highest-risk BaseLodge flows we just stabilized.
+
+This is NOT a broad unit-test-everything task.
+
+The goal is to protect:
+
+- authorization boundaries
+- account deletion
+- trip deletion
+- Trip Planning
+- My Setup
+- inline Edit trip
+- invite acceptance
+- CSRF
+- private trip visibility
+- notification recipient rules
+
+DO NOT:
+- change product behavior
+- change schema
+- change notifications
+- change routes merely to make tests easier
+- refactor large areas of app.py
+- seed production data
+- run destructive tests against production data
+
+Use isolated test data / test DB / rollback patterns appropriate for the existing project.
+
+==================================================
+1. FIRST — INSPECT EXISTING TEST INFRASTRUCTURE
+==================================================
+
+Before creating anything, inspect the repository for:
+
+- pytest
+- unittest
+- conftest.py
+- test fixtures
+- test database configuration
+- Flask test_client patterns
+- environment-variable handling
+- existing test dependencies
+
+If no automated test structure exists, establish the smallest conventional setup compatible with the current Flask app.
+
+Prefer pytest if already available or easily supported by the existing environment.
+
+Do not introduce a large testing framework.
+
+==================================================
+2. TEST ENVIRONMENT SAFETY
+==================================================
+
+Tests must NEVER operate against the production database.
+
+Before running any destructive test:
+
+confirm that the test environment/database is isolated.
+
+If the current application architecture makes that impossible:
+
+STOP and report.
+
+Do not run destructive automated tests against live BaseLodge data.
+
+==================================================
+3. AUTHORIZATION TESTS
+==================================================
+
+Create reusable users representing:
+
+- owner
+- accepted participant
+- invited participant
+- declined participant
+- non-member
+
+Test server-side authorization for:
+
+OWNER-ONLY:
+- update resort
+- update dates
+- update visibility
+- update status
+- private notes
+- delete trip
+
+Expected:
+owner allowed
+everyone else blocked
+
+MEMBER:
+- Trip Planning access
+- planning post create
+
+Expected:
+owner + ACCEPTED allowed
+INVITED / DECLINED / non-member blocked
+
+SELF-ONLY:
+- participant/signals
+- personal Pass where applicable
+
+Expected:
+user can modify own participant state only
+
+==================================================
+4. MY SETUP ISOLATION
+==================================================
+
+Test:
+
+Owner sets:
+- pass
+- equipment
+- lesson
+
+Accepted Participant sets different values.
+
+Assert:
+
+- owner values remain owner values
+- participant values remain participant values
+- one user's update never changes another user's SkiTripParticipant row
+- SkiTrip.pass_type is not used as the canonical personal trip value
+
+==================================================
+5. INLINE EDIT TRIP
+==================================================
+
+Test canonical endpoints:
+
+update-resort
+update-dates
+update-visibility
+update-status
+notes
+
+Verify:
+
+- owner succeeds
+- participant receives 403
+- persisted DB values are correct
+- private note is not exposed to participant route/template context where testable
+
+Also verify:
+
+GET /trips/<id>/edit
+→ redirects to canonical trip detail for owner
+
+==================================================
+6. PRIVATE FRIEND TRIP VISIBILITY
+==================================================
+
+Test:
+
+friend + public trip
+→ /friend-trip/<id> succeeds
+
+friend + private trip
+→ blocked
+
+non-friend + public trip
+→ blocked
+
+owner + private trip
+→ owner behavior remains allowed
+
+This protects #231.
+
+==================================================
+7. TRIP PLANNING PERMISSIONS
+==================================================
+
+Test:
+
+Owner:
+- create
+- edit own
+- delete own
+- delete participant post
+- cannot edit participant post
+
+Accepted participant:
+- create
+- edit own
+- delete own
+- cannot edit owner post
+- cannot delete owner post
+
+Invited/non-member:
+- cannot access planning page/API
+- cannot create/edit/delete posts
+
+==================================================
+8. TRIP PLANNING LINK SECURITY
+==================================================
+
+Test CREATE and PATCH:
+
+https://example.com
+→ accepted
+
+http://example.com
+→ accepted
+
+javascript:alert(1)
+→ 400
+
+data:text/html,...
+→ 400
+
+//example.com
+→ 400
+
+example.com
+→ 400
+
+empty link
+→ accepted as no link
+
+Also test rendering:
+
+unsafe stored value must NOT appear in href.
+
+This protects #229.
+
+==================================================
+9. PLANNING POST RATE LIMIT
+==================================================
+
+Verify:
+
+- normal creation below threshold succeeds
+- threshold is approximately 10/minute per current limiter
+- request above limit receives rate-limit response
+- rate-limited request creates no post
+- rate-limited request sends no notification
+
+Do not make test timing brittle if the limiter provides a test-friendly reset mechanism.
+
+==================================================
+10. TRIP DELETION
+==================================================
+
+Build a trip containing:
+
+- owner
+- accepted participant
+- invited participant
+- TripInviteToken
+- trip Invitation
+- planning post
+- direct trip Activity
+- availability-overlap Activity reference
+
+Delete through the API path.
+
+Assert all expected trip-linked data is removed:
+
+SkiTrip
+SkiTripParticipant
+SkiTripPlanningPost
+TripInviteToken
+trip Invitation
+trip Activity
+availability-overlap reference
+
+Verify unrelated data survives.
+
+Also test form deletion path if practical.
+
+This protects #230.
+
+==================================================
+11. TRIP DELETION NOTIFICATIONS
+==================================================
+
+Verify TRIP_CANCELLED recipients:
+
+- ACCEPTED participants receive
+- owner excluded
+- INVITED excluded
+- DECLINED excluded
+
+Verify deletion failure sends ZERO cancellation notifications.
+
+Mock/inspect messaging dispatch rather than sending real external messages.
+
+==================================================
+12. ACCOUNT DELETION
+==================================================
+
+Create a disposable user with:
+
+- owned trip
+- participant rows
+- planning post
+- TripInviteToken
+- Invitation
+- friendship
+- other user-linked records required by current deletion routine
+
+Run the normal account-deletion business path in the isolated test environment.
+
+Assert:
+
+- user deleted
+- owned trip deleted
+- planning posts deleted
+- tokens/invitations cleaned
+- friendships cleaned
+- no FK IntegrityError
+- preserved audit rows are NULLed where intentionally designed
+
+Also test rollback behavior.
+
+==================================================
+13. TRIP INVITE TOKEN
+==================================================
+
+Test:
+
+expires_at=NULL + active
+→ works
+
+future expires_at + active
+→ works
+
+past expires_at + active
+→ landing blocked
+→ acceptance blocked
+
+inactive token
+→ blocked
+
+same user accepts twice
+→ one participant row
+→ no duplicate notification
+
+two different users accept same token
+→ both can join
+
+pending Invitation + token acceptance
+→ participant ACCEPTED
+→ matching Invitation accepted
+
+This protects #233.
+
+==================================================
+14. CSRF — REPRESENTATIVE ROUTES
+==================================================
+
+Do not duplicate the same trivial test for all ~100 routes unless parametrization makes it simple.
+
+Create parameterized coverage for representative categories:
+
+Trip API:
+- update-visibility
+- planning-post create
+
+Friend API:
+- invite/accept or remove
+
+Settings:
+- wishlist or equipment mutation
+
+HTML form:
+- add_trip
+- trip invite accept
+
+Account:
+- delete-account
+
+For each:
+
+valid CSRF
+→ passes CSRF layer
+
+missing CSRF
+→ 403
+
+invalid CSRF
+→ 403
+
+Ensure failed CSRF causes no mutation.
+
+==================================================
+15. /skip-pass-prompt
+==================================================
+
+Test:
+
+GET /skip-pass-prompt
+→ 405
+→ does not alter session skip state
+
+POST + valid CSRF
+→ sets existing session value
+
+POST + missing/invalid CSRF
+→ 403
+→ no session mutation
+
+==================================================
+16. NOTIFICATION RECIPIENT TESTS
+==================================================
+
+Add focused tests for:
+
+TRIP_DETAILS_UPDATED
+- correct accepted/invited rules as currently designed
+- owner excluded
+- declined excluded
+
+TRIP_PLANNING_POST_CREATED
+- accepted participants
+- author excluded
+- owner included appropriately
+
+TRIP_INVITE_ACCEPTED
+- owner receives successful acceptance
+- same-user second acceptance sends nothing
+
+Use mocks/spies on messaging dispatch.
+
+Do not send real email/push.
+
+==================================================
+17. CSRF ADMIN SMOKE TEST
+==================================================
+
+Do NOT comprehensively test every admin operation yet.
+
+Pick representative:
+
+- one admin fetch mutation
+- one admin form mutation
+
+Verify:
+
+admin + valid CSRF
+→ reaches handler
+
+admin + missing/invalid
+→ 403
+
+non-admin
+→ remains blocked
+
+==================================================
+18. TEST ORGANIZATION
+==================================================
+
+Organize tests logically, for example:
+
+tests/
+  conftest.py
+  test_authorization.py
+  test_trip_edit.py
+  test_my_setup.py
+  test_trip_planning.py
+  test_trip_deletion.py
+  test_account_deletion.py
+  test_invites.py
+  test_csrf.py
+
+Use the smallest organization that fits the existing project.
+
+Do not create excessive fixture abstraction.
+
+==================================================
+19. TEST QUALITY
+==================================================
+
+Tests should verify real persisted state, not merely:
+
+"response != 500"
+
+Where appropriate assert:
+
+- HTTP status
+- DB state
+- recipient IDs
+- row counts
+- values
+- absence of unrelated mutations
+
+Avoid tests tightly coupled to line numbers or implementation details.
+
+==================================================
+20. RUN FULL TEST SUITE
+==================================================
+
+Run the entire new suite.
+
+Return:
+
+- total tests
+- passed
+- failed
+- skipped
+- runtime
+
+Fix test-code defects.
+
+If a test reveals a NEW application bug:
+
+DO NOT silently change production application behavior.
+
+Report the bug separately.
+
+Only make application changes if absolutely required for testability and behavior-neutral.
+
+==================================================
+21. RETURN REPORT
+==================================================
+
+Return:
+
+1. Test infrastructure found/created
+2. Files added/changed
+3. Test database/isolation method
+4. Authorization tests
+5. My Setup tests
+6. Inline Edit tests
+7. Private-trip tests
+8. Trip Planning permission tests
+9. Planning URL-security tests
+10. Planning rate-limit tests
+11. Trip-deletion tests
+12. Account-deletion tests
+13. TripInviteToken tests
+14. CSRF tests
+15. Notification recipient tests
+16. Admin smoke tests
+17. Full suite result
+18. Any application bugs discovered
+19. Any test coverage intentionally deferred
+
+Explicitly confirm:
+
+- tests never touched production data
+- no production schema changes
+- no real email/push notifications were sent
+- all critical flows above have automated coverage
+- full suite passes before completion
