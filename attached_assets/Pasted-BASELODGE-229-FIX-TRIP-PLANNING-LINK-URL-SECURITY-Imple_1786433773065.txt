@@ -1,0 +1,319 @@
+BASELODGE — #229 FIX TRIP PLANNING LINK URL SECURITY
+
+Implement ONLY the Trip Planning link_url security fix identified in Audit #228.
+
+This is a tightly scoped security fix.
+
+DO NOT:
+- change Trip Planning permissions
+- change post categories
+- change post body behavior
+- change notifications
+- change database schema
+- change CSRF behavior
+- change any unrelated routes
+- refactor Trip Planning broadly
+
+==================================================
+BACKGROUND
+==================================================
+
+SkiTripPlanningPost.link_url is optional.
+
+Product requirement is:
+
+Only http:// or https:// links are valid.
+
+Current issue:
+
+- create/edit accepts arbitrary strings
+- backend does not enforce protocol
+- template renders link_url in an <a href="...">
+- therefore a stored javascript: URL or another unsafe scheme could become clickable
+
+Fix this at BOTH:
+1. server-side write validation
+2. rendering layer
+
+Server-side validation is the source of truth.
+
+==================================================
+1. FIND ALL WRITES TO link_url
+==================================================
+
+Identify every route/function that creates or updates:
+
+SkiTripPlanningPost.link_url
+
+Expected paths include:
+
+POST /api/trip/<id>/planning-posts
+
+PATCH /api/trip/<trip_id>/planning-posts/<post_id>
+
+Confirm all write paths before changing anything.
+
+==================================================
+2. SERVER-SIDE URL VALIDATION
+==================================================
+
+For any non-empty link_url:
+
+Allow ONLY URLs whose parsed scheme is:
+
+http
+https
+
+Case-insensitive.
+
+Reject:
+
+javascript:
+data:
+file:
+vbscript:
+ftp:
+mailto:
+relative paths
+protocol-relative URLs such as //example.com
+plain strings with no scheme
+
+Examples:
+
+https://example.com     → valid
+http://example.com      → valid
+HTTPS://example.com     → valid
+
+javascript:alert(1)     → reject
+data:text/html,...      → reject
+//example.com           → reject
+example.com             → reject
+/foo                    → reject
+
+Do not validate using a simple startswith("http") check.
+
+Use a proper URL parser available in the Python standard library.
+
+Also trim leading/trailing whitespace before validation/storage.
+
+Empty/whitespace-only:
+store as NULL / no link according to the existing model behavior.
+
+==================================================
+3. CREATE ENDPOINT
+==================================================
+
+Update the Trip Planning post CREATE endpoint.
+
+If link_url is invalid:
+
+- return HTTP 400
+- return a clear JSON error
+- do not create the post
+- do not send notifications
+- do not partially commit anything
+
+Suggested user-facing message:
+
+"Link must start with http:// or https://"
+
+Preserve existing:
+- body validation
+- 500-character rule
+- category validation
+- membership permissions
+- notification behavior for valid posts
+
+==================================================
+4. EDIT / PATCH ENDPOINT
+==================================================
+
+Apply the identical validation to editing an existing planning post.
+
+If a user attempts to change the link to an unsafe URL:
+
+- return HTTP 400
+- preserve the existing post
+- no partial update
+- no notification
+
+Do not allow PATCH to bypass validation that CREATE enforces.
+
+==================================================
+5. DEFENSE-IN-DEPTH RENDERING
+==================================================
+
+Do NOT assume all existing database rows are safe simply because new writes are validated.
+
+The template must never produce a clickable anchor for a URL unless it is confirmed to have an http or https scheme.
+
+Implement a small server/template-safe check using the project's normal patterns.
+
+For an existing unsafe link_url:
+
+DO NOT render it as:
+
+<a href="unsafe-value">
+
+Instead either:
+
+A. render the value as non-clickable escaped text
+
+or
+
+B. omit the link
+
+Prefer B if that better matches the current UI.
+
+Do not mutate existing database rows as part of this task.
+
+This protects users immediately even if historical unsafe values already exist.
+
+==================================================
+6. FRONTEND VALIDATION
+==================================================
+
+In the New Post and Edit Post UI:
+
+Use appropriate URL input semantics if not already present:
+
+type="url"
+
+But do NOT rely on browser validation as the security control.
+
+If the backend returns the invalid-link 400:
+
+- keep the form/sheet open
+- show the error to the user
+- do not clear their post body/category
+- allow them to correct the URL
+
+Do not create a generic page failure.
+
+==================================================
+7. EXTERNAL LINK SAFETY
+==================================================
+
+For valid external links rendered in planning posts, confirm the existing anchor behavior.
+
+If links open in a new tab/window with:
+
+target="_blank"
+
+ensure they also use:
+
+rel="noopener noreferrer"
+
+If no target="_blank" is used, do not introduce it merely for this task.
+
+==================================================
+8. EXISTING DATA AUDIT
+==================================================
+
+READ ONLY:
+
+Query existing SkiTripPlanningPost.link_url values.
+
+Report:
+
+- total posts with non-empty link_url
+- number valid http/https
+- number unsafe/invalid
+- IDs and stored link_url values of any unsafe records
+
+DO NOT modify those rows.
+
+The rendering-layer fix must neutralize them regardless.
+
+==================================================
+9. SECURITY TESTS
+==================================================
+
+Verify CREATE behavior:
+
+https://example.com
+→ 201
+
+http://example.com
+→ 201
+
+javascript:alert(1)
+→ 400
+
+data:text/html,<script>alert(1)</script>
+→ 400
+
+//example.com
+→ 400
+
+example.com
+→ 400
+
+whitespace-only
+→ accepted as no link
+
+Verify PATCH with the same cases.
+
+==================================================
+10. RENDERING TEST
+==================================================
+
+Verify:
+
+A valid https URL:
+→ clickable anchor
+
+A stored unsafe URL:
+→ NOT emitted into an href
+
+Inspect the resulting HTML, not just the Python value.
+
+Confirm Jinja autoescaping remains enabled.
+
+==================================================
+11. REGRESSION
+==================================================
+
+Confirm:
+
+- Owner can create planning post
+- Accepted participant can create planning post
+- Pending/non-member remains blocked
+- Author can edit own post
+- Owner still cannot edit another participant's post
+- Owner moderation delete still works
+- Post body remains max 500
+- Valid links still work
+- New-post notifications still fire exactly once
+- Edit/delete still send no new notification
+- Trip Planning page GET remains 200
+
+==================================================
+12. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Every link_url write path found
+3. Server validation implemented
+4. CREATE invalid-URL results
+5. PATCH invalid-URL results
+6. Rendering defense implemented
+7. Frontend behavior
+8. Existing-data audit results
+9. Security test matrix
+10. Permission regression results
+11. Notification regression results
+12. Any issue encountered
+
+Explicitly confirm:
+
+- javascript: cannot be stored through CREATE
+- javascript: cannot be stored through PATCH
+- data: cannot be stored
+- non-http(s) links cannot become clickable
+- historical unsafe values cannot render as clickable hrefs
+- valid http/https links continue to work
+- no schema changes
+- no unrelated behavior changed

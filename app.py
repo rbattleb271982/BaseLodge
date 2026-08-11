@@ -11658,6 +11658,26 @@ def trip_planning(trip_id):
     )
 
 
+def _validate_planning_link_url(raw):
+    """Validate a planning-post link_url value.
+
+    Returns (cleaned_url_or_None, error_message_or_None).
+      - Empty / whitespace-only  → (None, None)   — store as NULL, no error
+      - http:// or https:// URL  → (url,  None)   — valid
+      - Anything else            → (None, message) — caller should return 400
+
+    Uses urlparse so that scheme detection is not fooled by leading whitespace,
+    unusual capitalisation, or URL-encoded colons.
+    """
+    url = (raw or "").strip()
+    if not url:
+        return None, None
+    parsed = urlparse(url)
+    if parsed.scheme.lower() in ("http", "https") and parsed.netloc:
+        return url, None
+    return None, "Link must start with http:// or https://"
+
+
 @app.route("/api/trip/<int:trip_id>/planning-posts", methods=["POST"])
 @login_required
 def planning_posts_create(trip_id):
@@ -11669,7 +11689,8 @@ def planning_posts_create(trip_id):
     data = request.get_json(silent=True) or {}
     category = (data.get("category") or "").strip()
     body = (data.get("body") or "").strip()
-    link_url = (data.get("link_url") or "").strip() or None
+    link_url_raw = data.get("link_url") or ""
+    link_url, link_url_error = _validate_planning_link_url(link_url_raw)
 
     if category not in SkiTripPlanningPost.VALID_CATEGORIES:
         return jsonify({"error": "Invalid category"}), 400
@@ -11677,8 +11698,8 @@ def planning_posts_create(trip_id):
         return jsonify({"error": "Post body is required"}), 400
     if len(body) > 500:
         return jsonify({"error": "Post body cannot exceed 500 characters"}), 400
-    if link_url and len(link_url) > 500:
-        return jsonify({"error": "Link URL too long"}), 400
+    if link_url_error:
+        return jsonify({"error": link_url_error}), 400
 
     post = SkiTripPlanningPost(
         trip_id=trip_id,
@@ -11736,7 +11757,8 @@ def planning_posts_update(trip_id, post_id):
     data = request.get_json(silent=True) or {}
     category = (data.get("category") or "").strip()
     body = (data.get("body") or "").strip()
-    link_url = (data.get("link_url") or "").strip() or None
+    link_url_raw = data.get("link_url") or ""
+    link_url, link_url_error = _validate_planning_link_url(link_url_raw)
 
     if category not in SkiTripPlanningPost.VALID_CATEGORIES:
         return jsonify({"error": "Invalid category"}), 400
@@ -11744,6 +11766,8 @@ def planning_posts_update(trip_id, post_id):
         return jsonify({"error": "Post body is required"}), 400
     if len(body) > 500:
         return jsonify({"error": "Post body cannot exceed 500 characters"}), 400
+    if link_url_error:
+        return jsonify({"error": link_url_error}), 400
 
     post.category = category
     post.body = body
