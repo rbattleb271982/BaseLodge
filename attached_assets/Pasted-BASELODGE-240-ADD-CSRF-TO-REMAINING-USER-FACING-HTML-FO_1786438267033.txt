@@ -1,0 +1,358 @@
+BASELODGE — #240 ADD CSRF TO REMAINING USER-FACING HTML FORM MUTATIONS
+
+Implement ONLY coordinated CSRF protection for the remaining user-facing HTML form routes listed below.
+
+Audit #234 confirmed these routes are browser/session-authenticated mutations that are not yet fully protected.
+
+For each true HTML form route, protection requires BOTH:
+
+1. <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+2. validate_csrf_request() in the receiving POST handler
+
+DO NOT:
+- modify global CSRF infrastructure
+- modify analytics_head.html
+- modify the global fetch wrapper
+- change authentication/session behavior
+- change permissions
+- change business logic
+- change notifications
+- change schema
+- redesign any page
+- touch admin routes
+- touch routes already fixed in #236–#239
+
+==================================================
+1. ROUTES IN SCOPE
+==================================================
+
+Audit and protect these remaining user-facing mutation routes:
+
+POST /add-open-dates
+
+POST /select-pass
+
+POST /edit_profile
+
+POST /settings/profile
+
+POST /onboarding
+
+POST /location-setup
+
+POST /feedback
+
+POST /mountains-visited
+
+POST /group-trip/<id>/transportation
+
+If exact route names or parameters differ, use the current definitions.
+
+IMPORTANT:
+
+Some may be combined GET+POST handlers.
+
+Only validate CSRF on POST.
+
+Do not cause normal GET page loads to return 403.
+
+==================================================
+2. VERIFY CURRENT CALLERS FIRST
+==================================================
+
+For each route:
+
+Identify the exact template/form or fetch caller.
+
+Confirm:
+
+- method
+- action
+- whether csrf_token already exists
+- whether backend already validates
+- whether submission is HTML form or fetch
+
+If a route is actually fetch-based:
+do not add a hidden form token unnecessarily.
+
+If the fetch wrapper already supplies X-CSRF-Token:
+backend validation only is sufficient.
+
+If a route is already fully protected:
+leave it unchanged and report it.
+
+==================================================
+3. TRUE HTML FORM ROUTES
+==================================================
+
+For each HTML POST form missing CSRF add:
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+directly inside the relevant <form>.
+
+Do not change:
+- visible fields
+- copy
+- buttons
+- layout
+- form action
+- method
+
+==================================================
+4. BACKEND VALIDATION
+==================================================
+
+For each in-scope mutation handler missing protection add:
+
+validate_csrf_request()
+
+before:
+
+- request.form/request.json parsing
+- DB mutation
+- session mutation tied to the POST
+- analytics triggered by successful submission
+- commit
+
+For combined GET/POST handlers:
+
+if request.method == "POST":
+    validate_csrf_request()
+
+Do not run CSRF validation on GET.
+
+==================================================
+5. OPEN DATES REGRESSION
+==================================================
+
+Verify POST /add-open-dates still preserves:
+
+- current-user availability behavior
+- date parsing
+- duplicate/overlap handling
+- redirects
+- activity/notification behavior if any
+
+No availability semantics should change.
+
+==================================================
+6. PASS SELECTION REGRESSION
+==================================================
+
+Verify POST /select-pass still preserves:
+
+- supported pass validation
+- profile pass behavior
+- onboarding/redirect behavior
+- existing fallback logic
+
+Do not change the newer participant-scoped trip Pass behavior.
+
+==================================================
+7. PROFILE FORM REGRESSION
+==================================================
+
+Verify:
+
+POST /edit_profile
+POST /settings/profile
+
+still preserve:
+
+- current_user-only updates
+- first/last name
+- profile fields
+- rider type
+- pass/profile defaults where applicable
+- image/avatar handling
+- validation
+- redirects
+
+If one of these is legacy/dead, do not remove it in this task. Report it.
+
+==================================================
+8. ONBOARDING REGRESSION
+==================================================
+
+Verify POST /onboarding still preserves:
+
+- new-user onboarding sequence
+- required profile setup
+- redirect destination
+- session continuity
+- deep-link/invite continuity
+
+Do not change onboarding ordering or completion rules.
+
+==================================================
+9. LOCATION SETUP REGRESSION
+==================================================
+
+Verify POST /location-setup still preserves:
+
+- location validation
+- home location write
+- onboarding/session redirects
+- native/WebView behavior
+
+==================================================
+10. FEEDBACK REGRESSION
+==================================================
+
+Verify POST /feedback still:
+
+- records/submits feedback exactly as before
+- preserves current response/redirect
+- does not expose unrelated user data
+
+CSRF failure must occur before feedback persistence.
+
+==================================================
+11. MOUNTAINS VISITED FORM REGRESSION
+==================================================
+
+This is the HTML/form route:
+
+POST /mountains-visited
+
+Do not confuse it with the API routes already protected in #238:
+
+POST /api/mountains-visited/add
+POST /api/mountains-visited/remove
+
+Verify the form route still preserves its current behavior.
+
+==================================================
+12. GROUP TRIP TRANSPORTATION
+==================================================
+
+Verify:
+
+POST /group-trip/<id>/transportation
+
+still preserves:
+
+- existing authorization
+- transportation status/value semantics
+- group-trip behavior
+- redirects/responses
+
+Do not alter the participant transportation system or Trip Detail My Setup.
+
+==================================================
+13. CSRF TEST MATRIX
+==================================================
+
+For EACH in-scope route test:
+
+A. Authenticated + valid CSRF
+Expected:
+normal business logic reached
+
+B. Authenticated + missing CSRF
+Expected:
+403
+
+C. Authenticated + invalid CSRF
+Expected:
+403
+
+D. GET request where route supports GET
+Expected:
+page continues to load normally
+
+E. Logged-out where applicable
+Expected:
+existing auth behavior preserved
+
+==================================================
+14. FAILED-CSRF SIDE EFFECTS
+==================================================
+
+Confirm failed CSRF creates no:
+
+- availability change
+- pass update
+- profile update
+- onboarding progress
+- location change
+- feedback row
+- mountains-visited change
+- group-trip transportation change
+- notification/activity associated with successful mutation
+
+==================================================
+15. CAPACITOR / DEEP-LINK REGRESSION
+==================================================
+
+Pay special attention to:
+
+/onboarding
+/location-setup
+
+Confirm forms rendered in the native Capacitor WebView contain valid csrf_token values.
+
+Do not modify:
+
+bl-native.js
+session restoration
+post-login redirects
+invite/deep-link continuity
+
+==================================================
+16. OUT OF SCOPE
+==================================================
+
+Do NOT touch:
+
+- Trip API routes fixed in #236
+- Friend/Profile fetch APIs fixed in #237
+- Settings/equipment fetch APIs fixed in #238
+- Invite/trip HTML forms fixed in #239
+- /delete-account
+- /change-password
+- /skip-pass-prompt
+- admin mutations
+- auth
+- forgot/reset password
+
+==================================================
+17. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Routes protected
+3. Exact forms/templates updated
+4. Routes discovered to be fetch instead of forms
+5. Routes already protected
+6. Placement of validate_csrf_request()
+7. Valid-token results
+8. Missing-token results
+9. Invalid-token results
+10. GET regression results
+11. Open-dates regression
+12. Pass regression
+13. Profile regression
+14. Onboarding regression
+15. Location regression
+16. Feedback regression
+17. Mountains-visited regression
+18. Group-trip transportation regression
+19. Capacitor/deep-link confirmation
+20. Failed-CSRF side-effect confirmation
+21. Any route skipped and why
+22. Any issue encountered
+
+Explicitly confirm:
+
+- every in-scope active HTML form now submits csrf_token
+- every in-scope mutation handler validates CSRF
+- GET page loads remain unaffected
+- valid submissions still work
+- missing/invalid tokens return 403
+- no business semantics changed
+- no schema changes
+- no notification changes

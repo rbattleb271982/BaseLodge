@@ -311,6 +311,7 @@
 
     <!-- Hidden form (submitted on Save) -->
     <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="rider_types" id="rider_types_hidden" value="{{ (current_user.rider_types or [])|join(',') }}">
         <input type="hidden" name="pass_type" id="pass_type_hidden" value="{{ current_user.pass_type or '' }}">
         <input type="hidden" name="skill_level" id="skill_level_hidden" value="{{ current_user.skill_level or '' }}">

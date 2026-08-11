@@ -3793,6 +3793,7 @@ def _send_founder_invite_share_push(user_id, token_type, action, source):
 def onboarding():
     """Canonical onboarding screen — collects core identity immediately after signup."""
     if request.method == "POST":
+        validate_csrf_request()
         rider_types_raw = request.form.get("rider_types", "")
         rider_types = [r.strip() for r in rider_types_raw.split(",") if r.strip()]
         skill_level = request.form.get("skill_level", "").strip()
@@ -3872,7 +3873,12 @@ def identity_setup():
 def location_setup():
     """Location setup screen - step 2 of onboarding to collect home state only."""
     user = current_user
-    
+
+    # Validate CSRF before any early-return redirect so that a missing/invalid
+    # token is always rejected on POST, regardless of the user's home_state.
+    if request.method == "POST":
+        validate_csrf_request()
+
     # If user already has home_state, redirect to home
     if user.home_state:
         return redirect(url_for("home"))
@@ -4135,6 +4141,7 @@ def edit_profile():
         abort(403)
     
     if request.method == "POST":
+        validate_csrf_request()
         new_first = request.form.get("first_name", "").strip()
         new_last = request.form.get("last_name", "").strip()
         if new_first:
@@ -9960,6 +9967,7 @@ def feedback():
     error = None
     
     if request.method == "POST":
+        validate_csrf_request()
         feedback_text = request.form.get("feedback_text", "").strip()
         
         if not feedback_text:
@@ -11004,6 +11012,7 @@ def api_resort_regions(country_code):
 @login_required
 def add_open_dates():
     if request.method == "POST":
+        validate_csrf_request()
         # Get selected dates from form (comma-separated YYYY-MM-DD strings)
         selected_dates = request.form.get("selected_dates", "")
         
@@ -12772,6 +12781,7 @@ def mountains_visited():
     ).all()
     
     if request.method == "POST":
+        validate_csrf_request()
         # Get selected resort IDs from form
         selected_resort_ids = request.form.getlist("resort_ids")
         
@@ -13291,6 +13301,7 @@ def skip_pass_prompt():
 @login_required
 def select_pass():
     if request.method == "POST":
+        validate_csrf_request()
         chosen = request.form.get("pass_type", "")
         normalized_chosen = normalize_pass_selection(chosen) or chosen
         if count_real_passes(normalized_chosen) > 3:
@@ -14328,6 +14339,7 @@ def save_equipment():
 @login_required
 def update_group_trip_transportation(trip_id):
     """Update transportation status (host-only)."""
+    validate_csrf_request()
     trip = GroupTrip.query.get_or_404(trip_id)
     
     if trip.host_id != current_user.id:
