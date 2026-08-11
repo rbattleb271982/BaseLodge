@@ -1646,7 +1646,6 @@
             <button type="button" class="td-pass-pill" data-val="ikon" onclick="tdPassToggle(this)">Ikon<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
             <button type="button" class="td-pass-pill" data-val="other" onclick="tdPassToggle(this)">Other pass<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
 
-            <button type="button" class="td-pass-sheet-save" id="td-pass-save-btn" onclick="saveTripPass()">Save</button>
             <button type="button" class="td-pass-sheet-cancel" onclick="closePassSheet()">Cancel</button>
         </div>
     </div>
@@ -1802,21 +1801,41 @@
             } catch (err) { console.error(err); }
         }
 
-        async function saveLesson(value) {
-            const tripId = {{ trip.id }};
-            const labels = { 'no': 'No lesson', 'yes': 'Taking a lesson', 'maybe': 'Considering a lesson' };
-            try {
-                const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ taking_lesson: value })
-                });
-                if (response.ok) {
-                    document.getElementById('lesson-summary-text').textContent = labels[value] || 'No lesson';
-                    toggleLessonEditor();
+        (function() {
+            // Track last committed lesson value so we can rollback on error.
+            var _tdLessonCommitted = {{ (
+                current_user_participant.taking_lesson.value if (current_user_participant and current_user_participant.taking_lesson)
+                else 'no'
+            ) | tojson }};
+
+            window.saveLesson = async function(value) {
+                const tripId = {{ trip.id }};
+                const labels = { 'no': 'No lesson', 'yes': 'Taking a lesson', 'maybe': 'Considering a lesson' };
+                try {
+                    const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ taking_lesson: value })
+                    });
+                    if (response.ok) {
+                        _tdLessonCommitted = value;
+                        document.getElementById('lesson-summary-text').textContent = labels[value] || 'No lesson';
+                        toggleLessonEditor();
+                        blToast('Saved');
+                    } else {
+                        const err = await response.json().catch(() => ({}));
+                        blToast(err.error || 'Could not save lesson.');
+                        // Rollback radio to last committed value.
+                        const radios = document.querySelectorAll('input[name="taking_lesson"]');
+                        radios.forEach(function(r) { r.checked = (r.value === _tdLessonCommitted); });
+                    }
+                } catch (err) {
+                    blToast('Network error. Please try again.');
+                    const radios = document.querySelectorAll('input[name="taking_lesson"]');
+                    radios.forEach(function(r) { r.checked = (r.value === _tdLessonCommitted); });
                 }
-            } catch (err) { console.error(err); }
-        }
+            };
+        })();
 
         // ── Invite modal open / close with keyboard-aware sizing ──
         // Single IIFE so _inviteVpUpdate/_inviteVpReset are named references
@@ -2254,18 +2273,17 @@
                 return n;
             }
 
-            function tdPassSyncState() {
+            var _tdPassSaving = false;
+
+            function tdPassSyncState(disabled) {
                 var atCap = tdPassCountReal() >= PASS_REAL_MAX;
                 document.querySelectorAll('.td-pass-pill').forEach(function(pill) {
                     var val = pill.dataset.val;
                     var isSel = _tdPassSelected.has(val);
                     pill.classList.toggle('sel', isSel);
-                    if (!pill.dataset.exclusive) {
-                        pill.disabled = atCap && !isSel;
-                    }
+                    pill.disabled = !!disabled || (!pill.dataset.exclusive && atCap && !isSel);
                 });
                 document.getElementById('td-pass-cap-hint').style.display = atCap ? '' : 'none';
-                document.getElementById('td-pass-save-btn').disabled = _tdPassSelected.size === 0;
             }
 
             window.openPassSheet = function() {
@@ -2280,7 +2298,8 @@
                 document.getElementById('td-pass-sheet').classList.remove('active');
                 document.body.style.overflow = '';
             };
-            window.tdPassToggle = function(pill) {
+            window.tdPassToggle = async function(pill) {
+                if (_tdPassSaving) return;
                 var val = pill.dataset.val;
                 var isExclusive = !!pill.dataset.exclusive;
                 if (_tdPassSelected.has(val)) {
@@ -2295,11 +2314,13 @@
                     }
                     _tdPassSelected.add(val);
                 }
-                tdPassSyncState();
+                // Auto-save immediately on each selection.
+                await saveTripPass();
             };
             window.saveTripPass = async function() {
-                const saveBtn = document.getElementById('td-pass-save-btn');
-                if (saveBtn) saveBtn.disabled = true;
+                if (_tdPassSaving) return;
+                _tdPassSaving = true;
+                tdPassSyncState(true); // disable pills while saving
                 const passStr = Array.from(_tdPassSelected).join(',');
                 try {
                     const res = await fetch(`/api/trip/${_tdPassTripId}/update-pass`, {
@@ -2312,14 +2333,23 @@
                         _tdCurrentPassStr = data.pass_type || '';
                         const dispEl = document.getElementById('td-pass-display-text');
                         if (dispEl) dispEl.textContent = data.pass_display || 'No pass';
+                        blToast('Saved');
                         window.closePassSheet();
                     } else {
+                        // Rollback local selection to last committed value.
+                        _tdPassSelected = new Set(
+                            _tdCurrentPassStr.split(',').map(function(s){s=s.trim();return _TD_LEGACY_MVP[s]||s;}).filter(Boolean)
+                        );
                         blToast(data.error || 'Could not save pass.');
-                        if (saveBtn) saveBtn.disabled = false;
                     }
                 } catch(e) {
+                    _tdPassSelected = new Set(
+                        _tdCurrentPassStr.split(',').map(function(s){s=s.trim();return _TD_LEGACY_MVP[s]||s;}).filter(Boolean)
+                    );
                     blToast('Network error. Please try again.');
-                    if (saveBtn) saveBtn.disabled = false;
+                } finally {
+                    _tdPassSaving = false;
+                    tdPassSyncState(); // re-enable pills
                 }
             };
             tdPassSyncState();
@@ -2328,29 +2358,52 @@
 
         // ── Equipment personal save (My Setup — participant/signals) ──
         {% if is_member %}
-        async function updateEquipmentPersonal(value) {
-            const tripId = {{ trip.id }};
-            const labels = {
-                '':       '{{ current_user_participant.get_display_equipment() if current_user_participant else "Not set" }}',
-                'own':    'Bringing own',
-                'renting':'Renting'
-            };
-            try {
-                const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ equipment_status: value })
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    const displayEl = document.getElementById('equipmentSummaryText');
-                    if (displayEl) displayEl.textContent = data.equipment_display || labels[value] || 'Equipment: Not set';
-                    const subtextEl = document.querySelector('#equipmentHeader [style*="font-size: 11px"]');
-                    if (subtextEl) subtextEl.textContent = value ? 'For this trip' : 'From profile';
-                    toggleEquipmentOverride();
+        (function() {
+            // Track last committed equipment value so we can rollback on error.
+            var _tdEquipCommitted = {{ (
+                'own' if (current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value == 'own')
+                else 'renting' if (current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value in ('renting', 'needs_rentals'))
+                else ''
+            ) | tojson }};
+
+            window.updateEquipmentPersonal = async function(value) {
+                const tripId = {{ trip.id }};
+                const labels = {
+                    '':       '{{ current_user_participant.get_display_equipment() if current_user_participant else "Not set" }}',
+                    'own':    'Bringing own',
+                    'renting':'Renting'
+                };
+                try {
+                    const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ equipment_status: value })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        _tdEquipCommitted = value;
+                        const displayEl = document.getElementById('equipmentSummaryText');
+                        if (displayEl) displayEl.textContent = data.equipment_display || labels[value] || 'Not set';
+                        const subtextEl = document.querySelector('#equipmentHeader [style*="font-size: 11px"]');
+                        if (subtextEl) subtextEl.textContent = value ? 'For this trip' : 'From profile';
+                        toggleEquipmentOverride();
+                        blToast('Saved');
+                    } else {
+                        const err = await response.json().catch(() => ({}));
+                        blToast(err.error || 'Could not save equipment.');
+                        // Rollback radio to last committed value.
+                        document.querySelectorAll('input[name="equipment_override"]').forEach(function(r) {
+                            r.checked = (r.value === _tdEquipCommitted);
+                        });
+                    }
+                } catch (err) {
+                    blToast('Network error. Please try again.');
+                    document.querySelectorAll('input[name="equipment_override"]').forEach(function(r) {
+                        r.checked = (r.value === _tdEquipCommitted);
+                    });
                 }
-            } catch (err) { console.error(err); }
-        }
+            };
+        })();
         {% endif %}
 
         // ── Date edit bottom sheet ──

@@ -1,0 +1,245 @@
+BASELODGE — MY SETUP SAVE BEHAVIOR AUDIT + FIX
+
+Use Economy.
+
+Investigate and fix the interaction behavior for the personal “My Setup” controls on trip_detail:
+
+- Pass
+- Equipment
+- Lessons
+
+Current UX problem:
+
+These controls are editable directly on the normal trip page, but after selecting a value there is no clear Save action or confirmation. I cannot tell whether my selection actually persisted.
+
+Desired behavior:
+
+MY SETUP is always directly editable for the current user.
+
+Each field should SAVE IMMEDIATELY when a selection is made.
+
+There should NOT be a global Save button for My Setup.
+
+==================================================
+1. FIRST VERIFY CURRENT BEHAVIOR
+==================================================
+
+Before changing code, trace and test each control:
+
+PASS
+- What JS fires after selecting a pass?
+- What endpoint is called?
+- Does it successfully save SkiTripParticipant.pass_type?
+- Does the displayed row update?
+- Does the bottom sheet close?
+- Does the value survive page reload?
+
+EQUIPMENT
+- What JS fires after selecting an equipment option?
+- Does it call participant/signals?
+- Does SkiTripParticipant.equipment_status update?
+- Does the row value update?
+- Does the accordion close?
+- Does the value survive reload?
+
+LESSONS
+- What JS fires after selecting:
+  - No lesson
+  - Taking a lesson
+  - Considering a lesson
+- Does it call participant/signals?
+- Does SkiTripParticipant.taking_lesson update?
+- Does the row value update?
+- Does the accordion close?
+- Does the value survive reload?
+
+Identify whether the issue is:
+
+A. data is saving but UX gives no confirmation
+
+or
+
+B. data is not actually saving
+
+Do not guess.
+
+==================================================
+2. REQUIRED FINAL BEHAVIOR
+==================================================
+
+For all three My Setup fields:
+
+User selects a value
+→ AJAX request fires immediately
+→ server validates and saves
+→ row summary updates
+→ selector closes after successful save
+→ user gets lightweight confirmation
+
+No global Save button.
+
+No dependency on owner Edit mode.
+
+==================================================
+3. PASS
+==================================================
+
+On successful Pass selection:
+
+- save immediately using the existing participant-scoped pass endpoint
+- update the Pass row text
+- close the pass bottom sheet
+- show a lightweight success confirmation
+
+Example toast:
+
+Saved
+
+Do not change Pass ownership.
+
+Pass remains personal to current user.
+
+==================================================
+4. EQUIPMENT
+==================================================
+
+On successful Equipment selection:
+
+- save immediately through the existing participant-scoped endpoint
+- update row summary
+- update “From profile” / “For this trip” subtext correctly
+- collapse the Equipment accordion after successful save
+- show lightweight “Saved” confirmation
+
+If save fails:
+- keep accordion open
+- preserve previous committed value
+- show error
+- do not pretend save succeeded
+
+==================================================
+5. LESSONS
+==================================================
+
+On successful Lesson selection:
+
+- save immediately through participant/signals
+- update row summary to:
+  - No lesson
+  - Taking a lesson
+  - Considering a lesson
+- collapse the Lessons accordion
+- show lightweight “Saved” confirmation
+
+If save fails:
+- keep editor open
+- restore/retain previous committed selection
+- show error
+
+==================================================
+6. SUCCESS FEEDBACK
+==================================================
+
+Reuse the existing BaseLodge toast pattern if one exists.
+
+Preferred confirmation:
+
+Saved
+
+Keep it subtle.
+
+Do not create:
+- modal confirmation
+- large banner
+- persistent success state
+- extra Save buttons
+
+==================================================
+7. OWNER + PARTICIPANT
+==================================================
+
+Verify identical behavior for:
+
+- trip owner editing their own My Setup
+- accepted participant editing their own My Setup
+
+Each may edit ONLY their own:
+- Pass
+- Equipment
+- Lessons
+
+No user may edit another participant.
+
+==================================================
+8. DO NOT CHANGE
+==================================================
+
+Do not change:
+
+- owner Edit trip mode
+- Location
+- Dates
+- Visibility
+- Planning / Going
+- Private note
+- Trip Planning
+- planning posts
+- Invite friends
+- People
+- Cancel trip
+- Pass ownership
+- Equipment ownership
+- Lessons ownership
+- notification behavior
+- schema
+- legacy edit page
+
+This task is only about making My Setup’s immediate-save behavior obvious and reliable.
+
+==================================================
+9. VALIDATION
+==================================================
+
+Verify:
+
+1. Pass selection sends request immediately.
+2. Pass row updates after success.
+3. Pass sheet closes after success.
+4. Pass persists after reload.
+
+5. Equipment selection sends request immediately.
+6. Equipment row updates after success.
+7. Equipment accordion closes after success.
+8. Equipment persists after reload.
+
+9. Lesson selection sends request immediately.
+10. Lesson row updates after success.
+11. Lesson accordion closes after success.
+12. Lesson persists after reload.
+
+13. Lightweight Saved confirmation appears after successful change.
+14. Failed save does not show false success.
+15. Owner can only update own values.
+16. Accepted participant can only update own values.
+17. No global Save button added.
+18. My Setup still works in normal mode without tapping Edit.
+19. No unrelated behavior changed.
+
+==================================================
+10. RETURN REPORT
+==================================================
+
+Return:
+
+1. What was already saving vs what was not
+2. Root cause of the confusing UX
+3. Files changed
+4. Pass behavior before/after
+5. Equipment behavior before/after
+6. Lessons behavior before/after
+7. Success/error feedback behavior
+8. Owner validation
+9. Accepted-participant validation
+10. Reload persistence validation
+11. Confirmation no global Save button was added
+12. Confirmation no unrelated functionality changed
