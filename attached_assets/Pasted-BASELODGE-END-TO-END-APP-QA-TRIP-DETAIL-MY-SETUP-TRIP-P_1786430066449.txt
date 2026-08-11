@@ -1,0 +1,401 @@
+BASELODGE — END-TO-END APP QA
+TRIP DETAIL / MY SETUP / TRIP PLANNING / PERMISSIONS
+
+Run a focused app-testing pass on the newly implemented trip experience.
+
+This is primarily QA.
+
+Do not redesign anything.
+Do not refactor architecture.
+Do not remove legacy routes/fields yet.
+Do not change copy/layout unless a test exposes a clear functional defect.
+
+GOAL
+
+Verify that the new trip experience works correctly across:
+
+1. Trip owner
+2. Accepted participant
+3. Pending invitee / non-member
+
+Focus on:
+- owner Edit trip mode
+- My Setup
+- Trip Planning
+- permissions
+- persistence
+- notifications
+- regressions
+
+==================================================
+1. TEST ACCOUNTS / STATES
+==================================================
+
+Use or create test data representing:
+
+A. OWNER
+- owns a trip
+- trip has at least one accepted participant
+- trip has at least one pending invitee
+
+B. ACCEPTED PARTICIPANT
+- accepted on the same trip
+- has their own SkiTripParticipant row
+
+C. PENDING INVITEE
+- invited but not accepted
+
+If practical, also verify:
+- non-member logged-in user
+- declined/removed participant
+
+Do not alter real production-like user data unnecessarily.
+
+==================================================
+2. OWNER — NORMAL VIEW
+==================================================
+
+Verify owner sees:
+
+- Edit trip
+- Location
+- Dates
+- Visibility
+- Planning/Going
+- My Setup
+- Trip Planning
+- Invite friends
+- People
+- Cancel trip
+
+Verify:
+
+1. Edit trip visible.
+2. My Setup is editable WITHOUT tapping Edit trip.
+3. Pass can be changed.
+4. Equipment can be changed.
+5. Lessons can be changed.
+6. Each change shows Saved feedback.
+7. Each persists after reload.
+8. Date quick edit still works.
+9. Private note is not visible in normal mode.
+10. Trip Planning card opens correctly.
+
+==================================================
+3. OWNER — EDIT TRIP MODE
+==================================================
+
+Tap:
+
+Edit trip
+
+Verify:
+
+11. Same page remains loaded.
+12. Button changes to Done.
+13. Location becomes editable.
+14. Dates remain editable.
+15. Visibility becomes editable.
+16. Planning/Going becomes editable.
+17. Private note appears.
+18. My Setup remains independently editable.
+19. No duplicate Visibility/Status controls appear.
+20. No global Save button appears.
+
+Test changes:
+
+21. Change Location and verify persistence after reload.
+22. Change Dates and verify persistence.
+23. Change Visibility and verify persistence.
+24. Change Planning → Going or Going → Planning and verify persistence.
+25. Add Private note and tap Done.
+26. Confirm Done saves unsaved note automatically.
+27. Reload and verify note persisted.
+28. Re-enter Edit trip and verify note is visible to owner.
+29. Clear note, tap Done, reload, verify cleared.
+
+==================================================
+4. OWNER — MY SETUP IS PERSONAL
+==================================================
+
+Verify owner changes only owner participant data:
+
+30. Set owner Pass to one value.
+31. Set owner Equipment.
+32. Set owner Lessons.
+
+Confirm:
+- owner SkiTripParticipant row changed
+- accepted participant row did NOT change
+- SkiTrip.pass_type did NOT become canonical again
+- legacy trip equipment fields did not become the active My Setup source
+
+==================================================
+5. ACCEPTED PARTICIPANT — VIEW
+==================================================
+
+Log in as accepted participant.
+
+Verify:
+
+33. No Edit trip button.
+34. Location read-only.
+35. Dates read-only.
+36. Visibility read-only.
+37. Planning/Going read-only.
+38. Private note absent from DOM/UI.
+39. My Setup visible.
+40. Trip Planning accessible.
+41. Invite friends behavior remains whatever current product rule specifies.
+42. Leave trip behavior works.
+
+==================================================
+6. ACCEPTED PARTICIPANT — MY SETUP
+==================================================
+
+Test accepted participant:
+
+43. Change Pass.
+44. Change Equipment.
+45. Change Lessons.
+
+Verify:
+
+46. Each saves immediately.
+47. Each shows Saved feedback.
+48. Each persists after reload.
+49. Participant sees their own values, not owner values.
+50. Owner values remain unchanged.
+51. Participant can only write their own SkiTripParticipant row.
+
+Also verify:
+- user with Ikon on an Epic resort is allowed
+- resort pass metadata is unaffected
+
+==================================================
+7. TRIP PLANNING — OWNER
+==================================================
+
+As owner:
+
+52. Open Trip Planning.
+53. Create a post.
+54. Use a valid category.
+55. Add body text.
+56. Add optional http/https link.
+57. Verify post appears newest first.
+58. Verify author is shown as:
+    Posted by [Name] · Today
+59. Verify no avatar/profile bubble appears.
+60. Edit own post.
+61. Delete own post.
+62. Delete confirmation appears before delete.
+
+==================================================
+8. TRIP PLANNING — ACCEPTED PARTICIPANT
+==================================================
+
+As accepted participant:
+
+63. Open same Trip Planning board.
+64. See owner's post.
+65. Create own post.
+66. Edit own post.
+67. Delete own post.
+68. Cannot edit owner's post.
+69. Cannot delete another participant's post unless product rules explicitly allow only owner moderation.
+70. Post order remains newest first.
+
+==================================================
+9. TRIP OWNER MODERATION
+==================================================
+
+After accepted participant creates a post:
+
+71. Owner can see participant post.
+72. Owner can delete participant post.
+73. Owner cannot edit participant post.
+74. Delete confirmation appears.
+
+==================================================
+10. PENDING INVITEE / NON-MEMBER
+==================================================
+
+As pending invitee:
+
+75. Trip Planning card is not shown if that is the intended access rule.
+76. Direct GET /trips/<id>/planning is blocked server-side.
+77. Cannot create/edit/delete planning posts.
+78. Cannot edit My Setup unless they are accepted.
+79. Cannot see Private note.
+80. Cannot enter owner Edit trip mode.
+
+As non-member/public viewer if accessible:
+
+81. Same restrictions apply.
+82. is_public alone does not grant Trip Planning access.
+
+==================================================
+11. NOTIFICATIONS — PLANNING POSTS
+==================================================
+
+Test with owner + accepted participant.
+
+When OWNER creates a new planning post:
+
+83. Accepted participant receives the planning-post notification.
+84. Owner does not receive their own notification.
+85. Pending invitee does not receive it.
+
+When ACCEPTED PARTICIPANT creates a post:
+
+86. Owner receives notification.
+87. Other accepted participants receive it if present.
+88. Author does not receive own notification.
+89. Pending/declined/removed participants do not receive it.
+
+Verify:
+- edit does not notify
+- delete does not notify
+
+Trace actual recipient IDs / event dispatch where possible.
+
+Do not claim success only because EventName exists.
+
+==================================================
+12. STATUS / LOCATION / DATE NOTIFICATIONS
+==================================================
+
+Verify existing side effects were preserved:
+
+90. Location change still uses TRIP_RESORT_UPDATED behavior.
+91. Date change still uses TRIP_DATES_UPDATED behavior.
+92. Status change emits TRIP_DETAILS_UPDATED only when value changes.
+93. Visibility change remains silent if that matches current intended behavior.
+94. Private note changes remain silent.
+
+Check for duplicate events.
+
+==================================================
+13. ACCESS CONTROL / SECURITY
+==================================================
+
+Attempt direct API calls as the wrong user.
+
+Verify:
+
+95. Participant cannot update owner-only Visibility endpoint.
+96. Participant cannot update owner-only Status endpoint.
+97. Participant cannot update Private note endpoint.
+98. Pending invitee cannot update My Setup.
+99. Pending invitee cannot create planning posts.
+100. Participant cannot edit another user's planning post.
+101. Participant cannot delete another user's post unless owner.
+102. Owner cannot edit another participant's post.
+
+Server-side checks must enforce these, not just hidden UI.
+
+==================================================
+14. DATA PERSISTENCE
+==================================================
+
+After each successful change:
+
+Reload page and verify DB-backed state persists for:
+
+103. Owner Pass
+104. Owner Equipment
+105. Owner Lessons
+106. Participant Pass
+107. Participant Equipment
+108. Participant Lessons
+109. Location
+110. Dates
+111. Visibility
+112. Planning/Going
+113. Private note
+114. Planning posts
+
+==================================================
+15. REGRESSION
+==================================================
+
+Verify unchanged flows still work:
+
+115. Invite friends.
+116. People / Who’s going to [Mountain].
+117. Cancel trip.
+118. Leave trip.
+119. Trip Planning page loads HTTP 200.
+120. Trip detail page loads HTTP 200.
+121. Legacy /trips/<id>/edit still loads directly.
+122. add_trip overlap behavior still works.
+123. No Transportation/Accommodation data deleted.
+124. No unrelated schema/routes changed.
+
+==================================================
+16. BUG HANDLING
+==================================================
+
+For each failed test:
+
+Report:
+- exact user role
+- exact action
+- expected behavior
+- actual behavior
+- route/endpoint involved
+- traceback or JS error if any
+- root cause
+
+If the bug is tiny, obvious, and tightly scoped, you MAY fix it.
+
+Examples:
+- wrong selector
+- stale display text
+- missing toast
+- bad permission condition
+- typo in route/template variable
+
+Do NOT make larger architectural fixes without reporting first.
+
+==================================================
+17. FINAL RETURN REPORT
+==================================================
+
+Return:
+
+1. Test accounts/states used
+2. Owner normal-mode results
+3. Owner Edit trip results
+4. Owner My Setup results
+5. Accepted participant results
+6. Pending/non-member results
+7. Trip Planning CRUD results
+8. Owner moderation results
+9. Notification recipient results
+10. API authorization results
+11. Reload/persistence results
+12. Regression results
+13. Bugs found
+14. Bugs fixed, if any
+15. Remaining failures / risks
+16. Overall PASS / PARTIAL PASS / FAIL
+
+Also include a concise matrix:
+
+Area | Owner | Accepted Participant | Pending Invitee | Result
+
+Areas:
+- Edit trip
+- My Setup
+- Private note
+- Trip Planning access
+- Create post
+- Edit own post
+- Delete own post
+- Owner moderation
+- Notifications
+- Persistence
+
+Do not call the overall QA complete unless all critical permission and persistence tests pass.
