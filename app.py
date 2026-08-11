@@ -95,7 +95,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
@@ -2162,6 +2162,42 @@ def run_ski_trip_notes_migration():
         print(f"ski_trip_notes_migration: skipped ({e})")
 
 run_ski_trip_notes_migration()
+
+
+def run_ski_trip_planning_post_migration():
+    """
+    Startup migration: CREATE TABLE IF NOT EXISTS ski_trip_planning_post.
+    Idempotent — safe to run on every startup.
+    """
+    try:
+        with app.app_context():
+            db.session.execute(db.text("""
+                CREATE TABLE IF NOT EXISTS ski_trip_planning_post (
+                    id         SERIAL PRIMARY KEY,
+                    trip_id    INTEGER NOT NULL REFERENCES ski_trip(id) ON DELETE CASCADE,
+                    user_id    INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                    category   VARCHAR(32) NOT NULL,
+                    body       TEXT NOT NULL,
+                    link_url   VARCHAR(500),
+                    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+                    updated_at TIMESTAMP
+                )
+            """))
+            db.session.execute(db.text(
+                "CREATE INDEX IF NOT EXISTS ix_ski_trip_planning_post_trip_id "
+                "ON ski_trip_planning_post(trip_id)"
+            ))
+            db.session.execute(db.text(
+                "CREATE INDEX IF NOT EXISTS ix_ski_trip_planning_post_user_id "
+                "ON ski_trip_planning_post(user_id)"
+            ))
+            db.session.commit()
+            print("ski_trip_planning_post_migration: table ready.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"ski_trip_planning_post_migration: skipped ({e})")
+
+run_ski_trip_planning_post_migration()
 
 
 def _run_pass_mapping_correction_migration():
@@ -11206,6 +11242,21 @@ def add_trip():
         is_group=is_group,
     )
 
+def is_accepted_trip_member(trip, user):
+    """Return True if user is the trip owner OR an accepted participant."""
+    if trip.user_id == user.id:
+        return True
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id, user_id=user.id
+    ).first()
+    return participant is not None and participant.status == GuestStatus.ACCEPTED
+
+
+def can_access_trip_planning(trip, user):
+    """Gate for the collaborative planning board: owner or accepted participant only."""
+    return is_accepted_trip_member(trip, user)
+
+
 @app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_trip_form(trip_id):
@@ -11238,6 +11289,7 @@ def edit_trip_form(trip_id):
         trip_equipment_status = request.form.get("trip_equipment_status") or "use_default"
         trip_status_raw = request.form.get("trip_status", "planning")
         trip_status = trip_status_raw if trip_status_raw in ("planning", "going") else "planning"
+        notes_raw = request.form.get("notes", "")
 
         errors = []
 
@@ -11272,6 +11324,10 @@ def edit_trip_form(trip_id):
             except ValueError:
                 errors.append("Invalid date format.")
 
+        notes_trimmed = notes_raw.strip() if notes_raw else ""
+        if len(notes_trimmed) > 500:
+            errors.append("Private note cannot exceed 500 characters.")
+
         if errors:
             for e in errors:
                 flash(e, "error")
@@ -11286,6 +11342,7 @@ def edit_trip_form(trip_id):
                 user_passes=user_passes,
                 my_transportation=my_transportation,
                 trip_status=trip_status,
+                posted_notes=notes_raw,
             )
         
         overlapping = SkiTrip.query.filter(
@@ -11310,6 +11367,7 @@ def edit_trip_form(trip_id):
                 user_passes=user_passes,
                 my_transportation=my_transportation,
                 trip_status=trip_status,
+                posted_notes=notes_raw,
             )
 
         dates_changed = (start_date != original_start or end_date != original_end)
@@ -11323,6 +11381,7 @@ def edit_trip_form(trip_id):
         trip.trip_status = trip_status
         trip.trip_equipment_status = trip_equipment_status if trip_equipment_status != 'use_default' else None
         trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
+        trip.notes = notes_trimmed or None
         trip.updated_at = datetime.utcnow()
         
         # Update current user's transportation_status on their participant record
@@ -11383,6 +11442,7 @@ def edit_trip_form(trip_id):
                 user_passes=user_passes,
                 my_transportation=my_transportation,
                 trip_status=trip_status,
+                posted_notes=notes_raw,
             )
 
     return render_template(
@@ -11588,6 +11648,13 @@ def trip_detail(trip_id):
 
     resorts_json = get_resorts_for_trip_form() if is_owner else []
 
+    # Planning board access + post count
+    can_plan = can_access_trip_planning(trip, current_user)
+    planning_post_count = (
+        SkiTripPlanningPost.query.filter_by(trip_id=trip_id).count()
+        if can_plan else 0
+    )
+
     if app.debug:
         print(f"[ROUTE_PERF] route=trip_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
@@ -11610,7 +11677,175 @@ def trip_detail(trip_id):
         friends_wishlist_count=friends_wishlist_count,
         today=date.today(),
         resorts_json=resorts_json,
+        can_plan=can_plan,
+        planning_post_count=planning_post_count,
     )
+
+
+@app.route("/trips/<int:trip_id>/planning")
+@login_required
+def trip_planning(trip_id):
+    """Collaborative trip planning board — accepted members only."""
+    trip = (
+        SkiTrip.query
+        .options(db.joinedload(SkiTrip.resort))
+        .filter_by(id=trip_id)
+        .first_or_404()
+    )
+    if not can_access_trip_planning(trip, current_user):
+        abort(403)
+    is_owner = trip.user_id == current_user.id
+
+    posts = (
+        SkiTripPlanningPost.query
+        .filter_by(trip_id=trip_id)
+        .order_by(SkiTripPlanningPost.created_at.desc())
+        .all()
+    )
+
+    # Annotate date labels server-side: Today / Yesterday / Mon DD
+    _today = date.today()
+    _yesterday = _today - timedelta(days=1)
+
+    def _date_label_str(dt):
+        d = dt.date() if hasattr(dt, 'date') else dt
+        if d == _today:
+            return 'Today'
+        elif d == _yesterday:
+            return 'Yesterday'
+        else:
+            return dt.strftime('%b %-d')
+
+    for post in posts:
+        post.date_label = _date_label_str(post.created_at)
+        post._date_key = post.created_at.date()
+
+    # Group by calendar date (newest-first; same-day posts stay consecutive)
+    from itertools import groupby as _groupby
+    posts_by_date = []
+    for _, grp in _groupby(posts, key=lambda p: p._date_key):
+        grp_list = list(grp)
+        posts_by_date.append((grp_list[0].date_label, grp_list))
+
+    _ordered_cats = ['Lodging', 'Transportation', 'Activities', 'Food & Drink', 'Lessons', 'Other']
+
+    return render_template(
+        "trip_planning.html",
+        trip=trip,
+        is_owner=is_owner,
+        posts_by_date=posts_by_date,
+        categories=_ordered_cats,
+    )
+
+
+@app.route("/api/trip/<int:trip_id>/planning-posts", methods=["POST"])
+@login_required
+def planning_posts_create(trip_id):
+    """Create a new planning post. Accepted members only."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if not can_access_trip_planning(trip, current_user):
+        return jsonify({"error": "Access denied"}), 403
+
+    data = request.get_json(silent=True) or {}
+    category = (data.get("category") or "").strip()
+    body = (data.get("body") or "").strip()
+    link_url = (data.get("link_url") or "").strip() or None
+
+    if category not in SkiTripPlanningPost.VALID_CATEGORIES:
+        return jsonify({"error": "Invalid category"}), 400
+    if not body:
+        return jsonify({"error": "Post body is required"}), 400
+    if len(body) > 1000:
+        return jsonify({"error": "Post body cannot exceed 1000 characters"}), 400
+    if link_url and len(link_url) > 500:
+        return jsonify({"error": "Link URL too long"}), 400
+
+    post = SkiTripPlanningPost(
+        trip_id=trip_id,
+        user_id=current_user.id,
+        category=category,
+        body=body,
+        link_url=link_url,
+    )
+    db.session.add(post)
+    db.session.commit()
+
+    # Notify all other accepted members (including owner if not author)
+    recipient_ids = [
+        p.user_id for p in SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip_id,
+            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.user_id != current_user.id,
+        ).all()
+    ]
+    # Safety: also include owner if somehow not in participant table
+    if trip.user_id != current_user.id and trip.user_id not in recipient_ids:
+        recipient_ids.append(trip.user_id)
+
+    for uid in recipient_ids:
+        try:
+            emit_messaging_event(
+                event_name=EventName.TRIP_PLANNING_POST_CREATED,
+                actor_user_id=current_user.id,
+                recipient_user_id=uid,
+                entity_type="trip",
+                entity_id=trip.id,
+                metadata={
+                    "actor_name": current_user.first_name or current_user.username,
+                    "resort": trip.mountain or "your trip",
+                    "trip_id": trip.id,
+                },
+                source_route="planning_posts_create",
+            )
+        except Exception as _e:
+            app.logger.warning(f"planning_post notification failed uid={uid}: {_e}")
+
+    return jsonify({"ok": True, "id": post.id}), 201
+
+
+@app.route("/api/trip/<int:trip_id>/planning-posts/<int:post_id>", methods=["PATCH"])
+@login_required
+def planning_posts_update(trip_id, post_id):
+    """Edit a planning post. Author only."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
+
+    if post.user_id != current_user.id:
+        return jsonify({"error": "Only the post author can edit this post"}), 403
+
+    data = request.get_json(silent=True) or {}
+    category = (data.get("category") or "").strip()
+    body = (data.get("body") or "").strip()
+    link_url = (data.get("link_url") or "").strip() or None
+
+    if category not in SkiTripPlanningPost.VALID_CATEGORIES:
+        return jsonify({"error": "Invalid category"}), 400
+    if not body:
+        return jsonify({"error": "Post body is required"}), 400
+    if len(body) > 1000:
+        return jsonify({"error": "Post body cannot exceed 1000 characters"}), 400
+
+    post.category = category
+    post.body = body
+    post.link_url = link_url
+    post.updated_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True}), 200
+
+
+@app.route("/api/trip/<int:trip_id>/planning-posts/<int:post_id>", methods=["DELETE"])
+@login_required
+def planning_posts_delete(trip_id, post_id):
+    """Delete a planning post. Author or trip owner."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
+
+    if post.user_id != current_user.id and trip.user_id != current_user.id:
+        return jsonify({"error": "Access denied"}), 403
+
+    db.session.delete(post)
+    db.session.commit()
+    return jsonify({"ok": True}), 200
 
 
 @app.route("/trips/<int:trip_id>/invite")

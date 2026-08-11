@@ -271,6 +271,21 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         email_eligible=False,
     ),
 
+    EventName.TRIP_PLANNING_POST_CREATED: EventSpec(
+        event_name=EventName.TRIP_PLANNING_POST_CREATED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} added a planning post",
+        body_template="{actor_name} added a new planning post for {resort}.",
+        deep_link_template="/trips/{entity_id}/planning",
+        url_template="/trips/{entity_id}/planning",
+        screen="trip_planning",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
     # ── Automation event (active — currently unlogged friend.pass.changed path) ──
 
     EventName.FRIEND_PASS_CHANGED: EventSpec(

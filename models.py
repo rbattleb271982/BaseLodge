@@ -1472,3 +1472,35 @@ class InviteShareEvent(db.Model):
 
     def __repr__(self):
         return f'<InviteShareEvent user={self.user_id} {self.token_type} {self.action}>'
+
+
+class SkiTripPlanningPost(db.Model):
+    """Collaborative trip planning posts shared among accepted trip members.
+
+    Trip-level; visible to owner + accepted participants only.
+    Not exposed to pending invitees, declined participants, or public viewers.
+    """
+    __tablename__ = 'ski_trip_planning_post'
+
+    # V1 categories — validated server-side; client cannot submit arbitrary values.
+    VALID_CATEGORIES = frozenset({
+        'Lodging', 'Transportation', 'Activities', 'Food & Drink', 'Lessons', 'Other'
+    })
+
+    id         = db.Column(db.Integer, primary_key=True)
+    trip_id    = db.Column(db.Integer, db.ForeignKey('ski_trip.id', ondelete='CASCADE'),
+                           nullable=False, index=True)
+    user_id    = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                           nullable=False, index=True)
+    category   = db.Column(db.String(32), nullable=False)
+    body       = db.Column(db.Text, nullable=False)
+    link_url   = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.utcnow)
+
+    trip   = db.relationship('SkiTrip', backref=db.backref('planning_posts', lazy=True,
+                                                            cascade='all, delete-orphan'))
+    author = db.relationship('User', backref='planning_posts')
+
+    def __repr__(self):
+        return f'<SkiTripPlanningPost trip={self.trip_id} cat={self.category}>'

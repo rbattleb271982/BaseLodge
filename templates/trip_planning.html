@@ -1,0 +1,567 @@
+{% extends "base.html" %}
+{% block title %}Trip Planning · {{ trip.mountain or 'Trip' }}{% endblock %}
+
+{% block head %}
+<style>
+    body { background: #F5F0E8; }
+
+    /* ── Page chrome ── */
+    .tp-nav {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px 16px 0;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .tp-back-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: #5C1219;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .tp-back-btn svg { flex-shrink: 0; }
+
+    .tp-header {
+        padding: 20px 16px 8px;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .tp-title {
+        font-size: 22px;
+        font-weight: 700;
+        color: #1A1A1A;
+        margin: 0 0 4px;
+    }
+    .tp-sub {
+        font-size: 14px;
+        color: #6B665A;
+        margin: 0;
+        line-height: 1.4;
+    }
+
+    /* ── New Post button ── */
+    .tp-new-btn-wrap {
+        padding: 16px 16px 0;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .tp-new-btn {
+        width: 100%;
+        padding: 12px;
+        background: #5C1219;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+    .tp-new-btn:active { opacity: 0.85; }
+
+    /* ── Post list ── */
+    .tp-list {
+        padding: 20px 16px 100px;
+        max-width: 480px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    /* ── Date divider ── */
+    .tp-date-divider {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: #8A857A;
+        padding: 8px 0 4px;
+        border-bottom: 1px solid #E5DFD0;
+        margin-bottom: 4px;
+    }
+
+    /* ── Post card ── */
+    .tp-post-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 14px 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .tp-post-category {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: #5C1219;
+        background: #F9EEE9;
+        border-radius: 6px;
+        padding: 3px 8px;
+        margin-bottom: 8px;
+    }
+    .tp-post-body {
+        font-size: 14px;
+        color: #1A1A1A;
+        line-height: 1.55;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0 0 8px;
+    }
+    .tp-post-link {
+        display: block;
+        font-size: 13px;
+        color: #5C1219;
+        text-decoration: underline;
+        word-break: break-all;
+        margin-bottom: 10px;
+    }
+    .tp-post-meta {
+        font-size: 12px;
+        color: #8A857A;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .tp-post-author { font-weight: 500; }
+    .tp-post-actions {
+        display: flex;
+        gap: 12px;
+    }
+    .tp-post-edit-btn, .tp-post-delete-btn {
+        font-size: 12px;
+        font-weight: 600;
+        border: none;
+        background: none;
+        cursor: pointer;
+        padding: 0;
+        font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .tp-post-edit-btn { color: #5C1219; }
+    .tp-post-delete-btn { color: #c0392b; }
+
+    /* ── Empty state ── */
+    .tp-empty {
+        text-align: center;
+        padding: 60px 16px 40px;
+        max-width: 480px;
+        margin: 0 auto;
+    }
+    .tp-empty-icon { margin-bottom: 16px; opacity: 0.35; }
+    .tp-empty-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: #1A1A1A;
+        margin: 0 0 8px;
+    }
+    .tp-empty-sub {
+        font-size: 14px;
+        color: #6B665A;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* ── Bottom Sheet (create / edit) ── */
+    .tp-sheet-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.45);
+        z-index: 400;
+    }
+    .tp-sheet-overlay.active { display: block; }
+    .tp-sheet {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: #fff;
+        border-radius: 18px 18px 0 0;
+        padding: 0 0 env(safe-area-inset-bottom, 0);
+        max-width: 480px;
+        margin: 0 auto;
+        z-index: 401;
+        transform: translateY(100%);
+        transition: transform 0.28s cubic-bezier(0.32, 0, 0.67, 0);
+        max-height: 90vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .tp-sheet.open { transform: translateY(0); transition-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+
+    .tp-sheet-handle {
+        width: 36px; height: 4px;
+        background: #D5CFC4; border-radius: 2px;
+        margin: 10px auto 0;
+    }
+    .tp-sheet-inner { padding: 16px 20px 24px; }
+    .tp-sheet-title {
+        font-size: 17px; font-weight: 700;
+        color: #1A1A1A; margin: 0 0 18px;
+    }
+
+    /* Category chips */
+    .tp-chip-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .tp-chip {
+        padding: 7px 14px;
+        border-radius: 20px;
+        border: 1.5px solid #D5CFC4;
+        background: #fff;
+        font-size: 13px;
+        font-weight: 500;
+        color: #4A4540;
+        cursor: pointer;
+        font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
+        transition: border-color 0.12s, background 0.12s, color 0.12s;
+    }
+    .tp-chip.selected {
+        border-color: #5C1219;
+        background: #5C1219;
+        color: #fff;
+    }
+
+    /* Body textarea */
+    .tp-sheet-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #6B665A;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .tp-sheet-textarea {
+        width: 100%;
+        min-height: 100px;
+        border: 1.5px solid #E5DFD0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        color: #1A1A1A;
+        background: #FAFAF7;
+        resize: vertical;
+        box-sizing: border-box;
+        outline: none;
+        line-height: 1.5;
+        -webkit-appearance: none;
+    }
+    .tp-sheet-textarea:focus { border-color: #5C1219; }
+    .tp-sheet-counter {
+        font-size: 12px;
+        color: #8A857A;
+        text-align: right;
+        margin: 4px 0 14px;
+    }
+    .tp-sheet-counter.near-limit { color: #c0392b; }
+
+    .tp-sheet-input {
+        width: 100%;
+        border: 1.5px solid #E5DFD0;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 14px;
+        font-family: inherit;
+        color: #1A1A1A;
+        background: #FAFAF7;
+        box-sizing: border-box;
+        outline: none;
+        -webkit-appearance: none;
+        margin-bottom: 20px;
+    }
+    .tp-sheet-input:focus { border-color: #5C1219; }
+
+    .tp-sheet-submit {
+        width: 100%;
+        padding: 13px;
+        background: #5C1219;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .tp-sheet-submit:disabled { opacity: 0.5; cursor: default; }
+    .tp-sheet-submit:active:not(:disabled) { opacity: 0.85; }
+
+    .tp-sheet-cancel {
+        width: 100%;
+        padding: 13px;
+        background: transparent;
+        color: #6B665A;
+        border: none;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: inherit;
+        cursor: pointer;
+        margin-top: 8px;
+        -webkit-tap-highlight-color: transparent;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Back nav -->
+<div class="tp-nav">
+    <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="tp-back-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        Back
+    </a>
+</div>
+
+<!-- Header -->
+<div class="tp-header">
+    <h1 class="tp-title">Trip planning</h1>
+    <p class="tp-sub">{{ trip.mountain or 'Your trip' }}{% if trip.start_date %} · {{ trip.start_date.strftime('%b %-d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%-d') }}{% endif %}{% endif %}</p>
+</div>
+
+<!-- New post button -->
+<div class="tp-new-btn-wrap">
+    <button type="button" class="tp-new-btn" onclick="openSheet()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New post
+    </button>
+</div>
+
+{% if posts_by_date %}
+<!-- Post list -->
+<div class="tp-list">
+    {% for date_label, posts_in_group in posts_by_date %}
+    <div class="tp-date-divider">{{ date_label }}</div>
+    {% for post in posts_in_group %}
+    <div class="tp-post-card" id="post-{{ post.id }}">
+        <span class="tp-post-category">{{ post.category }}</span>
+        <p class="tp-post-body">{{ post.body }}</p>
+        {% if post.link_url %}
+        <a href="{{ post.link_url }}" class="tp-post-link" target="_blank" rel="noopener noreferrer">{{ post.link_url }}</a>
+        {% endif %}
+        <div class="tp-post-meta">
+            <span class="tp-post-author">{{ post.author.first_name or post.author.username }} · {{ post.date_label }}</span>
+            <span class="tp-post-actions">
+                {% if post.user_id == current_user.id %}
+                <button type="button" class="tp-post-edit-btn"
+                        onclick="openEditSheet({{ post.id }}, {{ post.category|tojson }}, {{ post.body|tojson }}, {{ (post.link_url or '')|tojson }})">
+                    Edit
+                </button>
+                {% endif %}
+                {% if post.user_id == current_user.id or is_owner %}
+                <button type="button" class="tp-post-delete-btn"
+                        onclick="confirmDelete({{ post.id }})">
+                    Delete
+                </button>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+</div>
+{% else %}
+<!-- Empty state -->
+<div class="tp-empty">
+    <div class="tp-empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+    </div>
+    <p class="tp-empty-title">No posts yet</p>
+    <p class="tp-empty-sub">Share ideas, links, places to stay, restaurants, activities — anything useful for the group.</p>
+</div>
+{% endif %}
+
+<!-- Bottom sheet overlay -->
+<div class="tp-sheet-overlay" id="tp-overlay" onclick="closeSheet()"></div>
+
+<!-- Create / Edit bottom sheet -->
+<div class="tp-sheet" id="tp-sheet">
+    <div class="tp-sheet-handle"></div>
+    <div class="tp-sheet-inner">
+        <p class="tp-sheet-title" id="tp-sheet-title">New post</p>
+
+        <!-- Category chips -->
+        <span class="tp-sheet-label">Category</span>
+        <div class="tp-chip-group" id="tp-chips">
+            {% for cat in categories %}
+            <button type="button" class="tp-chip" data-cat="{{ cat }}" onclick="selectChip(this)">{{ cat }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- Body -->
+        <span class="tp-sheet-label">Post</span>
+        <textarea id="tp-body" class="tp-sheet-textarea" maxlength="1000"
+                  oninput="updateBodyCounter()"
+                  placeholder="What's your idea or recommendation?"></textarea>
+        <div class="tp-sheet-counter" id="tp-body-counter">0 / 1000</div>
+
+        <!-- Link (optional) -->
+        <span class="tp-sheet-label">Link <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></span>
+        <input type="url" id="tp-link" class="tp-sheet-input" placeholder="https://...">
+
+        <button type="button" class="tp-sheet-submit" id="tp-submit-btn" onclick="submitPost()">Post</button>
+        <button type="button" class="tp-sheet-cancel" onclick="closeSheet()">Cancel</button>
+    </div>
+</div>
+
+<script>
+    const TRIP_ID = {{ trip.id }};
+    const VALID_CATEGORIES = {{ categories | tojson }};
+    const IS_OWNER = {{ 'true' if is_owner else 'false' }};
+
+    let _editPostId = null;  // null → create mode, int → edit mode
+
+    // ── Sheet open/close ──
+    function openSheet() {
+        _editPostId = null;
+        document.getElementById('tp-sheet-title').textContent = 'New post';
+        document.getElementById('tp-submit-btn').textContent = 'Post';
+        clearSheet();
+        _showSheet();
+    }
+
+    function openEditSheet(postId, category, body, linkUrl) {
+        _editPostId = postId;
+        document.getElementById('tp-sheet-title').textContent = 'Edit post';
+        document.getElementById('tp-submit-btn').textContent = 'Save changes';
+        clearSheet();
+        // Pre-populate
+        document.querySelectorAll('.tp-chip').forEach(chip => {
+            if (chip.dataset.cat === category) chip.classList.add('selected');
+        });
+        const bodyEl = document.getElementById('tp-body');
+        bodyEl.value = body;
+        updateBodyCounter();
+        document.getElementById('tp-link').value = linkUrl || '';
+        _showSheet();
+    }
+
+    function _showSheet() {
+        document.getElementById('tp-overlay').classList.add('active');
+        requestAnimationFrame(() => document.getElementById('tp-sheet').classList.add('open'));
+    }
+
+    function closeSheet() {
+        document.getElementById('tp-sheet').classList.remove('open');
+        document.getElementById('tp-overlay').classList.remove('active');
+    }
+
+    function clearSheet() {
+        document.querySelectorAll('.tp-chip').forEach(c => c.classList.remove('selected'));
+        document.getElementById('tp-body').value = '';
+        document.getElementById('tp-body-counter').textContent = '0 / 1000';
+        document.getElementById('tp-body-counter').classList.remove('near-limit');
+        document.getElementById('tp-link').value = '';
+    }
+
+    // ── Category chip selection ──
+    function selectChip(el) {
+        document.querySelectorAll('.tp-chip').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+    }
+
+    // ── Body counter ──
+    function updateBodyCounter() {
+        const ta = document.getElementById('tp-body');
+        const counter = document.getElementById('tp-body-counter');
+        const len = ta.value.length;
+        counter.textContent = `${len} / 1000`;
+        counter.classList.toggle('near-limit', len > 900);
+    }
+
+    // ── Submit (create or edit) ──
+    async function submitPost() {
+        const categoryEl = document.querySelector('.tp-chip.selected');
+        const body = document.getElementById('tp-body').value.trim();
+        const linkUrl = document.getElementById('tp-link').value.trim();
+
+        if (!categoryEl) { alert('Please choose a category.'); return; }
+        if (!body) { alert('Please write something in the post.'); return; }
+
+        const btn = document.getElementById('tp-submit-btn');
+        btn.disabled = true;
+
+        try {
+            let url, method;
+            if (_editPostId) {
+                url = `/api/trip/${TRIP_ID}/planning-posts/${_editPostId}`;
+                method = 'PATCH';
+            } else {
+                url = `/api/trip/${TRIP_ID}/planning-posts`;
+                method = 'POST';
+            }
+
+            const resp = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    category: categoryEl.dataset.cat,
+                    body,
+                    link_url: linkUrl || null,
+                }),
+            });
+
+            if (resp.ok) {
+                // Reload to show updated posts list
+                window.location.reload();
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                alert(data.error || 'Something went wrong. Please try again.');
+                btn.disabled = false;
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Network error. Please try again.');
+            btn.disabled = false;
+        }
+    }
+
+    // ── Delete ──
+    async function confirmDelete(postId) {
+        if (!confirm('Delete this planning post?')) return;
+        try {
+            const resp = await fetch(`/api/trip/${TRIP_ID}/planning-posts/${postId}`, {
+                method: 'DELETE',
+            });
+            if (resp.ok) {
+                const card = document.getElementById(`post-${postId}`);
+                if (card) card.remove();
+                // Remove orphan date headers (if no siblings remain in their group)
+                document.querySelectorAll('.tp-date-divider').forEach(divider => {
+                    let el = divider.nextElementSibling;
+                    let hasCard = false;
+                    while (el && !el.classList.contains('tp-date-divider')) {
+                        if (el.classList.contains('tp-post-card')) { hasCard = true; break; }
+                        el = el.nextElementSibling;
+                    }
+                    if (!hasCard) divider.remove();
+                });
+                // If list is now empty, reload to show empty state
+                if (!document.querySelector('.tp-post-card')) window.location.reload();
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                alert(data.error || 'Could not delete post.');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Network error. Please try again.');
+        }
+    }
+</script>
+{% endblock %}

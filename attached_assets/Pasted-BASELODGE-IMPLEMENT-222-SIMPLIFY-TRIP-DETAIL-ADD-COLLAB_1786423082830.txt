@@ -1,0 +1,1059 @@
+BASELODGE — IMPLEMENT #222
+SIMPLIFY TRIP DETAIL + ADD COLLABORATIVE TRIP PLANNING BOARD
+
+Implement the approved #222 plan exactly as scoped below.
+
+This is an implementation task, not an audit.
+
+Do not broaden scope.
+Do not refactor unrelated trip logic.
+Do not delete legacy Transportation/Accommodation data or endpoints.
+Do not add comments, reactions, avatars, pinning, or rich link previews.
+
+==================================================
+1. GOAL
+==================================================
+
+Reorganize the trip detail experience into:
+
+TRIP HEADER
+- Location
+- Dates
+- Visibility
+- Planning / Going
+- Existing Edit trip action
+
+TRIP SETUP
+- Pass
+- Equipment
+- Lessons
+
+PEOPLE
+- Existing Who’s Going / participant / pending invite content
+
+TRIP PLANNING
+- New collaborative planning card
+- Opens dedicated planning board
+
+TRIP ACTIONS
+- Existing Invite friends action
+
+Remove from the visible trip-detail UI:
+- Transportation
+- Accommodations
+- Shared Notes row
+
+Preserve their existing backend data and logic unless otherwise specified below.
+
+==================================================
+2. SIMPLIFY TRIP DETAIL
+==================================================
+
+File:
+templates/trip_detail.html
+
+Current visible structure includes:
+- Pass
+- Equipment
+- Transportation
+- Accommodations
+- Lessons
+- Notes
+
+Change it so:
+
+TRIP SETUP
+- Pass
+- Equipment
+- Lessons
+
+Remove the visible Transportation row.
+
+Remove the visible Accommodations row.
+
+Remove the visible Notes row.
+
+Do NOT delete:
+- transportation DB columns
+- accommodation DB columns
+- transportation endpoints
+- accommodation endpoints
+- historical values
+- migration history
+
+This is a UI deprecation only.
+
+Move the existing Lessons accordion row into the Trip setup card after Equipment.
+
+Preserve all existing:
+- Lessons markup
+- Lessons JS
+- Lessons endpoint behavior
+- participant-level ownership
+- permissions
+
+Update _TD_PANELS only as needed to reflect the new DOM structure.
+
+Remove Notes-related trip-detail JS:
+- toggleNotesEditor
+- updateNotesCounter
+- saveNotes
+- notes entry in _TD_PANELS
+
+Do not leave dead JS references behind.
+
+==================================================
+3. FINAL TRIP DETAIL SECTION ORDER
+==================================================
+
+The final markup order must be:
+
+1. Trip header
+2. Trip setup
+3. People
+4. Trip planning
+5. Trip actions
+
+Trip Planning must appear BELOW People.
+
+If Trip Actions currently appears above People, move the existing Trip Actions markup below Trip Planning.
+
+Do not duplicate Trip Actions.
+
+Preserve:
+- existing Invite friends onclick behavior
+- invite modal behavior
+- People content
+- Who’s Going behavior
+- Pending Invite behavior
+- Cancel/Leave behavior
+
+==================================================
+4. LESSONS REMAINS PARTICIPANT-LEVEL
+==================================================
+
+Lessons is structured and personal.
+
+Accepted participants must continue to edit THEIR OWN lesson status.
+
+The owner must not gain the ability to overwrite another participant’s lesson selection.
+
+Do not redesign Lessons.
+
+Do not add:
+- lesson date
+- lesson time
+- instructor
+- lesson notes
+
+V1 keeps the current simple structured toggle/status behavior only.
+
+==================================================
+5. MOVE EXISTING NOTES TO EDIT TRIP AS PRIVATE NOTE
+==================================================
+
+Reuse the existing:
+
+SkiTrip.notes
+
+Do NOT add another notes column.
+
+The current shared Notes row on trip_detail must disappear.
+
+Add the note to:
+
+/trips/<id>/edit
+
+Template:
+templates/edit_trip.html
+
+Label:
+
+PRIVATE NOTE
+
+Supporting copy:
+
+Only you can see this.
+
+Use a visible textarea.
+
+Requirements:
+- max 500 characters
+- pre-populated from trip.notes
+- owner only
+- not exposed to accepted participants
+- not exposed to pending invitees
+- not exposed to public/friend viewers
+- not exposed through the Trip Planning board
+- not exposed unnecessarily through participant-facing JSON/templates
+
+==================================================
+6. PRIVATE NOTE — FULL DIRTY-STATE INTEGRATION
+==================================================
+
+This is important.
+
+The existing Edit Trip page uses INIT / pending / dirty-state logic to show the Save changes bar.
+
+Private note must participate fully.
+
+If Private note is the ONLY field changed:
+the Save changes bar MUST appear.
+
+Update as necessary:
+
+- INIT.notes
+- pending.notes
+- textarea input/change handling
+- dirty-state comparison
+- hidden form population
+- POST handling
+- validation re-render state
+
+Add:
+
+<input type="hidden" name="notes">
+
+to the hidden save form.
+
+On submit:
+populate it with pending.notes before form.submit().
+
+If backend validation fails:
+retain the user's entered note in the re-render.
+
+Do NOT overwrite the typed value with the current DB value after a validation error.
+
+==================================================
+7. PRIVATE NOTE BACKEND HANDLING
+==================================================
+
+Handler:
+edit_trip_form()
+
+Read notes from POST.
+
+Behavior:
+- trim whitespace
+- empty string → NULL
+- max 500 chars server-side
+- if >500:
+  - flash validation error
+  - re-render edit form
+  - preserve posted note value
+
+Save:
+
+trip.notes = normalized_notes
+
+Do not change unrelated Edit Trip behavior.
+
+Do not alter the existing hidden Transportation / Equipment passthrough behavior in this task unless required for Private note functionality.
+
+==================================================
+8. NEW TRIP PLANNING DATA MODEL
+==================================================
+
+Add a new model consistent with BaseLodge naming.
+
+Preferred:
+
+SkiTripPlanningPost
+
+Fields:
+
+id
+- Integer PK
+
+trip_id
+- FK → ski_trip.id
+- not nullable
+
+user_id
+- FK → user.id
+- not nullable
+
+category
+- String
+- not nullable
+
+body
+- Text
+- not nullable
+
+link_url
+- String
+- nullable
+
+created_at
+- DateTime
+- not nullable
+- default utcnow consistent with project patterns
+
+updated_at
+- DateTime
+- nullable
+- onupdate utcnow consistent with project patterns
+
+Relationships:
+- trip → SkiTrip
+- author → User
+
+Do not denormalize author name unless current architecture clearly requires it.
+
+==================================================
+9. MIGRATION
+==================================================
+
+Use the project’s existing startup-migration pattern.
+
+Do NOT introduce Alembic.
+
+Add an idempotent:
+
+CREATE TABLE IF NOT EXISTS ...
+
+migration for the planning-post table.
+
+Requirements:
+- safe on repeat startup
+- consistent with existing migration functions
+- commit on success
+- rollback / safe error handling consistent with project conventions
+- narrowly scoped to this table
+
+Do not alter unrelated schema.
+
+==================================================
+10. PLANNING CATEGORIES
+==================================================
+
+V1 categories:
+
+- Lodging
+- Transportation
+- Activities
+- Food & Drink
+- Lessons
+- Other
+
+Use a fixed server-side allowlist.
+
+Do not allow arbitrary client strings.
+
+Validate on:
+- create
+- edit
+
+Unknown category:
+HTTP 400.
+
+==================================================
+11. ACCESS CONTROL HELPERS
+==================================================
+
+Add small local helpers if useful, e.g.:
+
+is_accepted_trip_member(trip, user)
+
+can_access_trip_planning(trip, user)
+
+Accepted means:
+- trip owner
+OR
+- SkiTripParticipant status == GuestStatus.ACCEPTED
+
+Cannot access:
+- pending invited participant
+- declined participant
+- removed participant
+- friend who can merely see the trip
+- public viewer
+- logged-in non-member
+
+Do not treat is_public as planning access.
+
+Use the same access rule across:
+- planning page
+- create endpoint
+- edit endpoint
+- delete endpoint
+- planning card visibility
+
+Do not perform a broad authorization refactor outside this feature.
+
+==================================================
+12. TRIP PLANNING CARD ON TRIP DETAIL
+==================================================
+
+Below People and above Trip Actions, add:
+
+TRIP PLANNING
+
+Card:
+
+Plan this trip together
+
+Supporting text:
+
+Share ideas, links, accommodations, activities and plans with everyone going.
+
+Show count:
+
+No posts yet
+
+1 post
+
+N posts
+
+Only render this section/card if the current user can access Trip Planning.
+
+Do not show the card or count to:
+- pending invitees
+- non-members
+- public viewers
+
+Card links to:
+
+/trips/<id>/planning
+
+==================================================
+13. TRIP PLANNING PAGE
+==================================================
+
+Add:
+
+GET /trips/<int:trip_id>/planning
+
+@login_required
+
+Server-side access gate using the approved access helper.
+
+If unauthorized:
+return/abort 403 consistent with current app behavior.
+
+New template:
+
+templates/trip_planning.html
+
+Page should include:
+
+- back navigation to trip detail
+- heading: Trip planning
+- short intro:
+  Share ideas, links and plans with everyone on this trip.
+- + New post button
+- posts newest first
+
+Sort:
+
+created_at DESC
+
+No manual ordering.
+
+No pinning.
+
+No comments.
+
+No reactions.
+
+==================================================
+14. EMPTY STATE
+==================================================
+
+If no planning posts exist:
+
+Plan this trip together
+
+Share ideas, links, accommodations, activities and plans with everyone going.
+
+[+ New post]
+
+Keep it simple.
+
+==================================================
+15. PLANNING POST CARD UI
+==================================================
+
+NO PROFILE PHOTOS.
+
+NO PROFILE BUBBLES.
+
+NO INITIALS CIRCLES.
+
+NO AVATAR STACKS.
+
+Each post card hierarchy:
+
+1. Category
+2. Body text
+3. Optional external link
+4. Text-only authorship + date
+5. Edit/Delete controls when permitted
+
+Example:
+
+Lodging
+
+Found this condo in Lionshead. Looks like it sleeps 6 and is close to the gondola.
+
+airbnb.com/rooms/12345678
+
+Posted by Taylor Mercer · Today
+
+[Edit] [Delete]
+
+Authorship must be visually secondary to content.
+
+==================================================
+16. DATE LABELS
+==================================================
+
+Do NOT display:
+- 2h ago
+- 17m ago
+- 45m ago
+
+Use:
+
+Today
+
+Yesterday
+
+Otherwise:
+Aug 8
+
+If year differs from current year:
+include year if appropriate.
+
+Compute server-side using an existing helper if available.
+
+If no helper exists:
+implement a small local formatter without adding a new dependency.
+
+==================================================
+17. CREATE POST FORM
+==================================================
+
+Use a bottom sheet / drawer consistent with existing BaseLodge patterns.
+
+Fields:
+
+Category
+- required
+- fixed list
+
+Body
+- required
+- textarea
+- max 500 characters
+- live character counter
+
+Optional link
+- placeholder: Paste a link
+
+Suggested body placeholder:
+
+Share an idea, plan, or something you found...
+
+CTA:
+
+Post
+
+==================================================
+18. LINK VALIDATION
+==================================================
+
+link_url is optional.
+
+When present:
+- trim whitespace
+- must begin with http:// or https://
+- validate server-side
+- reject invalid schemes with 400
+
+Do not allow:
+- javascript:
+- data:
+- arbitrary unsupported schemes
+
+Display links as simple clickable links.
+
+Open externally / in browser consistent with existing BaseLodge external-link behavior.
+
+Do NOT create rich preview cards in V1.
+
+==================================================
+19. CREATE POST ENDPOINT
+==================================================
+
+Add:
+
+POST /api/trip/<int:trip_id>/planning-posts
+
+Permissions:
+- owner
+- accepted participant
+
+Reject:
+- pending
+- declined
+- removed
+- public viewer
+- non-member
+
+Validation:
+- category required
+- category allowlist
+- body required after trim
+- body <=500 chars
+- optional valid http/https link
+
+Save:
+- trip_id
+- user_id = current_user.id
+- category
+- body
+- link_url
+- created_at
+
+Return JSON consistent with existing API patterns.
+
+==================================================
+20. EDIT POST ENDPOINT
+==================================================
+
+Add:
+
+PATCH /api/trip/<int:trip_id>/planning-posts/<int:post_id>
+
+Only the POST AUTHOR may edit.
+
+Trip owner must NOT be able to edit another participant’s post.
+
+Validate:
+- post belongs to trip
+- current_user.id == post.user_id
+- category allowlist
+- body required
+- body <=500
+- link URL rules
+
+Update:
+- category
+- body
+- link_url
+- updated_at
+
+Do not send notifications on edit.
+
+==================================================
+21. EDIT POST UI
+==================================================
+
+V1 must include the actual Edit interaction.
+
+Reuse the same post sheet for create and edit.
+
+When author taps Edit:
+
+- open same sheet
+- pre-populate category
+- pre-populate body
+- pre-populate optional link
+- change CTA from:
+  Post
+  to:
+  Save changes
+- submit PATCH to that post
+
+Trip owner:
+- sees Edit on their own posts
+- does NOT see Edit on another participant’s post
+
+After successful edit:
+update or reload board consistent with current app patterns.
+
+A full reload is acceptable if simpler and reliable.
+
+==================================================
+22. DELETE POST ENDPOINT
+==================================================
+
+Add:
+
+DELETE /api/trip/<int:trip_id>/planning-posts/<int:post_id>
+
+Allowed:
+- post author
+- trip owner
+
+Not allowed:
+- another participant
+- pending participant
+- non-member
+
+Verify post belongs to trip.
+
+Hard delete is acceptable for V1 unless existing project conventions strongly favor soft delete.
+
+Do not notify on delete.
+
+==================================================
+23. DELETE CONFIRMATION
+==================================================
+
+Before delete request fires:
+
+show lightweight confirmation:
+
+Delete this planning post?
+
+Only send DELETE after confirmation.
+
+Use an existing confirmation pattern if one exists.
+
+If not:
+native confirm() is acceptable for V1.
+
+No undo.
+
+==================================================
+24. NOTIFICATION FOR NEW POSTS
+==================================================
+
+This needs careful verification.
+
+Add a new messaging event constant consistent with the existing messaging system, e.g.:
+
+trip.planning_post.created
+
+Use:
+services/messaging_constants.py
+services/message_dispatch.py
+and the existing emit_messaging_event infrastructure as appropriate.
+
+When a new planning post is successfully created:
+
+Notify all OTHER accepted participants on the trip.
+
+Recipients should include:
+- accepted participants other than author
+- trip owner if author is a participant and owner is not author
+
+Exclude:
+- author
+- pending invitees
+- declined users
+- removed users
+- public viewers
+
+IMPORTANT:
+Do not just add an EventName constant and assume dispatch will work.
+
+Before finalizing:
+trace exactly how emit_messaging_event resolves recipients and templates/handlers.
+
+Ensure this new event actually maps to a deliverable push/message path.
+
+If the messaging system requires:
+- event registration
+- payload schema
+- message template
+- recipient handling
+- dispatcher mapping
+
+add only the minimum required pieces.
+
+Do not claim notification validation passed unless the new event is actually wired through the delivery system.
+
+Suggested copy:
+
+Taylor added a new planning post for Vail.
+
+or equivalent.
+
+Do NOT notify on:
+- edit
+- delete
+
+==================================================
+25. POST COUNT
+==================================================
+
+On trip_detail:
+
+count planning posts for that trip.
+
+Display:
+
+No posts yet
+
+1 post
+
+N posts
+
+Do not show count to unauthorized users.
+
+If using hard delete:
+normal count is fine.
+
+==================================================
+26. DO NOT CONVERT OLD TRANSPORTATION / ACCOMMODATION VALUES
+==================================================
+
+Do NOT auto-create planning posts from old Transportation or Accommodation values in this task.
+
+Do NOT delete old values.
+
+Do NOT clean up old endpoints.
+
+Do NOT drop columns.
+
+We will handle legacy cleanup later after the planning board is proven.
+
+==================================================
+27. DO NOT ADD COMMENTS OR REACTIONS
+==================================================
+
+Do NOT implement:
+
+- comments
+- reply threads
+- reactions
+- likes
+- voting
+- emoji
+- comment counters
+- pinning
+- manual ordering
+
+Build the planning-post architecture cleanly so comments can be added later, but do not create unused comment tables now.
+
+==================================================
+28. PRESERVE EXISTING QUICK EDITS
+==================================================
+
+Do NOT change:
+
+date quick-edit behavior
+
+Tapping the date on trip_detail should continue opening the existing date-edit bottom sheet.
+
+Do NOT remove the Edit Trip link.
+
+Edit Trip continues to manage:
+
+- Location
+- Dates
+- Planning / Going
+- Visibility
+- Private note
+
+==================================================
+29. PRESERVE PASS / EQUIPMENT / LESSONS
+==================================================
+
+Do NOT rewrite existing working editors.
+
+Pass:
+- stays structured
+- existing behavior preserved
+
+Equipment:
+- stays structured
+- existing behavior preserved
+
+Lessons:
+- stays structured
+- participant-level
+- accepted participant edits own status only
+
+==================================================
+30. PEOPLE SECTION
+==================================================
+
+Do not redesign People.
+
+Do not introduce Trip Planning avatars into People.
+
+If People already uses profile imagery elsewhere:
+leave it untouched.
+
+The no-profile-bubbles requirement applies to the NEW Trip Planning feature.
+
+==================================================
+31. UI STYLE
+==================================================
+
+Match current BaseLodge styling.
+
+Use existing:
+- cream background
+- white rounded cards
+- maroon action color
+- typography
+- spacing
+- dividers
+- bottom navigation
+- sheet patterns
+
+Trip Planning should feel like a planning tool, not a social network.
+
+==================================================
+32. VALIDATION — MAIN TRIP DETAIL
+==================================================
+
+Verify:
+
+1. Edit trip still works.
+2. Date quick edit still works.
+3. Trip setup contains Pass.
+4. Trip setup contains Equipment.
+5. Trip setup contains Lessons.
+6. Transportation no longer visible.
+7. Accommodations no longer visible.
+8. Shared Notes row no longer visible.
+9. People remains unchanged.
+10. Trip Planning appears below People.
+11. Trip Actions appears below Trip Planning.
+12. Invite friends still works.
+13. No duplicate Trip Actions block exists.
+
+==================================================
+33. VALIDATION — PRIVATE NOTE
+==================================================
+
+Verify:
+
+14. Owner sees Private note in Edit Trip.
+15. Private note only change triggers Save changes bar.
+16. Owner can add note.
+17. Owner can edit note.
+18. Owner can clear note.
+19. Note persists after reload.
+20. 500-char server-side limit enforced.
+21. Posted note survives a validation-error re-render.
+22. Accepted participant cannot see note.
+23. Pending invitee cannot see note.
+24. Public/friend viewer cannot see note.
+25. Private note is not exposed on Trip Planning.
+
+==================================================
+34. VALIDATION — PLANNING ACCESS
+==================================================
+
+Verify:
+
+26. Owner can access planning board.
+27. Accepted participant can access planning board.
+28. Pending invitee cannot access.
+29. Declined participant cannot access.
+30. Removed participant cannot access.
+31. Public viewer cannot access.
+32. Direct URL access is server-protected.
+
+==================================================
+35. VALIDATION — POSTS
+==================================================
+
+Verify:
+
+33. Owner can create post.
+34. Accepted participant can create post.
+35. Category required.
+36. Category allowlist enforced.
+37. Body required.
+38. 500-char body limit server-side.
+39. Optional http/https link works.
+40. Invalid link scheme rejected.
+41. Posts sort newest first.
+42. Author shown as text only.
+43. No avatar/profile bubble shown.
+44. Date shows Today / Yesterday / short date.
+45. Author can edit own post.
+46. Edit sheet pre-populates existing values.
+47. Edit CTA says Save changes.
+48. Edit sends PATCH.
+49. Owner cannot edit another participant's post.
+50. Author can delete own post.
+51. Owner can delete participant post.
+52. Participant cannot delete someone else’s post.
+53. Delete confirmation appears before delete.
+54. Edit/delete do not notify.
+
+==================================================
+36. VALIDATION — NOTIFICATIONS
+==================================================
+
+Verify:
+
+55. New post notifies all other accepted participants.
+56. Author does not receive own notification.
+57. Owner receives notification when participant posts.
+58. Pending invitees are excluded.
+59. Declined/removed users are excluded.
+60. Notification event is fully wired through the dispatcher, not just declared.
+61. Push/message can actually be delivered through the existing messaging path.
+
+==================================================
+37. VALIDATION — LESSONS / REGRESSION
+==================================================
+
+Verify:
+
+62. Accepted participant can edit their own lesson status.
+63. Owner cannot overwrite another participant’s lesson status.
+64. Pass editing still works.
+65. Equipment editing still works.
+66. Existing invite flow works.
+67. Cancel/leave behavior works.
+68. No Transportation/Accommodation data deleted.
+69. No unrelated routes/templates/features changed.
+70. No comments/reactions were added.
+
+==================================================
+38. RETURN REPORT
+==================================================
+
+After implementation return:
+
+1. Files changed
+2. Models/tables added
+3. Migration added
+4. Routes/endpoints added
+5. Trip detail before/after structure
+6. Private note implementation
+7. Dirty-state integration details
+8. Trip Planning UI
+9. Planning-post model
+10. Category validation
+11. Link validation
+12. Post author/date rendering
+13. Access-control logic
+14. Create/edit/delete permissions
+15. Delete confirmation
+16. Notification event wiring
+17. Exact recipient-selection logic
+18. Confirmation that notification event is actually dispatchable
+19. Existing Transportation/Accommodation code preserved
+20. Lessons participant-level behavior
+21. Validation results for all checks above
+22. Any issues encountered
+
+EXPLICITLY CONFIRM:
+
+- No profile bubbles/images were added to Trip Planning.
+- Transportation and Accommodations were hidden, not deleted.
+- Lessons remains participant-level.
+- Private note is owner-only.
+- Planning board is owner + accepted participants only.
+- Pending invitees cannot access the board.
+- Posts are newest first.
+- Author is shown using text only.
+- Dates use Today / Yesterday / short date, not hour/minute-relative timestamps.
+- Owner may delete another participant’s post but may not edit it.
+- All deletes require confirmation.
+- No comments/reactions/pinning were added.
+- Notification recipients exclude author and non-accepted participants.
+- The new notification event is fully wired into the existing messaging system rather than only declared.

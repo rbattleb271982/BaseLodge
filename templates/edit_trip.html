@@ -64,6 +64,25 @@
     .et-row-sub { font-size: 14px; color: #6B665A; }
     .et-chev { font-size: 20px; color: #B5AFA5; line-height: 1; flex-shrink: 0; margin-left: 12px; }
 
+    /* ===== PRIVATE NOTE ===== */
+    .et-private-note-label {
+        font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+        color: #6B665A; text-transform: uppercase;
+        padding-top: 20px; margin-bottom: 6px; display: block;
+    }
+    .et-private-note-sub { font-size: 13px; color: #8A857A; margin-bottom: 12px; }
+    .et-private-note-textarea {
+        width: 100%; min-height: 96px;
+        border: 1px solid #E5DFD0; border-radius: 8px;
+        padding: 10px 12px; font-size: 14px;
+        font-family: inherit; color: #1A1A1A;
+        background: #FAFAF7; resize: vertical;
+        box-sizing: border-box; outline: none; line-height: 1.45;
+        -webkit-appearance: none;
+    }
+    .et-private-note-textarea:focus { border-color: #5C1219; }
+    .et-private-note-counter { font-size: 12px; color: #8A857A; text-align: right; margin-top: 6px; }
+
     /* ===== DELETE ===== */
     .et-delete-section { margin-top: 40px; text-align: center; padding: 0 20px; }
     .et-delete-btn {
@@ -392,6 +411,17 @@
   </div>
   <div class="et-hairline"></div>
 
+  <!-- PRIVATE NOTE (owner-only — not visible to participants) -->
+  <div class="et-section">
+    <span class="et-private-note-label">Private note</span>
+    <p class="et-private-note-sub">Only you can see this.</p>
+    <textarea id="et-notes-textarea" class="et-private-note-textarea" maxlength="500"
+              oninput="onNotesInput()"
+              placeholder="Add a private note for yourself about this trip…">{{ posted_notes if posted_notes is defined else (trip.notes or '') }}</textarea>
+    <div class="et-private-note-counter"><span id="et-notes-count">{{ (posted_notes if posted_notes is defined else (trip.notes or ''))|length }}</span> / 500</div>
+  </div>
+  <div class="et-hairline"></div>
+
   <!-- DELETE -->
   <div class="et-delete-section">
     <button class="et-delete-btn" type="button" onclick="showDeleteModal()">Delete trip</button>
@@ -539,6 +569,7 @@
   <input type="hidden" name="trip_status" id="et-f-status">
   <input type="hidden" name="transportation_status" value="{{ my_transportation or '' }}">
   <input type="hidden" name="trip_equipment_status" value="{{ trip.trip_equipment_status or 'use_default' }}">
+  <input type="hidden" name="notes" id="et-f-notes">
 </form>
 
 {% endblock %}
@@ -562,6 +593,7 @@
     end_date: {{ (trip.end_date.isoformat() if trip.end_date else none)|tojson }},
     is_public: {{ trip.is_public|tojson }},
     trip_status: {{ (trip_status if trip_status is defined else (trip.trip_status or 'planning'))|tojson }},
+    notes: {{ (posted_notes if posted_notes is defined else (trip.notes or ''))|tojson }},
   };
 
   // ===== PENDING STATE (what will be saved) =====
@@ -574,6 +606,7 @@
     end_date: INIT.end_date,
     is_public: INIT.is_public,
     trip_status: INIT.trip_status,
+    notes: INIT.notes,
   };
 
   // ===== DIRTY CHECK =====
@@ -582,7 +615,17 @@
         || pending.start_date !== INIT.start_date
         || pending.end_date !== INIT.end_date
         || pending.is_public !== INIT.is_public
-        || pending.trip_status !== INIT.trip_status;
+        || pending.trip_status !== INIT.trip_status
+        || pending.notes !== INIT.notes;
+  }
+
+  function onNotesInput() {
+    const ta = document.getElementById('et-notes-textarea');
+    const countEl = document.getElementById('et-notes-count');
+    if (!ta) return;
+    pending.notes = ta.value;
+    if (countEl) countEl.textContent = ta.value.length;
+    syncMainScreen();
   }
 
   // ===== FORMAT HELPERS =====
@@ -967,6 +1010,7 @@
     document.getElementById('et-f-start').value = pending.start_date || '';
     document.getElementById('et-f-end').value = pending.end_date || '';
     document.getElementById('et-f-status').value = pending.trip_status || 'planning';
+    document.getElementById('et-f-notes').value = pending.notes || '';
 
     // is_public: "on" → True in Flask; absent → False
     const prev = form.querySelector('input[name="is_public"]');

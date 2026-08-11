@@ -19,6 +19,7 @@ class EventName:
     TRIP_RESORT_UPDATED         = "trip.resort.updated"         # active participants on inline resort change
     TRIP_DETAILS_UPDATED        = "trip.details.updated"        # active participants on full edit form save
     TRIP_ACCOMMODATION_UPDATED  = "trip.accommodation.updated"  # active participants on accommodation change
+    TRIP_PLANNING_POST_CREATED  = "trip.planning_post.created"  # accepted members (exc. author) when new planning post added
 
     FRIEND_REQUEST_CREATED  = "friend.request.created"
     FRIEND_REQUEST_ACCEPTED = "friend.request.accepted"
