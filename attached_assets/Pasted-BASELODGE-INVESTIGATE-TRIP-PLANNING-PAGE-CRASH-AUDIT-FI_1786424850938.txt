@@ -1,0 +1,95 @@
+BASELODGE — INVESTIGATE TRIP PLANNING PAGE CRASH
+
+AUDIT / FIX ONLY THE FAILURE WHEN OPENING:
+
+/trips/<id>/planning
+
+Current behavior:
+
+From the trip detail page, tapping:
+
+“Plan this trip together”
+
+navigates to the new Trip Planning route, but the app renders the generic:
+
+“Something went wrong”
+“We hit an unexpected bump. Your data is safe — please try again in a moment.”
+
+Do not make unrelated changes.
+
+GOAL
+
+Identify the exact exception causing the Trip Planning page to fail and fix the smallest root cause.
+
+INVESTIGATE:
+
+1. Server logs / traceback generated when GET /trips/<id>/planning is requested.
+2. The trip_planning() route.
+3. templates/trip_planning.html.
+4. SkiTripPlanningPost model and relationships.
+5. Whether the new planning-post table exists and matches the ORM model.
+6. Any query used to retrieve or sort posts.
+7. Any author/User relationship referenced by the template.
+8. Any date-label helper/filter used by the template.
+9. Any variables expected by trip_planning.html that are not passed by the route.
+10. Whether the template extends/includes a base/template component incorrectly.
+11. Whether the route is failing for an empty board with zero posts.
+12. Any EventName/messaging code that could somehow be executing during GET, though it should not.
+13. Any mismatch in table or FK naming, especially:
+    - ski_trip vs ski_trips
+    - user vs users
+    - model relationship names
+14. Any Jinja UndefinedError or attribute error caused by author name rendering.
+15. Any SQL error caused by the startup migration schema not matching the SQLAlchemy model.
+
+IMPORTANT
+
+Do not guess.
+
+Reproduce the request and capture the exact traceback.
+
+Report the root cause before changing code.
+
+Then make only the minimum fix needed to allow:
+
+GET /trips/<id>/planning
+
+to render successfully for:
+- owner
+- accepted participant
+- zero-post empty state
+- board with posts
+
+Do not change:
+- permissions
+- categories
+- post model design unless required by the actual root cause
+- notifications
+- trip detail structure
+- private note behavior
+- Transportation/Accommodation cleanup
+- comments/reactions
+
+VALIDATION AFTER FIX
+
+Verify:
+
+1. Owner taps “Plan this trip together” and planning page opens.
+2. Empty board renders successfully with “No posts yet” / New Post CTA.
+3. Accepted participant can open the same board.
+4. Pending invitee still cannot access.
+5. Direct GET route does not 500.
+6. New Post control renders.
+7. Existing posts, if any, render newest-first.
+8. Author/date rendering does not error.
+9. Browser console has no fatal JS error on initial load.
+10. Server logs show no exception for successful GET.
+
+RETURN
+
+1. Exact traceback / exception
+2. Root cause
+3. Files changed
+4. Exact fix
+5. Validation results
+6. Confirmation no unrelated changes were made
