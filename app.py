@@ -5496,6 +5496,31 @@ def update_trip_status(trip_id):
     })
 
 
+def _delete_trip_related_data(trip):
+    """Perform all pre-delete cleanup for a SkiTrip before db.session.delete(trip).
+
+    Must be called inside the same transaction that will delete the trip.
+    Does NOT commit — the caller is responsible for commit and rollback.
+
+    Handles:
+    - Invitation rows with trip_id (bare FK, nullable, no ORM cascade)
+    - TripInviteToken rows (DB-level CASCADE exists but explicit cleanup is safer
+      given migration history; also flushes ORM session state)
+    - FRIEND_TRIP_OVERLAPS_AVAILABILITY activity rows referencing this trip
+    - General activity rows (object_type='trip', object_id=trip.id)
+
+    SkiTripParticipant and SkiTripPlanningPost are handled automatically by the
+    ORM 'all, delete-orphan' cascade on db.session.delete(trip).
+
+    MessageEventLog rows that reference the trip via object_type/object_id are
+    intentional audit-history records with no FK constraint — they are preserved.
+    """
+    Invitation.query.filter(Invitation.trip_id == trip.id).delete(synchronize_session=False)
+    TripInviteToken.query.filter_by(trip_id=trip.id).delete(synchronize_session=False)
+    delete_availability_overlap_activities_for_trip(trip.id)
+    delete_activities_for_trip(trip.id)
+
+
 @app.route("/api/trip/<int:trip_id>/delete", methods=["POST"])
 @login_required
 def delete_trip(trip_id):
@@ -5515,9 +5540,17 @@ def delete_trip(trip_id):
         ).all()
     ]
 
-    delete_activities_for_trip(trip_id)
-    db.session.delete(trip)
-    db.session.commit()
+    try:
+        _delete_trip_related_data(trip)
+        db.session.delete(trip)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(
+            "[delete_trip] error trip_id=%s user_id=%s exc=%s",
+            trip_id, current_user.id, e,
+        )
+        return jsonify({"success": False, "error": "Failed to delete trip. Please try again."}), 500
 
     # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
     for _uid in _del_notify_ids:
@@ -12557,12 +12590,7 @@ def delete_trip_form(trip_id):
     ]
 
     try:
-        # Clean up Invitation rows (bare FK, no cascade)
-        Invitation.query.filter(Invitation.trip_id == trip.id).delete()
-        # Clean up TripInviteToken rows (nullable=False FK, SQLAlchemy would try to null it)
-        TripInviteToken.query.filter_by(trip_id=trip.id).delete()
-        # Clean up Activity rows
-        delete_activities_for_trip(trip_id)
+        _delete_trip_related_data(trip)
         db.session.delete(trip)
         db.session.commit()
         # Push after confirmed deletion; deep link → /trips (trip page no longer exists)

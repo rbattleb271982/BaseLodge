@@ -1,0 +1,403 @@
+BASELODGE — #230 FIX TRIP DELETION CORRECTNESS
+
+Implement ONLY the trip-deletion correctness fixes identified in Audit #228.
+
+This is a tightly scoped data-integrity fix.
+
+DO NOT:
+- change account deletion
+- change Trip Planning behavior
+- change invite acceptance behavior
+- change notification recipient rules
+- change schema
+- change trip creation
+- broadly refactor unrelated code
+- delete production data as part of validation
+
+==================================================
+BACKGROUND
+==================================================
+
+Audit #228 identified divergent trip-deletion behavior.
+
+There are at least two trip deletion paths:
+
+1. delete_trip_form()
+2. delete_trip() API route
+
+The form path currently performs more complete cleanup.
+
+The API path is missing cleanup for at least:
+
+- TripInviteToken
+- Invitation rows related to the trip
+
+This can cause:
+
+- FK IntegrityError when deleting trips with invite tokens
+- stale/orphan Invitation rows
+- inconsistent behavior depending on which delete path is used
+
+The audit also found:
+
+delete_availability_overlap_activities_for_trip()
+
+exists but is not called by either trip deletion path.
+
+Deleted trips can therefore remain referenced in FRIEND_TRIP_OVERLAPS activity data.
+
+Fix these issues while preserving existing product behavior.
+
+==================================================
+1. TRACE BOTH DELETE PATHS FIRST
+==================================================
+
+Before editing, inspect:
+
+delete_trip_form()
+delete_trip()
+
+Identify every cleanup operation currently performed by each.
+
+Return an internal comparison of:
+
+- authorization
+- recipient capture
+- SkiTripParticipant cleanup
+- SkiTripPlanningPost cleanup
+- TripInviteToken cleanup
+- Invitation cleanup
+- Activity cleanup
+- availability-overlap activity cleanup
+- MessageEventLog handling
+- notifications
+- commit / rollback behavior
+
+Use this comparison to ensure the fix does not accidentally remove existing behavior.
+
+==================================================
+2. TRIP INVITE TOKEN CLEANUP
+==================================================
+
+Before deleting a SkiTrip, explicitly ensure all:
+
+TripInviteToken
+
+rows belonging to that trip are safely removed.
+
+Apply this to every active trip deletion path.
+
+Do not modify TripInviteToken behavior outside trip deletion.
+
+Verify a trip with one or more invite tokens can be deleted without FK failure.
+
+==================================================
+3. INVITATION CLEANUP
+==================================================
+
+Before deleting a SkiTrip, remove all Invitation rows associated with that trip where appropriate.
+
+The audit found the form deletion path already handles these while the API path does not.
+
+Make behavior consistent across both paths.
+
+Do not change friendship invitations or unrelated Invitation rows.
+
+Only clean records associated with the trip being deleted.
+
+==================================================
+4. PLANNING POST CLEANUP
+==================================================
+
+Confirm SkiTripPlanningPost cleanup is safe in both deletion paths.
+
+The current model/DB may already provide ORM and/or DB cascade.
+
+Do not introduce duplicate or conflicting cleanup unnecessarily.
+
+But explicitly verify:
+
+Deleting a trip with planning posts succeeds.
+
+After deletion:
+0 planning posts remain for that trip.
+
+==================================================
+5. PARTICIPANT CLEANUP
+==================================================
+
+Confirm all SkiTripParticipant rows for the deleted trip are removed.
+
+Preserve existing participant behavior.
+
+Do not alter:
+- participant status logic
+- My Setup
+- participant removal outside trip deletion
+
+==================================================
+6. AVAILABILITY-OVERLAP ACTIVITY CLEANUP
+==================================================
+
+The existing helper:
+
+delete_availability_overlap_activities_for_trip()
+
+is currently not called when a trip is deleted.
+
+Call the appropriate helper from BOTH trip deletion paths so stale FRIEND_TRIP_OVERLAPS activity data does not continue referencing a deleted trip.
+
+IMPORTANT:
+
+First inspect exactly what the helper does.
+
+Do not rewrite/optimize its JSON query in this task.
+
+Audit #228 separately identified a potential performance improvement for this helper, but that is NOT part of #230.
+
+For #230:
+use the existing helper correctly.
+
+==================================================
+7. NORMAL TRIP ACTIVITY CLEANUP
+==================================================
+
+Preserve existing:
+
+delete_activities_for_trip()
+
+behavior.
+
+Confirm trip-specific activity rows are removed as before.
+
+Do not change activity creation or notification behavior elsewhere.
+
+==================================================
+8. MESSAGE EVENT LOG
+==================================================
+
+Audit #228 noted MessageEventLog entries can reference a trip logically through:
+
+entity_type='trip'
+entity_id=<trip id>
+
+Determine current intended behavior.
+
+If these are audit-history records intentionally preserved:
+DO NOT delete them merely because the trip is removed.
+
+If an actual FK or application runtime dependency requires cleanup:
+report it before changing behavior.
+
+Do not casually delete historical messaging audit records.
+
+==================================================
+9. TRANSACTION SAFETY
+==================================================
+
+The API delete path was also found to lack robust try/except rollback handling.
+
+Make both deletion paths transaction-safe.
+
+Requirements:
+
+- all DB cleanup and trip deletion occur before commit
+- one logical deletion transaction
+- rollback on any exception
+- no partially-deleted trip state
+- notifications only after successful commit
+
+Do not send TRIP_CANCELLED if deletion fails.
+
+Preserve existing user-facing error response style for each route:
+- HTML/form path remains HTML-compatible
+- API path remains JSON-compatible
+
+==================================================
+10. NOTIFICATION BEHAVIOR
+==================================================
+
+Preserve current TRIP_CANCELLED behavior.
+
+Current expected recipients:
+
+- ACCEPTED participants
+- excluding owner
+
+Do NOT expand recipients to:
+- INVITED
+- DECLINED
+- removed users
+
+Capture necessary recipient IDs BEFORE deleting participant rows.
+
+Send notifications only after successful commit.
+
+Ensure exactly one cancellation event per intended recipient.
+
+==================================================
+11. DO NOT CHANGE AUTHORIZATION
+==================================================
+
+Both deletion paths must remain owner-only.
+
+Verify:
+
+Owner:
+can delete own trip.
+
+Accepted participant:
+cannot delete trip.
+
+Invited participant:
+cannot delete trip.
+
+Non-member:
+cannot delete trip.
+
+Do not rely on frontend hiding.
+
+==================================================
+12. CONSIDER SHARED CLEANUP ONLY IF SAFE
+==================================================
+
+The audit recommended eventually consolidating deletion behavior into a shared helper.
+
+For this task:
+
+If the two active paths can safely call a small shared internal cleanup helper WITHOUT changing route-specific response behavior, that is acceptable.
+
+Example concept only:
+
+_delete_trip_related_data(trip)
+
+But DO NOT perform a broad refactor.
+
+The priority is correctness and parity.
+
+If introducing a helper adds risk, keep the routes separate and make their cleanup behavior equivalent.
+
+==================================================
+13. TEST MATRIX
+==================================================
+
+Use safe test data/transactions.
+
+Test deletion of:
+
+A. Owner-only trip
+- owner participant row only
+
+B. Trip with accepted participant
+
+C. Trip with INVITED participant
+
+D. Trip with TripInviteToken
+
+E. Trip with Invitation rows
+
+F. Trip with Trip Planning posts
+
+G. Trip with availability-overlap activity references
+
+H. Trip containing several of the above simultaneously
+
+For BOTH deletion paths where practical.
+
+==================================================
+14. POST-DELETION ASSERTIONS
+==================================================
+
+For each successfully deleted test trip confirm:
+
+SkiTrip:
+0 rows
+
+SkiTripParticipant:
+0 rows for trip
+
+SkiTripPlanningPost:
+0 rows for trip
+
+TripInviteToken:
+0 rows for trip
+
+trip-related Invitation rows:
+0 rows for trip
+
+direct trip Activity records:
+0 rows where applicable
+
+FRIEND_TRIP_OVERLAPS:
+no stale reference to deleted trip
+
+No unrelated trip/user records changed.
+
+==================================================
+15. FAILURE / ROLLBACK TEST
+==================================================
+
+Where practical, force or simulate a deletion failure before commit.
+
+Verify:
+
+- transaction rolls back
+- SkiTrip remains
+- participants remain
+- tokens/invitations remain
+- no TRIP_CANCELLED notification emitted
+
+Do not leave synthetic failure code in production.
+
+==================================================
+16. REGRESSION
+==================================================
+
+Confirm:
+
+- normal Trip Detail still loads
+- Cancel trip UI still works
+- accepted participant Leave trip remains unaffected
+- Invite friends remains unaffected
+- Trip Planning remains unaffected
+- My Setup remains unaffected
+- account deletion remains unaffected
+- server starts cleanly
+- no schema migration generated
+
+==================================================
+17. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Before/after comparison of both delete paths
+3. TripInviteToken cleanup implemented
+4. Invitation cleanup implemented
+5. Planning-post cleanup confirmation
+6. Participant cleanup confirmation
+7. Availability-overlap cleanup implementation
+8. Activity cleanup confirmation
+9. MessageEventLog decision and why
+10. Transaction/rollback changes
+11. Notification behavior confirmation
+12. Authorization test results
+13. Full deletion test matrix
+14. Post-deletion orphan checks
+15. Failure/rollback test result
+16. Regression results
+17. Any issue encountered
+
+Explicitly confirm:
+
+- A trip with TripInviteToken rows can now be deleted
+- A trip with Invitation rows can now be deleted cleanly
+- Planning posts do not survive deleted trips
+- Participant rows do not survive deleted trips
+- Deleted trips no longer remain in availability-overlap activity references
+- TRIP_CANCELLED still goes only to ACCEPTED participants excluding owner
+- failed deletion sends no cancellation notification
+- both deletion paths are transaction-safe
+- no schema changes
+- no unrelated behavior changed
