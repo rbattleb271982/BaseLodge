@@ -1,0 +1,153 @@
+Proceed with #226 — Trip Detail Single-Page Edit Mode Audit.
+
+This remains PLAN / AUDIT ONLY.
+
+Do not make any code changes.
+
+Complete the full audit exactly as scoped in #226, with particular emphasis on these decisions:
+
+1. PASS OWNERSHIP
+Determine whether the visible Pass row currently represents:
+- the individual current user’s pass
+- a trip-level pass
+- or another field
+
+The desired future behavior is that Pass is PERSONAL to each individual.
+
+A resort’s Epic / Ikon / Indy / other pass affiliation is separate resort metadata.
+
+It is valid for someone to have, for example, an Ikon pass while going to an Epic resort.
+
+Do not treat a mismatch as an error.
+
+2. EQUIPMENT OWNERSHIP
+Determine which current equipment field should become the canonical PERSONAL value for each participant.
+
+Map and distinguish:
+- trip.trip_equipment_status
+- trip.equipment_override
+- SkiTripParticipant.equipment_status
+
+Tell me whether the current visible Equipment control is actually personal today or only appears personal in the UI.
+
+3. LESSONS OWNERSHIP
+Confirm Lessons is participant-level and each person can edit only their own lesson status.
+
+4. SINGLE-PAGE PRODUCT MODEL
+The intended final conceptual model is:
+
+TRIP-LEVEL — OWNER EDIT MODE
+- Location
+- Dates
+- Visibility
+- Planning / Going
+- Private note
+
+PERSONAL — ALWAYS DIRECTLY EDITABLE BY CURRENT USER
+- Pass
+- Equipment
+- Lessons
+
+Important:
+Owner Edit mode should NOT be required to change the owner’s personal Pass / Equipment / Lessons.
+
+Accepted participants should also be able to change their own Pass / Equipment / Lessons without gaining access to owner Edit mode.
+
+5. EDIT BUTTON
+The desired future behavior is:
+
+Normal owner view:
+[Edit]
+
+Tap Edit:
+same trip_detail page enters owner edit mode
+
+Owner can then modify trip-level fields on that same page.
+
+No navigation to /trips/<id>/edit.
+
+6. SAVE STRATEGY
+Closely evaluate whether the best architecture is:
+
+A. Existing field-specific AJAX saves, with “Done” simply exiting edit mode
+
+B. One staged Save operation
+
+C. Hybrid
+
+Favor reuse of existing endpoints and preservation of existing notification/activity behavior.
+
+Do not recommend a new generic save architecture unless the existing code genuinely requires it.
+
+7. PRIVATE NOTE
+Determine the cleanest way to move the existing owner-only SkiTrip.notes editing from edit_trip.html onto trip_detail owner edit mode.
+
+Participants must never see Private note.
+
+8. EXISTING EDIT PAGE
+Audit all active callers of:
+
+/trips/<id>/edit
+
+The desired direction is:
+- stop sending users there once inline owner edit mode works
+- keep route/template temporarily as fallback
+- deprecate later only after confirming it has no active callers
+
+Do not delete anything in this audit.
+
+FINAL RETURN
+
+Give me the complete #226 structured report, including:
+
+1. Executive Summary
+2. Current Editing Architecture
+3. Trip-Level vs Personal Field Matrix
+4. Pass Architecture
+5. Equipment Architecture
+6. Lessons Architecture
+7. Existing Reusable Trip-Level Editors
+8. Private Note Architecture
+9. Recommended View/Edit Mode
+10. Recommended Save Strategy
+11. Owner Behavior
+12. Accepted Participant Behavior
+13. Recommended “Trip Setup” vs “My Setup” label
+14. Notification / Side-Effect Preservation
+15. Duplicate Logic Findings
+16. Separate Edit Page Deprecation Plan
+17. Exact Files / Routes / JS That Would Change
+18. Risk Areas
+19. Recommended Implementation Phases
+20. Final Feature Matrix
+
+For the final recommendation, explicitly answer:
+
+A. Should trip_detail become the ONE primary user-facing trip screen?
+
+B. Should owner Edit mode control ONLY:
+- Location
+- Dates
+- Visibility
+- Planning / Going
+- Private note?
+
+C. Should Pass / Equipment / Lessons remain directly editable as “My Setup” for both owner and accepted participants?
+
+D. Which existing endpoint/control should become canonical for each editable field?
+
+E. Can /trips/<id>/edit safely stop being linked after this implementation?
+
+AUDIT ONLY.
+
+DO NOT:
+- modify code
+- modify templates
+- add routes
+- remove routes
+- change schema
+- change permissions
+- change notifications
+- fix bugs
+
+Report any problems you discover, but do not implement fixes.
