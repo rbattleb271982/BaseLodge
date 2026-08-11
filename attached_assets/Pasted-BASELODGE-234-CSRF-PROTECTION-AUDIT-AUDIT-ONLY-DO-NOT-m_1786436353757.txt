@@ -1,0 +1,343 @@
+BASELODGE — #234 CSRF PROTECTION AUDIT
+
+AUDIT ONLY.
+
+DO NOT modify code.
+DO NOT add CSRF checks.
+DO NOT change route behavior.
+DO NOT change authentication/session behavior.
+DO NOT change Capacitor/native behavior.
+DO NOT migrate schema.
+
+Audit all state-changing BaseLodge routes and determine exactly where CSRF protection is missing, already present, unnecessary, or potentially incompatible with existing app callers.
+
+==================================================
+1. INVENTORY ALL STATE-CHANGING ROUTES
+==================================================
+
+Find every route using:
+
+POST
+PATCH
+PUT
+DELETE
+
+For each return:
+
+- route
+- method
+- handler
+- purpose
+- @login_required?
+- owner/member/admin restriction?
+- HTML form caller?
+- JS fetch caller?
+- native/Capacitor caller?
+- external/webhook caller?
+- current CSRF protection
+- content type expected
+- response type
+
+Classify each as:
+
+PROTECTED
+UNPROTECTED
+CSRF NOT APPLICABLE
+NEEDS VERIFICATION
+
+==================================================
+2. DOCUMENT CURRENT CSRF INFRASTRUCTURE
+==================================================
+
+Inspect all existing CSRF infrastructure.
+
+Search for:
+
+generate_csrf_token
+validate_csrf_request
+csrf_token
+X-CSRF-Token
+X-CSRFToken
+csrf
+hidden CSRF inputs
+meta csrf tags
+window.fetch wrappers
+csrf exemptions
+
+Document:
+
+- how tokens are generated
+- how forms include them
+- how fetch requests include them
+- whether the global fetch wrapper automatically injects them
+- which templates include the CSRF meta tag / wrapper
+- whether Capacitor WebView renders the same mechanism
+
+==================================================
+3. FORM AUDIT
+==================================================
+
+For every state-changing HTML form:
+
+Confirm BOTH:
+
+1. frontend sends a CSRF token
+2. backend validates it
+
+Flag:
+
+- form has token but route does not validate
+- route validates but form has no token
+- CSRF token is optional
+- state mutation happens via GET
+
+==================================================
+4. JAVASCRIPT FETCH AUDIT
+==================================================
+
+Find every mutating:
+
+fetch()
+axios
+XMLHttpRequest
+
+For each report:
+
+- endpoint
+- method
+- whether credentials/session cookies are used
+- CSRF header sent?
+- where token comes from
+- whether global fetch patch covers it
+
+Flag any caller that bypasses the project's CSRF mechanism.
+
+==================================================
+5. CAPACITOR / NATIVE COMPATIBILITY
+==================================================
+
+Inspect:
+
+static/js/bl-native.js
+
+and the actual shared templates used inside the Capacitor WebView.
+
+Determine:
+
+- whether native app uses the same Flask routes
+- whether WebView requests use session cookies
+- whether CSRF meta/header infrastructure exists in native screens
+- which routes would break if backend CSRF validation were added today
+
+For every potentially breaking route explain why.
+
+==================================================
+6. PRIORITIZE HIGH-RISK MUTATIONS
+==================================================
+
+Audit especially:
+
+- account deletion
+- change password
+- profile edits
+- trip creation
+- trip edits
+- trip deletion
+- My Setup
+- participant actions
+- Trip Planning create/edit/delete
+- invite accept/decline/cancel
+- friend add/remove
+- notification settings
+- admin mutations
+
+==================================================
+7. GET ROUTES THAT MUTATE STATE
+==================================================
+
+Find every GET route that changes:
+
+- database state
+- session state
+- user preferences
+
+Include:
+
+/skip-pass-prompt
+
+if still applicable.
+
+For each report:
+
+- exact mutation
+- caller
+- exploitability
+- whether it should become POST
+- implementation risk
+
+==================================================
+8. COOKIE / SESSION SETTINGS
+==================================================
+
+Report current:
+
+- SameSite
+- Secure
+- HttpOnly
+- session cookie domain/path
+- remember-cookie settings
+
+Explain what SameSite currently protects against and what it does NOT protect against.
+
+==================================================
+9. ORIGIN / REFERER
+==================================================
+
+Determine whether any mutation route validates:
+
+Origin
+Referer
+
+If yes, document where.
+
+If no, state that.
+
+Do not implement anything.
+
+==================================================
+10. CSRF EXEMPTIONS
+==================================================
+
+Find any explicit CSRF exemptions.
+
+For each report:
+
+- route
+- caller
+- reason
+- whether exemption remains justified
+- whether browser-authenticated sessions can reach it
+
+==================================================
+11. AUTHORIZATION VS CSRF
+==================================================
+
+Do not confuse these.
+
+For each high-risk route distinguish:
+
+A. authorization:
+Is this user allowed to perform the action?
+
+B. CSRF:
+Could another site cause this authenticated browser to perform the action?
+
+Flag routes that are authorization-correct but still CSRF-exposed.
+
+==================================================
+12. SAFE TEST PROBES
+==================================================
+
+Using safe test clients/test data only:
+
+For representative routes test:
+
+A. authenticated + valid CSRF
+B. authenticated + missing CSRF
+C. authenticated + invalid CSRF
+D. logged-out
+E. cross-origin-like request where practical
+
+Do not modify production data.
+
+==================================================
+13. ROUTE CLASSIFICATION
+==================================================
+
+For every mutation route assign:
+
+A. MUST ADD CSRF
+
+B. ALREADY PROTECTED
+
+C. NEEDS CALLER CHANGE FIRST
+
+D. CSRF NOT APPLICABLE
+
+E. REPLACE GET WITH POST
+
+==================================================
+14. IMPLEMENTATION RISK
+==================================================
+
+For each route needing changes assign:
+
+LOW
+MEDIUM
+HIGH
+
+Based on risk to:
+
+- browser UI
+- Capacitor
+- session restore
+- deep links
+- invite flows
+- external integrations
+
+==================================================
+15. RECOMMENDED STANDARD
+==================================================
+
+Recommend ONE consistent pattern for:
+
+HTML forms
+
+and ONE consistent pattern for:
+
+JS/fetch mutations
+
+Prefer existing BaseLodge mechanisms.
+
+Do not introduce a new CSRF framework unless the current mechanism is fundamentally insufficient.
+
+==================================================
+16. RETURN FORMAT
+==================================================
+
+Return:
+
+1. Executive Summary
+2. Current CSRF architecture
+3. Complete state-changing route inventory
+4. Already-protected routes
+5. Unprotected routes
+6. Routes needing caller changes first
+7. Form findings
+8. JS/fetch findings
+9. Capacitor/native findings
+10. GET state mutations
+11. Cookie/session findings
+12. Origin/Referer findings
+13. Exemptions
+14. Authorization-vs-CSRF findings
+15. Safe probe results
+16. Route classification matrix
+17. Implementation risk matrix
+18. Recommended protection pattern
+19. Top fixes in priority order
+20. Recommended implementation batches
+
+For every route needing work include:
+
+- route
+- method
+- handler
+- caller
+- current protection
+- recommended fix
+- implementation risk
+
+AUDIT ONLY.
+
+DO NOT CHANGE ANY CODE.
