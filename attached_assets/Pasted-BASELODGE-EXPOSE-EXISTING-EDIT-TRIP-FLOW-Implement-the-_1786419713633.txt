@@ -1,0 +1,133 @@
+BASELODGE — EXPOSE EXISTING EDIT TRIP FLOW
+
+Implement the smallest safe change to make the existing Edit Trip experience discoverable from the trip detail page.
+
+Do not redesign or consolidate the trip setup system.
+
+GOAL
+
+Trip owners should see a clear “Edit” action near the trip header/date on the trip detail page.
+
+Tapping it should open the existing:
+
+GET /trips/<id>/edit
+
+handled by:
+
+edit_trip_form()
+
+Do not create a new edit route or new editing UI.
+
+CHANGE 1 — ADD OWNER-ONLY EDIT BUTTON
+
+In templates/trip_detail.html, add an Edit action near the existing trip header/date area.
+
+Current visual hierarchy is approximately:
+
+Vail, CO
+Aug 20–22, 2026 · 2 nights
+
+Add:
+
+[Edit]
+
+Position it cleanly beside or immediately adjacent to the date/header, consistent with the existing BaseLodge mobile design.
+
+Requirements:
+
+- Only show the Edit action when is_owner is true.
+- Use:
+  url_for('edit_trip_form', trip_id=trip.id)
+- Do not expose the button to guests, participants who are not owners, or other viewers.
+- Keep the change visually lightweight.
+- Do not add a new navigation pattern or modal.
+- Reuse existing typography, colors, borders, spacing, and button conventions wherever possible.
+- Ensure it works correctly on narrow mobile widths without forcing the date/header into an awkward layout.
+
+CHANGE 2 — REMOVE SILENT HIDDEN FIELD PASSTHROUGHS
+
+In templates/edit_trip.html, remove the hidden form fields that round-trip values the user cannot edit on this page:
+
+transportation_status
+
+trip_equipment_status
+
+Currently these values are submitted even though the user cannot change them from the Edit Trip UI.
+
+The desired behavior is that saving Edit Trip only updates fields explicitly managed by this page:
+
+- resort
+- dates
+- visibility
+- trip status
+
+Do not alter the existing inline editing behavior on trip_detail.
+
+IMPORTANT:
+
+Before removing these fields, verify that edit_trip_form() does not reset or clear these values when the corresponding POST field is absent.
+
+If the backend currently treats an absent value differently from “leave unchanged,” STOP and report that instead of changing code.
+
+If absence already means “leave unchanged,” remove the hidden fields.
+
+DO NOT CHANGE
+
+Do not add Pass to Edit Trip.
+
+Do not add Equipment to Edit Trip.
+
+Do not add Transportation to Edit Trip.
+
+Do not add Accommodations to Edit Trip.
+
+Do not add Lessons to Edit Trip.
+
+Do not change any existing inline AJAX editor.
+
+Do not change notification behavior.
+
+Do not refactor owner authorization.
+
+Do not remove legacy routes.
+
+Do not add trip notes yet.
+
+Do not modify database schema.
+
+Do not introduce new endpoints.
+
+Do not redesign edit_trip.html.
+
+Do not make unrelated cleanup changes.
+
+VALIDATION
+
+After implementation, verify:
+
+1. Owner sees Edit on their trip detail page.
+2. Non-owner participant does not see Edit.
+3. Edit opens the existing /trips/<id>/edit page.
+4. Resort can still be changed and saved.
+5. Dates can still be changed and saved.
+6. Planning/Going can still be changed and saved.
+7. Visibility can still be changed and saved.
+8. Existing transportation value is unchanged after an Edit Trip save.
+9. Existing equipment values are unchanged after an Edit Trip save.
+10. Pass, accommodations, transportation, equipment, and lessons remain editable from their existing trip-detail surfaces.
+11. No notification behavior changed.
+12. No unrelated files changed.
+
+RETURN
+
+Provide:
+
+1. Files changed
+2. Exact changes made
+3. Before/after snippets
+4. Confirmation of owner-only visibility
+5. Confirmation that removing the hidden fields does not mutate transportation/equipment values
+6. Validation results
+7. Any issue encountered
+
+Keep the implementation tightly scoped to this task.
