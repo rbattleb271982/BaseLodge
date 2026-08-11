@@ -6194,6 +6194,7 @@ def push_preferences():
     The native client should also call window.blSetPushEnabled() after
     a successful response to opt the OneSignal subscription in/out.
     """
+    validate_csrf_request()
     body = request.get_json(silent=True) or {}
     if "push_enabled" not in body:
         return jsonify({"error": "push_enabled field required"}), 400
@@ -9701,6 +9702,7 @@ def home():
 @login_required
 def save_onboarding_equipment():
     """Save equipment status from progressive completion modal."""
+    validate_csrf_request()
     user = current_user
     
     equipment_status = request.form.get("equipment_status")
@@ -9743,6 +9745,7 @@ def save_onboarding_equipment():
 @login_required
 def save_onboarding_riding_style():
     """Save terrain preferences from progressive completion modal."""
+    validate_csrf_request()
     user = current_user
     
     # Try hidden input first (populated by JS), then fall back to checkbox values
@@ -9764,6 +9767,7 @@ def save_onboarding_riding_style():
 @login_required
 def mark_welcome_shown():
     """Mark the welcome modal as dismissed (once only)."""
+    validate_csrf_request()
     user = current_user
     
     if not user.welcome_modal_seen_at:
@@ -9782,6 +9786,7 @@ def mark_welcome_shown():
 @login_required
 def dismiss_nudge():
     """Dismiss an availability nudge so it doesn't resurface."""
+    validate_csrf_request()
     date_str = request.form.get("date")
     if date_str:
         try:
@@ -9809,6 +9814,7 @@ def dismiss_nudge():
 @login_required
 def dismiss_insight_card():
     """Persist a dismissal for a home insight card so it doesn't resurface."""
+    validate_csrf_request()
     card_type = request.form.get("card_type", "").strip()
     card_key = request.form.get("card_key", "").strip()
     if card_type and card_key:
@@ -10274,6 +10280,7 @@ def settings_equipment():
 @login_required
 def settings_equipment_save():
     """Create or update a single equipment setup."""
+    validate_csrf_request()
     setup_id = request.form.get("setup_id", "")
     discipline_str = request.form.get("discipline", "")
     label = request.form.get("label", "").strip() or None
@@ -10377,6 +10384,7 @@ def settings_equipment_get(setup_id):
 @login_required
 def settings_equipment_make_primary():
     """Set a specific setup as primary, unsetting all others for this user."""
+    validate_csrf_request()
     setup_id = request.form.get("setup_id", "")
     if not setup_id:
         return jsonify({"error": "setup_id required"}), 400
@@ -10396,6 +10404,7 @@ def settings_equipment_make_primary():
 @login_required
 def settings_equipment_delete():
     """Delete a setup by id. If it was primary and others exist, promote the next one."""
+    validate_csrf_request()
     setup_id = request.form.get("setup_id", "")
 
     # Legacy fallback: accept slot= param for old callers
@@ -10429,6 +10438,7 @@ def settings_equipment_delete():
 @login_required
 def settings_equipment_status():
     """Update user's high-level equipment_status (have_own_equipment or needs_rentals)."""
+    validate_csrf_request()
     status = request.form.get("equipment_status", "have_own_equipment")
     if status not in ["have_own_equipment", "needs_rentals"]:
         return jsonify({"success": False, "error": "Invalid status"}), 400
@@ -10442,6 +10452,7 @@ def settings_equipment_status():
 @login_required
 def settings_profile_add_rider_type():
     """Append a single rider type to the current user's profile (idempotent, no duplicates)."""
+    validate_csrf_request()
     rider_type = request.form.get("rider_type", "").strip()
     if not rider_type or rider_type not in RIDER_TYPES:
         return jsonify({"success": False, "error": "Invalid rider type"}), 400
@@ -10739,6 +10750,7 @@ def settings_wish_list():
 @app.route("/settings/wish-list/save", methods=["POST"])
 @login_required
 def settings_wish_list_save():
+    validate_csrf_request()
     data = request.get_json()
     resort_ids = data.get("resort_ids", [])
     
@@ -10772,6 +10784,7 @@ def settings_wish_list_save():
 @app.route("/api/mountains-visited/add", methods=["POST"])
 @login_required
 def api_mountains_visited_add():
+    validate_csrf_request()
     data = request.get_json() or {}
     resort_id = data.get("resort_id")
     if not resort_id:
@@ -10794,6 +10807,7 @@ def api_mountains_visited_add():
 @app.route("/api/mountains-visited/remove", methods=["POST"])
 @login_required
 def api_mountains_visited_remove():
+    validate_csrf_request()
     data = request.get_json() or {}
     resort_id = data.get("resort_id")
     if not resort_id:
@@ -10817,6 +10831,7 @@ def api_mountains_visited_remove():
 @app.route("/api/wishlist/add", methods=["POST"])
 @login_required
 def api_wishlist_add():
+    validate_csrf_request()
     data = request.get_json() or {}
     resort_id = data.get("resort_id")
     if not resort_id:
@@ -10842,6 +10857,7 @@ def api_wishlist_add():
 @app.route("/api/wishlist/remove", methods=["POST"])
 @login_required
 def api_wishlist_remove():
+    validate_csrf_request()
     data = request.get_json() or {}
     resort_id = data.get("resort_id")
     if not resort_id:
@@ -14226,6 +14242,7 @@ def connect_from_trip(user_id):
 @login_required
 def delete_equipment():
     """Delete equipment setup by slot (Primary/Secondary)."""
+    validate_csrf_request()
     data = request.get_json()
     
     slot_name = data.get("slot", "").upper()  # "PRIMARY" or "SECONDARY"
@@ -14258,6 +14275,7 @@ def delete_equipment():
 @login_required
 def save_equipment():
     """Save or update equipment setup (Primary/Secondary)."""
+    validate_csrf_request()
     data = request.get_json()
     
     slot_name = data.get("slot", "").upper()  # "PRIMARY" or "SECONDARY"

@@ -1,0 +1,318 @@
+BASELODGE — #238 ADD CSRF VALIDATION TO SETTINGS / EQUIPMENT / WISHLIST FETCH MUTATIONS
+
+Implement ONLY backend CSRF validation for the settings, equipment, wishlist, mountains-visited, onboarding, and low-risk fetch mutation routes listed below.
+
+Audit #234 confirmed that current frontend callers already send:
+
+X-CSRF-Token
+
+through the global window.fetch wrapper in analytics_head.html.
+
+NO frontend changes should be required.
+
+DO NOT:
+- modify the fetch wrapper
+- add new CSRF infrastructure
+- change payloads
+- change permissions
+- change notification behavior
+- change schema
+- change UI
+- change Capacitor/native behavior
+- touch HTML form routes
+- touch admin routes
+- touch auth/password/reset flows
+
+==================================================
+1. ROUTES IN SCOPE
+==================================================
+
+Add validate_csrf_request() to these active fetch-based mutation routes where they remain unprotected:
+
+POST /api/mountains-visited/add
+POST /api/mountains-visited/remove
+
+POST /api/wishlist/add
+POST /api/wishlist/remove
+
+POST /settings/equipment/save
+POST /settings/equipment/make-primary
+POST /settings/equipment/delete
+POST /settings/equipment-status
+POST /settings/profile/add-rider-type
+POST /settings/wish-list/save
+
+POST /profile/equipment
+POST /profile/equipment/delete
+
+POST /dismiss-nudge
+POST /dismiss-insight-card
+
+POST /onboarding/equipment
+POST /onboarding/riding-style
+POST /onboarding/welcome-shown
+
+POST /api/push/preferences
+
+If exact route names or parameter names differ, use the actual current route definitions.
+
+==================================================
+2. VERIFY EACH CALLER BEFORE EDITING
+==================================================
+
+For every route:
+
+- identify active caller(s)
+- confirm caller uses window.fetch
+- confirm rendered page includes analytics_head.html
+- confirm X-CSRF-Token is already injected
+
+If any caller bypasses the global fetch wrapper:
+
+STOP for that route and report it.
+
+Do not add backend validation that would knowingly break an active caller.
+
+==================================================
+3. BACKEND CSRF VALIDATION
+==================================================
+
+For each confirmed route add:
+
+validate_csrf_request()
+
+as the first appropriate executable statement before:
+
+- request JSON/form parsing
+- DB lookup where practical
+- user preference writes
+- equipment writes
+- wishlist writes
+- onboarding state writes
+- notification preference writes
+- commits
+
+Do not change any business logic.
+
+The only intended behavioral change:
+
+authenticated request + missing/invalid CSRF
+→ 403
+
+==================================================
+4. MOUNTAINS VISITED REGRESSION
+==================================================
+
+Verify valid-token requests still:
+
+- add a mountain
+- remove a mountain
+- preserve duplicate/idempotency behavior
+- preserve existing response JSON
+- modify only current_user data
+
+==================================================
+5. WISHLIST REGRESSION
+==================================================
+
+Verify valid-token requests still:
+
+- add wishlist resort/mountain
+- remove wishlist resort/mountain
+- preserve duplicate handling
+- preserve existing response JSON
+- modify only current_user data
+
+==================================================
+6. EQUIPMENT SETTINGS REGRESSION
+==================================================
+
+Verify:
+
+/settings/equipment/save
+/settings/equipment/make-primary
+/settings/equipment/delete
+/settings/equipment-status
+/profile/equipment
+/profile/equipment/delete
+
+still preserve:
+
+- current_user ownership
+- equipment setup creation/update/delete
+- primary equipment behavior
+- validation
+- response shape
+- profile fallback behavior
+
+Do not change My Setup trip-level participant equipment behavior.
+
+==================================================
+7. RIDER TYPE / WISH LIST SETTINGS
+==================================================
+
+Verify:
+
+POST /settings/profile/add-rider-type
+
+and
+
+POST /settings/wish-list/save
+
+still preserve current validation and only mutate current_user settings.
+
+==================================================
+8. ONBOARDING REGRESSION
+==================================================
+
+Verify:
+
+POST /onboarding/equipment
+POST /onboarding/riding-style
+POST /onboarding/welcome-shown
+
+still work with a valid CSRF token.
+
+Do not change:
+
+- onboarding order
+- redirect logic
+- completion state
+- session behavior
+- new-user experience
+
+==================================================
+9. PUSH PREFERENCES
+==================================================
+
+Verify:
+
+POST /api/push/preferences
+
+still updates push preferences exactly as before.
+
+Do not touch:
+
+/api/push/register-token
+/api/push/beacon
+
+Those were classified separately and are out of scope.
+
+==================================================
+10. DISMISSAL ROUTES
+==================================================
+
+Verify:
+
+POST /dismiss-nudge
+POST /dismiss-insight-card
+
+still work normally with valid CSRF.
+
+Missing/invalid token must now return 403 before dismissal state is saved.
+
+==================================================
+11. CSRF TEST MATRIX
+==================================================
+
+For EACH route in scope test safely:
+
+A. Authenticated + valid CSRF
+Expected:
+reaches normal business logic
+
+B. Authenticated + missing CSRF
+Expected:
+403
+
+C. Authenticated + invalid CSRF
+Expected:
+403
+
+D. Logged-out
+Expected:
+existing authentication/decorator behavior preserved
+
+Do not alter D just for consistency.
+
+==================================================
+12. FAILED-CSRF SIDE EFFECTS
+==================================================
+
+For representative routes verify failed CSRF causes:
+
+- no DB write
+- no equipment change
+- no wishlist change
+- no mountain-visited change
+- no onboarding completion
+- no push preference change
+- no dismissal state change
+
+==================================================
+13. FRONTEND / CAPACITOR
+==================================================
+
+Do not change:
+
+templates/components/analytics_head.html
+static/js/bl-native.js
+
+Confirm browser and Capacitor WebView callers continue to receive/send the existing CSRF token automatically.
+
+==================================================
+14. OUT OF SCOPE
+==================================================
+
+Do NOT touch:
+
+HTML form routes such as:
+- /add_trip
+- /edit_profile
+- /select-pass
+- invite forms
+
+Do NOT touch:
+- admin mutations
+- /skip-pass-prompt
+- /auth
+- forgot/reset password
+- Trip APIs already fixed in #236
+- Friend/Profile APIs already fixed in #237
+
+==================================================
+15. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Exact routes updated
+3. Caller verification for each
+4. Any route already protected before this task
+5. Placement of validate_csrf_request()
+6. Valid-token results
+7. Missing-token results
+8. Invalid-token results
+9. Mountains-visited regression
+10. Wishlist regression
+11. Equipment regression
+12. Rider-type/settings regression
+13. Onboarding regression
+14. Push-preference regression
+15. Dismissal regression
+16. Failed-CSRF side-effect confirmation
+17. Browser/Capacitor confirmation
+18. Any route skipped and why
+19. Any issue encountered
+
+Explicitly confirm:
+
+- all in-scope active fetch mutations now validate CSRF
+- all active callers already supply X-CSRF-Token
+- no frontend changes were required
+- valid requests still work
+- missing/invalid tokens return 403
+- no permissions changed
+- no schema changes
+- no notification behavior changed
