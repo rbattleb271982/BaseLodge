@@ -1,0 +1,430 @@
+BASELODGE — TRIP DETAIL COPY / ORDER CLEANUP + TRIP PLANNING HEADER SIMPLIFICATION
+
+Make a small, tightly scoped UX cleanup to:
+
+1. The main trip detail page
+2. The dedicated Trip Planning page
+
+Do not change the underlying planning-board architecture, permissions, routes, models, notifications, post behavior, or trip data.
+
+This is a presentation / hierarchy / copy task.
+
+==================================================
+PART A — MAIN TRIP DETAIL PAGE
+==================================================
+
+GOAL
+
+Simplify the lower half of the trip detail page and reorder the sections so the content flows:
+
+1. Trip setup
+2. Trip planning
+3. Invite friends
+4. People
+5. Cancel trip
+
+The reasoning is:
+
+- Trip setup = structured information about this trip
+- Trip planning = collaborative planning for this trip
+- Invite friends = action related to this trip
+- People = broader social/discovery context around the mountain
+- Cancel trip = destructive action at the bottom
+
+==================================================
+1. FINAL SECTION ORDER
+==================================================
+
+In:
+
+templates/trip_detail.html
+
+The visible order should become:
+
+TRIP SETUP
+- Pass
+- Equipment
+- Lessons
+
+TRIP PLANNING
+- Plan this trip together card
+
+INVITE FRIENDS
+- Existing Invite friends to this trip card
+- No separate section heading
+
+PEOPLE
+- Who’s going to [Mountain]
+- See your friends’ trips.
+
+CANCEL TRIP
+- Existing subdued Cancel trip action
+
+Then bottom navigation.
+
+Important:
+
+- Move existing markup where practical.
+- Do not duplicate cards/actions.
+- Preserve all existing onclick handlers, URLs, access checks, and behavior.
+- Do not alter any permissions.
+
+==================================================
+2. TRIP PLANNING COPY ON TRIP DETAIL
+==================================================
+
+Keep section heading:
+
+TRIP PLANNING
+
+Keep card title:
+
+Plan this trip together
+
+Change supporting copy to exactly:
+
+Share ideas and links with everyone going.
+
+Keep post-count behavior:
+
+No posts yet
+
+1 post
+
+N posts
+
+Do not change:
+- planning-board route
+- post counting
+- access rules
+- navigation behavior
+
+==================================================
+3. REMOVE TRIP ACTIONS HEADING
+==================================================
+
+Remove the visible:
+
+TRIP ACTIONS
+
+heading entirely.
+
+The existing Invite friends card should stand on its own directly between Trip Planning and People.
+
+Keep card title:
+
+Invite friends to this trip
+
+Remove the supporting copy:
+
+Send invites to people you know
+
+The Invite card should simply show:
+
+Invite friends to this trip
+
+with its existing:
+- icon
+- chevron
+- click behavior
+- modal/action
+
+Do not change invite functionality.
+
+==================================================
+4. PEOPLE COPY
+==================================================
+
+Keep the visible section heading:
+
+PEOPLE
+
+Change the existing People card title to:
+
+Who’s going to {{ mountain_name }}
+
+Example:
+
+Who’s going to Vail
+
+Change the supporting copy to exactly:
+
+See your friends’ trips.
+
+Do not change:
+- destination resolution
+- friend-overlap logic
+- link destination
+- permissions
+- discovery behavior
+
+This is a copy change only.
+
+==================================================
+5. CANCEL TRIP
+==================================================
+
+Keep Cancel trip at the very bottom of the page content after People.
+
+Final lower-page order:
+
+Trip Planning
+Invite friends
+People
+Cancel trip
+
+Do not change:
+- Cancel route
+- confirmation behavior
+- owner authorization
+- notifications
+- deletion logic
+- destructive styling
+
+Only preserve appropriate spacing before the bottom navigation.
+
+==================================================
+PART B — DEDICATED TRIP PLANNING PAGE
+==================================================
+
+Current page hierarchy is approximately:
+
+Back
+
+Trip planning
+
+Vail · Sep 17–19
+
+[+ New post]
+
+[posts]
+
+This creates unnecessary vertical space and makes the feature name more prominent than the actual trip.
+
+The trip itself should be the primary page context.
+
+==================================================
+6. REMOVE LARGE “TRIP PLANNING” TITLE
+==================================================
+
+On:
+
+templates/trip_planning.html
+
+Remove the large visible:
+
+Trip planning
+
+page title.
+
+Do NOT replace it with another redundant feature heading.
+
+The user already entered this screen through:
+
+Plan this trip together
+
+so the page should focus on the actual trip.
+
+==================================================
+7. MAKE TRIP THE PRIMARY HEADER
+==================================================
+
+Change the top hierarchy to:
+
+‹ Back
+
+Vail, CO
+Sep 17–19, 2026 · 2 nights
+
+[ + New post ]
+
+Then posts immediately below.
+
+Use dynamic trip values.
+
+Primary heading:
+
+{{ mountain/destination }}
+
+Example:
+
+Vail, CO
+
+Secondary line:
+
+Sep 17–19, 2026 · 2 nights
+
+Use the same destination/date/night formatting conventions as the main trip detail page where practical.
+
+Requirements:
+
+- Destination is the primary heading.
+- Full trip date range appears underneath.
+- Night count appears.
+- Include state/region abbreviation where the main trip detail page already does.
+- Do not duplicate date information elsewhere in the header.
+
+==================================================
+8. REDUCE TOP WHITESPACE
+==================================================
+
+The current Trip Planning page has too much vertical whitespace between:
+
+Back
+Trip planning
+Trip info
+New Post
+
+Tighten the header layout.
+
+Requirements:
+
+- Keep the Back control.
+- Reduce unnecessary top padding.
+- Keep comfortable mobile spacing.
+- Place destination reasonably close to Back.
+- Place date/night line directly under destination.
+- Place New Post button shortly below the trip context.
+- Posts should begin closer to the New Post button.
+
+Do not make the page cramped.
+
+Reuse existing BaseLodge spacing conventions rather than creating a new visual system.
+
+==================================================
+9. NEW POST BUTTON
+==================================================
+
+Keep the existing full-width:
+
++ New post
+
+button.
+
+Do not change:
+- its function
+- post sheet
+- create endpoint
+- permissions
+
+Only reposition it closer to the simplified trip header.
+
+==================================================
+10. POST LIST
+==================================================
+
+Do not change the post cards as part of this task.
+
+Preserve:
+
+- category badge
+- body
+- optional link
+- Posted by [Name] · Today/Yesterday/date
+- Edit/Delete permissions
+- newest-first order
+- no avatars
+- no date-group headings
+- 500-character limit
+- delete confirmation
+
+The purpose of this task is only to simplify the page header and reduce wasted vertical space.
+
+==================================================
+DO NOT CHANGE
+==================================================
+
+Do not change:
+
+- Trip Planning access control
+- owner + accepted participant permissions
+- pending invite restrictions
+- planning routes
+- planning-post model/schema
+- create/edit/delete endpoints
+- notification behavior
+- category list
+- link support
+- post sort order
+- private note
+- Edit Trip
+- date quick edit
+- Pass
+- Equipment
+- Lessons
+- People functionality
+- Invite functionality
+- Cancel-trip functionality
+- Transportation/Accommodation backend data
+- comments/reactions/pinning
+
+No architecture changes.
+
+No database changes.
+
+No notification changes.
+
+==================================================
+VALIDATION — MAIN TRIP DETAIL
+==================================================
+
+Verify:
+
+1. Trip Setup remains unchanged.
+2. Trip Planning appears immediately after Trip Setup.
+3. Trip Planning supporting copy is exactly:
+   “Share ideas and links with everyone going.”
+4. Existing post count still works.
+5. TRIP ACTIONS heading no longer appears.
+6. Invite friends card appears directly after Trip Planning.
+7. Invite supporting copy is removed.
+8. PEOPLE appears after Invite friends.
+9. People card title dynamically renders:
+   “Who’s going to Vail”
+   or the appropriate mountain.
+10. People supporting copy is exactly:
+    “See your friends’ trips.”
+11. Cancel trip appears after People.
+12. Cancel trip remains at the bottom.
+13. Invite functionality unchanged.
+14. People functionality unchanged.
+15. Planning-board card functionality unchanged.
+16. Cancel-trip functionality unchanged.
+
+==================================================
+VALIDATION — TRIP PLANNING PAGE
+==================================================
+
+Verify:
+
+17. Large “Trip planning” title no longer appears.
+18. Back navigation still appears and works.
+19. Destination/mountain is the primary heading.
+20. State/region appears where applicable.
+21. Full trip date range appears directly below destination.
+22. Night count appears.
+23. New Post button appears immediately below the trip context with reduced excess spacing.
+24. Posts begin closer to New Post.
+25. Existing post cards are unchanged.
+26. Post creation still works.
+27. Edit/delete still work.
+28. Planning permissions unchanged.
+29. No profile images/bubbles introduced.
+30. No extra redundant planning heading added.
+31. Planning page returns HTTP 200.
+32. Trip detail page returns HTTP 200.
+
+==================================================
+RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Before/after trip-detail section order
+3. Exact copy changes
+4. Before/after Trip Planning page header hierarchy
+5. CSS/spacing changes
+6. Validation results
+7. Confirmation that routes, permissions, notifications, models, and data were unchanged
+8. Confirmation that this task was presentation/markup only

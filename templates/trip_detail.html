@@ -1203,6 +1203,39 @@
         </div><!-- /your-trip-details-section -->
         </div><!-- /td-setup-card -->
 
+        <!-- Trip Planning -->
+        {% if can_plan %}
+        <p class="td-section-label">Trip planning</p>
+        <div class="td-swg-card" style="margin-bottom: 20px;">
+            <a href="{{ url_for('trip_planning', trip_id=trip.id) }}" class="td-swg-row">
+                <span class="td-swg-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </span>
+                <div class="td-swg-text">
+                    <p class="td-swg-title">Plan this trip together</p>
+                    <p class="td-swg-sub">Share ideas and links with everyone going.</p>
+                    <p class="td-swg-wishlist" style="margin-top:3px;">{% if planning_post_count > 0 %}{{ planning_post_count }} post{{ 's' if planning_post_count != 1 else '' }}{% else %}No posts yet{% endif %}</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- Invite Friends -->
+        {% if is_owner %}
+        <div class="td-swg-card">
+            <button type="button" class="td-swg-row" onclick="openInviteModal()">
+                <span class="td-swg-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+                </span>
+                <div class="td-swg-text">
+                    <p class="td-swg-title">Invite friends to this trip</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+        {% endif %}
+
         <!-- People -->
         {% if trip.resort and trip.resort.slug %}
         <p class="td-section-label">People</p>
@@ -1212,8 +1245,8 @@
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 </span>
                 <div class="td-swg-text">
-                    <p class="td-swg-title">See your friends going to {{ mountain_name }}</p>
-                    <p class="td-swg-sub">See who else is planning a trip</p>
+                    <p class="td-swg-title">Who's going to {{ mountain_name }}</p>
+                    <p class="td-swg-sub">See your friends' trips.</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </a>
@@ -1295,41 +1328,6 @@
         <div class="td-cancel-trip-wrap">
             <button type="button" class="td-cancel-trip-link" onclick="openLeaveSheet()">
                 Leave trip
-            </button>
-        </div>
-        {% endif %}
-
-        <!-- Trip Planning -->
-        {% if can_plan %}
-        <p class="td-section-label">Trip planning</p>
-        <div class="td-swg-card" style="margin-bottom: 20px;">
-            <a href="{{ url_for('trip_planning', trip_id=trip.id) }}" class="td-swg-row">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Plan this trip together</p>
-                    <p class="td-swg-sub">Share ideas, links, accommodations, activities and plans with everyone going.</p>
-                    <p class="td-swg-wishlist" style="margin-top:3px;">{% if planning_post_count > 0 %}{{ planning_post_count }} post{{ 's' if planning_post_count != 1 else '' }}{% else %}No posts yet{% endif %}</p>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </a>
-        </div>
-        {% endif %}
-
-        <!-- Trip Actions -->
-        {% if is_owner %}
-        <p class="td-section-label">Trip Actions</p>
-        <div class="td-swg-card">
-            <button type="button" class="td-swg-row" onclick="openInviteModal()">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Invite friends to this trip</p>
-                    <p class="td-swg-sub">Send invites to people you know</p>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
             </button>
         </div>
         {% endif %}

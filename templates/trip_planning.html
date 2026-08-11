@@ -27,15 +27,15 @@
     .tp-back-btn svg { flex-shrink: 0; }
 
     .tp-header {
-        padding: 20px 16px 8px;
+        padding: 10px 16px 8px;
         max-width: 480px;
         margin: 0 auto;
     }
     .tp-title {
-        font-size: 22px;
+        font-size: 20px;
         font-weight: 700;
         color: #1A1A1A;
-        margin: 0 0 4px;
+        margin: 0 0 3px;
     }
     .tp-sub {
         font-size: 14px;
@@ -46,7 +46,7 @@
 
     /* ── New Post button ── */
     .tp-new-btn-wrap {
-        padding: 16px 16px 0;
+        padding: 12px 16px 0;
         max-width: 480px;
         margin: 0 auto;
     }
@@ -71,7 +71,7 @@
 
     /* ── Post list ── */
     .tp-list {
-        padding: 20px 16px 100px;
+        padding: 16px 16px 100px;
         max-width: 480px;
         margin: 0 auto;
         display: flex;
@@ -319,8 +319,8 @@
 
 <!-- Header -->
 <div class="tp-header">
-    <h1 class="tp-title">Trip planning</h1>
-    <p class="tp-sub">{{ trip.mountain or 'Your trip' }}{% if trip.start_date %} · {{ trip.start_date.strftime('%b %-d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%-d') }}{% endif %}{% endif %}</p>
+    <h1 class="tp-title">{{ trip.mountain or 'Your trip' }}{% if state_abbr %}, {{ state_abbr }}{% endif %}</h1>
+    <p class="tp-sub">{% if trip.start_date %}{{ trip.start_date.strftime('%b %-d') }}{% if trip.end_date and trip.end_date != trip.start_date %}–{{ trip.end_date.strftime('%-d') }}{% endif %}{% if trip.end_date %}, {{ trip.end_date.strftime('%Y') }}{% elif trip.start_date %}, {{ trip.start_date.strftime('%Y') }}{% endif %}{% if night_count %} · {{ night_count }} night{{ 's' if night_count != 1 else '' }}{% endif %}{% else %}Your trip{% endif %}</p>
 </div>
 
 <!-- New post button -->

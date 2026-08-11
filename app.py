@@ -11722,12 +11722,24 @@ def trip_planning(trip_id):
 
     _ordered_cats = ['Lodging', 'Transportation', 'Activities', 'Food & Drink', 'Lessons', 'Other']
 
+    night_count = None
+    if trip.start_date and trip.end_date:
+        night_count = (trip.end_date - trip.start_date).days
+
+    state_abbr = None
+    if trip.resort and trip.resort.state_code:
+        state_abbr = trip.resort.state_code
+    elif trip.state:
+        state_abbr = trip.state
+
     return render_template(
         "trip_planning.html",
         trip=trip,
         is_owner=is_owner,
         posts=posts,
         categories=_ordered_cats,
+        night_count=night_count,
+        state_abbr=state_abbr,
     )
 
 
