@@ -916,6 +916,7 @@ class SkiTripParticipant(db.Model):
         nullable=False,
         server_default='no'
     )
+    pass_type = db.Column(db.String(100), nullable=True)  # personal pass for this trip; canonical My Setup value
     carpool_role = db.Column(
         db.Enum(CarpoolRole, name='carpool_role_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
         nullable=True

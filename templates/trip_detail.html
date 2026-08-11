@@ -1102,60 +1102,57 @@
             </div>
         </div>
 
-        <!-- Trip Setup -->
-        <h2 class="td-setup-heading">Trip setup</h2>
+        <!-- My Setup -->
+        <h2 class="td-setup-heading">My setup</h2>
         <div class="td-setup-card">
-        {% set pass_display = trip.pass_type|pass_display if trip.pass_type else '' %}
-        {% if is_owner %}
+        {% if is_member %}
         <button type="button" class="td-pass-row" onclick="openPassSheet()" aria-label="Edit pass type" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;">
             <span class="td-pass-label">Pass</span>
-            <span class="td-pass-value {% if not pass_display %}td-pass-value--soft{% endif %}">
-                <span id="td-pass-display-text">{{ pass_display or 'No pass' }}</span>
+            <span class="td-pass-value {% if not my_pass_display %}td-pass-value--soft{% endif %}">
+                <span id="td-pass-display-text">{{ my_pass_display or 'No pass' }}</span>
             </span>
         </button>
         {% else %}
         <div class="td-pass-row" style="cursor: default;">
             <span class="td-pass-label">Pass</span>
-            <span class="td-pass-value" style="color: #8A857A;">{{ pass_display or 'No pass' }}</span>
+            <span class="td-pass-value" style="color: #8A857A;">{{ my_pass_display or 'No pass' }}</span>
         </div>
         {% endif %}
         <div class="your-trip-details-section">
 
-            {# Equipment #}
+            {# Equipment — personal to current user (SkiTripParticipant.equipment_status) #}
             <div class="lesson-editor-container">
-                <div class="lesson-row-header" id="equipmentHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleEquipmentOverride(){% endif %}">
+                <div class="lesson-row-header" id="equipmentHeader" {% if is_member %}aria-expanded="false"{% endif %} onclick="{% if is_member %}toggleEquipmentOverride(){% endif %}">
                     <div style="display: flex; flex-direction: column;">
                         <span class="td-accordion-label">Equipment</span>
                         <span style="font-size: 11px; color: var(--bl-color-text-muted); margin-top: 1px;">
-                            {% if not trip.equipment_override or trip.equipment_override == 'use_default' %}From profile{% else %}For this trip only{% endif %}
+                            {% if current_user_participant and current_user_participant.equipment_status %}For this trip{% else %}From profile{% endif %}
                         </span>
                     </div>
-                    <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
+                    <span class="lesson-summary" style="{% if not is_member %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="equipmentSummaryText">
-                            {% if trip.equipment_override == 'have_own_equipment' %}Have own equipment
-                            {% elif trip.equipment_override == 'renting' %}Renting equipment
-                            {% else %}{{ current_user.equipment_status|replace('_', ' ')|capitalize }}{% endif %}
+                            {% if current_user_participant %}{{ current_user_participant.get_display_equipment() }}{% else %}Equipment: Not set{% endif %}
                         </span>
-                        {% if is_owner %}
+                        {% if is_member %}
                         <svg class="chevron-icon" id="equipmentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         {% endif %}
                     </span>
                 </div>
-                {% if is_owner %}
+                {% if is_member %}
                 <div class="lesson-options-inline" id="equipmentOverrideOptions">
                     <div class="lesson-radio-group">
                         <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_override" value="use_default" {% if not trip.equipment_override or trip.equipment_override == 'use_default' %}checked{% endif %} onchange="updateEquipmentOverride('use_default')">
-                            <span>Use profile setting</span>
+                            <input type="radio" name="equipment_override" value="" {% if not current_user_participant or not current_user_participant.equipment_status %}checked{% endif %} onchange="updateEquipmentPersonal('')">
+                            <span>From profile</span>
                         </label>
                         <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_override" value="have_own_equipment" {% if trip.equipment_override == 'have_own_equipment' %}checked{% endif %} onchange="updateEquipmentOverride('have_own_equipment')">
+                            <input type="radio" name="equipment_override" value="own" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value == 'own' %}checked{% endif %} onchange="updateEquipmentPersonal('own')">
                             <span>Have own equipment</span>
                         </label>
                         <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_override" value="renting" {% if trip.equipment_override == 'renting' %}checked{% endif %} onchange="updateEquipmentOverride('renting')">
+                            <input type="radio" name="equipment_override" value="renting" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value in ('renting', 'needs_rentals') %}checked{% endif %} onchange="updateEquipmentPersonal('renting')">
                             <span>Renting equipment</span>
                         </label>
                     </div>
@@ -1163,36 +1160,36 @@
                 {% endif %}
             </div>
 
-            {# Lessons — participant-level; each accepted member manages their own status #}
+            {# Lessons — personal to current user (SkiTripParticipant.taking_lesson) #}
             <div class="lesson-editor-container">
-                <div class="lesson-row-header" id="lessonHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleLessonEditor(){% endif %}">
+                <div class="lesson-row-header" id="lessonHeader" {% if is_member %}aria-expanded="false"{% endif %} onclick="{% if is_member %}toggleLessonEditor(){% endif %}">
                     <span class="td-accordion-label">Lessons</span>
-                    <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
+                    <span class="lesson-summary" style="{% if not is_member %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="lesson-summary-text">
-                            {% if current_user_participant.taking_lesson %}
+                            {% if current_user_participant and current_user_participant.taking_lesson %}
                                 {% if current_user_participant.taking_lesson.value == 'yes' %}Taking a lesson{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering a lesson{% else %}No lesson{% endif %}
                             {% else %}No lesson{% endif %}
                         </span>
-                        {% if is_owner %}
+                        {% if is_member %}
                         <svg class="chevron-icon" id="lessonChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
                             <polyline points="6 9 12 15 18 9"></polyline>
                         </svg>
                         {% endif %}
                     </span>
                 </div>
-                {% if is_owner %}
+                {% if is_member %}
                 <div class="lesson-options-inline" id="lesson-options-inline">
                     <div class="lesson-radio-group">
                         <label class="lesson-radio-label">
-                            <input type="radio" name="taking_lesson" value="no" {% if not current_user_participant.taking_lesson or current_user_participant.taking_lesson.value == 'no' %}checked{% endif %} onchange="saveLesson(this.value)">
+                            <input type="radio" name="taking_lesson" value="no" {% if not current_user_participant or not current_user_participant.taking_lesson or current_user_participant.taking_lesson.value == 'no' %}checked{% endif %} onchange="saveLesson(this.value)">
                             <span>No lesson</span>
                         </label>
                         <label class="lesson-radio-label">
-                            <input type="radio" name="taking_lesson" value="yes" {% if current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'yes' %}checked{% endif %} onchange="saveLesson(this.value)">
+                            <input type="radio" name="taking_lesson" value="yes" {% if current_user_participant and current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'yes' %}checked{% endif %} onchange="saveLesson(this.value)">
                             <span>Taking a lesson</span>
                         </label>
                         <label class="lesson-radio-label">
-                            <input type="radio" name="taking_lesson" value="maybe" {% if current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'maybe' %}checked{% endif %} onchange="saveLesson(this.value)">
+                            <input type="radio" name="taking_lesson" value="maybe" {% if current_user_participant and current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'maybe' %}checked{% endif %} onchange="saveLesson(this.value)">
                             <span>Considering a lesson</span>
                         </label>
                     </div>
@@ -1862,10 +1859,10 @@
         {% endif %}
 
         // ── Pass edit bottom sheet ──
-        {% if is_owner %}
+        {% if is_member %}
         (function() {
             const _tdPassTripId = {{ trip.id }};
-            let _tdCurrentPassStr = {{ (trip.pass_type or '') | tojson }};
+            let _tdCurrentPassStr = {{ my_pass_str | tojson }};
             var _TD_LEGACY_MVP = {freedom:'other',indy:'other',mountain_collective:'other',powder_alliance:'other',ski_california:'other'};
             var _tdPassSelected = new Set(
                 _tdCurrentPassStr.split(',').map(function(s){s=s.trim();return _TD_LEGACY_MVP[s]||s;}).filter(Boolean)
@@ -1950,6 +1947,33 @@
             };
             tdPassSyncState();
         })();
+        {% endif %}
+
+        // ── Equipment personal save (My Setup — participant/signals) ──
+        {% if is_member %}
+        async function updateEquipmentPersonal(value) {
+            const tripId = {{ trip.id }};
+            const labels = {
+                '':       '{{ current_user_participant.get_display_equipment() if current_user_participant else "Equipment: Not set" }}',
+                'own':    'Bringing own',
+                'renting':'Renting'
+            };
+            try {
+                const response = await fetch(`/api/trips/${tripId}/participant/signals`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ equipment_status: value })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const displayEl = document.getElementById('equipmentSummaryText');
+                    if (displayEl) displayEl.textContent = data.equipment_display || labels[value] || 'Equipment: Not set';
+                    const subtextEl = document.querySelector('#equipmentHeader [style*="font-size: 11px"]');
+                    if (subtextEl) subtextEl.textContent = value ? 'For this trip' : 'From profile';
+                    toggleEquipmentOverride();
+                }
+            } catch (err) { console.error(err); }
+        }
         {% endif %}
 
         // ── Date edit bottom sheet ──

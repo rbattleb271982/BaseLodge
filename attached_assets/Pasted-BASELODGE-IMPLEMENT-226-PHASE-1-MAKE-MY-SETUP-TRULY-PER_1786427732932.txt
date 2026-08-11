@@ -1,0 +1,558 @@
+BASELODGE — IMPLEMENT #226 PHASE 1
+MAKE “MY SETUP” TRULY PERSONAL
+
+Implement ONLY Phase 1 from the approved Trip Detail Single-Page Edit Mode audit.
+
+Do NOT build owner Edit Mode yet.
+
+Do NOT add Visibility or Planning/Going AJAX endpoints yet.
+
+Do NOT modify /trips/<id>/edit yet.
+
+The goal of this task is to make:
+
+MY SETUP
+- Pass
+- Equipment
+- Lessons
+
+truly represent the CURRENT USER on the trip, for both:
+- trip owner
+- accepted participant
+
+This must be correct before we build the single-page owner Edit mode.
+
+==================================================
+1. FINAL PRODUCT MODEL FOR THIS TASK
+==================================================
+
+Rename:
+
+TRIP SETUP
+
+to:
+
+MY SETUP
+
+The section contains:
+
+- Pass
+- Equipment
+- Lessons
+
+All three values are PERSONAL to the current user.
+
+The trip owner edits their own values.
+
+An accepted participant edits their own values.
+
+No user may edit another participant’s values through these controls.
+
+Important:
+
+The resort/mountain has separate pass-affiliation metadata.
+
+Example:
+
+Vail = Epic resort
+Current user = Ikon pass
+
+This is VALID.
+
+Do not treat resort/pass mismatch as an error.
+
+==================================================
+2. PASS — FIX OWNERSHIP
+==================================================
+
+Current problem identified by audit:
+
+The visible Pass row currently reads/writes:
+
+SkiTrip.pass_type
+
+That is trip-level and owner-only.
+
+This is incorrect for the desired product model.
+
+Pass must become participant/personal setup.
+
+Preferred architecture:
+
+Add:
+
+SkiTripParticipant.pass_type
+
+or equivalent participant-scoped field consistent with the existing model.
+
+Do NOT repurpose resort pass metadata.
+
+Do NOT use SkiTrip.pass_type as the new canonical personal value.
+
+==================================================
+3. PASS MIGRATION
+==================================================
+
+Use the project’s existing startup migration pattern.
+
+Add the participant pass column idempotently.
+
+Requirements:
+
+- safe on repeated startup
+- no Alembic
+- narrowly scoped
+- commit/rollback consistent with existing migration style
+
+BACKFILL:
+
+Existing SkiTrip.pass_type values may represent the owner's previously selected pass.
+
+For existing trips:
+
+If:
+- SkiTrip.pass_type has a value
+AND
+- the owner has a SkiTripParticipant row
+AND
+- that participant’s new pass_type is empty
+
+then copy the existing trip.pass_type into the OWNER participant's pass_type.
+
+Do NOT copy the owner’s trip pass value into guest participant records.
+
+Do NOT overwrite an existing participant pass value.
+
+Do NOT delete SkiTrip.pass_type in this task.
+
+Keep it as a legacy field for now.
+
+Return counts for:
+- rows inspected
+- owner participant rows backfilled
+- already populated/skipped
+- missing owner participant rows, if any
+
+Migration must be idempotent.
+
+==================================================
+4. PASS DEFAULT / USER PROFILE BEHAVIOR
+==================================================
+
+Audit identified an existing:
+
+User.pass_type
+
+Determine whether this currently represents the user’s general/profile pass.
+
+For My Setup display, use this precedence unless existing architecture requires a safer equivalent:
+
+1. SkiTripParticipant.pass_type for THIS trip
+2. If no trip-specific participant pass exists, fall back visually to User.pass_type
+3. Otherwise show “No pass”
+
+Important:
+
+Do not automatically persist User.pass_type into every trip participant just because it is used as a display fallback.
+
+If the user makes a selection from My Setup, save it to:
+
+SkiTripParticipant.pass_type
+
+for that current user/trip.
+
+Do not modify User.pass_type as a side effect unless existing UX explicitly does so today.
+
+If current behavior would require modifying User.pass_type, STOP and report before doing that.
+
+==================================================
+5. PASS ENDPOINT
+==================================================
+
+Replace/supplement the current owner-only trip pass update behavior with a PARTICIPANT-SCOPED save path.
+
+Use a narrowly scoped route consistent with current architecture.
+
+Either:
+
+A. extend the existing participant/signals endpoint to accept pass_type
+
+OR
+
+B. change /api/trip/<id>/update-pass so it writes the CURRENT USER’S SkiTripParticipant.pass_type
+
+Choose the approach that creates the least duplicate logic and best matches the existing participant setup architecture.
+
+Requirements:
+
+- login required
+- user must be trip owner OR ACCEPTED participant
+- find participant row using:
+  trip_id + current_user.id
+- update only current user’s participant pass
+- never update another participant
+- validate allowed pass values using the project’s canonical pass list
+- arbitrary strings must be rejected
+
+Do NOT write SkiTrip.pass_type as the canonical save target going forward.
+
+==================================================
+6. PASS ACTIVITY / SIDE EFFECT
+==================================================
+
+The audit found:
+
+emit_trip_pass_changed_activities
+
+currently executes when trip.pass_type changes.
+
+Before changing this behavior, inspect what that activity represents.
+
+Because Pass is becoming personal:
+
+- do not incorrectly emit an activity saying the TRIP pass changed if only one participant changed their personal pass
+- do not silently preserve a misleading event
+
+Choose the smallest semantically correct behavior.
+
+If there is already a participant-level activity pattern, reuse it.
+
+If not, it is acceptable for personal pass changes to have NO activity in this task rather than emitting an incorrect trip-level event.
+
+Do not add push notifications for Pass unless existing personal-setup behavior requires them.
+
+Explicitly report what you decided and why.
+
+==================================================
+7. PASS UI
+==================================================
+
+Keep the existing Pass bottom sheet design where practical.
+
+But change its source/value/save logic so it represents:
+
+CURRENT USER’S PASS
+
+not:
+
+TRIP PASS
+
+Both owner and accepted participant should be able to tap Pass.
+
+Display should use the current user’s effective pass:
+
+participant pass
+→ optional User.pass_type fallback
+→ No pass
+
+Do not show the owner’s pass to accepted participants.
+
+==================================================
+8. EQUIPMENT — MAKE PERSONAL UI CANONICAL
+==================================================
+
+Current audit findings:
+
+- trip.trip_equipment_status = legacy trip-level field
+- trip.equipment_override = owner-only trip field used by current accordion
+- SkiTripParticipant.equipment_status = correct personal field
+
+For My Setup, the canonical value must be:
+
+SkiTripParticipant.equipment_status
+
+for CURRENT USER.
+
+Change the visible Equipment row so:
+
+- owner sees their own participant.equipment_status
+- accepted participant sees their own participant.equipment_status
+- each can edit only their own
+
+Use:
+
+POST /api/trips/<id>/participant/signals
+
+or the existing canonical participant-scoped endpoint.
+
+Do NOT use:
+
+/api/trip/<id>/equipment-override
+
+as the canonical My Setup save path going forward.
+
+Do NOT delete:
+- trip.equipment_override
+- trip.trip_equipment_status
+- equipment-override endpoint
+
+They remain legacy/fallback code for now.
+
+==================================================
+9. EQUIPMENT UI ACCESS
+==================================================
+
+Remove the owner-only UI gate around Equipment.
+
+Render the Equipment accordion for:
+
+- trip owner
+- accepted participant
+
+Do not render editable Equipment controls for:
+- pending invited user
+- declined participant
+- removed participant
+- public/non-member viewer
+
+The server-side endpoint must remain the actual authorization boundary.
+
+==================================================
+10. LESSONS — UN-GATE EXISTING PERSONAL CONTROL
+==================================================
+
+Lessons is already correctly stored as:
+
+SkiTripParticipant.taking_lesson
+
+and saved through:
+
+POST /api/trips/<id>/participant/signals
+
+Do not rewrite it.
+
+Remove the owner-only template gate so:
+
+- owner can edit own lesson value
+- accepted participant can edit own lesson value
+
+No user can edit someone else’s lesson status.
+
+Keep the existing:
+- yes/no/maybe semantics
+- JS
+- endpoint
+- storage
+
+unless a tiny selector change is required due to markup movement.
+
+==================================================
+11. RENAME SECTION
+==================================================
+
+Change visible heading:
+
+TRIP SETUP
+
+to:
+
+MY SETUP
+
+No subtitle.
+
+Final card:
+
+MY SETUP
+
+Pass
+[current user value]
+
+Equipment
+[current user value]
+
+Lessons
+[current user value]
+
+==================================================
+12. OWNER EXPERIENCE AFTER THIS TASK
+==================================================
+
+Owner sees:
+
+MY SETUP
+Pass        [their pass]
+Equipment   [their equipment]
+Lessons     [their lesson status]
+
+Owner can edit all three directly.
+
+These edits affect ONLY the owner's own participant setup.
+
+Do NOT require the owner to tap Edit first.
+
+The existing top-level Edit button remains unchanged in this task.
+
+==================================================
+13. ACCEPTED PARTICIPANT EXPERIENCE
+==================================================
+
+Accepted participant sees:
+
+MY SETUP
+Pass        [their pass]
+Equipment   [their equipment]
+Lessons     [their lesson status]
+
+They can edit all three directly.
+
+They do NOT see:
+- owner Edit control
+- Private note
+- owner-only trip editing controls
+
+Do not change Trip Planning behavior.
+
+==================================================
+14. PENDING / NON-MEMBER EXPERIENCE
+==================================================
+
+Do not accidentally expose personal setup editing to:
+
+- pending invitee
+- declined participant
+- removed participant
+- non-member/public viewer
+
+Preserve existing trip access/display rules.
+
+==================================================
+15. DO NOT CHANGE SINGLE-PAGE EDIT MODE YET
+==================================================
+
+Do NOT implement:
+
+- Edit → client-side toggle
+- Done button
+- Visibility inline editing
+- Planning/Going inline editing
+- Private note on trip_detail
+- Location edit-mode behavior
+- Edit page deprecation
+
+Those are the NEXT phase after My Setup ownership is validated.
+
+==================================================
+16. DO NOT CLEAN UP LEGACY FIELDS YET
+==================================================
+
+Do NOT delete:
+
+SkiTrip.pass_type
+SkiTrip.trip_equipment_status
+SkiTrip.equipment_override
+
+Do NOT remove:
+
+/api/trip/<id>/equipment-override
+/trips/<id>/edit
+
+Do not remove old migration history.
+
+We will clean these up only after the new canonical behavior is proven.
+
+==================================================
+17. VALIDATION — PASS
+==================================================
+
+Test with at least:
+
+OWNER
+ACCEPTED PARTICIPANT
+
+Verify:
+
+1. Owner sees My Setup.
+2. Accepted participant sees My Setup.
+3. Owner can choose their own pass.
+4. Participant can choose their own pass.
+5. Owner pass and participant pass can differ.
+6. Participant never sees owner pass as their own selected trip value.
+7. Changing participant pass does not change owner pass.
+8. Changing owner pass does not change participant pass.
+9. SkiTrip.pass_type is not the canonical save target.
+10. Resort pass metadata is unaffected.
+11. Ikon user at Epic resort is allowed.
+12. Invalid pass strings are rejected.
+13. Existing owner trip.pass_type is safely backfilled only to owner participant where appropriate.
+14. Backfill is idempotent.
+15. User.pass_type fallback does not overwrite participant storage unexpectedly.
+
+==================================================
+18. VALIDATION — EQUIPMENT
+==================================================
+
+Verify:
+
+16. Owner Equipment displays owner participant.equipment_status.
+17. Accepted participant Equipment displays their own participant.equipment_status.
+18. Owner can update own Equipment.
+19. Participant can update own Equipment.
+20. Participant Equipment change does not affect owner.
+21. Owner Equipment change does not affect participant.
+22. My Setup save path uses participant-scoped endpoint.
+23. trip.equipment_override remains untouched as legacy data.
+24. trip.trip_equipment_status remains untouched as legacy data.
+
+==================================================
+19. VALIDATION — LESSONS
+==================================================
+
+Verify:
+
+25. Owner can edit own lesson status.
+26. Accepted participant can edit own lesson status.
+27. Participant cannot edit owner’s lesson status.
+28. Owner cannot edit participant’s lesson status through My Setup.
+29. Existing participant/signals endpoint remains canonical.
+
+==================================================
+20. REGRESSION
+==================================================
+
+Verify:
+
+30. Trip Planning still works.
+31. Invite friends still works.
+32. People section still works.
+33. Date quick edit still works.
+34. Edit button still behaves exactly as before.
+35. Private note behavior unchanged.
+36. No Visibility/Status editing changes were made.
+37. No Transportation/Accommodation logic changed.
+38. No unrelated schema/routes/features changed.
+
+==================================================
+21. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. SkiTripParticipant schema change
+3. Migration + backfill details
+4. Exact Pass ownership change
+5. User.pass_type fallback behavior
+6. Pass endpoint chosen and why
+7. Pass activity/event behavior
+8. Equipment canonical-storage change
+9. Lessons UI un-gating
+10. Before/after My Setup behavior
+11. Owner validation
+12. Accepted-participant validation
+13. Migration validation / idempotency
+14. Legacy fields/endpoints preserved
+15. Regression results
+16. Any issue encountered
+
+EXPLICITLY CONFIRM:
+
+- “Trip Setup” is now “My Setup.”
+- Pass is personal to each trip participant.
+- Equipment is personal to each trip participant.
+- Lessons is personal to each trip participant.
+- Owner and accepted participant may each edit only their own values.
+- Resort pass affiliation remains separate metadata.
+- A user having Ikon while visiting an Epic resort is valid.
+- SkiTrip.pass_type was preserved but is no longer the canonical My Setup save target.
+- Legacy Equipment fields were preserved.
+- No single-page owner Edit mode was implemented yet.

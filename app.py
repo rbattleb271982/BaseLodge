@@ -2200,6 +2200,54 @@ def run_ski_trip_planning_post_migration():
 run_ski_trip_planning_post_migration()
 
 
+def run_participant_pass_migration():
+    """
+    Phase 1 / My Setup personal pass.
+
+    1. Add pass_type VARCHAR(100) to ski_trip_participant (idempotent IF NOT EXISTS).
+    2. Backfill: copy ski_trip.pass_type → owner participant's pass_type for
+       existing trips where the owner participant has no pass_type yet.
+
+    Idempotent: safe on repeated startups.
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                # 1. Add column
+                conn.execute(db.text(
+                    "ALTER TABLE ski_trip_participant "
+                    "ADD COLUMN IF NOT EXISTS pass_type VARCHAR(100)"
+                ))
+
+                # 2. Backfill owner participants from trip.pass_type where not already set.
+                #    Skip null / empty / 'No Pass' legacy sentinel values.
+                result = conn.execute(db.text("""
+                    UPDATE ski_trip_participant stp
+                    SET    pass_type = st.pass_type
+                    FROM   ski_trip st
+                    WHERE  stp.trip_id    = st.id
+                      AND  stp.role       = 'owner'
+                      AND  st.pass_type   IS NOT NULL
+                      AND  st.pass_type   NOT IN ('', 'No Pass')
+                      AND  stp.pass_type  IS NULL
+                """))
+                backfilled = result.rowcount
+
+                trans.commit()
+                print(f"participant_pass_migration: complete. owner rows backfilled={backfilled}.")
+            except Exception as inner_e:
+                trans.rollback()
+                print(f"participant_pass_migration inner error (rolled back): {inner_e}")
+            finally:
+                conn.close()
+    except Exception as e:
+        print(f"participant_pass_migration: skipped ({e})")
+
+run_participant_pass_migration()
+
+
 def _run_pass_mapping_correction_migration():
     """
     Corrects ski-pass mapping errors in the ResortPass table.
@@ -5373,9 +5421,21 @@ def update_trip_resort(trip_id):
 @app.route("/api/trip/<int:trip_id>/update-pass", methods=["POST"])
 @login_required
 def update_trip_pass(trip_id):
+    """Save the CURRENT USER's personal pass for this trip.
+
+    Pass is now a personal / participant-level field (SkiTripParticipant.pass_type).
+    Both the trip owner and accepted participants may update their own value.
+    SkiTrip.pass_type is preserved as a legacy field but is no longer written here.
+    """
     trip = SkiTrip.query.get_or_404(trip_id)
-    if trip.user_id != current_user.id:
-        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    if not participant:
+        return jsonify({"success": False, "error": "You are not a participant of this trip."}), 403
+    is_trip_owner = trip.user_id == current_user.id
+    if not is_trip_owner and participant.status != GuestStatus.ACCEPTED:
+        return jsonify({"success": False, "error": "Only accepted participants can update their pass."}), 403
     data = request.get_json(silent=True) or {}
     raw_pass = (data.get("pass_type") or "").strip()
     normalized = normalize_pass_selection(raw_pass)
@@ -5383,8 +5443,8 @@ def update_trip_pass(trip_id):
         return jsonify({"success": False, "error": "Invalid pass selection."}), 400
     if count_real_passes(normalized) > 3:
         return jsonify({"success": False, "error": "You can select up to 3 passes."}), 400
-    pass_actually_changed = trip.pass_type != normalized
-    trip.pass_type = normalized
+    # Write to participant record only — this is a personal setting
+    participant.pass_type = normalized
     try:
         db.session.commit()
     except Exception as e:
@@ -5392,13 +5452,7 @@ def update_trip_pass(trip_id):
         app.logger.error(f"[update_trip_pass] error: {e}")
         return jsonify({"success": False, "error": "Failed to save pass."}), 500
     display = format_passes_for_display(normalized)
-    if pass_actually_changed:
-        emit_trip_pass_changed_activities(trip, current_user.id, display)
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"[update_trip_pass] notification error: {e}")
+    # No notification: personal pass change is silent (not a trip-level event)
     return jsonify({"success": True, "pass_type": normalized, "pass_display": display})
 
 
@@ -11655,6 +11709,16 @@ def trip_detail(trip_id):
         if can_plan else 0
     )
 
+    # My Setup: current user is an editable member if owner or accepted participant
+    is_member = is_owner or is_guest
+
+    # My Setup: effective pass display for current user.
+    # Precedence: participant.pass_type → User.pass_type fallback → empty
+    _participant_pass = (current_user_participant.pass_type or "") if current_user_participant else ""
+    _profile_pass = (current_user.pass_type or "") if (current_user.pass_type and current_user.pass_type not in ("No Pass", "no_pass", "")) else ""
+    my_pass_str = _participant_pass or _profile_pass
+    my_pass_display = format_passes_for_display(my_pass_str) if my_pass_str else ""
+
     if app.debug:
         print(f"[ROUTE_PERF] route=trip_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
@@ -11664,6 +11728,7 @@ def trip_detail(trip_id):
         is_owner=is_owner,
         is_guest=is_guest,
         is_invited=is_invited,
+        is_member=is_member,
         invited_participants=invited_participants,
         accepted_participants=accepted_participants,
         friends_for_invite=friends_for_invite,
@@ -11679,6 +11744,8 @@ def trip_detail(trip_id):
         resorts_json=resorts_json,
         can_plan=can_plan,
         planning_post_count=planning_post_count,
+        my_pass_str=my_pass_str,
+        my_pass_display=my_pass_display,
     )
 
 
