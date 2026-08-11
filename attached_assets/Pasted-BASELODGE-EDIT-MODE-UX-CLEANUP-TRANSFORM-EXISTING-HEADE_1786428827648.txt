@@ -1,0 +1,516 @@
+BASELODGE — EDIT MODE UX CLEANUP
+TRANSFORM EXISTING HEADER CONTROLS IN PLACE
+
+Make a tightly scoped UX refinement to the owner Edit mode on trip_detail.
+
+The underlying single-page edit architecture is already correct.
+
+Do NOT change:
+- ownership model
+- permissions
+- routes
+- models
+- notifications
+- My Setup architecture
+- Trip Planning
+- participant behavior
+- legacy Edit page fallback
+
+GOAL
+
+When the owner taps Edit, the page should feel like the EXISTING trip page becoming editable.
+
+It should NOT feel like a second edit form was inserted underneath the existing trip summary.
+
+The current Edit mode duplicates Visibility and Status:
+- read-only badges remain visible
+- separate VISIBILITY and STATUS segmented controls appear below them
+
+Remove that duplication.
+
+==================================================
+1. NORMAL MODE — KEEP CURRENT STRUCTURE
+==================================================
+
+Normal owner mode should remain:
+
+Vail, CO                         Edit
+Sep 17–19, 2026 · 2 nights
+
+Visible to friends     |     Planning
+
+MY SETUP
+Pass
+Equipment
+Lessons
+
+TRIP PLANNING
+...
+
+Invite friends
+
+PEOPLE
+...
+
+Cancel trip
+
+Do not change normal-mode hierarchy except for the Equipment copy cleanup described later.
+
+==================================================
+2. EDIT MODE — EDIT EXISTING HEADER IN PLACE
+==================================================
+
+When owner taps Edit:
+
+Edit → Done
+
+Keep the SAME top-of-page structure.
+
+Desired edit-mode hierarchy:
+
+Vail, CO ›                       Done
+Sep 17–19, 2026 · 2 nights ›
+
+Visibility                     ›
+Visible to friends
+
+Status                         ›
+Planning
+
+PRIVATE NOTE
+Only you can see this.
+
+[compact textarea]
+
+Then:
+
+MY SETUP
+Pass
+Equipment
+Lessons
+
+Do not create a separate large edit-settings block below the existing badges.
+
+The page should visually transform in place.
+
+==================================================
+3. REMOVE DUPLICATE VISIBILITY / STATUS CONTROLS
+==================================================
+
+Current edit mode displays:
+
+Visible to friends | Planning
+
+AND below that:
+
+VISIBILITY
+[ Visible to friends | Private ]
+
+STATUS
+[ Planning | Going ]
+
+This is redundant.
+
+Remove the always-visible segmented control block from edit mode.
+
+Instead, transform the existing visibility/status area itself into editable rows while edit mode is active.
+
+Normal mode:
+
+[icon] Visible to friends    |    [icon] Planning
+
+Edit mode:
+
+Visibility
+Visible to friends                         ›
+
+Status
+Planning                                    ›
+
+Use existing typography/card/divider patterns.
+
+Do not show both read-only badges and edit controls simultaneously.
+
+==================================================
+4. VISIBILITY EDIT INTERACTION
+==================================================
+
+In edit mode:
+
+Tap the Visibility row.
+
+Open a compact bottom sheet consistent with existing BaseLodge sheet patterns.
+
+Options:
+
+Visible to friends
+Private
+
+Current selection should be clearly indicated.
+
+On selection:
+- call existing:
+  POST /api/trip/<id>/update-visibility
+- update the row text in place
+- update normal-mode badge text
+- close sheet
+
+Do not change endpoint logic or notification behavior.
+
+Visibility remains owner-only.
+
+==================================================
+5. STATUS EDIT INTERACTION
+==================================================
+
+In edit mode:
+
+Tap the Status row.
+
+Open a compact bottom sheet.
+
+Options:
+
+Planning
+Going
+
+Current selection clearly indicated.
+
+On selection:
+- call existing:
+  POST /api/trip/<id>/update-status
+- update row text
+- update normal-mode badge
+- close sheet
+
+Do not change endpoint logic or notification behavior.
+
+Status remains owner-only.
+
+==================================================
+6. LOCATION
+==================================================
+
+Keep current behavior:
+
+Normal mode:
+Vail, CO
+
+Edit mode:
+Vail, CO ›
+
+Tap in edit mode:
+reuse existing resort picker.
+
+Do not change route or notification behavior.
+
+==================================================
+7. DATES
+==================================================
+
+Keep existing quick-edit behavior.
+
+Normal mode:
+dates remain tappable for owner, as currently implemented.
+
+Edit mode:
+dates continue using the same existing date sheet.
+
+Do not create a second date editor.
+
+==================================================
+8. PRIVATE NOTE — COMPACT UI
+==================================================
+
+Keep:
+
+PRIVATE NOTE
+Only you can see this.
+
+But reduce the textarea height.
+
+Current textarea is visually too large for an optional note.
+
+Make it approximately 2–3 lines high initially.
+
+It may grow naturally if the existing browser/CSS behavior supports that, but do not build complex auto-resize logic unless already available.
+
+Placeholder:
+
+Add a private note...
+
+Keep:
+- max 500
+- counter
+- owner-only rendering
+- existing /api/trip/<id>/notes endpoint
+- Done auto-save behavior
+
+==================================================
+9. REMOVE VISIBLE “SAVE NOTE” BUTTON
+==================================================
+
+Remove the visible:
+
+Save note
+
+button from Edit mode.
+
+Reason:
+
+Done already checks for unsaved private-note changes and auto-saves before exiting.
+
+There should be one clear completion action:
+
+Done
+
+Behavior must remain:
+
+- If note unchanged → Done exits immediately
+- If note changed → Done saves note first
+- If save succeeds → exit edit mode
+- If save fails → stay in edit mode and show error
+- Note must never be silently lost
+
+Do not remove the underlying saveNote() logic if Done depends on it.
+
+Only remove the extra visible Save note action.
+
+==================================================
+10. PRIVATE NOTE COUNTER
+==================================================
+
+Keep the character counter:
+
+0/500
+
+or:
+
+0 / 500
+
+Use whichever format matches existing UI.
+
+Keep it visually secondary.
+
+Place it naturally below or at the lower edge of the textarea.
+
+Do not let it create excessive vertical space.
+
+==================================================
+11. MY SETUP — DO NOT TIE TO EDIT MODE
+==================================================
+
+My Setup remains:
+
+Pass
+Equipment
+Lessons
+
+These remain directly editable in:
+- normal mode
+- edit mode
+
+for the current user.
+
+Do not change Phase 1 ownership behavior.
+
+==================================================
+12. EQUIPMENT COPY CLEANUP
+==================================================
+
+Current UI can show:
+
+Equipment
+Equipment: Not set
+
+This is redundant.
+
+Change the value display to:
+
+Not set
+
+Likewise, if other equipment values are rendered with an unnecessary prefix like:
+
+Equipment: Renting
+
+change to:
+
+Renting equipment
+
+or the existing clean human-readable value.
+
+The row label already says:
+
+Equipment
+
+Do not repeat “Equipment:” in the value.
+
+Preserve:
+- From profile subtext
+- participant-level storage
+- participant/signals endpoint
+- permissions
+
+==================================================
+13. LOWER PAGE DURING EDIT MODE
+==================================================
+
+Keep visible:
+
+MY SETUP
+TRIP PLANNING
+Invite friends
+PEOPLE
+Cancel trip
+
+Do not hide them.
+
+Do not make them look like they are part of the owner trip-level edit form.
+
+==================================================
+14. DONE BUTTON
+==================================================
+
+Keep Done in the upper-right where Edit normally appears.
+
+Done should:
+
+1. save unsaved Private note if needed
+2. remain in edit mode if note save fails
+3. otherwise exit edit mode
+4. restore normal Visibility/Status badge presentation
+5. change Done → Edit
+
+No global Save button.
+
+No full-page submit.
+
+==================================================
+15. DO NOT CHANGE
+==================================================
+
+Do not change:
+
+- /api/trip/<id>/update-visibility
+- /api/trip/<id>/update-status
+- /api/trip/<id>/update-resort
+- /api/trip/<id>/update-dates
+- /api/trip/<id>/notes
+- notification recipients
+- EventNames
+- My Setup pass behavior
+- My Setup equipment ownership
+- Lessons ownership
+- participant permissions
+- Trip Planning
+- planning posts
+- Invite friends
+- People
+- Cancel trip
+- legacy /trips/<id>/edit fallback
+- schema
+
+This should be template/CSS/JS presentation work only unless a tiny supporting change is absolutely required.
+
+==================================================
+16. VALIDATION — NORMAL MODE
+==================================================
+
+Verify:
+
+1. Normal page still shows:
+   Visible to friends | Planning
+2. No Visibility edit row appears.
+3. No Status edit row appears.
+4. Private note hidden.
+5. Edit button visible.
+6. My Setup still editable.
+7. Equipment value does not repeat “Equipment:”.
+
+==================================================
+17. VALIDATION — EDIT MODE
+==================================================
+
+Verify:
+
+8. Edit changes to Done.
+9. Location shows edit affordance.
+10. Dates retain existing edit behavior.
+11. Normal two-column Visibility/Planning display is replaced or transformed cleanly rather than duplicated.
+12. Visibility appears as one editable row.
+13. Status appears as one editable row.
+14. No large segmented controls remain permanently visible.
+15. Tapping Visibility opens bottom sheet.
+16. Visibility selection saves through existing endpoint.
+17. Tapping Status opens bottom sheet.
+18. Status selection saves through existing endpoint.
+19. Private note visible only in edit mode.
+20. Private note textarea is materially shorter than before.
+21. Character counter remains.
+22. Save note button is gone.
+23. Done auto-saves changed note.
+24. Failed note save keeps edit mode open.
+25. Done exits correctly after successful save.
+
+==================================================
+18. VALIDATION — PARTICIPANT
+==================================================
+
+Verify accepted participant:
+
+26. Never sees Edit/Done.
+27. Never sees Visibility/Status edit rows.
+28. Never sees Private note.
+29. My Setup remains editable for their own Pass/Equipment/Lessons.
+30. No participant permissions changed.
+
+==================================================
+19. REGRESSION
+==================================================
+
+Verify:
+
+31. Resort picker still works.
+32. Date sheet still works.
+33. Visibility endpoint unchanged.
+34. Status endpoint unchanged.
+35. Private note endpoint unchanged.
+36. Trip Planning unchanged.
+37. Invite friends unchanged.
+38. People unchanged.
+39. Cancel trip unchanged.
+40. Legacy /trips/<id>/edit still loads directly.
+41. No schema changes.
+42. No unrelated files/features changed.
+
+==================================================
+20. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Before/after edit-mode hierarchy
+3. Visibility UI change
+4. Status UI change
+5. Bottom-sheet implementation/reuse
+6. Private note size/copy changes
+7. Confirmation visible Save note button removed
+8. Done/private-note save behavior
+9. Equipment copy change
+10. Owner normal-mode validation
+11. Owner edit-mode validation
+12. Participant validation
+13. Regression results
+14. Confirmation no endpoint/permission/notification/schema behavior changed
+
+EXPLICITLY CONFIRM:
+
+- Edit mode now transforms the existing page instead of adding duplicate settings below it.
+- Visibility and Status are not shown twice.
+- Visibility and Status use bottom sheets rather than permanently visible segmented controls.
+- Private note is compact and owner-only.
+- Save note button is removed.
+- Done safely saves unsaved private-note text before exiting.
+- My Setup remains independent of owner Edit mode.
+- Equipment values no longer repeat “Equipment:” in the value.

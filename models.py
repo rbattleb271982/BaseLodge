@@ -958,13 +958,13 @@ class SkiTripParticipant(db.Model):
                 ParticipantEquipment.RENTING: "Renting",
                 ParticipantEquipment.NEEDS_RENTALS: "Renting",
             }
-            return labels.get(self.equipment_status, "Equipment: Not set")
+            return labels.get(self.equipment_status, "Not set")
         if self.user and self.user.equipment_status:
             if self.user.equipment_status == EquipmentStatus.HAVE_OWN_EQUIPMENT:
                 return "Bringing own"
             elif self.user.equipment_status == EquipmentStatus.NEEDS_RENTALS:
                 return "Renting"
-        return "Equipment: Not set"
+        return "Not set"
     
     def __repr__(self):
         return f'<SkiTripParticipant trip={self.trip_id} user={self.user_id} status={self.status.value}>'

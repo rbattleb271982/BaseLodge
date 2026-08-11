@@ -101,13 +101,10 @@
         .page-container.td-edit-mode .td-location-btn:active { opacity: 0.65; }
 
         /* ── Edit mode controls (Visibility / Status / Private note) ── */
-        .td-edit-controls {
-            display: none;
-            margin-top: 16px;
-            border-top: 1px solid #E8E4DF;
-            padding-top: 16px;
-        }
+        .td-edit-controls { display: none; margin-top: 12px; }
         .page-container.td-edit-mode .td-edit-controls { display: block; }
+        /* Hide read-only badges when edit controls are shown */
+        .page-container.td-edit-mode .td-meta-badges { display: none; }
 
         .td-edit-field-label {
             font-size: 11px;
@@ -118,36 +115,72 @@
             margin: 0 0 7px;
             display: block;
         }
-        .td-edit-row { margin-bottom: 18px; }
 
-        /* Segmented control */
-        .td-seg-ctrl {
+        /* Tappable field rows (Visibility / Status in edit mode) */
+        .td-edit-field-row {
             display: flex;
-            border: 1px solid #D6D0CA;
-            border-radius: 8px;
-            overflow: hidden;
-            background: #F5F3F0;
-        }
-        .td-seg-btn {
-            flex: 1;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
             background: none;
             border: none;
-            padding: 9px 8px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--bl-color-text-muted, #8A857A);
+            border-bottom: 1px solid #E8E4DF;
+            padding: 11px 0;
+            text-align: left;
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
-            line-height: 1.2;
             font-family: inherit;
-            transition: background 0.12s, color 0.12s;
+            margin: 0;
         }
-        .td-seg-btn:not(:last-child) { border-right: 1px solid #D6D0CA; }
-        .td-seg-btn.active { background: #5C1219; color: #fff; font-weight: 600; }
-        .td-seg-btn:not(.active):active { background: rgba(92,18,25,0.08); }
+        .td-edit-field-row:first-child { border-top: 1px solid #E8E4DF; }
+        .td-edit-field-row:active { opacity: 0.7; }
+        .td-edit-field-row-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--bl-color-text-muted, #8A857A);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin: 0 0 2px;
+        }
+        .td-edit-field-row-value {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--bl-color-text, #1A1A1A);
+            margin: 0;
+        }
+        .td-edit-field-row-caret {
+            color: #B5AFA5;
+            font-size: 22px;
+            line-height: 1;
+            flex-shrink: 0;
+            padding-left: 10px;
+        }
+
+        /* Option rows inside Visibility / Status bottom sheets */
+        .td-option-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            background: none;
+            border: none;
+            border-bottom: 1px solid #E8E4DF;
+            padding: 15px 0;
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--bl-color-text, #1A1A1A);
+            cursor: pointer;
+            text-align: left;
+            -webkit-tap-highlight-color: transparent;
+            font-family: inherit;
+        }
+        .td-option-row:first-of-type { border-top: 1px solid #E8E4DF; }
+        .td-option-row:active { opacity: 0.7; }
+        .td-option-check { visibility: hidden; }
+        .td-option-check.td-check-visible { visibility: visible; }
 
         /* Private note */
-        .td-private-note-wrap { margin-bottom: 4px; }
+        .td-private-note-wrap { margin-top: 16px; margin-bottom: 4px; }
         .td-private-note-hint {
             font-size: 12px;
             color: var(--bl-color-text-muted, #8A857A);
@@ -155,8 +188,8 @@
         }
         .td-note-textarea {
             width: 100%;
-            min-height: 96px;
-            padding: 11px 13px;
+            min-height: 58px;
+            padding: 10px 13px;
             font-size: 14px;
             font-family: inherit;
             color: var(--bl-color-text, #1A1A1A);
@@ -170,28 +203,7 @@
             -webkit-appearance: none;
         }
         .td-note-textarea:focus { border-color: #5C1219; }
-        .td-note-footer {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 8px;
-        }
-        .td-note-char-count { font-size: 12px; color: var(--bl-color-text-muted, #8A857A); }
-        .td-note-save-btn {
-            background: none;
-            border: 1.5px solid #5C1219;
-            color: #5C1219;
-            border-radius: 8px;
-            padding: 7px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            font-family: inherit;
-            transition: background 0.12s, color 0.12s, border-color 0.12s;
-        }
-        .td-note-save-btn:not(:disabled):active { background: rgba(92,18,25,0.08); }
-        .td-note-save-btn.td-note-saved { background: #3A7A3A; border-color: #3A7A3A; color: #fff; }
+        .td-note-char-count { font-size: 12px; color: var(--bl-color-text-muted, #8A857A); margin-top: 6px; display: block; }
         .td-header-notice {
             font-size: 14px;
             color: #8A857A;
@@ -1227,30 +1239,28 @@
             </div>
 
             {% if is_owner %}
-            <!-- Edit mode controls — hidden in normal view, revealed by .td-edit-mode CSS class -->
+            <!-- Edit mode controls — hidden in normal view, revealed by .td-edit-mode CSS class.
+                 Replaces the read-only badges with in-place tappable rows + private note. -->
             <div class="td-edit-controls" id="td-edit-controls">
-                <div class="td-edit-row">
-                    <span class="td-edit-field-label">Visibility</span>
-                    <div class="td-seg-ctrl" id="td-vis-seg">
-                        <button type="button" class="td-seg-btn {% if trip.is_public %}active{% endif %}" data-val="public" onclick="saveVisibility(true)">Visible to friends</button>
-                        <button type="button" class="td-seg-btn {% if not trip.is_public %}active{% endif %}" data-val="private" onclick="saveVisibility(false)">Private</button>
+                <button type="button" class="td-edit-field-row" onclick="openVisibilitySheet()" aria-label="Edit visibility">
+                    <div>
+                        <p class="td-edit-field-row-label">Visibility</p>
+                        <p class="td-edit-field-row-value" id="td-edit-vis-value">{% if trip.is_public %}Visible to friends{% else %}Private{% endif %}</p>
                     </div>
-                </div>
-                <div class="td-edit-row">
-                    <span class="td-edit-field-label">Status</span>
-                    <div class="td-seg-ctrl" id="td-status-seg">
-                        <button type="button" class="td-seg-btn {% if ts == 'planning' %}active{% endif %}" data-val="planning" onclick="saveStatus('planning')">Planning</button>
-                        <button type="button" class="td-seg-btn {% if ts == 'going' %}active{% endif %}" data-val="going" onclick="saveStatus('going')">Going</button>
+                    <span class="td-edit-field-row-caret">›</span>
+                </button>
+                <button type="button" class="td-edit-field-row" onclick="openStatusSheet()" aria-label="Edit status">
+                    <div>
+                        <p class="td-edit-field-row-label">Status</p>
+                        <p class="td-edit-field-row-value" id="td-edit-status-value">{% if ts == 'going' %}Going{% else %}Planning{% endif %}</p>
                     </div>
-                </div>
+                    <span class="td-edit-field-row-caret">›</span>
+                </button>
                 <div class="td-private-note-wrap">
                     <p class="td-edit-field-label">Private note</p>
                     <p class="td-private-note-hint">Only you can see this.</p>
                     <textarea id="td-note-textarea" class="td-note-textarea" maxlength="500" placeholder="Add a private note…" oninput="tdNoteOnInput()">{{ trip.notes or '' }}</textarea>
-                    <div class="td-note-footer">
-                        <span class="td-note-char-count" id="td-note-char-count">{{ (trip.notes or '') | length }}/500</span>
-                        <button type="button" class="td-note-save-btn" id="td-note-save-btn" onclick="saveNote()">Save note</button>
-                    </div>
+                    <span class="td-note-char-count" id="td-note-char-count">{{ (trip.notes or '') | length }}/500</span>
                 </div>
             </div>
             {% endif %}
@@ -1286,7 +1296,7 @@
                     </div>
                     <span class="lesson-summary" style="{% if not is_member %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
                         <span id="equipmentSummaryText">
-                            {% if current_user_participant %}{{ current_user_participant.get_display_equipment() }}{% else %}Equipment: Not set{% endif %}
+                            {% if current_user_participant %}{{ current_user_participant.get_display_equipment() }}{% else %}Not set{% endif %}
                         </span>
                         {% if is_member %}
                         <svg class="chevron-icon" id="equipmentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
@@ -1642,6 +1652,42 @@
     </div>
     {% endif %}
 
+    <!-- Visibility picker sheet (owner edit mode) -->
+    {% if is_owner %}
+    <div class="td-date-sheet-overlay" id="td-vis-sheet" onclick="if(event.target===this)closeVisibilitySheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">Visibility</p>
+            <button type="button" class="td-option-row" id="td-vis-opt-public" onclick="saveVisibility(true)">
+                Visible to friends
+                <svg class="td-option-check" id="td-vis-check-public" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </button>
+            <button type="button" class="td-option-row" id="td-vis-opt-private" onclick="saveVisibility(false)">
+                Private
+                <svg class="td-option-check" id="td-vis-check-private" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </button>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeVisibilitySheet()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Status picker sheet (owner edit mode) -->
+    <div class="td-date-sheet-overlay" id="td-status-sheet" onclick="if(event.target===this)closeStatusSheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">Status</p>
+            <button type="button" class="td-option-row" id="td-status-opt-planning" onclick="saveStatus('planning')">
+                Planning
+                <svg class="td-option-check" id="td-status-check-planning" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </button>
+            <button type="button" class="td-option-row" id="td-status-opt-going" onclick="saveStatus('going')">
+                Going
+                <svg class="td-option-check" id="td-status-check-going" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </button>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeStatusSheet()">Cancel</button>
+        </div>
+    </div>
+    {% endif %}
+
     {% if is_owner %}
     <div class="td-date-sheet-overlay" id="td-cancel-trip-sheet" onclick="if(event.target===this)closeCancelTripSheet()">
         <div class="td-date-sheet">
@@ -1926,18 +1972,46 @@
             var _tdEditActive = false;
             // Tracks last committed note value — used to detect unsaved changes on Done.
             var _tdNoteSaved = {{ (trip.notes or '') | tojson }};
+            // Track current visibility/status for sheet check marks.
+            var _tdIsPublic = {{ 'true' if trip.is_public else 'false' }};
+            var _tdStatus   = {{ (trip.trip_status or 'planning') | tojson }};
 
-            // Location: only open resort picker when in edit mode.
+            // ── Sheet helpers ──
+            function _openSheet(id) {
+                var el = document.getElementById(id);
+                if (el) { el.classList.add('active'); document.body.style.overflow = 'hidden'; }
+            }
+            function _closeSheet(id) {
+                var el = document.getElementById(id);
+                if (el) { el.classList.remove('active'); document.body.style.overflow = ''; }
+            }
+            function _syncVisChecks(isPublic) {
+                document.getElementById('td-vis-check-public')?.classList.toggle('td-check-visible', isPublic);
+                document.getElementById('td-vis-check-private')?.classList.toggle('td-check-visible', !isPublic);
+            }
+            function _syncStatusChecks(status) {
+                document.getElementById('td-status-check-planning')?.classList.toggle('td-check-visible', status === 'planning');
+                document.getElementById('td-status-check-going')?.classList.toggle('td-check-visible', status === 'going');
+            }
+            window.openVisibilitySheet = function() {
+                _syncVisChecks(_tdIsPublic);
+                _openSheet('td-vis-sheet');
+            };
+            window.closeVisibilitySheet = function() { _closeSheet('td-vis-sheet'); };
+            window.openStatusSheet = function() {
+                _syncStatusChecks(_tdStatus);
+                _openSheet('td-status-sheet');
+            };
+            window.closeStatusSheet = function() { _closeSheet('td-status-sheet'); };
+
+            // ── Location ──
             window.tdLocationTap = function() {
                 if (_tdEditActive && window.openResortSheet) openResortSheet();
             };
 
+            // ── Enter / Exit ──
             window.tdToggleEditMode = function() {
-                if (_tdEditActive) {
-                    _tdRequestExit();
-                } else {
-                    _tdEnter();
-                }
+                _tdEditActive ? _tdRequestExit() : _tdEnter();
             };
 
             function _tdEnter() {
@@ -1948,24 +2022,20 @@
                 if (pc) pc.classList.add('td-edit-mode');
                 // Sync note textarea to last committed value (handles re-entering after Done).
                 var noteEl = document.getElementById('td-note-textarea');
-                if (noteEl) {
-                    noteEl.value = _tdNoteSaved;
-                    _tdSyncNoteUI();
-                }
+                if (noteEl) { noteEl.value = _tdNoteSaved; _tdSyncNoteUI(); }
             }
 
             // Done: auto-save note if there are unsaved changes, then exit.
-            // Option A per spec §13: save first, stay in edit mode on failure.
+            // Option A: save first; stay in edit mode on failure.
             async function _tdRequestExit() {
                 var noteEl = document.getElementById('td-note-textarea');
                 var hasUnsaved = noteEl && (noteEl.value.trim() !== (_tdNoteSaved || '').trim());
                 if (hasUnsaved) {
                     var ok = await saveNote();
-                    if (!ok) return;   // save failed — stay in edit mode
+                    if (!ok) return;
                 }
                 _tdExit();
             }
-
             function _tdExit() {
                 _tdEditActive = false;
                 var btn = document.getElementById('td-edit-toggle-btn');
@@ -1974,23 +2044,16 @@
                 if (pc) pc.classList.remove('td-edit-mode');
             }
 
-            // Expose for note textarea oninput
+            // ── Note counter ──
             window.tdNoteOnInput = function() { _tdSyncNoteUI(); };
-
             function _tdSyncNoteUI() {
                 var noteEl  = document.getElementById('td-note-textarea');
                 var countEl = document.getElementById('td-note-char-count');
-                var saveBtn = document.getElementById('td-note-save-btn');
                 if (!noteEl) return;
                 if (countEl) countEl.textContent = noteEl.value.length + '/500';
-                // Subdue button when value unchanged (no unnecessary request).
-                if (saveBtn) {
-                    var unchanged = noteEl.value.trim() === (_tdNoteSaved || '').trim();
-                    saveBtn.style.opacity = unchanged ? '0.4' : '1';
-                }
             }
 
-            // Visibility — silent (historically not in _edit_meaningful in edit_trip_form).
+            // ── Visibility — silent (no participant notification) ──
             window.saveVisibility = async function(isPublic) {
                 const tripId = {{ trip.id }};
                 try {
@@ -2001,11 +2064,14 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        var badgeText = document.getElementById('td-vis-badge-text');
-                        if (badgeText) badgeText.textContent = data.label;
-                        document.querySelectorAll('#td-vis-seg .td-seg-btn').forEach(function(b) {
-                            b.classList.toggle('active', b.dataset.val === (isPublic ? 'public' : 'private'));
-                        });
+                        _tdIsPublic = isPublic;
+                        // Update in-place edit row value
+                        var rowVal = document.getElementById('td-edit-vis-value');
+                        if (rowVal) rowVal.textContent = data.label;
+                        // Update normal-mode badge
+                        var badge = document.getElementById('td-vis-badge-text');
+                        if (badge) badge.textContent = data.label;
+                        closeVisibilitySheet();
                     } else {
                         blToast(data.error || 'Could not save visibility.');
                     }
@@ -2014,7 +2080,7 @@
                 }
             };
 
-            // Status — emits TRIP_DETAILS_UPDATED to accepted+invited participants when changed.
+            // ── Status — emits TRIP_DETAILS_UPDATED when changed ──
             window.saveStatus = async function(status) {
                 const tripId = {{ trip.id }};
                 try {
@@ -2025,11 +2091,14 @@
                     });
                     const data = await res.json();
                     if (data.success) {
-                        var badgeText = document.getElementById('td-status-badge-text');
-                        if (badgeText) badgeText.textContent = data.label;
-                        document.querySelectorAll('#td-status-seg .td-seg-btn').forEach(function(b) {
-                            b.classList.toggle('active', b.dataset.val === status);
-                        });
+                        _tdStatus = status;
+                        // Update in-place edit row value
+                        var rowVal = document.getElementById('td-edit-status-value');
+                        if (rowVal) rowVal.textContent = data.label;
+                        // Update normal-mode badge
+                        var badge = document.getElementById('td-status-badge-text');
+                        if (badge) badge.textContent = data.label;
+                        closeStatusSheet();
                     } else {
                         blToast(data.error || 'Could not save status.');
                     }
@@ -2038,18 +2107,16 @@
                 }
             };
 
-            // Private note — uses existing /api/trip/<id>/notes. Silent (no notification).
-            // Returns true on success, false on failure (used by Done auto-save path).
+            // ── Private note — silent; Done auto-saves if changed ──
+            // Returns true on success, false on failure.
             window.saveNote = async function() {
                 const tripId = {{ trip.id }};
-                const noteEl  = document.getElementById('td-note-textarea');
-                const saveBtn = document.getElementById('td-note-save-btn');
-                const notes   = noteEl ? noteEl.value.trim() : '';
+                const noteEl = document.getElementById('td-note-textarea');
+                const notes  = noteEl ? noteEl.value.trim() : '';
                 if (notes.length > 500) {
                     blToast('Note cannot exceed 500 characters.');
                     return false;
                 }
-                if (saveBtn) { saveBtn.disabled = true; saveBtn.style.opacity = '0.4'; }
                 try {
                     const res = await fetch(`/api/trip/${tripId}/notes`, {
                         method: 'POST',
@@ -2059,31 +2126,18 @@
                     const data = await res.json();
                     if (data.status === 'success') {
                         _tdNoteSaved = notes;
-                        if (saveBtn) {
-                            saveBtn.disabled = false;
-                            saveBtn.classList.add('td-note-saved');
-                            saveBtn.textContent = 'Saved ✓';
-                            saveBtn.style.opacity = '1';
-                            setTimeout(function() {
-                                saveBtn.classList.remove('td-note-saved');
-                                saveBtn.textContent = 'Save note';
-                                _tdSyncNoteUI(); // re-apply subdued state
-                            }, 1800);
-                        }
                         return true;
                     } else {
                         blToast(data.message || 'Could not save note.');
-                        if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
                         return false;
                     }
                 } catch(e) {
                     blToast('Network error. Please try again.');
-                    if (saveBtn) { saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
                     return false;
                 }
             };
 
-            // Initialise note UI on page load.
+            // Initialise note counter on page load.
             _tdSyncNoteUI();
         })();
         {% endif %}
@@ -2277,7 +2331,7 @@
         async function updateEquipmentPersonal(value) {
             const tripId = {{ trip.id }};
             const labels = {
-                '':       '{{ current_user_participant.get_display_equipment() if current_user_participant else "Equipment: Not set" }}',
+                '':       '{{ current_user_participant.get_display_equipment() if current_user_participant else "Not set" }}',
                 'own':    'Bringing own',
                 'renting':'Renting'
             };
