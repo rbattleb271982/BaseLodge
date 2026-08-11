@@ -1301,14 +1301,31 @@ def compute_friend_trip_availability_overlaps(user):
 
 
 def delete_availability_overlap_activities_for_trip(trip_id):
-    """Delete all FRIEND_TRIP_OVERLAPS_AVAILABILITY activities that reference a specific trip."""
-    activities = Activity.query.filter(
-        Activity.type == ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value
-    ).all()
-    
-    for activity in activities:
-        if activity.extra_data and trip_id in activity.extra_data.get('trip_ids', []):
-            db.session.delete(activity)
+    """Delete all FRIEND_TRIP_OVERLAPS_AVAILABILITY activities that reference a specific trip.
+
+    Pushes the containment check into PostgreSQL via json_array_elements to avoid
+    loading every row into Python.  Guards against non-array extra_data with
+    json_typeof.  Handles both integer IDs (current format) and historical string IDs.
+    """
+    sql = db.text("""
+        DELETE FROM activity
+        WHERE id IN (
+            SELECT a.id
+            FROM activity a,
+                 json_array_elements(a.extra_data->'trip_ids') AS el
+            WHERE a.type = :activity_type
+              AND json_typeof(a.extra_data->'trip_ids') = 'array'
+              AND (
+                  el::text = :int_str
+                  OR el::text = :quoted_str
+              )
+        )
+    """)
+    db.session.execute(sql, {
+        "activity_type": ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value,
+        "int_str": str(trip_id),
+        "quoted_str": f'"{trip_id}"',
+    })
 
 
 def emit_availability_overlap_activities_for_user(user):
@@ -6751,6 +6768,8 @@ def admin_test_push():
     Title: BaseLodge
     Body:  Test push from BaseLodge
     """
+    if request.method == "POST":
+        validate_csrf_request()
     def _tok_preview(t):
         return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
 
@@ -11775,6 +11794,7 @@ def _validate_planning_link_url(raw):
 
 @app.route("/api/trip/<int:trip_id>/planning-posts", methods=["POST"])
 @login_required
+@limiter.limit("10 per minute", key_func=_user_or_ip)
 def planning_posts_create(trip_id):
     """Create a new planning post. Accepted members only."""
     validate_csrf_request()
@@ -13291,9 +13311,10 @@ def delete_account():
         return redirect(url_for("profile"))
 
 
-@app.route("/skip-pass-prompt")
+@app.route("/skip-pass-prompt", methods=["POST"])
 @login_required
 def skip_pass_prompt():
+    validate_csrf_request()
     session["pass_prompt_skipped"] = True
     return redirect(url_for("home"))
 
@@ -13366,6 +13387,7 @@ def init_db_http():
     - Seed all resorts (idempotent)
     - Be idempotent (safe to call multiple times)
     """
+    validate_csrf_request()
     try:
         with app.app_context():
             # Create all tables
@@ -13489,6 +13511,8 @@ def backfill_resort_ids_endpoint():
     try:
         mapping, unmatched = build_mountain_to_resort_mapping()
         
+        if request.method == "POST":
+            validate_csrf_request()
         is_preview = request.method == "GET"
         
         users_with_visited = User.query.filter(
@@ -13581,6 +13605,8 @@ def seed_test_users_endpoint():
     
     This is idempotent - safe to call multiple times.
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         from seed_test_users import seed_test_data
         from models import EquipmentSetup, EquipmentSlot, EquipmentDiscipline
@@ -13613,6 +13639,7 @@ def seed_narrative_states_endpoint():
     Creates users for State 1, 2, 3, and 4 for testing NBA behavior.
     
     Usage: GET https://yourapp.replit.dev/admin/seed-narrative-states
+    validate_csrf_request() is called for POST.
     
     Test user logins (password: testpass123):
     - state1.test@baselodge.dev (State 1: Early Onboarding)
@@ -13620,6 +13647,8 @@ def seed_narrative_states_endpoint():
     - state3.test@baselodge.dev (State 3: Planning Started, Not Fully Active)
     - state4.test@baselodge.dev (State 4: Active User)
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         from seed_test_users import seed_narrative_state_users
         
@@ -13654,6 +13683,8 @@ def seed_screenshot_data_endpoint():
 
     Usage: GET /admin/seed-screenshot-data
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         from seed_screenshots import seed_screenshot_data
         results = seed_screenshot_data(
@@ -13688,6 +13719,8 @@ def seed_screenshot_expansion_endpoint():
 
     Usage: GET /admin/seed-screenshot-expansion
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         from seed_screenshots_expansion import seed_screenshot_expansion
         results = seed_screenshot_expansion(
@@ -13721,6 +13754,8 @@ def backfill_planning_timestamp_endpoint():
     This is idempotent and safe to run multiple times.
     Only updates users who have trips but no first_planning_timestamp set.
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         from backfill_first_planning_timestamp import backfill_first_planning_timestamp
         
@@ -13757,6 +13792,8 @@ def backfill_primary_rider_type_endpoint():
     This is idempotent and safe to run multiple times.
     Only updates users who have rider_type but no primary_rider_type set.
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         users_updated = 0
         users_skipped = 0
@@ -13801,6 +13838,8 @@ def backfill_organizers_as_participants():
     This is idempotent - safe to run multiple times.
     Only creates participant records for trips where the owner is not already a participant.
     """
+    if request.method == "POST":
+        validate_csrf_request()
     try:
         trips_updated = 0
         trips_skipped = 0
@@ -15213,6 +15252,8 @@ def backfill_country_codes():
     
     This is idempotent - safe to call multiple times.
     """
+    if request.method == "POST":
+        validate_csrf_request()
     US_STATES = {
         'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
         'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
@@ -15282,6 +15323,7 @@ def backfill_country_codes():
 @admin_required
 def admin_add_country():
     """Add a new country to the reference table."""
+    validate_csrf_request()
     from models import Country
     
     data = request.get_json()
@@ -16029,6 +16071,7 @@ def admin_export_resorts_excel():
 @admin_required
 def admin_update_pass_brand():
     """Update a single resort's pass brands (supports array)."""
+    validate_csrf_request()
     data = request.get_json()
     resort_id = data.get('resort_id')
     pass_brands = data.get('pass_brands')
@@ -16066,6 +16109,7 @@ def admin_update_pass_brand():
 @admin_required
 def admin_update_resort_field():
     """Update a single field on a resort (inline editing)."""
+    validate_csrf_request()
     data = request.get_json()
     resort_id = data.get('resort_id')
     field = data.get('field')
@@ -16098,6 +16142,7 @@ def admin_update_resort_field():
 @admin_required
 def admin_update_country_name():
     """Update a resort's country name override."""
+    validate_csrf_request()
     data = request.get_json()
     resort_id = data.get('resort_id')
     country_name_override = data.get('country_name_override', '').strip()
@@ -16118,6 +16163,7 @@ def admin_update_country_name():
 @admin_required
 def admin_toggle_resort_active():
     """Toggle a resort's active status."""
+    validate_csrf_request()
     data = request.get_json()
     resort_id = data.get('resort_id')
     is_active = data.get('is_active', True)
@@ -16137,6 +16183,7 @@ def admin_toggle_resort_active():
 @admin_required
 def admin_delete_resort_post():
     """Delete a single resort via POST (for frontend compatibility)."""
+    validate_csrf_request()
     data = request.get_json()
     resort_id = data.get('resort_id')
     
@@ -16176,6 +16223,7 @@ def admin_delete_resort_post():
 @admin_required
 def admin_bulk_update_pass_brand():
     """Bulk update resorts' pass brands (supports array)."""
+    validate_csrf_request()
     data = request.get_json()
     resort_ids = data.get('resort_ids', [])
     pass_brands = data.get('pass_brands')
@@ -16222,6 +16270,7 @@ def admin_import_resorts_excel():
     - CASE C: BOTH provided → validate they match, reject if mismatch
     - CASE D: NEITHER provided → leave unchanged (for updates), reject (for creates)
     """
+    validate_csrf_request()
     from openpyxl import load_workbook
     from io import BytesIO
     from utils.countries import is_valid_country_code, country_name_from_code, country_code_from_name
@@ -16451,6 +16500,7 @@ def admin_import_resorts_excel():
 @admin_required
 def admin_update_resort(resort_id):
     """Update a single resort's editable fields."""
+    validate_csrf_request()
     resort = Resort.query.get_or_404(resort_id)
     data = request.get_json()
     
@@ -16478,6 +16528,7 @@ def admin_update_resort(resort_id):
 @admin_required
 def admin_delete_resort(resort_id):
     """Hard delete a resort. Checks for FK references first."""
+    validate_csrf_request()
     resort = Resort.query.get_or_404(resort_id)
     
     # Check for existing references
@@ -16514,6 +16565,7 @@ def admin_delete_resort(resort_id):
 @admin_required
 def admin_bulk_delete_resorts():
     """Bulk delete resorts. Returns partial success if some have FK references."""
+    validate_csrf_request()
     data = request.get_json()
     ids = data.get('ids', [])
     
@@ -16568,6 +16620,7 @@ def admin_bulk_delete_resorts():
 @admin_required
 def admin_bulk_activate_resorts():
     """Bulk activate resorts."""
+    validate_csrf_request()
     try:
         data = request.get_json()
         if not data:
@@ -16598,6 +16651,7 @@ def admin_bulk_activate_resorts():
 @admin_required
 def admin_bulk_deactivate_resorts():
     """Bulk deactivate resorts."""
+    validate_csrf_request()
     try:
         data = request.get_json()
         if not data:
@@ -16631,6 +16685,7 @@ def admin_merge_resorts():
     Merge duplicate resorts into a canonical resort.
     Repoints all FK references atomically, then marks non-canonical resorts as inactive.
     """
+    validate_csrf_request()
     data = request.get_json()
     canonical_id = data.get('canonical_id')
     duplicate_ids = data.get('duplicate_ids', [])
@@ -16720,6 +16775,7 @@ def admin_add_resort():
     Add a new resort via free-form entry.
     No tier logic, no canonical writes, no auto-merge.
     """
+    validate_csrf_request()
     import re
     
     data = request.get_json()
@@ -16822,6 +16878,7 @@ def admin_export_canonical():
     Export active resorts to canonical_resorts.json.
     This is the source of truth for PROD sync.
     """
+    validate_csrf_request()
     import os
     import json
     from datetime import datetime
@@ -16909,6 +16966,7 @@ def admin_sync_from_canonical():
                 This will update/insert resorts from the canonical JSON. Existing resorts not in the JSON will be deactivated.
             </div>
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{session.get('_csrf_token', '')}">
                 <button type="submit">Sync Now</button>
             </form>
         </body>
@@ -16916,6 +16974,7 @@ def admin_sync_from_canonical():
         '''
     
     # POST - do the sync
+    validate_csrf_request()
     try:
         stats = {'added': 0, 'updated': 0, 'deactivated': 0}
         
@@ -17303,6 +17362,8 @@ def admin_test_onesignal_push():
       - ONESIGNAL_APP_ID is set (logged and reflected in response)
       - ONESIGNAL_REST_API_KEY is set (only presence reported, value never logged)
     """
+    if request.method == "POST":
+        validate_csrf_request()
     current_app.logger.warning(
         "[OneSignal-Test] triggered by admin user_id=%d email=%s",
         current_user.id, current_user.email,
@@ -17624,6 +17685,7 @@ def admin_retry_failed_events():
         })
 
     # ── POST — execute ─────────────────────────────────────────────────────
+    validate_csrf_request()
     if not RETRY_EXECUTION_ENABLED:
         return jsonify({
             "status":  "disabled",
@@ -21626,6 +21688,7 @@ def admin_test_founder_app_open_push():
     Returns JSON describing every gate check so you can see exactly why
     a push would or would not send — without touching session throttle state.
     """
+    validate_csrf_request()
     user_id = request.args.get("user_id", type=int)
     if not user_id:
         return jsonify({"error": "user_id query param required (e.g. ?user_id=42)"}), 400
@@ -21710,6 +21773,7 @@ def admin_test_founder_signup_push():
     """TEST-ONLY — sends a hardcoded founder signup alert to richardbattlebaxter@gmail.com.
     Remove or disable after QA passes.
     """
+    validate_csrf_request()
     try:
         from services.push_providers import send_onesignal_push as _os_push
         richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
@@ -22040,6 +22104,7 @@ def admin_app_store_refresh():
     - Returns a flash message + redirect back to /admin/app-store.
     - Idempotent: re-running overwrites (upserts) the same (platform, date) rows.
     """
+    validate_csrf_request()
     from models import AppStoreMetric
     from datetime import datetime as _dt
 

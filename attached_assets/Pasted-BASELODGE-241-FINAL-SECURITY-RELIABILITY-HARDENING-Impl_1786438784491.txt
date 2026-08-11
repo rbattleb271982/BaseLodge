@@ -1,0 +1,532 @@
+BASELODGE — #241 FINAL SECURITY & RELIABILITY HARDENING
+
+Implement the remaining small hardening items from Audit #228 / #234 in one controlled batch.
+
+SCOPE:
+
+1. Convert /skip-pass-prompt from state-changing GET to POST
+2. Add CSRF protection to remaining admin mutation routes
+3. Improve delete_availability_overlap_activities_for_trip() so it does not scan every overlap Activity in Python
+4. Add reasonable rate limiting to Trip Planning post creation
+
+These are independent hardening tasks.
+
+DO NOT:
+- change product behavior
+- change trip permissions
+- change invite semantics
+- change notification recipients
+- change database schema
+- change account deletion behavior
+- change trip deletion behavior established in #230
+- change Trip Planning permissions or content rules
+- refactor unrelated code
+
+==================================================
+PART A — /skip-pass-prompt GET → POST
+==================================================
+
+Current issue:
+
+GET /skip-pass-prompt
+
+mutates:
+
+session["pass_prompt_skipped"] = True
+
+Audit #234 classified this as a low-risk state-changing GET.
+
+Convert this action to POST.
+
+==================================================
+A1. TRACE ALL CALLERS
+==================================================
+
+Search the entire codebase for callers of:
+
+/skip-pass-prompt
+url_for('skip_pass_prompt')
+skip_pass_prompt
+
+Identify:
+- templates
+- links
+- JS
+- native/WebView callers
+- redirects
+
+Do not change anything until all callers are known.
+
+==================================================
+A2. CONVERT TO POST
+==================================================
+
+Change the mutation endpoint so the state-changing action occurs through POST.
+
+The new POST must:
+
+- retain the existing login/auth behavior
+- call validate_csrf_request()
+- set the exact same session value
+- preserve the existing destination/response behavior
+
+Do not introduce any DB write.
+
+==================================================
+A3. UPDATE CALLER
+==================================================
+
+If current UI uses an <a href>:
+
+replace it with either:
+
+A. a tiny POST form with hidden csrf_token
+
+or
+
+B. existing window.fetch POST behavior
+
+Choose whichever best matches the current UI without changing its appearance.
+
+If using fetch:
+the global fetch wrapper already injects X-CSRF-Token.
+
+If using a form:
+include:
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+The visible interaction must remain unchanged.
+
+==================================================
+A4. VALIDATE
+==================================================
+
+Confirm:
+
+POST + valid CSRF
+→ existing skip behavior works
+
+POST + missing CSRF
+→ 403
+
+POST + invalid CSRF
+→ 403
+
+GET /skip-pass-prompt
+→ does NOT mutate session state
+
+Prefer either:
+- 405 Method Not Allowed
+or
+- a harmless redirect
+
+depending on the cleanest current route structure.
+
+==================================================
+PART B — ADMIN MUTATION CSRF
+==================================================
+
+Audit #234 found remaining admin mutation routes are protected by:
+
+@login_required
++ admin authorization
+
+but generally lack CSRF validation.
+
+Complete CSRF coverage for active admin state-changing routes.
+
+==================================================
+B1. INVENTORY ACTIVE ADMIN MUTATIONS
+==================================================
+
+Before editing, inventory all active:
+
+POST
+PATCH
+PUT
+DELETE
+
+routes under:
+
+/admin/*
+/api/admin/*
+
+For each identify caller type:
+
+- HTML form
+- window.fetch
+- no active caller
+- programmatic/internal
+
+Do not automatically protect external/system endpoints unless they are browser-session authenticated admin operations.
+
+==================================================
+B2. FETCH-BASED ADMIN ROUTES
+==================================================
+
+For routes called through window.fetch from admin templates:
+
+Confirm admin templates include:
+
+analytics_head.html
+
+and therefore already send:
+
+X-CSRF-Token
+
+Then add:
+
+validate_csrf_request()
+
+to the backend before mutation.
+
+No frontend change should be needed.
+
+==================================================
+B3. HTML ADMIN FORMS
+==================================================
+
+For active HTML POST forms:
+
+Confirm whether they already include:
+
+csrf_token
+
+If missing, add:
+
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+and add:
+
+validate_csrf_request()
+
+to the corresponding handler.
+
+Do not alter visible admin UI.
+
+==================================================
+B4. DO NOT BREAK SYSTEM/EXTERNAL ROUTES
+==================================================
+
+If any admin-like endpoint is:
+
+- invoked by an external service
+- cron/system authenticated
+- webhook-based
+- not session-cookie authenticated
+
+STOP for that endpoint and report it.
+
+Do not blindly add browser CSRF validation.
+
+==================================================
+B5. ADMIN TESTING
+==================================================
+
+For each protected admin route verify:
+
+Admin + valid CSRF
+→ reaches business logic
+
+Admin + missing CSRF
+→ 403
+
+Admin + invalid CSRF
+→ 403
+
+Non-admin + valid CSRF
+→ existing authorization still blocks
+
+Logged-out
+→ existing auth behavior preserved
+
+No failed CSRF request may mutate data.
+
+==================================================
+PART C — AVAILABILITY OVERLAP CLEANUP PERFORMANCE
+==================================================
+
+Audit #228 identified:
+
+delete_availability_overlap_activities_for_trip()
+
+currently scans all:
+
+FRIEND_TRIP_OVERLAPS_AVAILABILITY
+
+Activity rows in Python and inspects:
+
+extra_data["trip_ids"]
+
+This is functionally correct after #230, but inefficient as Activity volume grows.
+
+Improve this helper without changing its behavior.
+
+==================================================
+C1. INSPECT DATABASE TYPE
+==================================================
+
+Before changing the query, inspect:
+
+Activity.extra_data
+
+Determine the actual database type:
+
+- JSON
+- JSONB
+- text
+- other
+
+Use an approach supported by the actual PostgreSQL/SQLAlchemy column type.
+
+Do not assume JSONB containment if it is not JSONB.
+
+==================================================
+C2. FILTER IN DATABASE WHERE SAFE
+==================================================
+
+Goal:
+
+avoid loading every overlap Activity into Python.
+
+Filter first on:
+
+activity type == FRIEND_TRIP_OVERLAPS_AVAILABILITY
+
+and then, where supported safely, filter for records whose:
+
+extra_data.trip_ids
+
+contains the target trip ID.
+
+Important:
+
+trip_ids may contain integers or strings depending on historical data.
+
+Inspect real data first.
+
+The optimized helper must remove every row the old helper would have removed.
+
+==================================================
+C3. FALLBACK IF DB QUERY IS UNSAFE
+==================================================
+
+If the schema/database representation makes a reliable containment query risky:
+
+do NOT force a fragile optimization.
+
+Instead improve the query as far as safely possible and report why full DB containment was not used.
+
+Correctness is more important than optimization.
+
+==================================================
+C4. TEST OLD VS NEW BEHAVIOR
+==================================================
+
+Using safe test records, compare the old logical behavior against the new helper for:
+
+trip_ids = [123]
+
+trip_ids = [10, 123, 500]
+
+trip_ids containing strings if historical format allows:
+["123"]
+
+unrelated trip_ids
+
+missing extra_data
+
+missing trip_ids
+
+malformed/non-list trip_ids if such records can exist
+
+Confirm only activities referencing the deleted trip are removed.
+
+==================================================
+C5. PRESERVE #230
+==================================================
+
+Both trip deletion paths must continue calling:
+
+delete_availability_overlap_activities_for_trip()
+
+Do not change:
+
+_delete_trip_related_data()
+
+except if technically necessary to call the unchanged helper signature.
+
+Trip deletion must continue passing all #230 regression tests.
+
+==================================================
+PART D — TRIP PLANNING CREATE RATE LIMIT
+==================================================
+
+Audit #228 recommended a modest rate limit on:
+
+POST /api/trip/<id>/planning-posts
+
+to reduce spam/accidental rapid submissions.
+
+Add a reasonable rate limit using BaseLodge's EXISTING rate-limiting infrastructure.
+
+Do not introduce a new rate-limit library.
+
+==================================================
+D1. INSPECT EXISTING RATE LIMIT PATTERN
+==================================================
+
+Find existing routes using rate limiting, such as:
+
+change-password
+authentication flows
+
+Use the same decorator/helper/pattern.
+
+==================================================
+D2. APPLY ONLY TO CREATE
+==================================================
+
+Apply rate limiting ONLY to:
+
+POST /api/trip/<id>/planning-posts
+
+Do NOT rate limit:
+
+GET planning page
+PATCH post
+DELETE post
+
+in this task.
+
+==================================================
+D3. CHOOSE A REASONABLE LIMIT
+==================================================
+
+Use a limit that prevents spam but does not interfere with ordinary Trip Planning use.
+
+Target something around:
+
+10 posts per minute per user
+
+unless the project's existing limiter architecture strongly suggests another equivalent value.
+
+Do not use an excessively restrictive limit.
+
+==================================================
+D4. PRESERVE PLANNING BEHAVIOR
+==================================================
+
+Do not change:
+
+- owner/accepted-participant access
+- categories
+- 500-character limit
+- http/https link validation from #229
+- edit/delete permissions
+- owner moderation
+- notifications
+
+A rate-limited request must:
+
+- create no post
+- send no notification
+- return the project's normal rate-limit response
+
+==================================================
+PART E — REGRESSION
+==================================================
+
+After all four parts, verify:
+
+TRIP DETAIL
+- loads normally
+- Edit trip works
+- My Setup works
+- Trip Planning opens
+
+TRIP PLANNING
+- normal post creation works
+- valid links work
+- unsafe links remain blocked
+- edit/delete work
+- permissions unchanged
+- notifications unchanged
+
+TRIP DELETION
+- API deletion works
+- form deletion works
+- invite tokens/invitations cleaned
+- overlap activities cleaned
+- rollback behavior intact
+
+SESSION
+- pass prompt can still be skipped
+- session persistence otherwise unchanged
+
+ADMIN
+- admin pages load
+- valid mutations work
+- non-admin remains blocked
+
+CAPACITOR
+- normal app screens load
+- no fetch-wrapper changes
+- no native changes
+
+==================================================
+PART F — RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+
+2. /skip-pass-prompt:
+   - callers found
+   - GET behavior before/after
+   - POST implementation
+   - CSRF validation
+   - regression results
+
+3. Admin CSRF:
+   - complete list of routes changed
+   - caller type for each
+   - form/template changes
+   - fetch routes
+   - routes skipped and why
+   - admin/non-admin test results
+
+4. Availability overlap helper:
+   - database type of extra_data
+   - old algorithm
+   - new algorithm
+   - query used
+   - historical data format discovered
+   - correctness test results
+   - performance improvement
+
+5. Planning rate limit:
+   - existing limiter pattern used
+   - exact limit
+   - rate-limit test
+   - no-notification/no-write verification
+
+6. Full regression results
+
+7. Any issue encountered
+
+EXPLICITLY CONFIRM:
+
+- /skip-pass-prompt no longer mutates state through GET
+- its POST action validates CSRF
+- all active browser/session admin mutations are CSRF protected
+- no external/system route was accidentally broken
+- overlap activity cleanup remains functionally identical
+- trip deletion still clears overlap references
+- Trip Planning create now has reasonable rate limiting
+- normal Trip Planning use remains unaffected
+- no schema changes
+- no notification recipient changes
+- no native/Capacitor changes
