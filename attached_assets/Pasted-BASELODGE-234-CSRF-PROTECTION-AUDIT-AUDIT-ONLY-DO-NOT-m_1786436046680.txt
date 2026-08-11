@@ -1,0 +1,374 @@
+BASELODGE — #234 CSRF PROTECTION AUDIT
+
+AUDIT ONLY.
+
+DO NOT modify code.
+DO NOT add CSRF checks.
+DO NOT change route behavior.
+DO NOT change authentication/session behavior.
+DO NOT change Capacitor/native behavior.
+DO NOT migrate schema.
+
+Audit all state-changing BaseLodge routes and determine exactly where CSRF protection is missing, already present, unnecessary, or potentially incompatible with existing app callers.
+
+==================================================
+BACKGROUND
+==================================================
+
+Audit #228 identified a broad potential CSRF gap across browser-accessible state-changing routes.
+
+BaseLodge is used through:
+- normal web/browser flows
+- native Capacitor WebView flows
+- JavaScript fetch/API calls
+- HTML forms
+
+We must NOT blindly add validate_csrf_request() everywhere.
+
+First determine the exact protection model and caller behavior route-by-route.
+
+==================================================
+1. INVENTORY ALL STATE-CHANGING ROUTES
+==================================================
+
+Find every route using:
+
+POST
+PATCH
+PUT
+DELETE
+
+For each return:
+
+- route
+- method
+- handler
+- purpose
+- @login_required?
+- owner/member/admin restriction?
+- HTML form caller?
+- JS fetch caller?
+- native/Capacitor caller?
+- external/webhook caller?
+- current CSRF protection
+- content type expected
+- response type
+
+Classify each as:
+
+PROTECTED
+UNPROTECTED
+CSRF NOT APPLICABLE
+NEEDS VERIFICATION
+
+==================================================
+2. IDENTIFY CURRENT CSRF MECHANISMS
+==================================================
+
+Find all existing CSRF infrastructure in the project.
+
+Search for:
+
+validate_csrf_request
+csrf_token
+CSRFProtect
+csrf.exempt
+X-CSRF-Token
+X-CSRFToken
+csrf
+form hidden token
+meta csrf token
+
+Document:
+
+- how tokens are generated
+- how HTML forms include them
+- how JS fetch calls include them
+- whether native WebView shares the same session/cookies
+- whether JSON API calls already use a token/header convention
+
+==================================================
+3. HTML FORM AUDIT
+==================================================
+
+For every state-changing HTML form:
+
+Confirm:
+
+- form has a CSRF token
+- backend validates it
+- failure returns safe 403/error
+- token is bound to session
+- token is not optional
+
+Flag forms where:
+- hidden token exists but backend never validates
+- backend validates but template omits token
+- GET is used to mutate state
+
+==================================================
+4. JAVASCRIPT FETCH AUDIT
+==================================================
+
+For every fetch()/axios/XMLHttpRequest that mutates state:
+
+Document:
+
+- endpoint
+- method
+- credentials behavior
+- headers
+- body
+- whether CSRF token is sent
+- where token comes from
+
+Flag endpoints that rely only on session cookies and accept cross-site browser requests without CSRF validation.
+
+==================================================
+5. CAPACITOR / NATIVE FLOW AUDIT
+==================================================
+
+Inspect:
+
+static/js/bl-native.js
+
+and any native bridge behavior.
+
+Determine:
+
+- whether Capacitor calls the same Flask routes through the WebView
+- whether cookies are shared
+- whether fetch requests originate from the same app origin
+- whether CSRF tokens are already available in the rendered DOM
+- whether adding strict CSRF validation would break native flows
+
+For any risky route, explain exactly why.
+
+==================================================
+6. HIGH-RISK ROUTES
+==================================================
+
+Prioritize review of:
+
+- account deletion
+- change password
+- profile changes
+- trip create/edit/delete
+- participant actions
+- My Setup
+- Trip Planning create/edit/delete
+- invite acceptance
+- invite decline/cancel
+- friend actions
+- notification settings
+- pass prompt / setup changes
+- admin mutations
+
+==================================================
+7. GET STATE MUTATIONS
+==================================================
+
+Find every GET route that changes database/session state.
+
+Examples may include:
+
+/skip-pass-prompt
+
+For each:
+
+- exact mutation
+- why GET is being used
+- caller
+- whether it can safely become POST
+- CSRF implications
+
+Rank by risk.
+
+==================================================
+8. COOKIE / SESSION SETTINGS
+==================================================
+
+Inspect current Flask/session cookie configuration.
+
+Report:
+
+- SameSite
+- Secure
+- HttpOnly
+- domain/path
+- remember-cookie settings if applicable
+
+Determine how much protection SameSite currently provides against cross-site requests.
+
+Do NOT treat SameSite as a complete substitute for CSRF unless the exact route/caller makes that defensible.
+
+==================================================
+9. ORIGIN / REFERER PROTECTION
+==================================================
+
+Check whether the application currently validates:
+
+Origin
+Referer
+
+on state-changing requests.
+
+If not, report that.
+
+Do not implement it.
+
+==================================================
+10. EXEMPTIONS
+==================================================
+
+Find any routes explicitly exempt from CSRF.
+
+For each:
+
+- route
+- reason
+- caller
+- whether exemption is still justified
+- risk if browser-authenticated session can reach it
+
+==================================================
+11. AUTHORIZATION VS CSRF
+==================================================
+
+Do not confuse authorization with CSRF protection.
+
+For every high-risk route, distinguish:
+
+- who is allowed to perform the operation
+- whether another website could cause that logged-in user’s browser to perform it
+
+Flag routes that are authorization-correct but CSRF-vulnerable.
+
+==================================================
+12. TEST SAFE PROBES
+==================================================
+
+Using safe test clients and no production data changes:
+
+For representative routes, test:
+
+A. valid authenticated request with expected CSRF
+B. authenticated request with missing CSRF
+C. authenticated request with invalid CSRF
+D. logged-out request
+E. cross-origin-like request where practical
+
+Do not mutate production data.
+
+Use rollback/test data.
+
+==================================================
+13. ROUTE CLASSIFICATION MATRIX
+==================================================
+
+For every state-changing route classify:
+
+A. MUST ADD CSRF
+Browser/session-authenticated mutation with no current protection.
+
+B. ALREADY PROTECTED
+No change needed.
+
+C. NEEDS CALLER CHANGE FIRST
+Backend protection would break current JS/native caller until token/header handling is added.
+
+D. CSRF NOT APPLICABLE
+For example, truly token-authenticated non-cookie API or external webhook with independent auth.
+
+E. REPLACE GET WITH POST
+State mutation currently performed via GET.
+
+==================================================
+14. IMPLEMENTATION RISK
+==================================================
+
+For every route that needs a fix, assign:
+
+LOW
+MEDIUM
+HIGH
+
+based on likelihood of breaking:
+
+- browser UI
+- native WebView
+- login/session restore
+- invite/deep-link flows
+- third-party integrations
+
+==================================================
+15. RECOMMENDED PROTECTION PATTERN
+==================================================
+
+Based on the existing BaseLodge architecture, recommend ONE consistent pattern for:
+
+HTML forms
+
+and ONE for:
+
+JavaScript JSON/fetch mutations
+
+Prefer existing project mechanisms where possible.
+
+Do not invent a new framework if an existing helper can be used.
+
+==================================================
+16. DO NOT OVER-REPORT
+==================================================
+
+Only report concrete CSRF exposure.
+
+Do not call something vulnerable merely because it uses POST.
+
+Consider:
+
+- session cookies
+- SameSite
+- existing token checks
+- request origin
+- independent auth tokens
+- native-only flows
+
+==================================================
+17. RETURN FORMAT
+==================================================
+
+Return:
+
+1. Executive Summary
+2. Current CSRF architecture
+3. State-changing route inventory
+4. Already-protected routes
+5. Unprotected browser/session routes
+6. JS/fetch caller findings
+7. Capacitor/native compatibility findings
+8. GET state-mutation findings
+9. Cookie/session findings
+10. Origin/Referer findings
+11. CSRF exemptions
+12. Authorization-vs-CSRF findings
+13. Safe probe results
+14. Route classification matrix
+15. Recommended protection pattern
+16. Implementation risk by route
+17. Top fixes in recommended order
+18. Recommended implementation batches
+
+For each route needing a fix include:
+
+- route
+- method
+- handler
+- caller
+- current protection
+- risk
+- recommended fix
+
+AUDIT ONLY.
+
+DO NOT CHANGE ANY CODE.
