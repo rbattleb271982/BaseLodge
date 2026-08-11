@@ -1,0 +1,144 @@
+BASELODGE — FIND TEST ACCOUNTS WITH “DELETE” IN THE NAME
+
+AUDIT ONLY.
+
+Do NOT delete, modify, disable, merge, or anonymize any accounts.
+
+I have a number of test accounts where the user’s name contains the word:
+
+delete
+
+I want a complete list so I can decide which accounts to remove manually.
+
+==================================================
+1. SEARCH USER ACCOUNTS
+==================================================
+
+Query the actual BaseLodge user database.
+
+Find every User record where “delete” appears anywhere in a name-related field, case-insensitive.
+
+Search all applicable fields, including where present:
+
+- first_name
+- last_name
+- full_name
+- display_name
+- name
+
+Also check email/username only if “delete” appears there, but clearly distinguish those from name matches.
+
+Examples that should match:
+
+Delete Test
+DELETE ACCOUNT
+John Delete
+delete123
+Test-delete
+
+Use case-insensitive matching.
+
+==================================================
+2. RETURN IDENTIFYING DETAILS
+==================================================
+
+For each matching account return:
+
+- User ID
+- First name
+- Last name
+- Display/full name if applicable
+- Email
+- Username if applicable
+- Account creation date if available
+- Last login / last activity if available
+- Whether the account is active
+- Whether it appears to be a test account
+
+==================================================
+3. SHOW RELATED DATA BEFORE DELETION
+==================================================
+
+For each matching user, also report the count of related records that would matter if the account were deleted, including where applicable:
+
+- Trips owned
+- Trip participant rows
+- Friend relationships
+- Friend invites / invite tokens
+- Trip invites
+- Trip Planning posts
+- Notifications
+- Activities/feed records
+- Messaging/event records
+- Any other table with a foreign key or logical relationship to User
+
+Do not change any related records.
+
+The purpose is to understand deletion impact before deleting the user.
+
+==================================================
+4. CHECK USER DELETION MECHANISM
+==================================================
+
+Identify the existing BaseLodge account-deletion mechanism, if one exists.
+
+Report:
+
+- route/function used for deleting a user
+- whether deletion is hard delete or soft delete
+- which related rows cascade automatically
+- which related rows are manually deleted
+- which related rows would block deletion
+- whether owned trips are deleted, transferred, or preserved
+- whether participant/friend/invite/planning data is cleaned up
+- whether auth/session records are cleaned up
+
+DO NOT invoke the deletion mechanism.
+
+==================================================
+5. SAFETY
+==================================================
+
+Do not infer that an account should be deleted solely because its name contains “delete.”
+
+Do not delete anything.
+
+Do not run bulk DELETE SQL.
+
+Do not make schema changes.
+
+Do not modify production data.
+
+==================================================
+6. RETURN FORMAT
+==================================================
+
+Return:
+
+1. Total number of matching accounts
+
+2. A table:
+
+User ID
+Name
+Email
+Created
+Last Active
+Owned Trips
+Trip Memberships
+Friends
+Planning Posts
+Other Related Data
+Likely Test Account?
+
+3. Any matches where “delete” appears only in email/username rather than name
+
+4. Existing account-deletion route/function
+
+5. What happens to related data when that deletion function runs
+
+6. Any deletion risks or orphan-data risks
+
+7. A clean numbered list of the matching User IDs so I can tell you exactly which ones I want deleted next
+
+AUDIT ONLY. DO NOT DELETE ANY ACCOUNTS.
