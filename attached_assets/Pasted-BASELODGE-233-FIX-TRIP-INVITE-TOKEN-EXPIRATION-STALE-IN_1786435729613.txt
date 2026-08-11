@@ -1,0 +1,452 @@
+BASELODGE — #233 FIX TRIP INVITE TOKEN EXPIRATION & STALE INVITATION STATE
+
+Implement ONLY the two correctness fixes confirmed by Audit #232:
+
+1. Enforce TripInviteToken.expires_at when it has a value.
+2. Reconcile an existing pending Invitation row when that same user accepts through a TripInviteToken.
+
+DO NOT:
+- change the open-share-link model
+- bind tokens to specific users or emails
+- change reusable-token behavior
+- add token revocation UI
+- re-enable the disabled TripInviteToken sharing UI
+- change notifications
+- migrate schema
+- change invite preview content
+- change friendship behavior
+
+==================================================
+BACKGROUND
+==================================================
+
+Audit #232 confirmed:
+
+TripInviteToken is intentionally an OPEN, REUSABLE share link.
+
+There is no intended recipient binding.
+
+Multiple different users are allowed to accept the same token.
+
+This behavior is correct and must remain unchanged.
+
+However:
+
+1. TripInviteToken.expires_at is currently ignored by both:
+   GET /trip-invite/<token>
+   POST /trip-invite/<token>/accept
+
+2. Six existing tokens have expired expires_at values but remain active and acceptable.
+
+3. If a user already has a direct Invitation row with status='pending'
+   and then accepts the trip through a TripInviteToken,
+   SkiTripParticipant becomes ACCEPTED but the Invitation row remains pending.
+
+Fix ONLY these two inconsistencies.
+
+==================================================
+1. CENTRALIZE TOKEN VALIDITY CHECK
+==================================================
+
+Inspect:
+
+trip_invite_token_landing()
+trip_invite_token_accept()
+
+Both currently validate:
+
+- token exists
+- tit.is_active
+
+but not:
+
+tit.expires_at
+
+Avoid duplicating subtly different validity logic if a very small internal helper is appropriate.
+
+Desired validity:
+
+A token is valid if:
+
+- token exists
+- is_active == True
+- AND either:
+    expires_at is NULL
+    OR expires_at is in the future
+
+Important:
+
+Current token creation intentionally sets:
+
+expires_at = NULL
+
+Those tokens remain valid indefinitely until deactivated.
+
+DO NOT start assigning expiration dates to new tokens.
+
+This task only enforces expiration where expires_at already has a value.
+
+==================================================
+2. TIMEZONE / DATETIME SAFETY
+==================================================
+
+Use the same UTC datetime convention already used by the project/model.
+
+Before implementing, inspect whether:
+
+TripInviteToken.expires_at
+
+contains naive UTC datetimes or timezone-aware values.
+
+Compare like with like.
+
+Do not introduce a naive-vs-aware datetime runtime error.
+
+==================================================
+3. LANDING PAGE EXPIRATION
+==================================================
+
+Update:
+
+GET /trip-invite/<token>
+
+If:
+
+tit.expires_at is not NULL
+
+AND
+
+the token has expired
+
+then treat it as invalid.
+
+Render the same safe invalid-invite experience used for inactive/invalid tokens.
+
+Do not reveal internal token state.
+
+Suggested user-facing language if the existing template accepts a message:
+
+"This trip invite link has expired."
+
+Do not show:
+- database values
+- token timestamps
+- inviter/trip information
+
+for expired tokens.
+
+==================================================
+4. ACCEPTANCE EXPIRATION
+==================================================
+
+Update:
+
+POST /trip-invite/<token>/accept
+
+Apply the SAME expiration validation.
+
+This is required even if the landing page already blocks expired links.
+
+Never rely on the GET page as the authorization/security control.
+
+For an expired token:
+
+- do not create a participant
+- do not upgrade INVITED/DECLINED status
+- do not set trip.is_group_trip
+- do not stamp used_at
+- do not commit
+- do not emit notifications
+
+Return/render the normal invalid/expired invite response.
+
+==================================================
+5. PRESERVE NULL expires_at BEHAVIOR
+==================================================
+
+Current token helper:
+
+get_or_create_trip_invite_token()
+
+creates reusable tokens without expires_at.
+
+Do NOT change this.
+
+Verify:
+
+expires_at = NULL
+is_active = True
+
+continues to work on both:
+- landing
+- acceptance
+
+This preserves the current open-share-link product behavior.
+
+==================================================
+6. PRESERVE MULTI-USER REUSE
+==================================================
+
+Do NOT deactivate a token after acceptance.
+
+Verify:
+
+User A accepts valid token.
+User B accepts SAME valid token.
+
+Both still succeed.
+
+Token remains:
+
+is_active = True
+
+used_at remains informational first-use timestamp.
+
+Do not change this behavior.
+
+==================================================
+7. STALE Invitation RECONCILIATION
+==================================================
+
+Audit #232 confirmed that TripInviteToken and Invitation are parallel systems.
+
+Scenario:
+
+User has:
+SkiTripParticipant status = INVITED
+
+and/or a matching trip Invitation with:
+status = pending
+
+Then user accepts through TripInviteToken.
+
+Current behavior:
+participant becomes ACCEPTED
+but matching Invitation may remain pending.
+
+Fix this consistency issue.
+
+When token acceptance succeeds, find ONLY Invitation rows that clearly correspond to:
+
+- this same trip
+- this current user
+- pending/invited state
+
+Use the actual Invitation model fields to determine the correct recipient relationship.
+
+Do not broadly update invitations.
+
+Do not touch:
+- invitations for another user
+- invitations for another trip
+- friend invitations
+- already declined/accepted historical rows unless existing model semantics clearly require it
+
+For a matching pending trip Invitation:
+
+update it to the project's canonical accepted status.
+
+Do this inside the SAME transaction as participant acceptance.
+
+==================================================
+8. DO NOT CHANGE PARTICIPANT ACCEPTANCE LOGIC
+==================================================
+
+Preserve current behavior:
+
+No participant:
+→ create ACCEPTED guest row
+
+Existing INVITED participant:
+→ change to ACCEPTED
+
+Existing DECLINED participant:
+→ change to ACCEPTED
+
+Existing ACCEPTED participant:
+→ idempotent redirect, no write, no notification
+
+Owner:
+→ cannot join own trip via token
+
+Do not alter these rules.
+
+==================================================
+9. NOTIFICATIONS
+==================================================
+
+Preserve current notification behavior exactly.
+
+First successful acceptance by a user:
+
+TRIP_INVITE_ACCEPTED
+→ owner
+
+TRIP_PARTICIPANT_ADDED
+→ appropriate existing accepted participants
+
+Same user accepting again:
+→ no new notification
+
+Multiple different users:
+→ one legitimate acceptance event per user
+
+Expired token:
+→ ZERO notifications
+
+Do not change recipient logic.
+
+==================================================
+10. EXISTING EXPIRED TOKEN VALIDATION
+==================================================
+
+Audit #232 identified six existing active tokens with past expires_at values.
+
+READ ONLY after implementation:
+
+Verify each now fails the landing validity check.
+
+Do not delete or alter those token rows.
+
+Expected:
+
+is_active may remain True
+expires_at remains unchanged
+but route treats token as expired.
+
+Do NOT bulk deactivate them in this task.
+
+==================================================
+11. TEST MATRIX
+==================================================
+
+Test safely:
+
+A.
+is_active=True
+expires_at=NULL
+Expected:
+landing works
+acceptance works
+
+B.
+is_active=True
+expires_at=future
+Expected:
+landing works
+acceptance works
+
+C.
+is_active=True
+expires_at=past
+Expected:
+landing blocked
+acceptance blocked
+
+D.
+is_active=False
+expires_at=NULL
+Expected:
+blocked
+
+E.
+is_active=False
+expires_at=future
+Expected:
+blocked
+
+F.
+valid reusable token:
+User A accepts
+User B accepts
+Expected:
+both succeed
+
+G.
+same user accepts valid token twice
+Expected:
+second attempt idempotent
+no duplicate participant
+no duplicate notification
+
+H.
+user has pending trip Invitation then accepts token
+Expected:
+participant ACCEPTED
+matching Invitation accepted
+no stale pending row
+
+==================================================
+12. TRANSACTION SAFETY
+==================================================
+
+Invitation reconciliation must be committed in the same transaction as:
+
+- participant create/update
+- trip.is_group_trip update
+- used_at stamp
+
+If DB commit fails:
+
+rollback all of it.
+
+Do not leave:
+participant accepted
+while Invitation still pending
+
+or vice versa.
+
+==================================================
+13. REGRESSION
+==================================================
+
+Verify:
+
+- share-link remains reusable
+- no recipient binding introduced
+- any logged-in user with a valid open-share URL can still accept
+- landing preview still shows only inviter + mountain + dates
+- participant privacy unchanged
+- Trip Planning unchanged
+- direct invite flow unchanged
+- friend invite flow unchanged
+- trip deletion unchanged
+- account deletion unchanged
+- disabled trip-invite UI remains disabled
+- server starts cleanly
+- no schema changes
+
+==================================================
+14. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Token-validity implementation
+3. Datetime comparison approach
+4. Landing-page expiration behavior
+5. Acceptance expiration behavior
+6. NULL expires_at behavior
+7. Multi-user reuse validation
+8. Same-user idempotency
+9. Invitation reconciliation logic
+10. Exact Invitation rows/statuses affected
+11. Notification regression results
+12. Existing expired-token verification
+13. Full test matrix
+14. Transaction/rollback results
+15. Regression results
+16. Any issue encountered
+
+Explicitly confirm:
+
+- expired active tokens can no longer land or be accepted
+- tokens with expires_at=NULL still work
+- valid tokens remain reusable by multiple users
+- no recipient binding was introduced
+- same user cannot create duplicate participant rows
+- matching pending Invitation becomes accepted when token acceptance succeeds
+- expired attempts create no participant and no notifications
+- no schema changes
+- disabled TripInviteToken sharing UI remains disabled

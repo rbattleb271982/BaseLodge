@@ -2662,6 +2662,22 @@ def get_or_create_invite_token(user):
     return invite
 
 
+def _tit_is_expired(tit):
+    """Return True if this TripInviteToken has a past expires_at value.
+
+    Tokens created with expires_at=None are permanent (the current default for
+    get_or_create_trip_invite_token).  Six legacy tokens from June 2026 carry a
+    1-hour TTL that was never enforced; this helper lets both the landing and
+    acceptance routes enforce it consistently.
+
+    Comparison is naive UTC throughout — expires_at is stored as
+    'timestamp without time zone' (UTC) and datetime.utcnow() is also naive UTC.
+    """
+    if tit.expires_at is None:
+        return False
+    return datetime.utcnow() > tit.expires_at
+
+
 def get_or_create_trip_invite_token(trip_id, inviter_user_id):
     """Get or create a reusable TripInviteToken for this trip+inviter pair."""
     existing = TripInviteToken.query.filter_by(
@@ -11992,6 +12008,9 @@ def trip_invite_token_landing(token):
     if not tit or not tit.is_active:
         return render_template("invite_invalid.html",
                                message="This trip invite link is no longer valid.")
+    if _tit_is_expired(tit):
+        return render_template("invite_invalid.html",
+                               message="This trip invite link has expired.")
     trip = db.session.get(SkiTrip, tit.trip_id)
     if not trip:
         return render_template("invite_invalid.html",
@@ -12049,6 +12068,9 @@ def trip_invite_token_accept(token):
     if not tit or not tit.is_active:
         return render_template("invite_invalid.html",
                                message="This trip invite link is no longer valid.")
+    if _tit_is_expired(tit):
+        return render_template("invite_invalid.html",
+                               message="This trip invite link has expired.")
     trip = db.session.get(SkiTrip, tit.trip_id)
     if not trip:
         return render_template("invite_invalid.html",
@@ -12084,6 +12106,19 @@ def trip_invite_token_accept(token):
     # Stamp first-use timestamp (informational only — token remains reusable)
     if tit.used_at is None:
         tit.used_at = datetime.utcnow()
+
+    # Reconcile any matching pending Invitation row (same trip, same recipient).
+    # TripInviteToken and Invitation are parallel systems; if the user already had
+    # a direct pending invite for this trip, accepting via token should leave no
+    # stale pending Invitation row.  Updated inside the same transaction so the two
+    # systems stay consistent even on rollback.
+    _pending_trip_inv = Invitation.query.filter_by(
+        receiver_id=current_user.id,
+        trip_id=trip.id,
+        status='pending',
+    ).first()
+    if _pending_trip_inv:
+        _pending_trip_inv.status = 'accepted'
 
     db.session.commit()
 
