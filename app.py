@@ -5756,6 +5756,7 @@ def api_invite_share():
 @login_required
 @limiter.limit("20 per hour", key_func=_user_or_ip)
 def invite_friend():
+    validate_csrf_request()
     # Authentication guard (already protected by @login_required)
     if not current_user.is_authenticated:
         abort(401)
@@ -5856,6 +5857,7 @@ def get_friend_profile(friend_id):
 @app.route("/api/friends/invite/<int:invitation_id>/accept", methods=["POST"])
 @login_required
 def accept_invitation(invitation_id):
+    validate_csrf_request()
     invitation = db.session.get(Invitation, invitation_id)
 
     if not invitation:
@@ -5921,6 +5923,7 @@ def accept_invitation(invitation_id):
 @app.route("/api/friends/invite/<int:invitation_id>/decline", methods=["POST"])
 @login_required
 def decline_invitation(invitation_id):
+    validate_csrf_request()
     invitation = db.session.get(Invitation, invitation_id)
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
@@ -5940,6 +5943,7 @@ def decline_invitation(invitation_id):
 @app.route("/api/friends/<int:friend_id>", methods=["DELETE"])
 @login_required
 def remove_friend(friend_id):
+    validate_csrf_request()
     friend1 = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     friend2 = Friend.query.filter_by(user_id=friend_id, friend_id=current_user.id).first()
 
@@ -5986,6 +5990,7 @@ def remove_friend(friend_id):
 @login_required
 def set_trip_invites(friend_id):
     """Set trip_invites_allowed for a friendship (explicit Yes/No, no toggle)."""
+    validate_csrf_request()
     friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     
     if not friendship:
@@ -6007,6 +6012,7 @@ def set_trip_invites(friend_id):
 @login_required
 def update_buddy_pass():
     """Update buddy pass availability for a specific pass."""
+    validate_csrf_request()
     SUPPORTED_PASSES = ['epic', 'ikon', 'other']
     
     data = request.get_json() or {}
@@ -8492,8 +8498,9 @@ def friend_profile_legacy(user_id):
 @app.route("/api/profile/update", methods=["POST"])
 @login_required
 def update_profile():
+    validate_csrf_request()
     user = current_user
-    
+
     data = request.get_json()
     
     if "first_name" in data:

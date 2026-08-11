@@ -1,0 +1,276 @@
+BASELODGE — #237 ADD CSRF VALIDATION TO FRIEND / PROFILE FETCH MUTATIONS
+
+Implement ONLY backend CSRF validation for the friend/profile-related fetch/API mutation routes listed below.
+
+Audit #234 confirmed that current frontend callers already send:
+
+X-CSRF-Token
+
+through the global window.fetch wrapper in analytics_head.html.
+
+NO frontend changes should be required.
+
+DO NOT:
+- modify the fetch wrapper
+- add new CSRF infrastructure
+- change route payloads
+- change permissions
+- change notifications
+- change schema
+- change UI
+- change native/Capacitor behavior
+- touch unrelated routes
+
+==================================================
+1. ROUTES IN SCOPE
+==================================================
+
+Add validate_csrf_request() to these active routes:
+
+POST /api/friends/invite
+
+POST /api/friends/invite/<id>/accept
+
+POST /api/friends/invite/<id>/decline
+
+DELETE /api/friends/<id>
+
+POST /api/friends/<id>/set-trip-invites
+
+POST /api/profile/update
+
+POST /api/buddy-pass
+
+If exact parameter names differ, use the actual route definitions.
+
+==================================================
+2. VERIFY CALLERS FIRST
+==================================================
+
+Before editing each route:
+
+- identify all active frontend callers
+- confirm they use window.fetch
+- confirm their rendered template includes analytics_head.html
+- confirm X-CSRF-Token is already being injected
+
+If any caller bypasses the global fetch wrapper:
+
+STOP for that route and report it.
+
+Do not knowingly break an active caller.
+
+==================================================
+3. ADD BACKEND CSRF VALIDATION
+==================================================
+
+For each confirmed route add:
+
+validate_csrf_request()
+
+near the beginning of the handler, before:
+
+- payload parsing
+- friendship changes
+- invitation state changes
+- profile mutation
+- buddy-pass mutation
+- database writes
+- notifications
+
+Preserve existing decorator/order conventions where appropriate.
+
+The only intended behavioral change:
+
+authenticated mutation + missing/invalid CSRF
+→ 403
+
+==================================================
+4. FRIEND INVITE REGRESSION
+==================================================
+
+Verify with valid CSRF:
+
+POST /api/friends/invite
+
+still:
+
+- sends the existing friend invite
+- preserves duplicate protection
+- preserves existing recipient rules
+- preserves existing notifications
+- preserves response JSON
+
+Do not change invite semantics.
+
+==================================================
+5. ACCEPT / DECLINE REGRESSION
+==================================================
+
+Verify:
+
+POST /api/friends/invite/<id>/accept
+
+and
+
+POST /api/friends/invite/<id>/decline
+
+still preserve:
+
+- correct invitation ownership
+- friendship creation behavior
+- duplicate Friend protection
+- invitation status updates
+- notifications
+- transaction behavior
+
+Do not refactor invite acceptance in this task.
+
+==================================================
+6. REMOVE FRIEND REGRESSION
+==================================================
+
+Verify:
+
+DELETE /api/friends/<id>
+
+still:
+
+- only removes an authorized friendship
+- cleans both directions as currently designed
+- does not alter unrelated friendships
+- preserves current response shape
+
+Do not change the existing form-based:
+
+POST /friends/<id>/remove
+
+route, because it is already CSRF protected.
+
+==================================================
+7. TRIP INVITE PREFERENCE REGRESSION
+==================================================
+
+Verify:
+
+POST /api/friends/<id>/set-trip-invites
+
+still only updates the intended friendship preference.
+
+No other friendship data should change.
+
+==================================================
+8. PROFILE REGRESSION
+==================================================
+
+Verify:
+
+POST /api/profile/update
+
+still updates the same allowed fields.
+
+Preserve:
+
+- validation
+- ownership/current_user behavior
+- response JSON
+- image/photo behavior
+- profile visibility behavior
+
+Do not touch the separate HTML form profile route in this task.
+
+==================================================
+9. BUDDY PASS REGRESSION
+==================================================
+
+Verify:
+
+POST /api/buddy-pass
+
+still updates buddy-pass state exactly as before.
+
+No response or field semantics should change.
+
+==================================================
+10. CSRF TEST MATRIX
+==================================================
+
+For EACH route in scope verify using safe test data:
+
+A. authenticated + valid CSRF
+Expected:
+request reaches normal business logic
+
+B. authenticated + missing CSRF
+Expected:
+403
+
+C. authenticated + invalid CSRF
+Expected:
+403
+
+D. logged-out
+Expected:
+existing unauthenticated behavior / decorator behavior preserved
+
+Do not normalize D unless required.
+
+==================================================
+11. FAILED-CSRF SIDE EFFECTS
+==================================================
+
+For representative routes confirm invalid/missing CSRF causes:
+
+- no DB writes
+- no friendship creation/removal
+- no invitation status change
+- no profile change
+- no buddy-pass change
+- no notification
+- no activity event tied to successful mutation
+
+==================================================
+12. FRONTEND / CAPACITOR
+==================================================
+
+Do not change:
+
+analytics_head.html
+bl-native.js
+
+Confirm existing browser and Capacitor WebView callers still supply the token through the current global fetch wrapper.
+
+==================================================
+13. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Exact routes updated
+3. Caller verification for each
+4. Placement of validate_csrf_request()
+5. Valid-token test results
+6. Missing-token results
+7. Invalid-token results
+8. Friend invite regression
+9. Accept/decline regression
+10. Friend removal regression
+11. Trip-invite preference regression
+12. Profile regression
+13. Buddy-pass regression
+14. Failed-CSRF side-effect checks
+15. Capacitor/browser confirmation
+16. Any route skipped and why
+17. Any issue encountered
+
+Explicitly confirm:
+
+- all in-scope routes now validate CSRF
+- existing callers already supply the token
+- no frontend changes were required
+- valid requests still work
+- missing/invalid tokens return 403
+- no schema changes
+- no notification changes
+- no permission changes
