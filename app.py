@@ -12994,6 +12994,12 @@ def delete_account():
         # 6. Invite tokens created by this user
         InviteToken.query.filter_by(inviter_id=user_id).delete(synchronize_session=False)
 
+        # 6b. Trip invite tokens created by this user (on any trip, including
+        #     trips the user does not own).  The DB FK has ON DELETE CASCADE but
+        #     SQLAlchemy's bulk-trip deletion (step 11) bypasses that cascade, so
+        #     we must delete these explicitly here as well as inside step 11.
+        TripInviteToken.query.filter_by(inviter_user_id=user_id).delete(synchronize_session=False)
+
         # 7. Friend invitations (sent or received)
         Invitation.query.filter(
             db.or_(Invitation.sender_id == user_id, Invitation.receiver_id == user_id)
@@ -13010,9 +13016,30 @@ def delete_account():
             db.or_(Friend.user_id == user_id, Friend.friend_id == user_id)
         ).delete(synchronize_session=False)
 
-        # 11. SkiTrips owned by this user — delete other participants first, then trips
+        # 10b. Planning posts authored by this user on any trip (including trips
+        #      owned by others).  Must be removed before the user row is deleted
+        #      because ski_trip_planning_post.user_id has a non-nullable FK to
+        #      user.id.  DB-level CASCADE exists but SQLAlchemy intercepts the
+        #      session.delete(user) call and would attempt a NULL-set first,
+        #      which fails on the NOT NULL column.
+        SkiTripPlanningPost.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 11. SkiTrips owned by this user — delete child rows first, then trips.
+        #     The bulk DELETE on ski_trip bypasses Postgres ON DELETE CASCADE, so
+        #     every child table with a trip_id FK must be cleaned up explicitly.
         owned_trip_ids = [r[0] for r in db.session.query(SkiTrip.id).filter_by(user_id=user_id).all()]
         if owned_trip_ids:
+            # Planning posts on owned trips authored by other users (posts
+            # authored by the deleting user were already removed in step 10b).
+            SkiTripPlanningPost.query.filter(
+                SkiTripPlanningPost.trip_id.in_(owned_trip_ids)
+            ).delete(synchronize_session=False)
+            # Trip invite tokens for owned trips (any inviter).  Tokens created
+            # by the deleting user were already removed in step 6b.
+            TripInviteToken.query.filter(
+                TripInviteToken.trip_id.in_(owned_trip_ids)
+            ).delete(synchronize_session=False)
+            # Participants on owned trips
             SkiTripParticipant.query.filter(
                 SkiTripParticipant.trip_id.in_(owned_trip_ids)
             ).delete(synchronize_session=False)

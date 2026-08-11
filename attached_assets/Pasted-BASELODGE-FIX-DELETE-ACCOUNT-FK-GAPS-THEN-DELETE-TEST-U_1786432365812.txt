@@ -1,0 +1,226 @@
+BASELODGE — FIX DELETE-ACCOUNT FK GAPS, THEN DELETE TEST USER 105
+
+We audited test account User ID 105 ("Delete Account", delete@gmail.com).
+
+DO NOT use ad hoc DELETE SQL against the User table.
+
+First fix the existing account-deletion routine so the normal BaseLodge deletion path correctly handles the newer related tables.
+
+Current route:
+POST /delete-account
+
+Current function:
+delete_account()
+
+Known gaps from audit:
+
+1. ski_trip_planning_post
+   - FK user_id → user.id
+   - no ON DELETE CASCADE
+   - delete_account() does not currently remove these rows
+   - User 105 has 1 planning post
+   - current deletion would likely fail on FK constraint
+
+2. trip_invite_token
+   - inviter_user_id → user.id
+   - current deletion routine does not explicitly remove these rows
+   - User 105 currently has 0, but this is a general account-deletion gap
+
+==================================================
+1. FIX ski_trip_planning_post CLEANUP
+==================================================
+
+In delete_account(), before the final User deletion, explicitly delete all SkiTripPlanningPost rows where:
+
+user_id == current_user.id
+
+IMPORTANT:
+
+Owned trips are also deleted later in the routine.
+
+Account for both possible relationships safely:
+
+- posts authored by the user on other users' trips
+- posts authored by anyone on trips owned by the deleting user
+
+Ensure planning posts on owned trips are removed before their parent trip is deleted if required by FK constraints.
+
+Do not leave orphan planning posts.
+
+Use the project’s existing SQLAlchemy deletion style.
+
+==================================================
+2. FIX trip_invite_token CLEANUP
+==================================================
+
+Explicitly delete TripInviteToken rows where:
+
+inviter_user_id == current_user.id
+
+before deleting the User row.
+
+Do not change token behavior elsewhere.
+
+==================================================
+3. AUDIT FOR ANY OTHER FK TABLES ADDED SINCE delete_account() WAS WRITTEN
+==================================================
+
+Before implementation is considered complete, inspect the current schema/models for every FK that points to:
+
+user.id
+
+Compare them against delete_account().
+
+Identify any additional tables that would prevent deletion because they are:
+
+- not deleted
+- not nullified
+- and do not have ON DELETE CASCADE / SET NULL
+
+If another real FK blocker exists, fix it in the same deletion routine.
+
+Do NOT broadly refactor deletion logic.
+
+Do NOT change relationships that are intentionally preserved by nulling user references, such as message_event_log, unless required.
+
+==================================================
+4. TRANSACTION SAFETY
+==================================================
+
+Keep the entire deletion process atomic.
+
+If any step fails:
+- rollback
+- do not partially delete the account
+
+Preserve the existing error handling.
+
+==================================================
+5. TEST THE FIX BEFORE DELETING USER 105
+==================================================
+
+Using a safe test transaction/client or equivalent:
+
+Verify an account with:
+- owned trips
+- participant rows
+- at least one planning post
+- invite tokens if practical
+
+can pass the deletion routine without FK violations.
+
+Confirm:
+- planning posts are removed
+- owned trips are removed as currently designed
+- participant rows are removed
+- invite-token rows are removed
+- user row can be deleted
+
+==================================================
+6. DELETE TEST ACCOUNT USER 105
+==================================================
+
+ONLY after the deletion routine passes validation:
+
+Delete exactly:
+
+User ID: 105
+Name: Delete Account
+Email: delete@gmail.com
+
+Use the same deletion logic as the normal /delete-account flow.
+
+Do not delete any other User record.
+
+Expected existing impact from audit:
+
+- 3 owned SkiTrip rows deleted
+- 3 SkiTripParticipant rows deleted
+- 1 SkiTripPlanningPost deleted
+- 0 Friend rows
+- 0 Invitation rows
+- 0 TripInviteToken rows currently
+- no other known cross-user data
+
+Before committing deletion, re-confirm:
+
+User.id == 105
+first_name == "Delete"
+last_name == "Account"
+email == "delete@gmail.com"
+
+If ANY of those values do not match:
+STOP and report.
+Do not delete.
+
+==================================================
+7. POST-DELETION VALIDATION
+==================================================
+
+After deletion confirm:
+
+User 105:
+0 rows
+
+Owned ski trips previously belonging to User 105:
+0 rows
+
+SkiTripParticipant rows belonging to User 105:
+0 rows
+
+SkiTripPlanningPost rows authored by User 105:
+0 rows
+
+Friend rows referencing User 105:
+0 rows
+
+Invitation rows referencing User 105:
+0 rows
+
+TripInviteToken rows referencing User 105:
+0 rows
+
+No orphan rows.
+
+Also confirm unrelated user/trip counts did not unexpectedly change.
+
+==================================================
+8. REGRESSION
+==================================================
+
+Verify:
+
+- server starts cleanly
+- /delete-account route still works
+- normal login/auth unaffected
+- Trip Planning CRUD unaffected
+- trip invite-token creation/use unaffected
+- no schema changes
+- no notification changes
+
+==================================================
+9. RETURN REPORT
+==================================================
+
+Return:
+
+1. Exact FK gaps found
+2. Files changed
+3. Exact changes to delete_account()
+4. Whether any additional FK gaps were discovered
+5. Test results for deletion routine
+6. Confirmation User 105 identity was re-checked before deletion
+7. Confirmation User 105 was deleted
+8. Exact related rows deleted
+9. Post-deletion orphan checks
+10. Unrelated data sanity check
+11. Server/regression results
+12. Any issue encountered
+
+DO NOT:
+- delete any user other than ID 105
+- run broad bulk deletes
+- drop schema
+- modify Trip Planning behavior
+- modify invite behavior
+- change notifications
