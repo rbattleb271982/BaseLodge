@@ -11720,20 +11720,13 @@ def trip_planning(trip_id):
         post.date_label = _date_label_str(post.created_at)
         post._date_key = post.created_at.date()
 
-    # Group by calendar date (newest-first; same-day posts stay consecutive)
-    from itertools import groupby as _groupby
-    posts_by_date = []
-    for _, grp in _groupby(posts, key=lambda p: p._date_key):
-        grp_list = list(grp)
-        posts_by_date.append((grp_list[0].date_label, grp_list))
-
     _ordered_cats = ['Lodging', 'Transportation', 'Activities', 'Food & Drink', 'Lessons', 'Other']
 
     return render_template(
         "trip_planning.html",
         trip=trip,
         is_owner=is_owner,
-        posts_by_date=posts_by_date,
+        posts=posts,
         categories=_ordered_cats,
     )
 
@@ -11755,8 +11748,8 @@ def planning_posts_create(trip_id):
         return jsonify({"error": "Invalid category"}), 400
     if not body:
         return jsonify({"error": "Post body is required"}), 400
-    if len(body) > 1000:
-        return jsonify({"error": "Post body cannot exceed 1000 characters"}), 400
+    if len(body) > 500:
+        return jsonify({"error": "Post body cannot exceed 500 characters"}), 400
     if link_url and len(link_url) > 500:
         return jsonify({"error": "Link URL too long"}), 400
 
@@ -11822,8 +11815,8 @@ def planning_posts_update(trip_id, post_id):
         return jsonify({"error": "Invalid category"}), 400
     if not body:
         return jsonify({"error": "Post body is required"}), 400
-    if len(body) > 1000:
-        return jsonify({"error": "Post body cannot exceed 1000 characters"}), 400
+    if len(body) > 500:
+        return jsonify({"error": "Post body cannot exceed 500 characters"}), 400
 
     post.category = category
     post.body = body

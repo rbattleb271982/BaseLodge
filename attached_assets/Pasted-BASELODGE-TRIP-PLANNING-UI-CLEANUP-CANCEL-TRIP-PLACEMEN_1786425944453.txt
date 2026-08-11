@@ -1,0 +1,200 @@
+BASELODGE — TRIP PLANNING UI CLEANUP + CANCEL TRIP PLACEMENT
+
+Make four tightly scoped cleanup changes to the Trip Planning experience and trip detail page.
+
+Do not change the underlying planning-board architecture, permissions, notification logic, models, routes, or data.
+
+==================================================
+1. FIX POST CHARACTER LIMIT UI
+==================================================
+
+Current issue:
+
+The New Post sheet displays:
+
+0 / 1000
+
+But the approved V1 body limit is 500 characters and the backend is intended to enforce 500.
+
+Update the Trip Planning post form so:
+
+- textarea maxlength = 500
+- character counter displays:
+  0 / 500
+  or current count / 500
+- edit mode uses the same 500-character limit
+- counter initializes correctly when editing an existing post
+- counter updates live while typing
+
+Verify the backend still enforces 500 server-side.
+
+Do not increase the backend limit to 1000.
+
+==================================================
+2. REMOVE DATE GROUP HEADINGS
+==================================================
+
+Current board UI groups posts beneath headings such as:
+
+TODAY
+
+This is unnecessary for V1 because each individual post already includes its date attribution.
+
+Remove the date-group headings entirely.
+
+Do not group posts by date.
+
+The board should simply display posts in:
+
+created_at DESC
+
+most recent first.
+
+Example:
+
+[Post 1]
+
+[Post 2]
+
+[Post 3]
+
+No TODAY / YESTERDAY section headers.
+
+Do not change the existing newest-first sort order.
+
+==================================================
+3. MAKE AUTHORSHIP UNAMBIGUOUS
+==================================================
+
+Current post footer renders approximately:
+
+Delete · Today
+
+This is ambiguous when the user's name is also a word like "Delete," especially because a Delete action appears on the same row.
+
+Change post attribution to explicitly say:
+
+Posted by [author name] · [date label]
+
+Examples:
+
+Posted by Taylor Mercer · Today
+
+Posted by Richard Battle-Baxter · Yesterday
+
+Posted by Maya Patel · Aug 8
+
+Continue using:
+- Today
+- Yesterday
+- short date such as Aug 8
+- include year only when needed for a different year
+
+Do not add:
+- hours
+- minutes
+- “2h ago”
+- “17m ago”
+
+No avatars/profile images/initial bubbles.
+
+Authorship remains text-only.
+
+Keep Edit/Delete actions visually separate from the attribution.
+
+==================================================
+4. MOVE CANCEL TRIP TO THE BOTTOM
+==================================================
+
+Current issue:
+
+On trip_detail, “Cancel trip” appears between the People section and Trip Planning.
+
+This interrupts the intended hierarchy.
+
+Final trip-detail order must be:
+
+Trip header
+Trip setup
+People
+Trip planning
+Trip actions
+Cancel trip
+
+Then bottom navigation.
+
+Move the EXISTING Cancel trip action only.
+
+Do not duplicate it.
+
+Do not change:
+- Cancel trip route
+- confirmation behavior
+- owner authorization
+- notification behavior
+- deletion logic
+- visual styling unless needed for spacing
+
+The action should remain a subdued destructive text action and sit after Trip Actions with appropriate bottom spacing before the tab bar.
+
+==================================================
+DO NOT CHANGE
+==================================================
+
+Do not change:
+
+- Trip Planning access rules
+- owner + accepted participant permissions
+- pending invite restrictions
+- create/edit/delete post authorization
+- post categories
+- optional link support
+- notifications
+- post model/schema
+- Private note
+- Pass
+- Equipment
+- Lessons
+- People
+- Invite friends
+- comments/reactions/pinning
+- Transportation/Accommodation backend data
+
+No architecture changes.
+
+==================================================
+VALIDATION
+==================================================
+
+Verify:
+
+1. New Post counter starts at 0 / 500.
+2. Textarea prevents typing beyond 500 characters.
+3. Edit Post counter initializes to the existing body length / 500.
+4. Backend still rejects >500 characters if bypassed client-side.
+5. No TODAY/YESTERDAY grouping headings render on the board.
+6. Posts remain sorted newest first.
+7. Every post shows:
+   Posted by [Name] · [date]
+8. No post shows ambiguous attribution like:
+   Delete · Today
+9. Edit/Delete controls still work.
+10. No avatars/profile bubbles appear.
+11. Cancel trip appears after Trip Actions.
+12. Cancel trip no longer appears between People and Trip Planning.
+13. Cancel trip functionality is unchanged.
+14. No unrelated files/features changed.
+
+==================================================
+RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Exact character-limit fix
+3. Before/after post-list structure
+4. Before/after attribution markup
+5. Cancel trip markup move
+6. Validation results
+7. Confirmation that permissions, notifications, routes, and data were unchanged

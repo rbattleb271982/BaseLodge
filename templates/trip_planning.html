@@ -79,18 +79,6 @@
         gap: 12px;
     }
 
-    /* ── Date divider ── */
-    .tp-date-divider {
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 1.2px;
-        text-transform: uppercase;
-        color: #8A857A;
-        padding: 8px 0 4px;
-        border-bottom: 1px solid #E5DFD0;
-        margin-bottom: 4px;
-    }
-
     /* ── Post card ── */
     .tp-post-card {
         background: #fff;
@@ -343,12 +331,10 @@
     </button>
 </div>
 
-{% if posts_by_date %}
+{% if posts %}
 <!-- Post list -->
 <div class="tp-list">
-    {% for date_label, posts_in_group in posts_by_date %}
-    <div class="tp-date-divider">{{ date_label }}</div>
-    {% for post in posts_in_group %}
+    {% for post in posts %}
     <div class="tp-post-card" id="post-{{ post.id }}">
         <span class="tp-post-category">{{ post.category }}</span>
         <p class="tp-post-body">{{ post.body }}</p>
@@ -356,7 +342,7 @@
         <a href="{{ post.link_url }}" class="tp-post-link" target="_blank" rel="noopener noreferrer">{{ post.link_url }}</a>
         {% endif %}
         <div class="tp-post-meta">
-            <span class="tp-post-author">{{ post.author.first_name or post.author.username }} · {{ post.date_label }}</span>
+            <span class="tp-post-author">Posted by {{ post.author.first_name or post.author.username }} · {{ post.date_label }}</span>
             <span class="tp-post-actions">
                 {% if post.user_id == current_user.id %}
                 <button type="button" class="tp-post-edit-btn"
@@ -373,7 +359,6 @@
             </span>
         </div>
     </div>
-    {% endfor %}
     {% endfor %}
 </div>
 {% else %}
@@ -406,10 +391,10 @@
 
         <!-- Body -->
         <span class="tp-sheet-label">Post</span>
-        <textarea id="tp-body" class="tp-sheet-textarea" maxlength="1000"
+        <textarea id="tp-body" class="tp-sheet-textarea" maxlength="500"
                   oninput="updateBodyCounter()"
                   placeholder="What's your idea or recommendation?"></textarea>
-        <div class="tp-sheet-counter" id="tp-body-counter">0 / 1000</div>
+        <div class="tp-sheet-counter" id="tp-body-counter">0 / 500</div>
 
         <!-- Link (optional) -->
         <span class="tp-sheet-label">Link <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></span>
@@ -465,7 +450,7 @@
     function clearSheet() {
         document.querySelectorAll('.tp-chip').forEach(c => c.classList.remove('selected'));
         document.getElementById('tp-body').value = '';
-        document.getElementById('tp-body-counter').textContent = '0 / 1000';
+        document.getElementById('tp-body-counter').textContent = '0 / 500';
         document.getElementById('tp-body-counter').classList.remove('near-limit');
         document.getElementById('tp-link').value = '';
     }
@@ -481,8 +466,8 @@
         const ta = document.getElementById('tp-body');
         const counter = document.getElementById('tp-body-counter');
         const len = ta.value.length;
-        counter.textContent = `${len} / 1000`;
-        counter.classList.toggle('near-limit', len > 900);
+        counter.textContent = `${len} / 500`;
+        counter.classList.toggle('near-limit', len > 450);
     }
 
     // ── Submit (create or edit) ──
@@ -542,16 +527,6 @@
             if (resp.ok) {
                 const card = document.getElementById(`post-${postId}`);
                 if (card) card.remove();
-                // Remove orphan date headers (if no siblings remain in their group)
-                document.querySelectorAll('.tp-date-divider').forEach(divider => {
-                    let el = divider.nextElementSibling;
-                    let hasCard = false;
-                    while (el && !el.classList.contains('tp-date-divider')) {
-                        if (el.classList.contains('tp-post-card')) { hasCard = true; break; }
-                        el = el.nextElementSibling;
-                    }
-                    if (!hasCard) divider.remove();
-                });
                 // If list is now empty, reload to show empty state
                 if (!document.querySelector('.tp-post-card')) window.location.reload();
             } else {
