@@ -704,6 +704,55 @@
             border-bottom: 1px solid #E5DFD0;
         }
 
+        /* ── Notes textarea ── */
+        .notes-textarea {
+            width: 100%;
+            min-height: 96px;
+            border: 1px solid #E5DFD0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            font-family: inherit;
+            color: #1A1A1A;
+            background: #FAFAF7;
+            resize: vertical;
+            box-sizing: border-box;
+            -webkit-appearance: none;
+            outline: none;
+            margin-bottom: 6px;
+            line-height: 1.45;
+        }
+        .notes-textarea:focus { border-color: #5C1219; }
+        .notes-char-counter {
+            font-size: 12px;
+            color: #8A857A;
+            text-align: right;
+            margin-bottom: 12px;
+        }
+        .notes-char-counter.near-limit { color: #c0392b; }
+        .notes-save-btn {
+            width: 100%;
+            padding: 11px;
+            background: #5C1219;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .notes-save-btn:active { opacity: 0.85; }
+        .notes-readonly {
+            font-size: 14px;
+            color: #1A1A1A;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-word;
+            padding-bottom: 4px;
+        }
+
         /* ── Your Trip Details expandable section ── */
         .your-trip-details-section {
             margin-bottom: 4px;
@@ -1163,6 +1212,14 @@
                 {% endif %}
             </div>
 
+        </div><!-- /your-trip-details-section -->
+        </div><!-- /td-setup-card -->
+
+        <!-- Trip Details -->
+        <h2 class="td-setup-heading">Trip details</h2>
+        <div class="td-setup-card">
+        <div class="your-trip-details-section">
+
             {# Transportation #}
             <div class="transport-editor-container">
                 <div class="transport-row-header" id="transportHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleTransportEditor(){% endif %}">
@@ -1249,7 +1306,7 @@
             </div>
 
             {# Lessons #}
-            <div class="lesson-editor-container" style="border-bottom: none;">
+            <div class="lesson-editor-container">
                 <div class="lesson-row-header" id="lessonHeader" {% if is_owner %}aria-expanded="false"{% endif %} onclick="{% if is_owner %}toggleLessonEditor(){% endif %}">
                     <span class="td-accordion-label">Lessons</span>
                     <span class="lesson-summary" style="{% if not is_owner %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
@@ -1284,6 +1341,33 @@
                 </div>
                 {% endif %}
             </div>
+
+            {# Notes — trip-level; owner editable, accepted participant read-only #}
+            {% if is_owner or (is_guest and trip.notes) %}
+            <div class="lesson-editor-container">
+                <div class="lesson-row-header" id="notesHeader" aria-expanded="false" onclick="toggleNotesEditor()">
+                    <span class="td-accordion-label">Notes</span>
+                    <span class="lesson-summary">
+                        <span id="notes-summary-text">{{ 'Added' if trip.notes else 'Add details' }}</span>
+                        <svg class="chevron-icon" id="notesChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </span>
+                </div>
+                <div class="lesson-options-inline" id="notes-options-inline">
+                    {% if is_owner %}
+                    <p style="font-size:13px;color:#6B665A;margin-bottom:10px;">Add any extra information people on this trip should know.</p>
+                    <textarea id="notes-textarea" class="notes-textarea" maxlength="500"
+                              placeholder="e.g. where we're staying, dinner reservations, travel plans, lift tickets, etc."
+                              oninput="updateNotesCounter()">{{ trip.notes or '' }}</textarea>
+                    <div class="notes-char-counter" id="notes-char-counter"><span id="notes-char-count">{{ (trip.notes or '')|length }}</span> / 500</div>
+                    <button type="button" class="notes-save-btn" onclick="saveNotes()">Save notes</button>
+                    {% else %}
+                    <p class="notes-readonly">{{ trip.notes }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
 
         </div><!-- /your-trip-details-section -->
         </div><!-- /td-setup-card -->
@@ -1620,6 +1704,9 @@
             { content: 'transport-options-inline',     chevron: 'transportChevron',     header: 'transportHeader'     },
             { content: 'accommodation-options-inline', chevron: 'accommodationChevron', header: 'accommodationHeader' },
             { content: 'lesson-options-inline',        chevron: 'lessonChevron',        header: 'lessonHeader'        },
+            {% if is_owner or (is_guest and trip.notes) %}
+            { content: 'notes-options-inline',         chevron: 'notesChevron',         header: 'notesHeader'         },
+            {% endif %}
         ];
 
         function _tdClosePanel(panel) {
@@ -1652,6 +1739,7 @@
         function toggleEquipmentOverride()   { _tdToggle('equipmentOverrideOptions'); }
         function toggleAccommodationEditor() { _tdToggle('accommodation-options-inline'); }
         function toggleLessonEditor()        { _tdToggle('lesson-options-inline'); }
+        function toggleNotesEditor()         { _tdToggle('notes-options-inline'); }
 
         async function saveTransportation(value) {
             const tripId = {{ trip.id }};
@@ -1721,6 +1809,35 @@
                 if (response.ok) {
                     document.getElementById('lesson-summary-text').textContent = labels[value] || 'No lesson';
                     toggleLessonEditor();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function updateNotesCounter() {
+            const ta = document.getElementById('notes-textarea');
+            const countEl = document.getElementById('notes-char-count');
+            const counterEl = document.getElementById('notes-char-counter');
+            if (!ta || !countEl) return;
+            const len = ta.value.length;
+            countEl.textContent = len;
+            if (counterEl) counterEl.classList.toggle('near-limit', len > 450);
+        }
+
+        async function saveNotes() {
+            const tripId = {{ trip.id }};
+            const ta = document.getElementById('notes-textarea');
+            if (!ta) return;
+            try {
+                const response = await fetch(`/api/trip/${tripId}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notes: ta.value })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    const summaryEl = document.getElementById('notes-summary-text');
+                    if (summaryEl) summaryEl.textContent = data.has_notes ? 'Added' : 'Add details';
+                    toggleNotesEditor();
                 }
             } catch (err) { console.error(err); }
         }

@@ -2145,6 +2145,25 @@ def run_perf_index_migration():
 run_perf_index_migration()
 
 
+def run_ski_trip_notes_migration():
+    """
+    Startup migration: add notes column to ski_trip.
+    Owner-editable free-text field visible to accepted trip participants.
+    Idempotent — ADD COLUMN IF NOT EXISTS is safe to run on every startup.
+    """
+    try:
+        with app.app_context():
+            db.session.execute(db.text(
+                "ALTER TABLE ski_trip ADD COLUMN IF NOT EXISTS notes TEXT"
+            ))
+            db.session.commit()
+            print("ski_trip_notes_migration: notes column ready.")
+    except Exception as e:
+        print(f"ski_trip_notes_migration: skipped ({e})")
+
+run_ski_trip_notes_migration()
+
+
 def _run_pass_mapping_correction_migration():
     """
     Corrects ski-pass mapping errors in the ResortPass table.
@@ -11754,6 +11773,24 @@ def update_trip_equipment_override(trip_id):
         db.session.commit()
 
     return jsonify({"status": "success"})
+
+
+@app.route("/api/trip/<int:trip_id>/notes", methods=["POST"])
+@login_required
+def update_trip_notes(trip_id):
+    """Update trip notes (owner-only write)."""
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"status": "error", "message": "Trip not found"}), 404
+    if trip.user_id != current_user.id:
+        return jsonify({"status": "error", "message": "Only the trip organizer can edit notes"}), 403
+    data = request.json or {}
+    notes = (data.get("notes") or "").strip()
+    if len(notes) > 500:
+        return jsonify({"status": "error", "message": "Notes must be 500 characters or fewer"}), 400
+    trip.notes = notes if notes else None
+    db.session.commit()
+    return jsonify({"status": "success", "has_notes": bool(trip.notes)})
 
 
 @app.route("/trip-invite/<token>")

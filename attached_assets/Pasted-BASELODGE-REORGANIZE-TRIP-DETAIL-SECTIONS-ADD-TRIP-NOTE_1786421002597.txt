@@ -1,0 +1,438 @@
+BASELODGE — REORGANIZE TRIP DETAIL SECTIONS + ADD TRIP NOTES
+
+Implement the approved trip-detail UX with the smallest safe set of changes.
+
+GOAL
+
+On the existing trip detail page:
+
+1. Keep “Trip setup” focused on:
+   - Pass
+   - Equipment
+
+2. Move:
+   - Transportation
+   - Accommodations
+   - Lessons
+
+   into a new separate section called:
+
+   TRIP DETAILS
+
+3. Add a new expandable “Notes” row inside TRIP DETAILS.
+
+The final structure should be:
+
+TRIP SETUP
+- Pass
+- Equipment
+
+TRIP DETAILS
+- Transportation
+- Accommodations
+- Lessons
+- Notes
+
+TRIP ACTIONS
+- Invite friends to this trip
+
+PEOPLE
+- Existing people/friends content
+
+Do not redesign the rest of the page.
+
+IMPORTANT CONTEXT
+
+The existing Transportation, Accommodations, Lessons, Pass, and Equipment rows already have working inline expand/edit behavior.
+
+Do NOT rewrite those controls.
+
+This task should preserve their existing routes, AJAX behavior, permissions, notifications, and participant-vs-trip ownership logic.
+
+The main structural change is moving Transportation, Accommodations, and Lessons into the new TRIP DETAILS section while preserving their current functionality exactly.
+
+--------------------------------------------------
+1. REORGANIZE EXISTING TRIP DETAIL UI
+--------------------------------------------------
+
+File:
+templates/trip_detail.html
+
+Current Trip setup contains:
+
+- Pass
+- Equipment
+- Transportation
+- Accommodations
+- Lessons
+
+Change it to:
+
+TRIP SETUP
+
+[existing Pass row]
+[existing Equipment row]
+
+Then add a new heading:
+
+TRIP DETAILS
+
+Under it render:
+
+[existing Transportation row]
+[existing Accommodations row]
+[existing Lessons row]
+[new Notes row]
+
+Requirements:
+
+- Reuse the existing card/row styling.
+- Do not duplicate existing controls.
+- Move the existing markup instead of recreating it where practical.
+- Existing dropdown/accordion interactions must continue to work.
+- Existing IDs, data attributes, JS selectors, and event bindings must remain valid.
+- Do not change field semantics.
+- Do not change notifications.
+- Do not change authorization.
+
+--------------------------------------------------
+2. ADD TRIP NOTES DATA FIELD
+--------------------------------------------------
+
+Add a nullable freeform notes field to SkiTrip.
+
+Recommended:
+
+notes = db.Column(db.Text, nullable=True)
+
+Before implementing, verify there is no existing SkiTrip field already appropriate for this purpose.
+
+If no existing field exists, add the new column.
+
+Use the project’s existing startup migration pattern.
+
+The audit found that BaseLodge does NOT currently use a live Alembic migration directory and instead uses inline startup migration functions.
+
+Follow the same existing pattern used elsewhere in the codebase.
+
+Requirements:
+
+- Add the model column.
+- Add a narrowly scoped startup migration function.
+- Migration must be idempotent.
+- Migration must safely detect whether the column already exists.
+- Wrap DB operations consistently with existing migration patterns.
+- Do not create an Alembic directory.
+- Do not alter unrelated schema.
+
+--------------------------------------------------
+3. NOTES ROW — COLLAPSED STATE
+--------------------------------------------------
+
+Inside TRIP DETAILS add:
+
+Notes                          Add details  ˅
+
+If notes already exist, show:
+
+Notes                          Added        ˅
+
+or another concise equivalent consistent with current row-value styling.
+
+Requirements:
+
+- Match existing Transportation / Accommodations / Lessons row styling.
+- Use the same accordion/down-arrow interaction style.
+- The row must be usable on mobile.
+- Do not create a separate Notes page.
+
+--------------------------------------------------
+4. NOTES ROW — EXPANDED STATE
+--------------------------------------------------
+
+When the Notes row expands, show an inline text area inside the same card.
+
+Use copy approximately:
+
+Add any extra information people on this trip should know.
+
+Textarea placeholder:
+
+e.g. where we’re staying, dinner reservations, travel plans, lift tickets, etc.
+
+Character limit:
+500
+
+Show a character counter:
+0 / 500
+or current count / 500
+
+Add a button:
+
+Save notes
+
+Use existing BaseLodge button styling.
+
+After save:
+- persist the notes
+- update the collapsed row state from “Add details” to “Added”
+- keep the user on the trip detail page
+- ideally avoid a full-page navigation if that fits the existing inline AJAX architecture
+
+--------------------------------------------------
+5. NOTES AUTHORIZATION
+--------------------------------------------------
+
+Core requirement:
+
+Only the trip owner can create, edit, or clear the trip notes.
+
+Accepted participants may VIEW the notes.
+
+Non-owner participants must not see an editable textarea or Save button.
+
+Preserve the existing trip access-control rules for who can access trip_detail at all.
+
+If a non-owner participant expands Notes:
+- show the saved note as read-only text
+- if there are no notes, either hide the Notes row for them or show a non-editable empty state, whichever best matches the existing architecture
+
+Do not expose trip notes to someone who cannot otherwise access the trip.
+
+--------------------------------------------------
+6. NOTES SAVE ENDPOINT
+--------------------------------------------------
+
+Implement the smallest endpoint that fits the current architecture.
+
+Preferred pattern:
+
+POST /api/trip/<id>/notes
+
+or an equivalent naming pattern consistent with the existing endpoints:
+
+/api/trip/<id>/accommodation
+/api/trip/<id>/equipment-override
+/api/trip/<id>/participant/settings
+
+Requirements:
+
+- login required
+- load trip by ID
+- owner-only write authorization
+- trim surrounding whitespace
+- enforce max 500 characters server-side
+- empty string should clear the notes to NULL or empty consistently
+- return JSON success/error
+- use CSRF protections/patterns already used by nearby AJAX endpoints
+- do not create a generic “update trip” endpoint
+- do not modify the legacy /api/trip/<id>/edit route
+
+--------------------------------------------------
+7. DISPLAY SAVED NOTES
+--------------------------------------------------
+
+Owner:
+- can expand Notes
+- sees current saved value in textarea
+- can edit and save
+- can clear the value
+
+Accepted participant:
+- can expand Notes
+- sees current saved note read-only
+- cannot edit
+
+If notes exist, the Notes row should visibly indicate this with something like:
+
+Added
+
+Do not display the full note in the collapsed row.
+
+--------------------------------------------------
+8. DO NOT CHANGE EDIT TRIP
+--------------------------------------------------
+
+The existing Edit link at the top remains exactly as implemented.
+
+Do not add Notes to /trips/<id>/edit.
+
+Do not move:
+- resort
+- dates
+- Planning / Going
+- privacy
+
+out of the Edit Trip screen.
+
+The information architecture should remain:
+
+EDIT TRIP
+- Resort
+- Dates
+- Planning / Going
+- Privacy
+
+TRIP SETUP
+- Pass
+- Equipment
+
+TRIP DETAILS
+- Transportation
+- Accommodations
+- Lessons
+- Notes
+
+--------------------------------------------------
+9. DO NOT CHANGE FIELD OWNERSHIP
+--------------------------------------------------
+
+Preserve the current architecture:
+
+Transportation:
+participant-level
+
+Lessons:
+participant-level
+
+Accommodations:
+trip-level / owner-managed
+
+Pass:
+trip-level
+
+Equipment:
+existing current logic
+
+Notes:
+new trip-level / owner-managed
+
+Do not accidentally make participant Transportation or Lessons owner-only simply because they move under the TRIP DETAILS heading.
+
+This is a visual grouping change only.
+
+--------------------------------------------------
+10. DO NOT ADD COLLABORATIVE CHAT YET
+--------------------------------------------------
+
+This task is NOT the group-planning/thread-board feature.
+
+Do not add:
+- comments
+- reactions
+- multiple posts
+- chat
+- activity feed
+- link previews
+- categories
+- polling
+- collaborative note editing
+
+For now Notes is one shared trip-level freeform field controlled by the trip owner and visible to trip participants.
+
+--------------------------------------------------
+11. UI DETAILS
+--------------------------------------------------
+
+Match the current BaseLodge design.
+
+Use:
+- existing cream background
+- existing white rounded cards
+- existing maroon text/action color
+- existing row dividers
+- existing accordion chevrons
+- existing typography
+- existing spacing conventions
+
+Do not introduce a new visual system.
+
+The desired hierarchy is:
+
+Trip header
+
+Visible to friends | Planning
+
+TRIP SETUP
+[Pass]
+[Equipment]
+
+TRIP DETAILS
+[Transportation]
+[Accommodations]
+[Lessons]
+[Notes]
+
+TRIP ACTIONS
+[Invite friends]
+
+PEOPLE
+[...]
+
+--------------------------------------------------
+12. VALIDATION
+--------------------------------------------------
+
+Validate all of the following:
+
+A. Structural
+1. Pass remains under Trip setup.
+2. Equipment remains under Trip setup.
+3. Transportation appears under Trip details.
+4. Accommodations appears under Trip details.
+5. Lessons appears under Trip details.
+6. Notes appears under Trip details.
+7. No duplicate rows exist.
+
+B. Existing functionality
+8. Pass still edits correctly.
+9. Equipment still edits correctly.
+10. Transportation still edits correctly for participants.
+11. Accommodations still edits correctly for owner.
+12. Lessons still edit correctly for participants.
+13. Existing notification behavior is unchanged.
+
+C. Notes
+14. Owner can add notes.
+15. Owner can edit notes.
+16. Owner can clear notes.
+17. Notes persist after reload.
+18. 500-character server-side limit is enforced.
+19. Non-owner cannot POST notes.
+20. Accepted participant can read notes.
+21. Accepted participant cannot edit notes.
+22. Empty notes do not show stale “Added” state.
+
+D. Regression
+23. Edit Trip link still works.
+24. Invite flow remains unchanged.
+25. People section remains unchanged.
+26. Cancel/leave trip behavior remains unchanged.
+27. No unrelated routes or templates changed.
+
+--------------------------------------------------
+13. RETURN REPORT
+--------------------------------------------------
+
+After implementation return:
+
+1. Files changed
+2. Model/schema change
+3. Migration added
+4. Route added
+5. Template changes
+6. JS changes
+7. Owner/participant authorization behavior
+8. Before/after section structure
+9. Validation results
+10. Any issue encountered
+
+Also explicitly confirm:
+
+- Transportation and Lessons remain participant-level.
+- Accommodations remains owner-managed.
+- Notes is owner-editable and participant-readable.
+- Existing inline editors were preserved rather than rewritten.
+- No collaborative/chat functionality was added.
+
+Keep this implementation tightly scoped.
