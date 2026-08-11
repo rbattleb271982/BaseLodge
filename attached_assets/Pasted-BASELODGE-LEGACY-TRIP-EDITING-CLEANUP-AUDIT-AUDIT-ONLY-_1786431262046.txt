@@ -1,0 +1,381 @@
+BASELODGE — LEGACY TRIP EDITING CLEANUP AUDIT
+
+AUDIT ONLY.
+
+Do NOT delete or modify code yet.
+
+The new trip architecture is now live and has passed end-to-end QA:
+
+- trip_detail is the primary owner-facing trip screen
+- owner Edit trip mode works inline
+- My Setup is personal and participant-scoped
+- Pass is canonical on SkiTripParticipant.pass_type
+- Equipment is canonical on SkiTripParticipant.equipment_status
+- Lessons is canonical on SkiTripParticipant.taking_lesson
+- Private note edits inline
+- Visibility / Status use dedicated endpoints
+- Trip Planning is working
+- owner / accepted participant / pending invitee permissions passed QA
+
+Now audit the old trip-editing code so we can safely remove legacy paths without breaking anything.
+
+==================================================
+1. AUDIT /trips/<id>/edit
+==================================================
+
+Inspect:
+
+GET/POST /trips/<id>/edit
+edit_trip_form()
+templates/edit_trip.html
+
+Find every active inbound caller.
+
+Search:
+- templates
+- JS
+- redirects
+- emails
+- push/deep links
+- tests
+- add_trip overlap flow
+- any hardcoded URLs
+- any url_for('edit_trip_form', ...)
+
+Classify each caller:
+
+ACTIVE
+LEGACY BUT REACHABLE
+DEAD
+UNKNOWN
+
+Determine whether the route can now be:
+
+A. removed entirely
+B. changed to redirect GET → trip_detail
+C. kept temporarily for POST fallback
+D. retained for some legitimate flow
+
+Do not implement.
+
+==================================================
+2. AUDIT add_trip “EDIT EXISTING” FLOW
+==================================================
+
+We previously identified an “Edit existing” link in add_trip.html when overlap is detected.
+
+Trace exactly what it does now.
+
+Determine the cleanest replacement now that trip_detail is the canonical editing surface.
+
+Likely desired behavior:
+
+Edit existing
+→ /trips/<id>
+
+not:
+/trips/<id>/edit
+
+Confirm whether that is safe.
+
+==================================================
+3. AUDIT LEGACY GENERIC EDIT ENDPOINT
+==================================================
+
+Inspect:
+
+POST /api/trip/<id>/edit
+
+Determine:
+- whether any current template/JS calls it
+- whether any mobile/native code calls it
+- whether any test depends on it
+- what fields it writes
+- whether those fields now have canonical dedicated endpoints
+
+Classify:
+
+KEEP
+DEPRECATE
+SAFE TO REMOVE
+
+==================================================
+4. AUDIT LEGACY PASS FIELD
+==================================================
+
+Inspect:
+
+SkiTrip.pass_type
+
+Current canonical personal field is:
+
+SkiTripParticipant.pass_type
+
+Determine all remaining reads/writes of SkiTrip.pass_type.
+
+Separate:
+- migration/backfill usage
+- display usage
+- legacy route usage
+- analytics/reporting
+- dead code
+
+Determine whether SkiTrip.pass_type can be:
+
+A. left as dormant legacy column
+B. stop being read anywhere
+C. safely removed later
+D. safely dropped now
+
+Do NOT drop schema yet.
+
+Also identify any old code that could accidentally write SkiTrip.pass_type again.
+
+==================================================
+5. AUDIT LEGACY EQUIPMENT FIELDS
+==================================================
+
+Inspect:
+
+SkiTrip.trip_equipment_status
+SkiTrip.equipment_override
+
+Current canonical personal field is:
+
+SkiTripParticipant.equipment_status
+
+Find every remaining read/write for both legacy trip-level fields.
+
+Also inspect:
+
+POST /api/trip/<id>/equipment-override
+updateEquipmentOverride() JS
+
+Determine whether each is:
+
+ACTIVE
+DEAD
+FALLBACK
+SAFE TO REMOVE
+
+Do not assume because something has no visible caller.
+
+Search all code paths first.
+
+==================================================
+6. AUDIT DEAD JS
+==================================================
+
+Search trip_detail.html and related JS for functions no longer invoked, especially:
+
+updateEquipmentOverride()
+
+Also identify any dead JS related to:
+- old Notes row
+- old Transportation UI
+- old Accommodations UI
+- old segmented edit controls
+- separate Edit page transitions
+
+For each function:
+- current caller count
+- whether referenced dynamically
+- safe-to-remove status
+
+==================================================
+7. AUDIT TRANSPORTATION / ACCOMMODATION LEGACY UI CODE
+==================================================
+
+Transportation and Accommodations were hidden from the visible UI but their data/endpoints were intentionally preserved.
+
+Audit all remaining:
+- markup
+- JS
+- endpoints
+- model fields
+- notifications
+- helper functions
+
+Do NOT recommend deleting their database fields unless clearly unused.
+
+Tell me whether we should:
+- keep backend only
+- remove dead frontend code
+- keep everything for now
+
+==================================================
+8. AUDIT PRIVATE NOTE OLD FORM PATH
+==================================================
+
+Private note is now canonical via:
+
+POST /api/trip/<id>/notes
+
+Find remaining code where edit_trip_form POST writes trip.notes.
+
+Determine whether that code can be removed once /trips/<id>/edit is deprecated.
+
+Do not implement.
+
+==================================================
+9. AUDIT RESORT / DATE DUPLICATE SAVE LOGIC
+==================================================
+
+Current canonical endpoints:
+
+POST /api/trip/<id>/update-resort
+POST /api/trip/<id>/update-dates
+
+The old edit form duplicates those writes.
+
+Determine what duplicate logic can disappear if edit_trip_form is retired.
+
+Pay attention to:
+- validation differences
+- notifications
+- activity logs
+- trip_duration updates
+- overlap checks
+
+Do not remove anything yet.
+
+==================================================
+10. AUDIT VISIBILITY / STATUS OLD FORM LOGIC
+==================================================
+
+Current canonical endpoints:
+
+POST /api/trip/<id>/update-visibility
+POST /api/trip/<id>/update-status
+
+Find duplicate logic in edit_trip_form.
+
+Confirm whether the new endpoints fully replace the old form behavior.
+
+Identify any side effects unique to the old form.
+
+==================================================
+11. AUDIT TESTS / FALLBACKS
+==================================================
+
+Find any tests that directly call:
+
+/trips/<id>/edit
+/api/trip/<id>/edit
+/api/trip/<id>/equipment-override
+
+Determine whether tests represent:
+- real product behavior
+- legacy behavior
+- obsolete coverage
+
+Recommend what tests should be updated if cleanup happens.
+
+==================================================
+12. SAFE CLEANUP SEQUENCE
+==================================================
+
+Recommend cleanup in phases.
+
+Example only:
+
+Phase A
+- Change add_trip “Edit existing” link to trip_detail
+- Redirect GET /trips/<id>/edit → trip_detail
+- Keep POST temporarily
+
+Phase B
+- Remove dead JS
+- Remove unused generic API edit endpoint
+- Remove equipment-override UI/endpoint if no callers
+
+Phase C
+- Remove edit_trip.html + edit_trip_form POST
+- Remove duplicate form logic
+
+Phase D
+- Later schema cleanup:
+  - SkiTrip.pass_type
+  - SkiTrip.trip_equipment_status
+  - SkiTrip.equipment_override
+
+But base the actual recommendation on what the audit finds.
+
+==================================================
+13. DO NOT DROP COLUMNS YET
+==================================================
+
+Even if columns appear unused, do not drop them in this task.
+
+Schema deletion should be the LAST cleanup phase after code has stopped reading/writing them and production-like data has been validated.
+
+==================================================
+14. RISK CLASSIFICATION
+==================================================
+
+For every cleanup candidate, return:
+
+Item
+Current callers
+Canonical replacement
+Risk if removed
+Recommended action
+
+Risk:
+
+LOW
+MEDIUM
+HIGH
+
+==================================================
+15. FINAL RETURN FORMAT
+==================================================
+
+Return:
+
+1. Executive Summary
+2. /trips/<id>/edit callers
+3. add_trip Edit Existing flow
+4. generic /api/trip/<id>/edit status
+5. SkiTrip.pass_type usage
+6. legacy Equipment usage
+7. dead JS findings
+8. Transportation/Accommodation legacy code
+9. Private Note duplicate path
+10. Resort/Date duplicate logic
+11. Visibility/Status duplicate logic
+12. Test/fallback dependencies
+13. Safe cleanup sequence
+14. Cleanup candidate matrix
+15. Exact files/routes/functions that can be removed
+16. Exact items that should remain temporarily
+17. Schema fields that should only be considered in a later phase
+
+Also explicitly answer:
+
+A. Can GET /trips/<id>/edit now redirect to trip_detail?
+
+B. Can edit_trip.html eventually be removed?
+
+C. Can POST /api/trip/<id>/edit be removed now?
+
+D. Can /api/trip/<id>/equipment-override be removed now?
+
+E. Is updateEquipmentOverride() JS dead?
+
+F. Are SkiTrip.pass_type, trip_equipment_status, and equipment_override now safe to stop using everywhere?
+
+G. What is the safest cleanup implementation order?
+
+AUDIT ONLY.
+
+DO NOT:
+- delete code
+- modify routes
+- redirect routes
+- drop schema
+- change templates
+- change tests
+- change notifications
+
+Report first.
