@@ -1,0 +1,196 @@
+BASELODGE — #231 FIX PRIVATE TRIP VISIBILITY ON FRIEND-TRIP ROUTE
+
+Implement ONLY the privacy fix identified in Audit #228 for:
+
+GET /friend-trip/<id>
+
+Do not change unrelated trip permissions, invite behavior, notifications, schema, or frontend architecture.
+
+==================================================
+BACKGROUND
+==================================================
+
+Audit #228 found:
+
+GET /friend-trip/<id>
+
+currently verifies that the viewer is a friend of the trip owner, but does not consistently enforce:
+
+SkiTrip.is_public
+
+That means a friend may be able to open a trip marked private by navigating directly to the friend-trip URL.
+
+Desired product behavior:
+
+Private trip:
+- visible to owner
+- visible to ACCEPTED / authorized trip members through the normal trip-detail experience
+- NOT visible to ordinary friends through /friend-trip/<id>
+
+Public trip:
+- friends may view it through /friend-trip/<id> according to the existing friend-view rules
+
+This task should close only that privacy gap.
+
+==================================================
+1. TRACE CURRENT ROUTE
+==================================================
+
+Inspect:
+
+GET /friend-trip/<id>
+
+Document current checks for:
+
+- login
+- trip existence
+- trip owner
+- friendship relationship
+- is_public
+- participant membership
+- redirects / 403 / 404 behavior
+
+Do not change anything until the current behavior is understood.
+
+==================================================
+2. ENFORCE is_public
+==================================================
+
+For the friend-view route:
+
+If the viewer is NOT the trip owner and is only accessing because they are a friend:
+
+require:
+
+trip.is_public == True
+
+If trip.is_public == False:
+
+deny access.
+
+Use the application's existing privacy-denial convention.
+
+Prefer the same 403/404 behavior already used for inaccessible trip data rather than inventing a new page.
+
+Do not expose private trip details in the error response.
+
+==================================================
+3. DO NOT BREAK AUTHORIZED MEMBERS
+==================================================
+
+Check whether accepted participants ever use /friend-trip/<id>.
+
+If they do:
+
+Do not accidentally block an ACCEPTED participant from their own authorized trip experience.
+
+If normal participants are expected to use /trips/<id> instead, preserve that architecture.
+
+Do not broaden access beyond current rules.
+
+==================================================
+4. FRONTEND VISIBILITY
+==================================================
+
+Find every link to:
+
+/friend-trip/<id>
+
+Confirm private trips are not presented as friend-view links where they should be hidden.
+
+If the frontend already filters private trips correctly:
+leave it alone.
+
+If the frontend shows a private trip link but backend now blocks it:
+fix that specific visibility mismatch so the user does not see a dead link.
+
+Do not redesign friend trip cards.
+
+==================================================
+5. DIRECT URL TESTS
+==================================================
+
+Test:
+
+A. Friend viewing PUBLIC trip
+Expected:
+200
+
+B. Friend viewing PRIVATE trip
+Expected:
+blocked
+
+C. Non-friend viewing PUBLIC trip
+Expected:
+blocked according to existing friend-view rules
+
+D. Non-friend viewing PRIVATE trip
+Expected:
+blocked
+
+E. Owner viewing own trip through friend-trip URL
+Preserve existing intended behavior or redirect cleanly to trip_detail if that is already the pattern.
+
+F. Accepted participant
+Verify they still have access through the canonical trip route.
+
+G. INVITED participant
+Do not accidentally expand visibility.
+
+==================================================
+6. PRIVACY REGRESSION
+==================================================
+
+Verify:
+
+- public friend trips still work
+- private trips remain visible to owner
+- private trips remain visible to accepted members through authorized trip routes
+- pending/non-members do not gain access
+- Trip Planning access unchanged
+- My Setup unchanged
+- Edit trip unchanged
+- no notification changes
+- no schema changes
+
+==================================================
+7. SEARCH FOR OTHER is_public BYPASSES
+==================================================
+
+As part of this narrowly scoped task, search for other friend-facing trip display routes/templates that intentionally depend on:
+
+SkiTrip.is_public
+
+Do NOT fix unrelated routes automatically.
+
+If another concrete privacy bypass is discovered:
+report it separately in the return report.
+
+Do not expand #231 without approval.
+
+==================================================
+8. RETURN REPORT
+==================================================
+
+Return:
+
+1. Files changed
+2. Current friend-trip authorization behavior before fix
+3. Exact is_public enforcement added
+4. Frontend link/display audit
+5. Direct URL test matrix
+6. Owner/member behavior
+7. Privacy regression results
+8. Any other potential is_public bypass discovered
+9. Any issue encountered
+
+Explicitly confirm:
+
+- a friend cannot directly open a private trip through /friend-trip/<id>
+- a friend can still open a public trip
+- non-friends remain blocked
+- owner access remains intact
+- accepted participant access remains intact
+- Trip Planning permissions unchanged
+- no schema changes
+- no notification changes

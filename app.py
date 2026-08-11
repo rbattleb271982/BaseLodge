@@ -9818,6 +9818,11 @@ def friend_trip_details(trip_id):
         if not is_friend:
             return render_template('403.html'), 403
 
+    # Block friends from viewing private trips via direct URL.
+    # Owners always retain access to their own trip regardless of is_public.
+    if trip.user_id != current_user.id and not trip.is_public:
+        abort(404)
+
     # Calculate overlapping days with current user's trips at the same resort
     your_trips = SkiTrip.query.filter_by(user_id=current_user.id).all()
     
