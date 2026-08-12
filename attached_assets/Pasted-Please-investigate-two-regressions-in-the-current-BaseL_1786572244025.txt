@@ -1,0 +1,75 @@
+Please investigate **two regressions in the current BaseLodge iOS app**. **Do not make any code changes yet. Investigation only.**
+
+I have screenshots showing both issues.
+
+### Issue 1: Splash screen is missing “Loading…”
+
+The BaseLodge launch/splash screen currently shows:
+
+* BaseLodge logo
+* “The best days on the mountain don’t just happen. They’re made.”
+
+But we previously changed the splash experience so that it should also display **“Loading…”** while the app is initializing.
+
+Please trace the entire current splash implementation and determine why **“Loading…” is no longer appearing**.
+
+Specifically investigate:
+
+* The HTML/CSS/JS splash or launch-screen implementation
+* Any Capacitor Splash Screen configuration
+* iOS-specific launch screen / storyboard configuration if relevant
+* Whether there are multiple splash implementations and the wrong one is currently being shown
+* Whether a recent change overwrote or bypassed the version containing “Loading…”
+* Whether the displayed screen is the native iOS launch screen, an in-app splash screen, or a combination of both
+* Whether timing causes the “Loading…” state to disappear before it can render
+* Whether the current deployed/native assets differ from the source code in Replit
+
+Identify the **exact file(s), function(s), templates, CSS, configuration, and code path** responsible for what I am seeing.
+
+### Issue 2: Home screen says “Welcome, Test.” instead of “Welcome, Richard.”
+
+After the splash screen, the logged-in home screen currently displays:
+
+**Welcome, Test.**
+
+This account should display:
+
+**Welcome, Richard.**
+
+Please trace exactly where the home screen welcome name comes from.
+
+Investigate:
+
+* Which user field is being rendered
+* Whether it uses first name, display name, username, profile name, or another field
+* What value is actually stored for this logged-in user
+* Whether “Test” is coming from the database, session, cached user data, local storage, native storage, an API response, or a hardcoded/default value
+* Whether the app is loading stale user information after login
+* Whether a test account/session is somehow being mixed with the real logged-in account
+* Whether the server-side `current_user` and the client-side user identity agree
+* Whether the recent session/authentication work could be related
+* Whether the welcome UI is rendered server-side or populated/replaced client-side
+
+For the affected account, report the relevant user identity fields from the database and identify **exactly why the UI chooses “Test.”**
+
+### Important
+
+Because we have previously investigated cross-account/session behavior, do **not** assume this is merely a cosmetic first-name issue. Verify that:
+
+1. The authenticated user ID is the correct user.
+2. The session belongs to that same user.
+3. The data used to render the home screen belongs to that same user.
+4. There is no stale/test user information being pulled from another source.
+
+### Return an investigation report with:
+
+1. **Splash root cause**
+2. **Welcome-name root cause**
+3. Exact files/functions/lines involved
+4. Current data flow for each issue
+5. Whether either issue is caused by stale native assets or a missing Capacitor sync
+6. Whether either issue represents an authentication/session risk
+7. The smallest recommended fix for each issue
+8. Any tests that should be added or updated
+
+**Do not implement the fixes yet. Do not refactor unrelated code. I want the diagnosis first.**
