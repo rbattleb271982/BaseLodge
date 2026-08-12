@@ -724,7 +724,7 @@
         }
 
         /* ── Happening rows ── */
-        .bl-happening-rows { display: flex; flex-direction: column; gap: 10px; }
+        .bl-happening-rows { display: flex; flex-direction: column; gap: 8px; }
         .bl-happening-card {
             position: relative;
             background: #ffffff;
@@ -740,54 +740,62 @@
             align-items: center;
             justify-content: space-between;
             gap: 10px;
-            padding: 12px 44px 12px 20px;
+            padding: 10px 44px 10px 16px;
             text-decoration: none;
             color: inherit;
             -webkit-tap-highlight-color: transparent;
         }
         .bl-happening-link:active { opacity: 0.88; transform: scale(0.99); }
         .bl-happening-link--static {
-            padding: 12px 44px 12px 20px;
+            padding: 10px 44px 10px 16px;
         }
+        /* × button: visually smaller and lighter, but tap target stays generous (8px pad all sides) */
         .bl-happening-dismiss {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1;
             color: var(--bl-color-text-tertiary);
-            opacity: 0.45;
+            opacity: 0.38;
             position: absolute;
-            top: 18px;
-            right: 18px;
-            padding: 8px;
+            top: 10px;
+            right: 12px;
+            padding: 8px;       /* keeps ~30×30px tap target; text cannot reach within 44px right pad */
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .bl-happening-dismiss:active { opacity: 0.8; }
+        .bl-happening-dismiss:active { opacity: 0.75; }
         .bl-happening-body {
             flex: 1;
             min-width: 0;
         }
-        .bl-happening-main {
-            font-size: 17px;
+        /* Line 1: Name (bold) — Verb (regular). Wraps on very long names rather than truncating. */
+        .bl-happening-name {
+            font-size: 16px;
             font-weight: 400;
             color: var(--bl-color-text);
             margin: 0;
             line-height: 1.25;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
-        .bl-happening-main strong {
+        .bl-happening-name strong {
             font-weight: 600;
         }
-        .bl-happening-recency {
-            font-size: 14px;
+        /* Line 2: Resort (stronger) · Recency (muted inline span).
+           white-space: normal — resort is NEVER truncated.
+           If Resort · Recency overflows one line the recency span wraps below. */
+        .bl-happening-resort {
+            font-size: 15px;
             font-weight: 400;
-            color: var(--bl-color-text-muted);
+            color: var(--bl-color-text);
             margin: 2px 0 0;
-            line-height: 1.25;
+            line-height: 1.3;
+        }
+        /* Separator dot and recency text are inline; they wrap as a unit below the resort. */
+        .bl-happening-recency-sep,
+        .bl-happening-recency-inline {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
         }
         /* ── Request rows ── */
         .bl-request-rows { display: flex; flex-direction: column; gap: 10px; }

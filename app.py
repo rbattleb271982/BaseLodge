@@ -9600,9 +9600,23 @@ def home():
                     recency_label = "Updated this week" if _was_updated else "Added this week"
                 else:
                     recency_label = "Recently updated"
+                # Expose verb and mountain separately so the template can render them
+                # on distinct lines without parsing action_line.  action_line is kept
+                # for backward compatibility in case anything else reads it.
+                if _mtn:
+                    if status == 'going':
+                        _action_verb = 'Going to'
+                    elif status in ('confirmed', 'booked'):
+                        _action_verb = 'Heading to'
+                    else:
+                        _action_verb = 'Planning'
+                else:
+                    _action_verb = None
                 happening_signals.append({
                     'person': person,
                     'action_line': action_line,
+                    'action_verb': _action_verb,   # "Planning" / "Going to" / "Heading to" / None
+                    'mountain': _mtn,              # resort name string or None
                     'friend_id': ft.user_id,
                     'recency_label': recency_label,
                     'trip_id': ft.id,

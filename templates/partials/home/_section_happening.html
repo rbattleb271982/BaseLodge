@@ -1,13 +1,17 @@
 <!--
 Component: Happening Section
 Purpose: Quiet ambient awareness of friend ski activity. One row per friend,
-         2-line compact format: [Name bold] - [action+mountain] / recency muted.
+         two-line layout: [Name — Activity] / [Resort · Recency].
+         Resort is never truncated; recency wraps below if the combined
+         Resort · Recency content cannot fit on a single line.
 Used on: Home screen (only when happening_signals is non-empty)
 
 Inputs:
   happening_signals  list of dicts
     [].person        string — full name only, e.g. "Mia Chen"
-    [].action_line   string — verb + mountain, e.g. "Planning Whistler"
+    [].action_verb   string | None — "Planning" / "Going to" / "Heading to" / None
+    [].mountain      string | None — resort display name; None when trip has no mountain
+    [].action_line   string — legacy combined string (kept for compat), not rendered here
     [].recency_label string — one of:
                        "Added today"        (created < 1 day)
                        "Updated today"      (updated_at < 1 day)
@@ -31,19 +35,19 @@ Inputs:
             {% if signal.friend_id %}
             <a href="/friends/{{ signal.friend_id }}" class="bl-happening-link">
                 <div class="bl-happening-body">
-                    <p class="bl-happening-main"><strong>{{ signal.person }}</strong> - {{ signal.action_line }}</p>
-                    {% if signal.recency_label %}
-                    <p class="bl-happening-recency">{{ signal.recency_label }}</p>
-                    {% endif %}
+                    {# Line 1: Name (bold) — Verb (regular) #}
+                    <p class="bl-happening-name"><strong>{{ signal.person }}</strong>{% if signal.action_verb %} — {{ signal.action_verb }}{% endif %}</p>
+                    {# Line 2: Resort · Recency inline; recency wraps naturally if needed #}
+                    <p class="bl-happening-resort">{{ signal.mountain or 'Trip upcoming' }}{% if signal.recency_label %}<span class="bl-happening-recency-sep"> · </span><span class="bl-happening-recency-inline">{{ signal.recency_label }}</span>{% endif %}</p>
                 </div>
             </a>
             {% else %}
             <div class="bl-happening-link bl-happening-link--static">
                 <div class="bl-happening-body">
-                    <p class="bl-happening-main"><strong>{{ signal.person }}</strong> - {{ signal.action_line }}</p>
-                    {% if signal.recency_label %}
-                    <p class="bl-happening-recency">{{ signal.recency_label }}</p>
-                    {% endif %}
+                    {# Line 1: Name (bold) — Verb (regular) #}
+                    <p class="bl-happening-name"><strong>{{ signal.person }}</strong>{% if signal.action_verb %} — {{ signal.action_verb }}{% endif %}</p>
+                    {# Line 2: Resort · Recency inline; recency wraps naturally if needed #}
+                    <p class="bl-happening-resort">{{ signal.mountain or 'Trip upcoming' }}{% if signal.recency_label %}<span class="bl-happening-recency-sep"> · </span><span class="bl-happening-recency-inline">{{ signal.recency_label }}</span>{% endif %}</p>
                 </div>
             </div>
             {% endif %}
