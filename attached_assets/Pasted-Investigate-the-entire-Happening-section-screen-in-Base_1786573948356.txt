@@ -1,0 +1,144 @@
+Investigate the entire **Happening** section/screen in BaseLodge so we can fine-tune the design before making changes.
+
+Do not modify code yet.
+
+The current mobile UI has cards like:
+
+`Taylor Mercer - Planning Shiga Ko...`
+`Added this week`
+
+and:
+
+`Olu Osinowo - Planning Whistler B...`
+`Recently updated`
+
+The biggest current issue is that the resort name is truncated because name + activity + resort are competing on one line.
+
+We are considering a structure closer to:
+
+**Taylor Mercer — Planning**
+**Shiga Kogen** · Added this week
+
+or, when necessary:
+
+**Taylor Mercer — Planning**
+**Whistler Blackcomb**
+Recently updated
+
+The key principle is:
+
+**Never truncate the resort name just to preserve the recency text.**
+
+We also want the cards to be **slightly more compact overall** than they are today, without making the screen feel cramped or losing the premium BaseLodge aesthetic.
+
+Please investigate the entire Happening implementation, including:
+
+* Template(s) that render the section
+* Python/backend logic that builds the Happening feed
+* CSS controlling:
+
+  * card width
+  * card height / min-height
+  * padding
+  * margins
+  * inter-card spacing
+  * border radius
+  * shadows/borders
+  * text sizes
+  * line height
+  * font weights
+  * truncation / overflow
+  * responsive behavior
+* JavaScript related to:
+
+  * dismissing cards
+  * updating/removing Happening items
+  * any dynamic sizing or truncation
+* The × control:
+
+  * size
+  * position
+  * opacity/color
+  * hit target
+  * whether moving it toward the top-right would create any layout or accessibility issues
+* All data elements currently shown in each card:
+
+  * friend name
+  * activity/status
+  * resort
+  * recency/status text
+* The exact rules that determine values like:
+
+  * `Planning`
+  * `Going to`
+  * `Added this week`
+  * `Recently updated`
+* Whether any other statuses or edge cases exist that we need to design for
+
+Also inspect realistic content-length edge cases from the actual data/model, including:
+
+* Long first + last names
+* Long resort names
+* `Whistler Blackcomb`
+* Multi-word international resort names
+* `Going to` vs `Planning`
+* Very long combinations of user name + activity + resort
+* Missing or unusual values if supported
+
+For the current screen, report the exact existing measurements wherever possible:
+
+* Card padding
+* Vertical spacing between cards
+* Name font size/weight
+* Secondary text font size
+* Card border radius
+* × size and placement
+* Any fixed/min heights
+* Any `white-space`, `overflow`, `text-overflow`, line-clamp, or flex rules that cause the current truncation
+
+Then propose **3 implementation-ready layout variants**, all using the existing BaseLodge visual language.
+
+At least one should be:
+
+### Variant A
+
+Line 1: **Name — Activity**
+Line 2: **Full resort name** + recency if it fits
+Line 3: Recency only when necessary
+
+For example:
+
+**Taylor Mercer — Planning**
+Shiga Kogen · Added this week
+
+and:
+
+**Olu Osinowo — Planning**
+Whistler Blackcomb
+Recently updated
+
+Also propose:
+
+* A slightly more compact version of the current card dimensions
+* A recommendation for how much to reduce padding/card height/inter-card spacing without making it cramped
+* Whether name/activity/resort/recency should use different font weights or opacities
+* Whether the × should move to the top-right and become visually lighter
+* Whether any of these changes could affect desktop/tablet rendering
+
+Do not implement anything yet.
+
+Return:
+
+1. Exact files/functions/classes involved
+2. Current Happening data flow
+3. Current CSS/layout measurements
+4. Exact cause of resort truncation
+5. All important content-length/status edge cases
+6. Three proposed layouts with example text
+7. Recommended card size/spacing reductions
+8. Recommended typography hierarchy
+9. Recommended × treatment
+10. Your recommended final design
+11. Exact code changes that would be required for that recommendation
+
+Stop after the investigation report.
