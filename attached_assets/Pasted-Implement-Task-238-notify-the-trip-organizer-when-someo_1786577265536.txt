@@ -1,0 +1,227 @@
+Implement Task #238: notify the trip organizer when someone requests to join their trip.
+
+Use the existing BaseLodge messaging infrastructure and keep this notification **immediate**, consistent with every other user-facing trip notification in the app.
+
+Do not introduce any delay, background thread, timer, queue, `sleep()`, or new scheduling infrastructure.
+
+## Goal
+
+When a user successfully taps **Request to join** on a friend's trip, send an immediate push notification to the trip organizer.
+
+### Notification copy
+
+**Title**
+`{actor_name} wants to join your trip`
+
+**Body**
+`They've requested to join your {resort} trip.`
+
+For trips with no resort/mountain, the final body must read naturally as:
+
+`They've requested to join your upcoming trip.`
+
+### Deep link
+
+`/trips/{trip_id}`
+
+Tapping the notification should open the organizer's trip detail page.
+
+## 1. Add the messaging event constant
+
+In:
+
+`services/messaging_constants.py`
+
+Add:
+
+`TRIP_JOIN_REQUESTED = "trip.join.requested"`
+
+Place it with the existing trip-related event constants and follow the existing naming/comment conventions.
+
+Do not modify unrelated constants.
+
+## 2. Register the EventSpec
+
+In:
+
+`services/message_dispatch.py`
+
+Register `TRIP_JOIN_REQUESTED` in the existing event registry.
+
+Use:
+
+* `DeliveryStrategy.IMMEDIATE_PUSH`
+* Title template: `{actor_name} wants to join your trip`
+* Body template: `They've requested to join your {resort} trip.`
+* Deep link template: `/trips/{entity_id}`
+* Appropriate context keys including:
+
+  * `actor_name`
+  * `resort`
+  * `trip_id`
+
+Mirror the existing structure and conventions used by comparable trip events such as `TRIP_INVITE_ACCEPTED`.
+
+Do not create a one-off OneSignal call outside the messaging system.
+
+## 3. Emit the notification from the join-request route
+
+In:
+
+`app.py`
+
+Update the existing `request_to_join_trip` route.
+
+After the join request has been successfully saved and `db.session.commit()` has completed, call the existing `emit_messaging_event()` infrastructure.
+
+Use:
+
+* Event: `TRIP_JOIN_REQUESTED`
+* `actor_user_id=current_user.id`
+* `recipient_user_id=trip.user_id`
+* `entity_type="trip"`
+* `entity_id=trip.id`
+
+Pass the appropriate context needed by the EventSpec.
+
+Resolve the resort wording as follows:
+
+* If `trip.resort` exists, use `trip.resort.name`
+* Else if `trip.mountain` exists, use `trip.mountain`
+* Else use `upcoming`
+
+This must produce:
+
+`They've requested to join your upcoming trip.`
+
+for trips without a resort.
+
+## 4. Preserve all existing request guards
+
+Do not alter the existing join-request behavior.
+
+Specifically preserve:
+
+* Duplicate pending request guard
+* Already-accepted participant guard
+* Owner/self-request protection
+* Existing database status values
+* Existing request-to-join UI behavior
+* Existing accept/decline flow
+
+The push should only be emitted after a **new successful request** has actually been committed.
+
+Therefore:
+
+* Successful new request → push
+* Duplicate pending request → no push
+* Already accepted → no push
+* Invalid/self request → no push
+* Failed DB transaction → no push
+
+## 5. MessageEventLog / delivery infrastructure
+
+Use the existing `emit_messaging_event()` / dispatch path so the notification:
+
+* Uses OneSignal through the existing provider
+* Uses the existing 1-hour dedupe protection
+* Writes the appropriate `MessageEventLog`
+* Silently handles organizers with no registered push device according to current infrastructure
+* Uses the existing delivery outcome handling
+
+Do not bypass or duplicate any of this logic.
+
+## 6. Tests
+
+Add automated coverage for the new behavior.
+
+Use the existing test patterns, including `unittest.mock.patch("app.emit_messaging_event")` where appropriate.
+
+Cover at minimum:
+
+### Successful request
+
+Verify a successful new join request:
+
+* Commits successfully
+* Calls `emit_messaging_event()` exactly once
+* Uses the new `TRIP_JOIN_REQUESTED` event
+* Sends to the trip owner
+* Uses the requester as actor
+* Uses the correct trip entity ID
+* Includes the correct resort
+* Produces the correct trip deep link through the EventSpec
+
+### Duplicate request
+
+A user who already has a pending join request must not generate another push.
+
+### Already accepted
+
+An accepted participant must not generate a join-request push.
+
+### Self / owner case
+
+The trip owner must never receive a join-request notification caused by requesting their own trip.
+
+### No resort
+
+Verify a trip with neither `trip.resort` nor `trip.mountain` passes `resort="upcoming"` so the body becomes:
+
+`They've requested to join your upcoming trip.`
+
+### Event registry
+
+Add or update tests to confirm the new EventSpec is registered with:
+
+* `IMMEDIATE_PUSH`
+* Correct title
+* Correct body
+* Correct deep link
+
+### Message logging
+
+Where existing messaging tests support it, verify the new event follows the standard `MessageEventLog` path rather than bypassing dispatch.
+
+## 7. Scope
+
+Do not add:
+
+* Email notifications
+* In-app unread badges
+* New UI
+* Notification delays
+* Background workers
+* Threads
+* Scheduling infrastructure
+* Changes to join-request approval/decline behavior
+* Changes to unrelated notification events
+
+Do not refactor unrelated messaging code.
+
+## 8. Verification
+
+After implementation:
+
+1. Run the full automated test suite.
+2. Confirm all existing tests still pass.
+3. Confirm the new join-request tests pass.
+4. Confirm no notification fires for duplicate or invalid requests.
+5. Confirm the notification deep link resolves to `/trips/{trip_id}`.
+6. Confirm the no-resort wording is grammatically correct.
+7. Confirm no direct OneSignal call was added to `app.py`.
+
+## Return
+
+Give me:
+
+1. Files changed
+2. Exact event constant added
+3. Exact EventSpec added
+4. Exact route change
+5. Notification title/body/deep link
+6. Guard behavior verification
+7. Tests added
+8. Full test results
+9. Confirmation that no delay/background infrastructure was introduced
+10. Any remaining manual verification I should do in the production app

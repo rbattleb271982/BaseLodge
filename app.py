@@ -12401,10 +12401,28 @@ def request_to_join_trip(trip_id):
         status='pending'
     )
     db.session.add(join_request)
-    # Notify the trip owner
+    # Notify the trip owner (activity feed record)
     create_activity(current_user.id, trip.user_id, ActivityType.JOIN_REQUEST_RECEIVED, 'trip', trip.id)
     db.session.commit()
-    
+
+    # Immediate push to the organizer — fires only after a successful commit.
+    # Resort fallback: resort.name → mountain → "upcoming" (produces grammatically
+    # correct "your upcoming trip." for trips with no resort attached).
+    _jrq_resort = (
+        trip.resort.name if trip.resort
+        else trip.mountain if trip.mountain
+        else "upcoming"
+    )
+    emit_messaging_event(
+        event_name=EventName.TRIP_JOIN_REQUESTED,
+        actor_user_id=current_user.id,
+        recipient_user_id=trip.user_id,
+        entity_type="trip",
+        entity_id=trip.id,
+        metadata={"resort": _jrq_resort, "trip_id": trip.id},
+        source_route="request_to_join_trip",
+    )
+
     return jsonify({"success": True, "message": "Request sent to owner."})
 
 

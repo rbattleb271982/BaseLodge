@@ -323,6 +323,21 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
         email_eligible=False,
     ),
 
+    EventName.TRIP_JOIN_REQUESTED: EventSpec(
+        event_name=EventName.TRIP_JOIN_REQUESTED,
+        category=Category.TRIP,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="{actor_name} wants to join your trip",
+        body_template="They've requested to join your {resort} trip.",
+        deep_link_template="/trips/{entity_id}",
+        url_template="/trips",
+        screen="trip_detail",
+        context_keys=["actor_name", "resort", "trip_id"],
+        data_keys=["trip_id"],
+        bypass_dedupe=False,
+        email_eligible=False,
+    ),
+
     EventName.OVERLAP_DETECTED: EventSpec(
         event_name=EventName.OVERLAP_DETECTED,
         category=Category.OVERLAP,

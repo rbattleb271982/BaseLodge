@@ -10,6 +10,7 @@ class EventName:
     TRIP_INVITE_CREATED     = "trip.invite.created"
     TRIP_INVITE_ACCEPTED    = "trip.invite.accepted"
     TRIP_INVITE_DECLINED    = "trip.invite.declined"
+    TRIP_JOIN_REQUESTED     = "trip.join.requested"  # trip owner notified when a non-member requests to join
 
     # Participant lifecycle — active push events
     TRIP_PARTICIPANT_ADDED      = "trip.participant.added"      # other accepted participants when someone accepts
