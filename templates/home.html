@@ -749,7 +749,11 @@
         .bl-happening-link--static {
             padding: 10px 44px 10px 16px;
         }
-        /* × button: visually smaller and lighter, but tap target stays generous (8px pad all sides) */
+        /* × button: visually subtle (13px, opacity 0.38) with a generous 41×41px tap target.
+           Anchored to top: 0; right: 0 — padding expands the hit area inward from the card corner.
+           The visible × sits at ~14px from right/top (inside the 14px padding).
+           Hit-area left edge = 14px (right-pad) + 13px (char) + 0 = 41px from card right,
+           which is inside the 44px content clearance — no overlap with text. */
         .bl-happening-dismiss {
             background: none;
             border: none;
@@ -759,9 +763,9 @@
             color: var(--bl-color-text-tertiary);
             opacity: 0.38;
             position: absolute;
-            top: 10px;
-            right: 12px;
-            padding: 8px;       /* keeps ~30×30px tap target; text cannot reach within 44px right pad */
+            top: 0;
+            right: 0;
+            padding: 14px;      /* 13px char + 14px pad × 2 = 41px square tap target */
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
