@@ -1,0 +1,95 @@
+Update the Ideas cards on the BaseLodge home screen so their typography, padding, spacing, and dismiss control feel consistent with the Happening cards we just updated.
+
+Do not redesign the Ideas section or change its content/data logic.
+
+The current Ideas cards are visibly larger and more padded than the new Happening cards. The goal is to establish a consistent card density across both sections.
+
+Match the Happening sizing system
+
+Use these target sizing tokens for the Ideas cards:
+
+* Primary/title text: 16px
+* Secondary/detail text: 15px
+* Eyebrow/category label such as FRIEND TRIP or DATES ALIGN: 13px
+* Top/bottom card padding: 10px
+* Left padding: 16px
+* Right-side text clearance: preserve approximately 44px for the dismiss control
+* Gap between Ideas cards: 8px
+* Keep existing card border radius: 16px
+
+Do not change the Ideas section heading itself.
+
+Preserve the Ideas hierarchy
+
+The cards should still read as:
+
+FRIEND TRIP
+Breckinridge, CO
+Zach going · Nov 20–24
+
+and:
+
+DATES ALIGN
+Zach overlaps with you in January
+
+The eyebrow should remain visually tertiary and uppercase.
+
+The main idea/title should remain the strongest text.
+
+Any supporting line should remain secondary.
+
+Do not force all Ideas cards to have the same number of lines or artificial fixed heights.
+
+Dismiss ×
+
+Make the Ideas-card dismiss control consistent with the new Happening ×:
+
+* Visible × approximately 13px
+* Resting opacity around 0.38
+* Top-right placement
+* Preserve an approximately 41×41px interactive tap area
+* Keep the visible × visually small despite the larger invisible hit target
+* Preserve accessibility labeling and existing dismissal behavior
+* Ensure the hit target does not overlap card text
+
+If the Ideas cards already use the same generic dismiss component/function, do not duplicate logic unnecessarily.
+
+Important
+
+Do not change:
+
+* Ideas feed generation
+* Ranking/order
+* Card types
+* Dates
+* Resort formatting
+* Dismissal behavior
+* Section heading typography
+* Happening cards
+* Other home-screen sections
+
+This should be a visual density/consistency change only.
+
+Verification
+
+Verify examples visible in the current production UI:
+
+* DATES ALIGN / Zach overlaps with you in January
+* FRIEND TRIP / Breckenridge, CO / Zach going · Nov 20–24
+* FRIEND TRIP / Beaver Creek, CO / Clay considering · Dec 17–20
+* FRIEND TRIP / Copper, CO / Bryan going · Dec 23–Jan 4
+* Long resort names such as Dolomiti Superski, Trentino-Alto Adige
+
+For long resort names, preserve the existing intended wrapping/truncation behavior unless a small CSS adjustment is required to prevent the larger × hit area from covering text. Do not introduce new truncation unnecessarily.
+
+Run the full test suite afterward.
+
+Return:
+
+1. Files changed
+2. Exact before/after font sizes
+3. Exact before/after padding and card gap
+4. × sizing/position/hit-target changes
+5. Any change required for long titles
+6. Test results
+7. Confirmation that no Ideas logic or data behavior changed

@@ -854,12 +854,13 @@
 
         /* ── Opportunity rows ── */
         .bl-opp-row {
+            position: relative;           /* anchors the absolute-positioned × */
             display: flex;
             align-items: center;
             background: #FDFBF7;
             border: 1px solid rgba(92, 18, 25, 0.1);
-            border-radius: 18px;
-            margin-bottom: 10px;
+            border-radius: 16px;
+            margin-bottom: 8px;
             overflow: hidden;
         }
         .bl-opp-row:last-child {
@@ -870,7 +871,7 @@
             align-items: center;
             flex: 1;
             min-width: 0;
-            padding: 12px 8px 12px 20px;
+            padding: 10px 44px 10px 16px;  /* 44px right reserves space for the × hit target */
             text-decoration: none;
             color: inherit;
             gap: 10px;
@@ -880,7 +881,7 @@
         .bl-opp-body { flex: 1; min-width: 0; }
         .bl-opp-signal {
             display: block;
-            font-size: 10px;
+            font-size: 13px;
             font-weight: 700;
             letter-spacing: 0.8px;
             text-transform: uppercase;
@@ -888,7 +889,7 @@
             margin-bottom: 3px;
         }
         .bl-opp-primary {
-            font-size: 17px;
+            font-size: 16px;
             font-weight: 500;
             color: var(--bl-color-text);
             margin: 0 0 2px 0;
@@ -898,7 +899,7 @@
             text-overflow: ellipsis;
         }
         .bl-opp-secondary {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--bl-color-text-muted);
             margin: 0;
             line-height: 1.35;
@@ -911,20 +912,26 @@
             color: var(--bl-color-text-tertiary);
             flex-shrink: 0;
         }
+        /* × button: matches Happening dismiss — 13px visible, 0.38 opacity, 41×41px tap target.
+           Anchored top: 0; right: 0 so padding expands the hit area inward from the card corner.
+           The visible × sits at ~14px from top/right (inside the 14px padding).
+           Hit-area left edge = 14px + 13px = 27px from card right, inside the 44px link clearance. */
         .bl-opp-dismiss {
             background: none;
             border: none;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 13px;
             line-height: 1;
             color: var(--bl-color-text-tertiary);
-            opacity: 0.45;
-            padding: 12px 16px 12px 8px;
-            flex-shrink: 0;
+            opacity: 0.38;
+            position: absolute;
+            top: 0;
+            right: 0;
+            padding: 14px;      /* 13px char + 14px pad × 2 = 41px square tap target */
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        .bl-opp-dismiss:active { opacity: 0.8; }
+        .bl-opp-dismiss:active { opacity: 0.75; }
         .bl-opp-empty-card {
             margin: 12px 0 0;
             padding: 20px 18px 18px;
