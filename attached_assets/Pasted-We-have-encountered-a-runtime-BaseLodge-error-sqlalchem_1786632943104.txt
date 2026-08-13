@@ -1,0 +1,79 @@
+We have encountered a runtime BaseLodge error:
+
+`sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedTable) relation "user" does not exist`
+
+The traceback shows:
+
+`before_request_handlers`
+→ `current_user.is_authenticated`
+→ Flask-Login `load_user`
+→ `db.session.get(User, int(user_id))`
+→ PostgreSQL reports that relation `"user"` does not exist.
+
+The session is attempting to load User ID 105.
+
+**STOP UX AUDIT WORK FOR NOW.**
+
+**DO NOT CHANGE CODE.**
+**DO NOT RUN DESTRUCTIVE DATABASE COMMANDS.**
+**DO NOT CREATE/DROP TABLES.**
+**DO NOT RUN MIGRATIONS THAT MODIFY PRODUCTION DATA.**
+**DO NOT PUBLISH OR DEPLOY.**
+
+Investigate this database/environment issue first.
+
+I want you to determine:
+
+1. Which database/environment the currently running Replit development app is connected to.
+2. Whether this is the development database, production database, test database, or another database.
+3. Whether the `"user"` table actually exists in:
+
+   * the database used by the current Replit development app
+   * the production database
+   * the database used by pytest
+4. Why the current running app is connected to a PostgreSQL database that apparently does not contain the `"user"` table.
+5. Whether any recent work changed:
+
+   * `DATABASE_URL`
+   * database configuration
+   * Replit database/environment variables
+   * test database setup
+   * Flask-SQLAlchemy initialization
+   * migrations/startup migrations
+6. Whether the Batch 1 `app.py` migration change has any relationship whatsoever to this issue.
+7. Whether Batch 2 could have affected database configuration in any way.
+8. Whether User ID 105 belongs to a stale Flask session pointing at a different/reset database, versus the database itself being incorrectly configured.
+9. Why the latest test suite now reports:
+
+   * 143 passed
+   * 12 failed
+   * 1 error
+
+   when earlier Batch 1 reported:
+
+   * 134 passed
+   * 1 failed
+
+   Identify exactly what changed between those baselines and whether the missing-table/schema failures in the latest test run are related to this runtime error.
+10. Whether the previously reported `test_invite_cross_account.py` and `test_profile_consolidation.py` SQL/schema failures are symptoms of the same underlying database/test-schema problem.
+
+### Required return
+
+Give me:
+
+* Root cause, if determinable
+* Exact database/environment currently being used
+* Database/schema state for development, production, and tests
+* Relevant configuration/code paths
+* Timeline of when the problem was introduced
+* Whether any production data is at risk
+* Whether production is currently affected
+* Explanation for the change in test-suite baseline
+* Recommended fix
+* Exact files/configuration/database operations that would be required to fix it
+* Risk of the proposed fix
+* How we will verify the fix without risking production data
+
+Again, **investigation only**.
+
+Do not modify code, database schema, database contents, secrets, environment variables, or deployment configuration until I explicitly approve the fix.
