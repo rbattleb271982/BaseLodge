@@ -1,0 +1,108 @@
+IMPLEMENT ONE SAFETY FIX ONLY.
+We are now authorizing a narrowly scoped code change to:
+tests/test_profile_consolidation.py
+The purpose is to eliminate the known destructive database-isolation defect that allowed this test's db.drop_all() to execute against Supabase.
+AUTHORIZED CHANGE
+Modify only tests/test_profile_consolidation.py.
+Implement the SQLite engine-isolation design from the approved plan, with these exact requirements:
+Add the required SQLAlchemy imports for an in-memory SQLite engine using StaticPool.
+Capture the exact pre-test state of db._app_engines[app] for the default None bind:
+whether the None key existed;
+the exact original value if it existed.
+Create a dedicated:
+sqlite:///:memory:
+engine using:
+StaticPool
+and:
+connect_args={"check_same_thread": False}
+Enter an explicit try/finally before modifying the engine map.
+Install the SQLite engine as the first engine-map mutation inside try.
+Installing SQLite must be a pure Python engine-map operation.
+NEVER:
+dispose the displaced engine;
+connect to the displaced engine;
+query the displaced engine;
+execute SQL against the displaced engine.
+Add a fail-closed _assert_sqlite() using:
+db.engine.dialect.name == "sqlite"
+Do NOT inspect or print the database URL.
+Setup ordering must be exactly:
+_assert_sqlite("setup")
+immediately followed by:
+db.create_all()
+Nothing may occur between those two calls.
+Teardown ordering must be:
+db.session.remove()
+then:
+_assert_sqlite("teardown")
+immediately followed by:
+db.drop_all()
+Nothing may occur between _assert_sqlite("teardown") and db.drop_all().
+In finally, restore the exact pre-test engine-map state:
+if the None key originally existed, restore its exact original object;
+if the None key originally did not exist, remove the temporary None key entirely.
+Restoration must occur through Python-side engine-map manipulation only.
+Restore the original engine-map state before disposing SQLite.
+Dispose only the temporary sqlite_engine.
+NEVER call .dispose() on original_engine or any displaced PostgreSQL/Supabase engine.
+IMPORTANT SCOPE LIMIT
+This implementation fixes the known fixture-level destructive path only.
+Do NOT claim this makes pytest globally safe yet.
+We have separately identified a possible import/collection-time issue because this test imports:
+from app import app, db
+That will be addressed as the NEXT safety task before we authorize any pytest execution.
+Do not attempt to solve that issue in this implementation.
+DO NOT CHANGE
+Do NOT change:
+tests/conftest.py
+app.py
+models.py
+logged_in_user
+any of the six test functions
+test data
+assertions
+routes
+authentication
+migrations
+database configuration
+Replit Secrets
+deployment configuration
+any other file
+ABSOLUTELY DO NOT EXECUTE
+After making the code change:
+DO NOT RUN ANYTHING.
+Specifically:
+DO NOT run pytest.
+DO NOT collect tests.
+DO NOT import app.py for verification.
+DO NOT run Python verification scripts that import BaseLodge.
+DO NOT start Flask.
+DO NOT press/run the application.
+DO NOT run migrations.
+DO NOT run db.create_all().
+DO NOT run db.drop_all().
+DO NOT execute SQL.
+DO NOT connect to either Supabase database.
+DO NOT query either Supabase database.
+DO NOT change SUPABASE_DATABASE_URL.
+DO NOT change RECOVERED_SUPABASE_DATABASE_URL.
+DO NOT deploy or publish.
+DO NOT commit or push.
+Editing the single authorized file is the ONLY action authorized.
+AFTER IMPLEMENTATION
+STOP immediately.
+Return:
+Exact file changed.
+Exact diff.
+Confirmation no other files changed.
+Confirmation _install_engine() occurs inside try.
+Confirmation the original engine is never disposed.
+Confirmation only temporary SQLite is disposed.
+Confirmation setup is _assert_sqlite() immediately followed by db.create_all().
+Confirmation teardown is db.session.remove(), then _assert_sqlite(), immediately followed by db.drop_all().
+Confirmation exact original engine-map state is restored in finally.
+Confirmation NO tests were run.
+Confirmation NO application process was started.
+Confirmation NO database was accessed.
+Confirmation NO secrets were changed.
+Do not proceed to the next task. Wait for my approval.
