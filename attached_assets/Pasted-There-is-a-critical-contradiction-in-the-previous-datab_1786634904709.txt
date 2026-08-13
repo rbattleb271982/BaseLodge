@@ -1,0 +1,73 @@
+There is a critical contradiction in the previous database investigation.
+
+BaseLodge was functioning normally **immediately before the most recent UX/Replit task**. Existing authenticated users could use the app. Immediately afterward, both the development app and the live mobile app began failing with:
+
+`relation "user" does not exist`
+
+Therefore, the conclusion that the historical database simply disappeared sometime months ago is incomplete.
+
+**INVESTIGATION ONLY. DO NOT CHANGE ANYTHING.**
+
+Do not modify code, databases, files, configuration, secrets, checkpoints, deployments, or processes.
+
+I need you to focus specifically on the **immediate outage timeline**, not the April/May historical timeline.
+
+### Determine what changed between the last working request and the first failing request
+
+Investigate:
+
+1. What database connection the running BaseLodge application was actually using immediately before the outage.
+2. Whether an existing Python/Gunicorn/Replit process had been running with a different resolved database URI than the process running now.
+3. Whether the most recent Replit task caused or coincided with:
+
+   * workspace restart
+   * Flask/Gunicorn restart
+   * Agent restart
+   * container replacement
+   * checkpoint application
+   * filesystem reset
+   * deployment restart
+   * secret/environment reload
+   * dependency reinstall
+   * git checkout/reset
+   * workspace synchronization
+   * any other runtime recreation
+4. Whether `instance/baselodge.db` existed immediately before that restart/task and disappeared during or after it.
+5. Search filesystem metadata, logs, shell history, Replit task logs, Agent activity, checkpoint metadata, and runtime logs for the **last 24 hours**, with special focus on the exact period surrounding the Batch 2 implementation.
+6. Determine the last timestamp at which:
+
+   * a successful query against `"user"` occurred
+   * User ID 105 was successfully loaded
+   * an authenticated BaseLodge request succeeded
+7. Determine the first timestamp at which:
+
+   * `relation "user" does not exist` occurred
+   * the app connected to Supabase project `dxwurvuyprpiypqdpkza`
+8. Determine whether the database URI/resolved engine before and after those timestamps was the same or different.
+9. Search specifically for evidence that `instance/baselodge.db` existed in the workspace or running environment immediately before the failure.
+10. Determine whether any Replit process/runtime/deployment snapshot from immediately before the outage may still contain the SQLite file.
+
+### Important
+
+Do **not** assume the UX CSS changes deleted the database.
+
+Also do **not** assume the database had already been missing for months, because that conflicts with the observed fact that the application was working immediately before this task.
+
+We need to reconcile those facts with evidence.
+
+### Return
+
+Give me:
+
+* Exact last-known-working timestamp
+* Exact first-known-failing timestamp
+* Database actually used immediately before failure
+* Database used immediately after failure
+* What process/runtime/environment transition occurred between them
+* Whether `instance/baselodge.db` existed immediately before failure
+* Whether that file or runtime can still be recovered
+* Any checkpoint/runtime/deployment snapshot created around that transition
+* The most likely immediate cause of the outage
+* Confidence level for each conclusion
+
+**DO NOT FIX ANYTHING YET.**

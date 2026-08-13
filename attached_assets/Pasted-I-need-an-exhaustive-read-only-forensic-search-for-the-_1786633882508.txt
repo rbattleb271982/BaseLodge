@@ -1,0 +1,534 @@
+I need an **exhaustive, read-only forensic search for the historical BaseLodge database and user data**.
+
+The primary fingerprint to search for is:
+
+`richardbattlebaxter@gmail.com`
+
+Known possible historical identifier:
+
+`User ID 105`
+
+Known historical database filename:
+
+`instance/baselodge.db`
+
+The objective is to determine whether **any copy, backup, snapshot, export, log, cache, historical file, database, checkpoint-accessible artifact, or other recoverable representation of the historical BaseLodge data still exists anywhere you can access.**
+
+## ABSOLUTE RULE: READ ONLY
+
+**DO NOT CHANGE ANYTHING.**
+
+Do not:
+
+* modify code
+* modify or delete files
+* restore/revert a checkpoint
+* modify any database
+* create/drop/alter tables
+* run migrations
+* stamp Alembic
+* modify environment variables or secrets
+* rotate secrets
+* publish/deploy
+* restart or reset databases
+* create a replacement schema
+* clear sessions
+* clean temporary files
+* run commands that could overwrite, truncate, vacuum, initialize, migrate, or otherwise mutate storage
+
+If a source cannot be inspected without modifying it, **stop at identifying that source and tell me what manual action would be required.**
+
+---
+
+# SEARCH LITERALLY EVERYTHING YOU CAN ACCESS
+
+Do not limit this investigation to the current working tree or currently configured database.
+
+## 1. Entire current Replit filesystem
+
+Recursively inspect the entire accessible workspace and relevant accessible filesystem locations.
+
+Search filenames and file contents.
+
+Look specifically for:
+
+* `baselodge.db`
+* `*.db`
+* `*.sqlite`
+* `*.sqlite3`
+* `*.sql`
+* `*.dump`
+* `*.backup`
+* `*.bak`
+* `*.old`
+* `*.orig`
+* `*.tmp`
+* `*.temp`
+* `*.csv`
+* `*.json`
+* `*.jsonl`
+* `*.tar`
+* `*.tar.gz`
+* `*.tgz`
+* `*.zip`
+* database journals
+* SQLite WAL files
+* SQLite SHM files
+* copied databases
+* renamed databases
+* exports
+* backups
+* archives
+* temporary migration artifacts
+* instance folders
+* hidden folders
+* cache folders
+* abandoned directories
+* previous project copies
+* deployment/build artifacts where accessible
+
+Do not assume a database copy would still be named `baselodge.db`.
+
+Search file contents for:
+
+`richardbattlebaxter@gmail.com`
+
+and, where meaningful:
+
+* User ID `105`
+* `baselodge.db`
+* `sqlite`
+* `SQLALCHEMY_DATABASE_URI`
+* `DATABASE_URL`
+* `SUPABASE_DATABASE_URL`
+
+Be careful with User ID 105 because it may generate unrelated matches. Only report it when context suggests a BaseLodge User record.
+
+---
+
+# 2. Git — exhaustive historical search
+
+Search the **entire Git repository history**, not just the current branch or current files.
+
+Inspect:
+
+* every branch
+* every reachable commit
+* deleted files
+* renamed files
+* historical versions of files
+* commit diffs
+* tags
+* stashes if accessible
+* reflog if accessible
+* dangling/unreachable Git objects if safely inspectable
+* historical configuration
+* historical `.gitignore`
+* historical database references
+* historical deployment configuration
+
+Search the complete Git history for:
+
+`richardbattlebaxter@gmail.com`
+
+`User ID 105`
+
+`instance/baselodge.db`
+
+`baselodge.db`
+
+`SUPABASE_DATABASE_URL`
+
+`DATABASE_URL`
+
+SQLite configuration and fallback logic.
+
+Determine whether any database, SQL dump, export, user record, or data-bearing artifact ever entered Git even temporarily and was later removed.
+
+Do not assume that because `instance/baselodge.db` was not tracked on the main branch it never appeared in another Git object.
+
+---
+
+# 3. Every currently accessible database
+
+Perform READ-ONLY inspection of every database connection available to the project.
+
+This includes, but is not necessarily limited to:
+
+* current Supabase PostgreSQL
+* Replit Helium PostgreSQL
+* any SQLite database found
+* any other PostgreSQL/database connection referenced by configuration
+* any historical database connection whose credentials are still legitimately available to this workspace
+
+For each database:
+
+* identify it safely without exposing credentials
+* list schemas
+* list application-relevant tables
+* determine whether BaseLodge tables exist
+* search appropriate user/account tables for `richardbattlebaxter@gmail.com`
+* determine whether User ID 105 exists
+* obtain approximate row counts for major BaseLodge tables if present
+
+Do not modify anything.
+
+Also inspect whether BaseLodge data could exist in a schema other than `public`.
+
+---
+
+# 4. Supabase — inspect beyond the obvious
+
+Read-only inspect all accessible schemas in the connected Supabase project.
+
+Determine whether historical BaseLodge data exists anywhere other than the expected `public` schema.
+
+Inspect relevant:
+
+* schemas
+* tables
+* views
+* materialized views
+* migration metadata
+* storage metadata
+* backups/snapshot metadata if accessible
+* database extensions or alternate schemas where application data could have landed
+
+Search for the target email wherever doing so is safe and appropriate.
+
+Also determine whether the Supabase project itself exposes any **backup, point-in-time recovery, snapshot, branch, restore, or historical database capability** that could contain an earlier schema/data state.
+
+Do NOT initiate a restore.
+
+Simply report what recovery/history capability exists and what historical points are available, if you can see them.
+
+---
+
+# 5. Replit database/storage resources
+
+Inspect all accessible Replit database/storage resources associated with this project.
+
+Do not assume `DATABASE_URL` is the only Replit-managed database that ever existed.
+
+Look for evidence of:
+
+* previous PostgreSQL databases
+* previous database instances
+* database replacements
+* old connection identifiers
+* object storage
+* persistent storage
+* historical database resources
+* renamed/replaced resources
+* previous deployment databases
+* database backups
+* snapshots
+* exports
+
+If you cannot directly inspect historical Replit infrastructure, identify exactly what I should look for manually in the Replit UI.
+
+---
+
+# 6. Replit checkpoints
+
+Determine everything you can about available checkpoint history **without restoring a checkpoint**.
+
+If checkpoint metadata is accessible, identify:
+
+* checkpoint dates/times
+* checkpoint names/descriptions
+* checkpoints from periods when BaseLodge was known to work
+* whether checkpoint contents can be inspected without restoration
+* whether untracked files are captured
+* whether `instance/baselodge.db` could therefore be contained in them
+
+If you cannot inspect checkpoint contents yourself, tell me explicitly.
+
+Do NOT restore one.
+
+---
+
+# 7. Deployment history and deployment artifacts
+
+Inspect all accessible production/deployment history.
+
+Look for:
+
+* previous deployments
+* previous deployment builds
+* deployment snapshots
+* build artifacts
+* persistent filesystem artifacts
+* old deployment containers/filesystems if accessible
+* environment/configuration history
+* previous database connection configuration
+* logs showing database paths
+* logs showing successful queries against historical BaseLodge data
+
+Determine whether any previous deployment artifact could contain a copy of `instance/baselodge.db`.
+
+Do NOT redeploy or modify production.
+
+---
+
+# 8. Logs — development and production
+
+Search all accessible logs, including historical logs where available.
+
+Search for:
+
+`richardbattlebaxter@gmail.com`
+
+and evidence involving:
+
+* User ID 105
+* successful User queries
+* database connection startup messages
+* SQLite paths
+* `baselodge.db`
+* Supabase connections
+* database migrations
+* database initialization
+* database copying
+* database exports
+* database errors
+* schema creation
+* Alembic stamping
+* `flask db stamp`
+* `flask db upgrade`
+* database resets
+
+Determine the last known point at which BaseLodge successfully queried the historical user database.
+
+Do not expose unrelated users' personal information in the report.
+
+---
+
+# 9. Shell/command history where accessible
+
+Read-only inspect available shell/terminal history for commands involving:
+
+* `sqlite`
+* `sqlite3`
+* `baselodge.db`
+* `psql`
+* Supabase
+* PostgreSQL
+* `flask db`
+* Alembic
+* `stamp`
+* `upgrade`
+* `dump`
+* `pg_dump`
+* database copying
+* database deletion
+* `rm`
+* `mv`
+* `cp`
+* instance directory operations
+
+We are specifically looking for evidence showing:
+
+* where the database went
+* whether it was copied
+* whether it was deleted
+* whether Supabase was stamped
+* whether data was ever migrated
+
+Do not execute historical commands. Only inspect available history.
+
+---
+
+# 10. Replit Agent / project history / task artifacts
+
+Search any accessible Agent history, task reports, audit files, generated reports, markdown files, notes, or project metadata for references to:
+
+* `richardbattlebaxter@gmail.com`
+* User ID 105
+* real BaseLodge users
+* `instance/baselodge.db`
+* database migrations
+* SQLite
+* Supabase
+* database conversion
+* production database
+* database backups
+* database restoration
+* database reset
+
+Historical Agent reports may contain queries/results that identify where data lived or what happened to it.
+
+---
+
+# 11. Backups, exports and accidental copies
+
+Search aggressively for anything that could function as a partial or complete data backup.
+
+Examples:
+
+* CSV exports
+* JSON exports
+* SQL dumps
+* admin exports
+* debugging exports
+* migration dumps
+* copied SQLite databases
+* archived project folders
+* old workspace copies
+* test fixtures populated from production data
+* seed files
+* database snapshots
+* temporary files
+* `.bak` files
+* `.old` files
+* downloaded/exported database artifacts
+
+If you find partial historical BaseLodge data, report what entities/time periods appear recoverable.
+
+---
+
+# 12. Search for the email as the primary fingerprint
+
+Search every searchable text/data source you identify for:
+
+`richardbattlebaxter@gmail.com`
+
+Classify every match as one of:
+
+**A. Actual historical database record**
+
+**B. Database backup/export**
+
+**C. Log containing data from a historical database**
+
+**D. Code/test fixture**
+
+**E. Documentation/report**
+
+**F. Configuration/reference**
+
+**G. Other**
+
+For A or B, determine whether the surrounding source contains the broader BaseLodge dataset.
+
+For C, determine whether the log reveals which database produced the record.
+
+---
+
+# 13. Reconstruct the database timeline
+
+Using all available evidence, construct the most precise timeline possible of BaseLodge database usage.
+
+I want to know:
+
+* What database was used initially
+* When SQLite was used
+* When `instance/baselodge.db` existed
+* When real production users were confirmed in it
+* When Supabase was introduced
+* When `SUPABASE_DATABASE_URL` became valid
+* Whether the application actually switched from SQLite to Supabase
+* Whether data was ever migrated
+* When the SQLite file was last known to exist
+* When it was first known to be missing
+* What event could have removed it
+* When production first became unable to access its application tables
+
+Clearly distinguish **verified facts** from **inference**.
+
+---
+
+# 14. Do not prematurely conclude that the data is unrecoverable
+
+The previous investigation concluded that the SQLite file is absent from the current workspace.
+
+That is **not sufficient to conclude the data is permanently lost**.
+
+Before reaching that conclusion, exhaust every read-only source available to you.
+
+Specifically consider:
+
+* checkpoints
+* deployment snapshots
+* Supabase backups
+* Replit backups
+* previous database resources
+* Git unreachable objects
+* filesystem copies
+* SQLite WAL/journal files
+* logs
+* exports
+* archived workspaces
+* historical deployments
+
+If a source cannot be accessed from the Agent, tell me exactly where I should inspect it manually.
+
+---
+
+# REQUIRED FINAL REPORT
+
+Return a comprehensive forensic report containing:
+
+### A. Exact email search
+
+Was `richardbattlebaxter@gmail.com` found?
+
+List **every location** where it was found and classify each occurrence.
+
+### B. Actual data sources found
+
+List every database/file/backup/export containing actual BaseLodge data.
+
+For each:
+
+* location
+* type
+* approximate age
+* whether it contains User ID 105
+* whether it contains the target email
+* whether it appears to contain the full BaseLodge dataset
+* whether it can be safely recovered
+
+### C. All database-like files discovered
+
+List every `.db`, `.sqlite`, `.sqlite3`, SQL dump, backup, WAL, journal, archive, export, or other database-like artifact found.
+
+### D. Database infrastructure discovered
+
+List every historical/current database resource identified and its status.
+
+### E. Checkpoint recovery potential
+
+Tell me exactly what is known about Replit checkpoints and what I need to inspect manually.
+
+### F. Supabase recovery potential
+
+Tell me whether backups, snapshots, PITR, branches, or other historical recovery mechanisms are available for the Supabase project.
+
+Do not initiate recovery.
+
+### G. Deployment recovery potential
+
+Tell me whether any historical deployment or build artifact could contain the SQLite database.
+
+### H. Timeline
+
+Provide the verified/inferred database timeline.
+
+### I. Best recovery options
+
+Rank every viable recovery option from **most likely / safest** to **least likely / riskiest**.
+
+### J. Next action
+
+Recommend **one next action only**.
+
+Do not perform that action.
+
+---
+
+**THIS IS FORENSIC INVESTIGATION ONLY.**
+
+**DO NOT CHANGE CODE, DATA, DATABASES, FILES, CONFIGURATION, SECRETS, CHECKPOINTS, OR DEPLOYMENTS.**
+
+Search everything you can access first and report back.
