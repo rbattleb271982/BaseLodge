@@ -1,0 +1,235 @@
+We have successfully restored the Aug 13, 2026 06:20:57 UTC Supabase backup into a NEW Supabase project named:
+
+BaseLodge Recovery Aug 13
+
+The restored project contains the full BaseLodge application schema and populated production data, including the `user` table and my account.
+
+The currently connected/broken Supabase project is:
+
+BaseLodge Recovery 2026-05-22
+project ref: dxwurvuyprpiypqdpkza
+
+That current project had its BaseLodge tables dropped around 14:48 UTC today.
+
+I need a careful, READ-ONLY comparison and recovery recommendation.
+
+ABSOLUTE RULES:
+
+DO NOT:
+- change any Replit secret
+- change `SUPABASE_DATABASE_URL`
+- connect the BaseLodge app to the recovered project
+- modify either Supabase database
+- run migrations
+- run startup migrations against the recovered database
+- run `flask db upgrade`
+- run `flask db downgrade`
+- run `flask db stamp`
+- create/drop/alter tables
+- write/update/delete rows
+- publish or deploy
+- restore or rollback checkpoints
+- change code
+
+This is investigation only.
+
+## 1. Identify the recovered project safely
+
+Determine the new Supabase project reference/host for:
+
+`BaseLodge Recovery Aug 13`
+
+Do not print passwords or full connection strings.
+
+If you cannot access the new project from Replit yet because its credentials are not present, say so clearly and do not ask me to replace the current secret yet.
+
+## 2. Verify recovered database completeness
+
+Using READ-ONLY inspection only, confirm the recovered database contains the major BaseLodge tables, including at minimum:
+
+- user
+- friend
+- ski_trip
+- ski_trip_participant
+- resort
+- resort_pass
+- invitation
+- invite_token
+- trip_guest / trip invite tables if present
+- push_device_token
+- message_event_log
+- activity
+- event
+- equipment_setup
+- dismissed_nudge
+- dismissed_insight_card
+- ski_trip_planning_post
+- country
+- app_store_metric
+- mountain_page_view
+
+Return approximate row counts for the major tables.
+
+Do not expose unrelated users' personal information.
+
+## 3. Verify key production records
+
+Read-only verify:
+
+- `richardbattlebaxter@gmail.com` exists
+- its user ID
+- whether User ID 105 exists
+- approximate maximum user ID
+- approximate user count
+- approximate trip count
+- approximate friend/connection count
+- approximate resort count
+
+Do not return private information about other users.
+
+## 4. Compare schema to the CURRENT BaseLodge code
+
+Read the current SQLAlchemy models and Alembic migration history.
+
+Compare the recovered database schema to what the current app expects.
+
+Identify:
+
+- tables expected by current code but missing from the recovered backup
+- columns expected by current models but missing from the recovered backup
+- indexes/constraints expected by current migrations but absent
+- migrations committed AFTER the 06:20:57 backup that would need to be applied
+- any startup migrations in `app.py` that could mutate the database immediately when the app connects
+
+This section is CRITICAL.
+
+Do NOT run any of those migrations.
+
+## 5. Determine exactly what dropped the original tables
+
+Using the Supabase logs already identified around 14:48 UTC and any available Replit logs/history, investigate the successful `DROP TABLE` sequence.
+
+Determine, if possible:
+
+- database role/user that issued the DROP statements
+- connection/application name
+- source IP/host if safely available
+- whether the statements match Alembic downgrade behavior
+- whether they match `db.drop_all()`
+- whether they match pytest/test fixture behavior
+- whether any code path in BaseLodge can execute DROP TABLE
+- whether any test used the live Supabase engine instead of SQLite
+- whether `test_profile_consolidation.py`, `test_invite_cross_account.py`, or another test could have dropped the production tables
+- whether any Replit Agent action around Batch 2 ran a destructive database setup/teardown sequence
+
+Correlate exact timestamps wherever possible.
+
+Do not settle for "probably." Clearly label:
+- VERIFIED
+- STRONG INFERENCE
+- UNKNOWN
+
+## 6. Investigate test isolation as a possible root cause
+
+This is especially important because the test suite around the incident showed schema-related failures.
+
+Audit every test fixture and test file for:
+
+- `db.drop_all()`
+- `db.create_all()`
+- engine swapping
+- changing `SQLALCHEMY_DATABASE_URI` after SQLAlchemy initialization
+- direct use of the real `db.session`
+- app contexts that may still point to Supabase
+- teardown logic that might drop tables
+- fixtures that bypass the shared `_swap_engine`
+- tests that use the production-configured app without isolating the engine
+
+Determine whether running pytest could have caused the successful DROP TABLE statements against the real Supabase database.
+
+If yes, identify the exact test/fixture/code path.
+
+DO NOT FIX IT YET.
+
+## 7. Compare current broken database vs recovered database
+
+Read-only compare:
+
+CURRENT BROKEN:
+`BaseLodge Recovery 2026-05-22`
+
+RECOVERED:
+`BaseLodge Recovery Aug 13`
+
+Report:
+
+- tables present in recovered but absent in broken
+- any tables/data created in broken after the deletion
+- whether anything after 06:20 UTC exists only in the broken database and might need reconciliation
+- whether the broken project contains any data worth preserving before we abandon/repair it
+
+## 8. Recommend the safest recovery architecture
+
+Evaluate these options:
+
+A. Point BaseLodge to the recovered NEW Supabase project after schema validation
+
+B. Restore the original broken Supabase project from the Aug 13 backup
+
+C. Copy recovered data/schema back into the original project
+
+D. Another safer approach
+
+For each option, give:
+
+- safety
+- downtime
+- risk of further data loss
+- risk from startup migrations
+- impact on Replit secrets
+- impact on mobile/live users
+- reversibility
+- complexity
+
+Recommend ONE preferred approach.
+
+## 9. Before any reconnect, define a safety gate
+
+I want an exact checklist that must be satisfied BEFORE we allow Replit/BaseLodge to connect to the recovered database.
+
+At minimum consider:
+
+- destructive test path fixed
+- test DB fully isolated
+- no `db.drop_all()` can reach production
+- migrations reviewed
+- startup migrations reviewed
+- current database backed up
+- recovered database backed up
+- connection secret change plan
+- smoke test plan
+- rollback plan
+
+## Required return
+
+Return a structured report with:
+
+1. Recovered project identification
+2. Recovered row-count summary
+3. Key record verification
+4. Schema compatibility findings
+5. Root-cause analysis of the DROP TABLE event
+6. Test-isolation findings
+7. Broken-vs-recovered comparison
+8. Recovery option comparison
+9. Your ONE recommended recovery path
+10. Exact pre-reconnect safety checklist
+11. Exact next step
+
+Again:
+
+DO NOT CHANGE ANYTHING.
+DO NOT CONNECT THE APP TO THE RECOVERED DATABASE.
+DO NOT RUN MIGRATIONS.
+DO NOT MODIFY SECRETS.
+DO NOT PUBLISH.

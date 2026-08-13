@@ -1,0 +1,460 @@
+PLAN / FORENSIC INVESTIGATION ONLY.
+
+THIS TASK IS STRICTLY READ-ONLY.
+
+You are NOT authorized to make ANY change to BaseLodge, either Supabase project, Replit configuration, secrets, code, Git state, deployment state, or database state.
+
+Your job is ONLY to investigate, compare, diagnose, and return a proposed plan.
+
+============================================================
+ABSOLUTE SAFETY RULE
+============================================================
+
+IF AN ACTION COULD POSSIBLY WRITE, MODIFY, DELETE, MIGRATE, RESET, RESTORE, RECONFIGURE, DEPLOY, COMMIT, OR OTHERWISE CHANGE ANYTHING:
+
+DO NOT DO IT.
+
+Stop and report what you would have done instead.
+
+When uncertain whether an operation is read-only, assume it is NOT read-only and DO NOT RUN IT.
+
+Do not attempt to be helpful by fixing anything.
+
+Do not make "safe", "minor", "temporary", "necessary", or "reversible" changes.
+
+There are NO authorized changes in this task.
+
+============================================================
+DATABASES
+============================================================
+
+There are two Supabase database secrets in Replit:
+
+1. `SUPABASE_DATABASE_URL`
+
+This points to the CURRENT BROKEN Supabase project:
+BaseLodge Recovery 2026-05-22
+
+DO NOT MODIFY THIS SECRET.
+DO NOT MODIFY THIS DATABASE.
+
+2. `RECOVERED_SUPABASE_DATABASE_URL`
+
+This points to:
+BaseLodge Recovery Aug 13
+
+This project was restored from the:
+August 13, 2026 06:20:57 UTC physical backup.
+
+This is our recovered production data.
+
+DO NOT MODIFY THIS SECRET.
+DO NOT MODIFY THIS DATABASE.
+
+Treat BOTH databases as production databases containing irreplaceable data.
+
+============================================================
+PROHIBITED ACTIONS
+============================================================
+
+You MUST NOT:
+
+- modify either Replit secret
+- create any new secret
+- delete any secret
+- modify environment variables
+- change SQLALCHEMY_DATABASE_URI
+- change database configuration
+- point the application at another database
+- start the application against the recovered database
+- initialize Flask against the recovered database if initialization can cause writes
+- run application startup against either database
+- run migrations
+- run startup migrations
+- run Alembic migrations
+- run `flask db upgrade`
+- run `flask db downgrade`
+- run `flask db stamp`
+- run `db.create_all()`
+- run `db.drop_all()`
+- execute CREATE
+- execute ALTER
+- execute DROP
+- execute INSERT
+- execute UPDATE
+- execute DELETE
+- execute TRUNCATE
+- execute GRANT/REVOKE
+- create or alter indexes
+- create or alter constraints
+- modify sequences
+- modify database roles
+- modify permissions
+- modify Supabase configuration
+- restore another backup
+- copy data between databases
+- repair the broken database
+- change application code
+- change test code
+- change configuration files
+- create files
+- delete files
+- modify files
+- commit anything
+- push anything
+- pull anything
+- change branches
+- reset Git
+- rollback Replit checkpoints
+- publish
+- republish
+- deploy
+- restart production services
+- run tests if those tests could possibly connect to either Supabase database
+
+DO NOT RUN A COMMAND MERELY TO "SEE WHAT HAPPENS."
+
+============================================================
+PERMITTED ACTIONS
+============================================================
+
+You MAY:
+
+- read source code
+- read test code
+- read configuration
+- inspect Git history
+- inspect existing Replit checkpoint/history information
+- inspect existing logs
+- inspect existing migration files
+- inspect existing SQLAlchemy models
+- inspect existing startup migration code
+- execute strictly read-only PostgreSQL queries against the two supplied database URLs
+
+Database inspection must use a standalone connection.
+
+DO NOT bootstrap the BaseLodge application merely to query the database.
+
+Prefer direct PostgreSQL read-only inspection.
+
+If possible, explicitly open the database transaction as READ ONLY before querying.
+
+ONLY SELECT-style/read-only inspection is authorized.
+
+============================================================
+IMPORTANT CONTEXT
+============================================================
+
+BaseLodge was functioning immediately before the current database failure.
+
+After recent Replit Agent work/testing, the application began failing because core tables including `user` disappeared from the Supabase project.
+
+Supabase logs showed successful DROP TABLE operations around approximately 14:48 UTC today.
+
+A physical Supabase backup from:
+
+August 13, 2026 06:20:57 UTC
+
+has now been restored into a NEW Supabase project:
+
+BaseLodge Recovery Aug 13
+
+We have manually confirmed that this restored project contains the BaseLodge tables and user data.
+
+DO NOT assume the database was intentionally reset.
+
+We need to determine exactly what happened before reconnecting BaseLodge to anything.
+
+============================================================
+PHASE 1 — VERIFY RECOVERED DATABASE
+============================================================
+
+Using ONLY read-only queries through:
+
+`RECOVERED_SUPABASE_DATABASE_URL`
+
+confirm the recovered database.
+
+Report approximate row counts for:
+
+- user
+- friend
+- ski_trip
+- ski_trip_participant
+- resort
+- resort_pass
+- invitation
+- invite_token
+- push_device_token
+- message_event_log
+- activity
+- event
+- ski_trip_planning_post
+
+Also confirm:
+
+- `richardbattlebaxter@gmail.com` exists
+- that account's user ID
+- whether User ID 105 exists
+- approximate maximum user ID
+- number of tables in the public schema
+
+Do not expose unrelated users' email addresses, names, tokens, passwords, hashes, or other personal information.
+
+============================================================
+PHASE 2 — SCHEMA COMPATIBILITY
+============================================================
+
+WITHOUT RUNNING ANY MIGRATION:
+
+Compare the recovered database schema against:
+
+- current SQLAlchemy models
+- Alembic migration files
+- migration logic in `app.py`
+- startup migration logic
+- any custom schema initialization code
+
+Identify:
+
+- missing tables
+- missing columns
+- unexpected columns
+- missing indexes
+- missing constraints
+- migrations created after the backup
+- schema changes committed after the backup
+- startup migrations that would execute if BaseLodge connected to this recovered database
+
+For every potential migration, state whether connecting the current application could cause a database write.
+
+DO NOT TEST THIS BY STARTING THE APPLICATION.
+
+Determine it through code inspection.
+
+============================================================
+PHASE 3 — ROOT-CAUSE THE DROP TABLE INCIDENT
+============================================================
+
+This is the highest-priority forensic question.
+
+Find what could have issued the DROP TABLE commands seen in Supabase around 14:48 UTC.
+
+Search the ENTIRE repository for:
+
+- `db.drop_all`
+- `drop_all`
+- `DROP TABLE`
+- `drop table`
+- `metadata.drop_all`
+- schema teardown
+- database cleanup
+- test teardown
+- `db.create_all`
+- temporary database setup
+- SQLite test setup
+- PostgreSQL test setup
+- SQLAlchemy engine replacement
+- SQLALCHEMY_DATABASE_URI manipulation
+- DATABASE_URL manipulation
+- SUPABASE_DATABASE_URL usage
+- test fixtures touching `db.engine`
+- test fixtures touching `db.session`
+
+Pay especially close attention to:
+
+- `tests/conftest.py`
+- `test_invite_cross_account.py`
+- `test_profile_consolidation.py`
+- tests added or modified during Batch 2
+- tests executed immediately before the outage
+
+Determine whether a test intended to operate on SQLite could instead have retained or reacquired the production Supabase SQLAlchemy engine.
+
+Specifically investigate whether:
+
+1. Flask-SQLAlchemy initialized its engine using the production Supabase URL.
+
+2. A fixture later attempted to swap to SQLite.
+
+3. Some test path, teardown, application context, cached engine, or session still referenced the original production engine.
+
+4. `db.drop_all()` or equivalent then operated against Supabase.
+
+5. That sequence could explain the exact DROP TABLE activity seen in Supabase.
+
+Correlate repository/test activity with the approximately 14:48 UTC Supabase DROP TABLE timestamps as closely as available evidence permits.
+
+============================================================
+EVIDENCE STANDARD
+============================================================
+
+For every root-cause conclusion label it:
+
+VERIFIED
+Direct evidence establishes that it happened.
+
+STRONG INFERENCE
+Evidence strongly supports it but does not conclusively prove execution.
+
+POSSIBLE
+Technically plausible but evidence is incomplete.
+
+RULED OUT
+Evidence demonstrates it could not have caused the incident.
+
+UNKNOWN
+Insufficient evidence.
+
+Do NOT present speculation as fact.
+
+============================================================
+PHASE 4 — BROKEN VS RECOVERED DATABASE
+============================================================
+
+READ ONLY.
+
+Compare:
+
+`SUPABASE_DATABASE_URL`
+
+against:
+
+`RECOVERED_SUPABASE_DATABASE_URL`
+
+Report:
+
+- tables present in recovered but missing from broken
+- tables present in broken
+- whether broken contains rows created after the deletion
+- whether broken contains anything potentially worth preserving
+- whether the recovered project appears to contain the production dataset as of the 06:20:57 UTC backup
+
+DO NOT COPY ANYTHING.
+
+============================================================
+PHASE 5 — DETERMINE DATA-LOSS WINDOW
+============================================================
+
+The recovered database represents approximately:
+
+2026-08-13 06:20:57 UTC
+
+Determine, using existing logs/code/database timestamps where possible, approximately when the destructive DROP TABLE event occurred.
+
+Estimate the potential data-loss window between:
+
+backup time
+and
+DROP TABLE time.
+
+Identify what types of BaseLodge activity could have occurred during that window and therefore may not exist in the restored database.
+
+DO NOT attempt to reconstruct or insert this data.
+
+Just report what may be missing and whether any surviving evidence could later be used for recovery.
+
+============================================================
+PHASE 6 — RECOVERY OPTIONS
+============================================================
+
+Evaluate these three possibilities WITHOUT EXECUTING THEM:
+
+A. Point BaseLodge at the recovered new Supabase project.
+
+B. Restore the original broken Supabase project from its physical backup.
+
+C. Copy recovered schema/data into the original project.
+
+For each evaluate:
+
+- safety
+- complexity
+- downtime
+- reversibility
+- possibility of losing additional data
+- startup migration risk
+- secret/config changes required
+- effect on current application deployment
+
+Then recommend ONE preferred option.
+
+DO NOT EXECUTE THE RECOMMENDATION.
+
+============================================================
+PHASE 7 — TEST ISOLATION SAFETY
+============================================================
+
+Before BaseLodge ever reconnects to recovered production data, determine what safeguards are necessary so this cannot happen again.
+
+At minimum evaluate:
+
+- dedicated test database
+- SQLite isolation
+- environment assertions
+- production URL detection
+- prohibition on destructive DB operations when hostname contains `supabase.co`
+- test startup guards
+- fixture isolation
+- engine caching
+- Flask application initialization
+- CI/test environment configuration
+
+Recommend concrete safeguards.
+
+DO NOT IMPLEMENT THEM.
+
+============================================================
+REQUIRED RETURN
+============================================================
+
+Return a forensic report containing:
+
+1. RECOVERED DATABASE STATUS
+2. ROW COUNT SUMMARY
+3. KEY RECORD VERIFICATION
+4. RECOVERED SCHEMA VS CURRENT CODE
+5. DROP TABLE ROOT-CAUSE ANALYSIS
+6. TIMELINE OF THE INCIDENT
+7. TEST ISOLATION FINDINGS
+8. BROKEN VS RECOVERED DATABASE
+9. ESTIMATED DATA-LOSS WINDOW
+10. RECOVERY OPTIONS
+11. RECOMMENDED RECOVERY PATH
+12. SAFETY CHANGES REQUIRED BEFORE RECONNECTING
+13. EXACT FILES THAT WOULD EVENTUALLY NEED CHANGES
+14. ONE NEXT STEP ONLY
+
+============================================================
+FINAL REMINDER
+============================================================
+
+THIS IS PLAN MODE.
+
+DO NOT FIX ANYTHING.
+
+DO NOT MODIFY ANYTHING.
+
+DO NOT RUN MIGRATIONS.
+
+DO NOT RUN THE APPLICATION AGAINST THE RECOVERED DATABASE.
+
+DO NOT RUN TESTS AGAINST EITHER SUPABASE DATABASE.
+
+DO NOT CHANGE SECRETS.
+
+DO NOT CONNECT PRODUCTION TO THE RECOVERED DATABASE.
+
+DO NOT DEPLOY.
+
+DO NOT COMMIT.
+
+DO NOT RESTORE.
+
+DO NOT COPY DATA.
+
+INVESTIGATE AND REPORT ONLY.
+
+If completing any requested investigation would require a write operation, SKIP THAT STEP and explicitly state why it was skipped.
+
+At the end, give me exactly ONE recommended next action and WAIT FOR MY APPROVAL.
