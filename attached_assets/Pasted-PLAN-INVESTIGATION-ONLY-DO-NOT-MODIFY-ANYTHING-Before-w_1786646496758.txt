@@ -1,0 +1,38 @@
+PLAN / INVESTIGATION ONLY. DO NOT MODIFY ANYTHING.
+Before we push anything to GitHub, I need to determine whether the current Replit codebase lost any recent BaseLodge work during the database recovery incident.
+DO NOT:
+push to GitHub
+pull from GitHub
+merge anything
+reset or checkout anything
+revert anything
+modify any files
+restore a checkpoint
+change any secrets
+run migrations
+run tests
+change the database
+This is strictly a code-state comparison and recovery audit.
+First determine:
+What Git branch and commit the current Replit workspace is based on.
+What the current GitHub main branch contains.
+Whether the Replit workspace has committed or uncommitted changes that are not on GitHub.
+Whether GitHub contains changes that are missing from the current Replit workspace.
+Produce a file-by-file diff summary between the current Replit workspace and GitHub main.
+I am particularly concerned about recent BaseLodge work completed before the recovery incident, including the recent Batch 1 design/style/UI work. Identify whether those changes still exist in the current workspace.
+Also identify other recent work that appears to be missing, partially present, or different between Replit and GitHub.
+Important: the database recovery changes we just intentionally made should also be identified separately:
+tests/test_profile_consolidation.py database-isolation safety fix
+root-level conftest.py pytest Supabase guard
+app.py BASELODGE_SKIP_STARTUP_MIGRATIONS safety switch
+Those are intentional new changes and must not be confused with potentially lost work.
+I want the final report divided into:
+A. Current Replit-only changes
+B. GitHub-only changes
+C. Files that differ between both
+D. Recent design/UI work confirmed present
+E. Recent design/UI work that appears missing
+F. Other recent BaseLodge functionality that appears missing
+G. Recovery/safety changes made today
+H. Recommended safest reconciliation strategy
+Do not perform the reconciliation. Do not change anything. Stop after delivering the report.
