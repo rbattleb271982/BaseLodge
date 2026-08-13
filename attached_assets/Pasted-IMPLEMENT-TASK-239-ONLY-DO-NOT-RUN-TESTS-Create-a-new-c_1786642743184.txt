@@ -1,0 +1,86 @@
+IMPLEMENT TASK #239 ONLY. DO NOT RUN TESTS.
+Create a new:
+conftest.py
+at the project root, alongside app.py and pytest.ini.
+This is a test-safety file only.
+PRIMARY PRE-IMPORT SAFETY GUARD
+At module level, immediately after import os, and BEFORE any application import, fixture definition, hook, or other executable logic, set:
+os.environ["SUPABASE_DATABASE_URL"] = ""
+os.environ["RECOVERED_SUPABASE_DATABASE_URL"] = ""
+These assignments MUST remain at module level.
+Do NOT put them inside:
+pytest_configure
+a fixture
+a helper
+a function
+a class
+Their purpose is to execute immediately when pytest imports the root conftest.py, before tests/conftest.py imports app.py.
+Based on the inspected current app.py, an empty SUPABASE_DATABASE_URL causes:
+is_production = False
+and:
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///baselodge.db"
+Therefore application initialization and startup migrations during pytest collection resolve against SQLite rather than Supabase.
+SECOND FAIL-CLOSED LAYER
+Add a session-scoped, autouse pytest fixture that verifies the test process is actually using SQLite before any test function executes.
+It should:
+import app and db only when the fixture executes;
+enter app.app_context();
+inspect db.engine.dialect.name;
+assert that it equals "sqlite";
+abort the test session if it does not.
+The assertion must NOT:
+inspect the database URL;
+print credentials;
+connect to PostgreSQL;
+query a database.
+The failure message should state that database isolation failed, SQLite was expected, and the test session was aborted.
+IMPORTANT ARCHITECTURAL DISTINCTION
+The module-level environment clearing is the primary protection for import-time application startup and migrations.
+The session fixture is only a secondary fail-closed verification layer before test functions execute.
+Do not claim the fixture itself protects import-time migrations.
+AUTHORIZED FILE
+You may create:
+conftest.py
+at the project root.
+Do not modify any existing file.
+In particular, DO NOT modify:
+tests/conftest.py
+tests/test_profile_consolidation.py
+app.py
+models.py
+migrations
+Secrets
+deployment configuration
+ABSOLUTELY DO NOT RUN ANYTHING
+After creating the file:
+DO NOT run pytest.
+DO NOT collect tests.
+DO NOT import app for verification.
+DO NOT run Python verification scripts.
+DO NOT start Flask.
+DO NOT start BaseLodge.
+DO NOT run migrations.
+DO NOT execute SQL.
+DO NOT execute db.create_all().
+DO NOT execute db.drop_all().
+DO NOT connect to either Supabase database.
+DO NOT query either Supabase database.
+DO NOT change either Supabase URL secret.
+DO NOT deploy.
+DO NOT publish.
+DO NOT commit or push.
+The only authorized action is creating the root conftest.py.
+AFTER IMPLEMENTATION
+STOP and return:
+Exact file created.
+Complete contents of the new file.
+Confirmation the two environment assignments are module-level and occur before any application import.
+Confirmation there is no pytest_configure() dependency.
+Confirmation the session guard uses db.engine.dialect.name.
+Confirmation the session guard imports application objects only when the fixture executes.
+Confirmation no existing files changed.
+Confirmation no tests or test collection were run.
+Confirmation BaseLodge was not started.
+Confirmation neither Supabase database was accessed.
+Confirmation no Secrets were changed.
+STOP. WAIT FOR MY APPROVAL BEFORE RUNNING PYTEST.
