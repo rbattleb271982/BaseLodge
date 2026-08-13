@@ -1,0 +1,278 @@
+TASK #240 — STARTUP MIGRATION SAFETY AUDIT
+INVESTIGATION AND REPORTING ONLY.
+DO NOT MODIFY ANY FILES.
+DO NOT RUN THE APPLICATION, TESTS, MIGRATIONS, OR DATABASE COMMANDS.
+We have completed the pytest database-safety work and confirmed a controlled pytest run stayed on SQLite.
+We are now preparing to reconnect BaseLodge to the recovered Supabase database.
+Before changing SUPABASE_DATABASE_URL or starting BaseLodge against the recovered database, perform a complete static source-code audit of every database operation that can execute automatically when BaseLodge starts or app.py is imported.
+The goal is to answer:
+If we point BaseLodge at the recovered Supabase database and start the application, exactly what will automatically execute against that database, and could any of it delete, overwrite, corrupt, reset, duplicate, transform, or otherwise alter the recovered data?
+1. TRACE THE COMPLETE APPLICATION STARTUP PATH
+Read app.py and all relevant imported/local code necessary to determine the complete application startup sequence.
+Identify every database-related function or operation that executes automatically:
+during module import;
+during Flask initialization;
+during db.init_app(app);
+during startup migration execution;
+through module-level function calls;
+through initialization helpers;
+through startup hooks;
+through imported modules that themselves have database side effects;
+before the application begins serving normal requests.
+Do not assume all automatic database mutations are contained in the known migration block around lines 1425–2503.
+Inspect for database-mutating startup behavior throughout the entire relevant application/import path.
+2. INVENTORY EVERY AUTOMATIC DATABASE OPERATION
+Identify every automatically executed operation involving:
+db.create_all()
+db.drop_all()
+db.session
+commit()
+execute()
+raw SQL
+ALTER TABLE
+CREATE TABLE
+DROP TABLE
+DROP COLUMN
+TRUNCATE
+DELETE
+UPDATE
+INSERT
+.delete()
+.update()
+.add()
+.add_all()
+bulk operations
+schema changes
+index changes
+constraint changes
+data backfills
+data normalization
+deduplication
+data cleanup
+data corrections
+resort/pass corrections
+user cleanup
+friendship/invitation cleanup
+any other operation capable of changing persistent database state.
+Search beyond the known 20 startup migrations if necessary.
+The final count must represent all automatic startup database operations found, not merely the 20 we already know about.
+3. AUDIT db.create_all() AND db.drop_all()
+Determine exactly:
+whether db.create_all() executes during normal PostgreSQL/Supabase production startup;
+the exact condition guarding it;
+whether it executes only for SQLite;
+whether any other create_all() exists in the startup path;
+whether db.drop_all() appears anywhere reachable during production application startup.
+Distinguish production application startup from test-only code.
+4. AUDIT EVERY STARTUP MIGRATION
+For each startup migration or database-mutating startup function, document:
+function name;
+file;
+definition line range;
+startup call-site line;
+exact execution order;
+whether it runs automatically every application startup;
+whether it runs on PostgreSQL/Supabase;
+exact SQL or ORM operations;
+tables affected;
+columns affected;
+whether it changes schema;
+whether it reads existing data;
+whether it changes existing rows;
+whether it inserts rows;
+whether it deletes rows;
+whether it can overwrite existing values;
+whether it commits;
+whether execution is conditional;
+exact condition;
+whether it is idempotent;
+what happens on a second execution;
+what happens when its intended result already exists.
+5. CLASSIFY EVERY OPERATION
+Give each operation exactly one classification:
+A — SAFE / IDEMPOTENT
+Re-running against an already-current recovered database should not materially alter existing user data.
+B — DATA-CHANGING BUT EXPECTED
+Intentionally changes existing production data but appears deliberate and bounded. Requires review before recovered-database startup.
+C — POTENTIALLY DANGEROUS
+Could delete, overwrite, duplicate, incorrectly transform, or otherwise materially affect recovered data depending on database state.
+D — DESTRUCTIVE / DO NOT RUN
+Contains uncontrolled destructive behavior such as table dropping, truncation, mass deletion/reset, destructive rebuilding, or equivalent behavior that should prevent recovered-database startup.
+Do not classify something as A merely because it was intentionally written as a migration. Evaluate what the code actually does when repeatedly executed.
+6. AUDIT run_ghost_user_cleanup_migration
+Perform a detailed analysis of:
+run_ghost_user_cleanup_migration
+We believe this function includes deletion of Friend and Invitation rows.
+Determine:
+exact selection criteria;
+what constitutes a "ghost" user;
+which Friend rows can be deleted;
+which Invitation rows can be deleted;
+whether legitimate recovered relationships could satisfy those conditions;
+whether deletion occurs every startup;
+whether there is migration/version tracking;
+whether it commits;
+whether it is idempotent;
+whether running it against an already-current recovered database could still delete anything;
+its A/B/C/D classification.
+Show the exact relevant logic.
+7. AUDIT _run_pass_mapping_correction_migration
+Perform a detailed analysis of:
+_run_pass_mapping_correction_migration
+We believe this function can:
+delete ResortPass rows;
+delete "Other" pass rows;
+insert new ResortPass rows;
+update Resort.pass_brands_json.
+Determine:
+every phase of the migration;
+exact resorts selected;
+exact pass mappings removed;
+exact mappings added;
+exact pass_brands_json changes;
+whether existing correct rows are preserved;
+whether duplicates can be created;
+what happens on repeated startup;
+whether it is genuinely idempotent;
+whether an already-correct recovered database would be changed;
+whether the current mapping corrections correspond to the latest intended BaseLodge mappings;
+its A/B/C/D classification.
+8. AUDIT ALL OTHER DATA-CHANGING MIGRATIONS
+Pay particular attention to any startup operation touching:
+User
+Friend
+Invitation
+trips
+trip participants
+messages
+notifications
+invite data
+profile data
+resorts
+resort slugs
+ResortPass
+pass_brands_json
+any other customer/user-generated records.
+For every migration that changes existing data, show:
+selection criteria → original state → mutation → resulting state
+and explain whether legitimate recovered data could be affected.
+9. SEARCH SPECIFICALLY FOR DESTRUCTIVE PATTERNS
+Search the complete production startup path for:
+drop_all
+DROP TABLE
+DROP COLUMN
+TRUNCATE
+DELETE FROM
+.delete(
+.delete()
+UPDATE
+.update(
+.update()
+INSERT
+.add(
+.add_all(
+bulk_
+ALTER TABLE
+CREATE TABLE
+create_all
+commit()
+execute(
+For every relevant match, determine whether it is reachable automatically during normal production startup.
+Ignore destructive operations that exist exclusively inside tests unless application startup can invoke them.
+10. DETERMINE MIGRATION/VERSION TRACKING
+Determine how BaseLodge knows whether a startup migration has already run.
+Specifically investigate:
+Alembic;
+alembic_version;
+custom migration tables;
+migration flags;
+schema inspection;
+column-existence checks;
+row-existence checks;
+hard-coded idempotency;
+exception handling used as pseudo-idempotency.
+Determine whether the startup migration functions are genuinely version-controlled or whether BaseLodge simply calls them again on every application startup.
+If they run every startup, state that clearly.
+For each function, explain what prevents repeated execution from changing data again — or state that nothing prevents it.
+11. ANALYZE THE RECOVERED-DATABASE SCENARIO
+Assume the recovered Supabase database represents BaseLodge shortly before the database-loss incident on August 13, 2026.
+Do not inspect the actual recovered database.
+Based only on source code, determine what current application startup would do to that recovered state.
+Identify:
+migrations that should no-op;
+migrations that will execute but make no material change;
+migrations that will intentionally modify data again;
+migrations whose result depends on exact recovered database contents;
+migrations that could delete recovered data;
+migrations that could overwrite recovered values;
+migrations that could create duplicate data;
+migrations that could alter schema;
+migrations that could cause the recovered database to diverge immediately from its recovered state.
+12. DETERMINE FIRST-BOOT STRATEGY
+Based on the complete audit, choose exactly one:
+OPTION 1 — NORMAL STARTUP IS SAFE
+It is safe to point SUPABASE_DATABASE_URL at the recovered Supabase pooler and start BaseLodge normally.
+OPTION 2 — CONTROLLED FIRST BOOT / STARTUP MIGRATIONS SUPPRESSED
+We should prevent automatic startup migrations from executing during the first recovered-database boot so that BaseLodge can initially connect/read without altering the recovered state.
+OPTION 3 — SPECIFIC MIGRATIONS MUST BE DISABLED OR FIXED FIRST
+One or more specific startup migrations present an unacceptable risk and must be addressed before BaseLodge is connected to the recovered database.
+Do not implement the recommendation.
+13. ABSOLUTE RESTRICTIONS
+This task is STATIC SOURCE-CODE INSPECTION ONLY.
+DO NOT:
+modify any file;
+create any file;
+run pytest;
+run test collection;
+run Python that imports app.py;
+start Flask;
+start Gunicorn;
+start BaseLodge;
+run application startup;
+run any migration;
+execute SQL;
+call db.create_all();
+call db.drop_all();
+connect to the old Supabase project;
+connect to the recovered Supabase project;
+query either Supabase project;
+inspect either database;
+change SUPABASE_DATABASE_URL;
+change RECOVERED_SUPABASE_DATABASE_URL;
+modify any Replit Secret;
+deploy;
+publish;
+commit;
+push.
+Reading/searching source files is authorized.
+14. REQUIRED DELIVERY REPORT
+Return:
+Total number of automatic startup database operations/migrations found.
+Their exact execution order.
+A table containing every operation and its A/B/C/D classification.
+Definition and call-site line numbers for every operation.
+Detailed analysis of every B, C, and D operation.
+Every operation capable of modifying existing rows.
+Every operation capable of deleting rows.
+Every operation capable of inserting rows.
+Every operation capable of dropping tables.
+Every operation capable of dropping columns.
+Every operation capable of truncating data.
+Every operation capable of altering schema.
+Every operation affecting users/friends/invitations.
+Every operation affecting resorts/pass mappings.
+Whether db.create_all() runs against PostgreSQL/Supabase during normal production startup.
+Whether db.drop_all() is reachable anywhere in production startup.
+Whether migrations are version-tracked or repeatedly executed.
+What happens when each migration runs against an already-current database.
+Whether any automatic database mutation exists outside the known migration block.
+Whether normal startup would immediately modify the recovered database.
+Your choice of OPTION 1, OPTION 2, or OPTION 3.
+Exact reasoning for that recommendation.
+If OPTION 2 or OPTION 3, the smallest proposed next step, without implementing it.
+Perform a final static self-review before returning the report. Specifically verify that you have not missed an automatic database operation outside the known startup migration block.
+End with exactly one of:
+RECOVERED DATABASE SAFE FOR NORMAL STARTUP
+RECOVERED DATABASE SHOULD USE CONTROLLED FIRST BOOT
+RECOVERED DATABASE NOT SAFE TO CONNECT YET
+Do not take any action after producing the report. Stop and wait for approval.
