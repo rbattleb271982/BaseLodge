@@ -1,0 +1,239 @@
+Verify the current state of **#250 Friend Discovery: Registered-User Search**.
+
+This is a **verification/investigation only**.
+
+Do not change any code.
+
+Do not create or modify migrations.
+
+Do not fix anything.
+
+Do not commit, push, publish, deploy, or restart anything unless necessary purely to inspect state.
+
+I need to reconcile the implementation report with what is actually visible in the running BaseLodge app.
+
+## Issue 1 — Friend Discovery setting is not visible
+
+The implementation report says:
+
+> New iOS-style toggle in Profile Settings: "Show me in friend search"
+
+The approved product requirement was that **Friend Discovery** appear on the main Profile/Settings screen directly **above Push notifications**.
+
+However, the current Profile screen shows:
+
+ACCOUNT
+
+* Push notifications
+* Change password
+* Log out
+* Delete account
+
+There is no Friend Discovery row or toggle visible above Push notifications.
+
+Investigate exactly where the new setting was implemented.
+
+Report:
+
+1. Exact template/file where the Friend Discovery UI was added.
+2. Exact route that renders that template.
+3. Whether that route/template is the screen shown when the user opens the main Profile tab.
+4. Whether the toggle was accidentally placed inside **Profile details** instead of on the main Profile/settings screen.
+5. Whether any conditional logic is preventing it from rendering.
+6. Whether the currently running Replit app is using the changed template.
+7. Whether the implementation report was incorrect about the visible placement.
+
+Do not move or fix it yet.
+
+The intended location is:
+
+**ACCOUNT**
+
+**Friend Discovery / Show me in friend search**
+
+then:
+
+**Push notifications**
+
+The control should be accessible from the same main settings/profile screen where Push notifications currently appears.
+
+---
+
+## Issue 2 — Verify the feature actually exists in the running app
+
+Inspect the exact current code and confirm whether each of these is present:
+
+* `GET /api/users/search`
+* `POST /api/users/<user_id>/connect`
+* `DELETE /api/friends/invite/<invitation_id>`
+* `FriendCooldown` model/table
+* `User.discoverable_in_friend_search`
+* `User.search_first_name`
+* `User.search_last_name`
+* `normalize_for_search()`
+* Shared `create_friend_request()` logic
+* Global-search Enter/Search handling in `templates/friends.html`
+* Connect confirmation
+* Requested cancellation
+* Accept-in-search behavior
+* Connected state
+* 24-hour cooldown behavior
+
+For each item return:
+
+| Feature | Exists in code? | Exact file/function | Wired into running UI? |
+| ------- | --------------- | ------------------- | ---------------------- |
+
+Do not infer from the previous task report. Inspect the current files.
+
+---
+
+## Issue 3 — Search-column backfill contradiction
+
+Replit's Suggested Next Tasks currently includes:
+
+> Backfill search columns for users who signed up before this feature launched
+
+But the #250 plan and implementation report indicated that existing users' normalized search columns were supposed to be backfilled as part of the migration.
+
+Investigate this carefully.
+
+Determine:
+
+1. What migration was created for:
+
+   * `discoverable_in_friend_search`
+   * `search_first_name`
+   * `search_last_name`
+   * `friend_cooldown`
+
+2. Whether the migration contains a backfill for existing users.
+
+3. Whether that backfill actually uses the same normalization logic as new users.
+
+4. Whether the migration has actually been applied to the current development database.
+
+5. For several existing users with names already in the database, inspect whether:
+
+   * `search_first_name` is populated
+   * `search_last_name` is populated
+
+6. If existing users currently have NULL search columns, state that explicitly.
+
+7. Explain why Replit is suggesting a future backfill task if the implementation was supposed to have already completed it.
+
+Do not perform the backfill.
+
+---
+
+## Issue 4 — Alembic state
+
+The implementation report says:
+
+> Startup migration no longer touches alembic_version — use `flask db stamp 3a7f1c9e2b4d` once to align Alembic state
+
+Investigate what this means in the current environment.
+
+Report:
+
+* Current Alembic revision
+* Expected revision
+* Whether #250's migration is actually applied
+* Whether the schema exists even if Alembic's revision tracking is misaligned
+* Whether `flask db stamp 3a7f1c9e2b4d` is still required
+* What would happen if we do not run it
+
+Do **not** run the stamp command yet.
+
+---
+
+## Issue 5 — What happened to the Plan?
+
+This task was supposed to be handled through Replit's **Plan** workflow before implementation.
+
+Determine from the current task/session information, if available:
+
+* Whether a formal Plan was actually created
+* Whether the plan was approved before execution
+* Whether Replit went directly from the task description into implementation
+* Whether the plan is still accessible somewhere in the task history/UI
+
+Do not invent an answer if this cannot be determined from the repository/task metadata. Clearly state what can and cannot be verified.
+
+---
+
+## Issue 6 — Verify tests rather than repeating the report
+
+The implementation report says **111 tests** cover the feature.
+
+Inspect the actual repository.
+
+Report:
+
+* Exact new/modified test files
+* Number of tests in each
+* Exact total number of tests in the full suite
+* Whether the full suite currently passes
+* Whether the 111 figure refers to:
+
+  * new tests,
+  * tests related to this feature,
+  * or the entire suite
+
+Do not simply repeat the previous report.
+
+---
+
+# Required report
+
+Return:
+
+## 1. Executive Summary
+
+Tell me whether #250 is:
+
+* Fully implemented and merely not visible because of navigation/runtime state
+* Partially implemented
+* Implemented in the wrong UI location
+* Missing database/migration work
+* Or some combination
+
+## 2. Friend Discovery Setting
+
+Exact current location and why it is not visible on the screen above Push notifications.
+
+## 3. Feature-by-Feature Verification
+
+Use the requested table.
+
+## 4. Database / Backfill Status
+
+State definitively whether existing users have populated normalized search columns.
+
+## 5. Migration / Alembic Status
+
+Explain current state without changing it.
+
+## 6. Test Verification
+
+Actual test files/counts/results.
+
+## 7. Plan Workflow Finding
+
+What can be verified about whether the Plan step actually occurred.
+
+## 8. Discrepancies With the Previous Implementation Report
+
+List every statement from the implementation report that does not match the current code/runtime/database.
+
+## 9. Exact Fixes That Would Be Needed
+
+List them, but **do not implement them**.
+
+## 10. Final Assessment
+
+Answer:
+
+**Is #250 actually ready for us to consider complete?**
+
+Again: **INVESTIGATION ONLY. DO NOT MODIFY ANYTHING.**
