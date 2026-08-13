@@ -1,0 +1,32 @@
+PLAN MODE ONLY. DO NOT IMPLEMENT ANYTHING. DO NOT RUN ANY TESTS.
+Create a narrowly scoped implementation plan to fix the dangerous database-isolation defect in tests/test_profile_consolidation.py.
+The objective is singular: this test file must be structurally incapable of running db.create_all(), db.drop_all(), test inserts, test deletes, or any other database mutation against Supabase/PostgreSQL. All database activity from this test file must occur only against an isolated SQLite in-memory database.
+The plan should:
+Replace the ineffective app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:' approach with the existing _swap_engine() pattern already used safely in tests/conftest.py.
+Use an in-memory SQLite engine with StaticPool.
+Add a fail-closed safety guard that verifies the active db.engine is SQLite immediately before any db.create_all() or db.drop_all() operation. If the engine is anything other than SQLite, the test must abort before the database operation executes.
+Use an explicit try/finally structure so the original engine is restored and the SQLite engine is disposed even if the test, fixture setup, assertion, or teardown fails.
+Preserve the existing tests and their behavior as much as possible. Do not bundle unrelated modernization, refactoring, model-field changes, login changes, route changes, or cleanup into this safety fix.
+Make changes only to tests/test_profile_consolidation.py.
+ABSOLUTE SAFETY RESTRICTIONS:
+DO NOT run pytest or any test.
+DO NOT start the Flask application.
+DO NOT run migrations.
+DO NOT run db.create_all() or db.drop_all().
+DO NOT execute SQL against any Supabase/PostgreSQL database.
+DO NOT insert, update, delete, truncate, alter, create, or drop anything in either Supabase project.
+DO NOT change SUPABASE_DATABASE_URL.
+DO NOT change RECOVERED_SUPABASE_DATABASE_URL.
+DO NOT reconnect the application to another database.
+DO NOT modify app.py, models.py, tests/conftest.py, configuration, Secrets, deployment settings, or any other file.
+DO NOT attempt to "verify" the solution by connecting to either real database.
+For this Plan-mode task, inspection of source code is allowed, but all database interaction is prohibited.
+Return:
+the exact defect being fixed;
+the exact lines/fixture that need modification;
+the proposed minimal before/after code;
+how the SQLite assertion fails closed;
+how the explicit try/finally guarantees engine restoration;
+why the resulting fixture cannot execute destructive operations against Supabase;
+the exact test command you would recommend running later, only after I separately approve implementation and testing.
+STOP after presenting the plan. Do not make any code changes and do not execute anything.
