@@ -1,0 +1,168 @@
+PLAN MODE ONLY. DO NOT IMPLEMENT ANYTHING. DO NOT RUN ANY TESTS. DO NOT EXECUTE ANY DATABASE OPERATIONS.
+Create a narrowly scoped implementation plan to fix the dangerous database-isolation defect in:
+tests/test_profile_consolidation.py
+Objective
+The sole objective is to make tests/test_profile_consolidation.py structurally incapable of executing db.create_all(), db.drop_all(), test inserts, test deletes, or any other database mutation against PostgreSQL/Supabase.
+Every database operation performed by this test file must occur only against an isolated SQLite in-memory database.
+This is a safety-critical fix following an incident in which the existing test isolation failed and destructive test cleanup reached a real Supabase database.
+Keep this fix as small and isolated as possible.
+Known defect
+The current fixture attempts isolation using:
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+That is insufficient because Flask-SQLAlchemy may already have created and cached the application's engine in db._app_engines.
+Changing SQLALCHEMY_DATABASE_URI afterward does not necessarily replace the cached engine used by:
+db.engine
+db.session
+db.create_all()
+db.drop_all()
+The plan should therefore use the same underlying engine-swap concept already used by the project's safe test infrastructure in tests/conftest.py, while adding additional fail-closed protections appropriate for this specific regression test.
+Required design
+Design the smallest possible change to tests/test_profile_consolidation.py that does all of the following:
+1. Create an isolated SQLite in-memory engine
+Use SQLAlchemy with:
+sqlite:///:memory:
+StaticPool
+connect_args={"check_same_thread": False}
+2. Temporarily replace Flask-SQLAlchemy's cached engine
+Temporarily install the SQLite engine in the Flask-SQLAlchemy engine map used by this application.
+Before doing so, capture the exact pre-test state of the engine map, including:
+whether the None engine key existed at all; and
+if it existed, the exact engine object stored there.
+Do not merely store engines_map.get(None) because that does not distinguish between an absent key and a key whose value is None.
+3. DO NOT dispose the displaced application/Supabase engine
+This is an absolute requirement.
+Temporarily replacing the cached engine reference and disposing an engine are separate operations.
+The fixture must:
+NEVER call .dispose() on the displaced PostgreSQL/Supabase engine;
+NEVER close or otherwise manipulate its connection pool as part of the swap;
+NEVER execute SQL against it as part of setup or teardown.
+Only the temporary SQLite engine created specifically for the test may be disposed by this fixture.
+4. Add a fail-closed SQLite safety assertion
+Add a helper that verifies the currently active db.engine is SQLite.
+It must inspect the actual active engine, not merely the Flask configuration value.
+The assertion must run immediately before:
+db.create_all()
+and immediately before:
+db.drop_all()
+If the active engine is anything other than SQLite, execution must abort before the database operation occurs.
+The failure message should clearly state that database isolation failed and the destructive operation was prevented.
+5. Use explicit try/finally lifecycle protection
+The fixture must use an explicit try/finally covering setup, yield, test execution, and teardown.
+The finally block must restore the Flask-SQLAlchemy engine map to its exact pre-test state regardless of what happens during the test.
+This must work correctly if:
+the test passes;
+the test fails;
+fixture setup fails;
+db.create_all() fails;
+the SQLite safety assertion fails;
+fixture teardown fails;
+db.drop_all() fails;
+the test raises an unexpected exception.
+6. Correctly handle the case where no cached engine existed before the test
+This is important.
+If db._app_engines[app] did NOT contain the None key before the fixture installed SQLite, teardown must remove the temporary None entry.
+It must NOT leave a disposed SQLite engine cached.
+If the None key DID exist before the test, teardown must restore the exact original engine object.
+In other words:
+after the fixture finishes, the engine map must be structurally identical to its pre-test state with respect to the None engine entry.
+7. Dispose only SQLite
+After the original engine-map state has been restored, dispose the temporary SQLite engine.
+The production/Supabase engine must never be disposed by this fixture.
+8. No database operation during restoration
+Restoring the engine-map reference must not involve:
+connecting to Supabase;
+executing SQL;
+testing the Supabase connection;
+querying tables;
+migrations;
+schema inspection;
+create_all;
+drop_all;
+session operations.
+Restoration should only restore the Python-side cached-engine state.
+Scope restriction
+The only file that may eventually be modified is:
+tests/test_profile_consolidation.py
+Do NOT propose changes to:
+app.py
+models.py
+tests/conftest.py
+application routes
+startup migrations
+Flask configuration
+Replit Secrets
+Supabase configuration
+deployment configuration
+authentication
+production code
+any other test file
+Do not bundle unrelated test modernization into this fix.
+Specifically, do NOT proactively change:
+model field names;
+rider_type;
+pass_type;
+Resort fields;
+login behavior;
+route behavior;
+test assertions;
+test data;
+application behavior.
+If any of those cause a test failure later, they can be addressed separately after the database-safety fix has been implemented and verified.
+ABSOLUTE SAFETY RESTRICTIONS FOR THIS PLAN
+During this Plan-mode task:
+DO NOT:
+modify any file;
+run pytest;
+run any individual test;
+start the Flask application;
+run the Replit app;
+run migrations;
+run Alembic;
+invoke application startup for verification;
+execute db.create_all();
+execute db.drop_all();
+execute SQL;
+connect to either Supabase project;
+query either Supabase project;
+perform a "read-only verification" against either Supabase project;
+inspect production tables by connecting to the database;
+insert data;
+update data;
+delete data;
+truncate data;
+create tables;
+alter tables;
+drop tables;
+change SUPABASE_DATABASE_URL;
+change RECOVERED_SUPABASE_DATABASE_URL;
+change any Secret;
+reconnect the application;
+republish or redeploy anything.
+Source-code inspection is allowed.
+Important: do not use a real database as the safety test
+Do NOT propose verifying this fix by subsequently querying either the old Supabase project or the recovered Supabase project.
+The safety of the fixture must be demonstrable from:
+the engine swap;
+the fail-closed SQLite assertions;
+exact engine-state restoration;
+test isolation;
+and, later, test execution against SQLite.
+We should not need to touch a real database to prove that a test does not touch a real database.
+Required output
+Return a plan containing:
+The exact defect being fixed.
+The exact portion of tests/test_profile_consolidation.py that would change.
+The proposed minimal helper(s).
+The proposed complete replacement client fixture.
+The exact before/after code.
+An explanation of how the engine's pre-test state is captured.
+An explanation of how the original state is restored when an original cached engine exists.
+An explanation of how the original state is restored when no cached engine existed.
+Confirmation that the displaced PostgreSQL/Supabase engine is never disposed.
+Confirmation that only the temporary SQLite engine is disposed.
+An explanation of how _assert_sqlite() prevents create_all() and drop_all() from reaching PostgreSQL.
+An explanation of how the explicit try/finally behaves under setup failure, test failure, and teardown failure.
+Why the resulting fixture is structurally incapable of executing destructive test cleanup against Supabase.
+The exact single-file pytest command you would recommend running later, after I separately approve implementation and testing.
+Do not include any step that queries a real database after testing.
+STOP after presenting the plan. DO NOT IMPLEMENT IT. DO NOT RUN ANYTHING.
