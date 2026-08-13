@@ -1,0 +1,81 @@
+Before we perform any rollback, I need you to determine exactly what Replit's checkpoint/rollback mechanism would restore.
+
+DO NOT ROLLBACK OR RESTORE ANYTHING.
+DO NOT CHANGE CODE, FILES, DATABASES, SECRETS, CONFIGURATION, OR DEPLOYMENTS.
+
+The checkpoint/commit immediately before the Batch 2 implementation is:
+
+dc00394 — "Add Batch 2 findings approval documentation"
+
+The Batch 2 implementation checkpoint is:
+
+a7093a0 — "Update page styles and template layouts"
+
+BaseLodge was working immediately before the Batch 2 implementation and began encountering the missing `user` table error immediately afterward.
+
+I did NOT manually push these changes to GitHub. These commits/checkpoints were created by Replit Agent.
+
+I need you to investigate how Replit's "Rollback here" / "Restore All" functionality applies to this specific project.
+
+Answer the following:
+
+1. Does rolling back to checkpoint `dc00394` restore only Git-tracked files?
+
+2. Or does a Replit checkpoint also capture and restore untracked/ignored workspace files?
+
+Specifically, would it restore a file such as:
+
+`instance/baselodge.db`
+
+even though that file is excluded from Git?
+
+3. Does the checkpoint capture filesystem state independently of the Git commit shown in the Changes interface?
+
+4. Does rollback affect:
+   - Git-tracked files
+   - untracked files
+   - `.gitignore`-excluded files
+   - `instance/` contents
+   - SQLite databases
+   - environment variables
+   - Replit Secrets
+   - deployment configuration
+   - deployment filesystem
+   - running process/runtime state
+
+For each one, answer YES, NO, or UNKNOWN and explain why.
+
+5. Can you determine, WITHOUT RESTORING IT, whether checkpoint `dc00394` contains:
+
+`instance/baselodge.db`
+
+If yes, inspect only its presence/metadata and report:
+   - whether it exists
+   - file size
+   - modification timestamp
+
+DO NOT open, modify, copy over, or restore the database yet.
+
+6. If checkpoint contents cannot be inspected without restoration, explicitly say that.
+
+7. If we were to roll back to `dc00394`, would that operation risk:
+   - overwriting the current workspace
+   - deleting newer files
+   - changing current secrets
+   - changing the production deployment
+   - changing the connected Supabase database
+   - modifying any external database
+
+8. Is rollback reversible? In other words, if we restore `dc00394`, can we safely return to the current checkpoint afterward?
+
+9. Most importantly:
+
+Based on how Replit checkpoints actually work, could rolling back to `dc00394` plausibly recover an untracked `instance/baselodge.db` that existed immediately before Batch 2?
+
+Do NOT speculate. Clearly distinguish what you can verify about Replit's checkpoint behavior from what is unknown.
+
+RETURN A REPORT ONLY.
+
+DO NOT PERFORM THE ROLLBACK.
+DO NOT CLICK OR EXECUTE RESTORE.
+DO NOT CHANGE ANYTHING.
