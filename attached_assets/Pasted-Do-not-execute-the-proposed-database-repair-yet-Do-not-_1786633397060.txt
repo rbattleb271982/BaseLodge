@@ -1,0 +1,99 @@
+Do **not** execute the proposed database repair yet.
+
+Do not:
+
+* delete or modify `alembic_version`
+* run `flask db upgrade`
+* create tables
+* drop tables
+* modify database data
+* change environment variables
+* change secrets
+* change deployment configuration
+* change code
+* publish or deploy
+
+Before any repair, we need to locate and verify the database containing the existing BaseLodge application data.
+
+BaseLodge has previously had real application data including users, trips, connections, resorts, and other records. The currently inspected Supabase database contains none of those application tables.
+
+### 1. Inspect the deployed production configuration
+
+Determine exactly which database the **currently deployed/published BaseLodge application** uses.
+
+Compare its database connection configuration with the current Replit development environment.
+
+Do NOT reveal database passwords or full connection strings in your response.
+
+Return only safe identifiers such as:
+
+* database provider
+* hostname or safely redacted hostname
+* database name
+* whether dev and production point to the SAME or DIFFERENT database
+* any safe project/reference identifier that distinguishes the instances
+
+### 2. Locate the existing BaseLodge data
+
+Using read-only inspection only, determine whether the production-connected database contains:
+
+* `user`
+* `ski_trip`
+* resort/mountain tables
+* friend/connection tables
+* trip participant tables
+* notification/messaging tables
+* other major BaseLodge application tables
+
+Return approximate row counts for major tables where safe.
+
+Do not modify anything.
+
+### 3. Determine database history
+
+Investigate Git history, Replit configuration/history available to you, deployment configuration, environment-variable references, migration configuration, and other non-destructive evidence to determine:
+
+* What database BaseLodge used before the current Supabase connection
+* Whether `SUPABASE_DATABASE_URL` was recently added/replaced/changed
+* Whether BaseLodge previously used Replit PostgreSQL/Helium or another Supabase instance
+* When the current empty Supabase instance first became the selected database
+* Whether there is evidence that an existing database was migrated, reset, replaced, disconnected, or had its connection secret changed
+
+Do not assume `flask db stamp` caused the current state unless evidence establishes that.
+
+### 4. Investigate the actual production application
+
+Determine whether the currently published production BaseLodge application is functioning.
+
+Using non-destructive checks, determine whether:
+
+* existing users can be loaded
+* the production application can query its `user` table
+* production routes dependent on database data function
+* production is currently throwing the same `relation "user" does not exist` error
+
+Do not create test records or modify production data.
+
+### 5. Reconcile User ID 105
+
+Determine, if possible without modifying anything, which database contains or previously contained User ID 105.
+
+Do not expose personal information about the user. We only need to know whether that ID exists in the actual BaseLodge database.
+
+### 6. Report before recommending a fix
+
+Return:
+
+1. **Where the existing BaseLodge production data is located**
+2. Whether that database is intact
+3. Whether development and production currently use the same database
+4. Whether production is currently affected
+5. What the empty Supabase database represents
+6. When/how the development environment began pointing at it, if determinable
+7. Whether existing BaseLodge data needs to be reconnected, migrated, restored, or whether a new schema truly needs to be created
+8. Your revised recommended recovery plan
+9. Risks of that recovery plan
+
+If you cannot locate the existing BaseLodge data, explicitly say so. Do not create a replacement schema merely because the existing database has not yet been located.
+
+**INVESTIGATION ONLY. NO CHANGES.**
