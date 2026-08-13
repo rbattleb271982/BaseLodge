@@ -9745,7 +9745,7 @@ def home():
         user_avail_ranges=_home_avail_ranges,
         user_avail_overflow=_home_avail_overflow,
         stat_mountains=user.visited_resorts_count,
-        stat_trips_total=len(my_trips),
+        stat_trips_total=get_upcoming_trip_count(user),
         stat_wishlist=len(user.wish_list_resorts or []),
         stat_trips_url=url_for('my_trips'),
         stat_mountains_url=url_for('mountains_visited'),
