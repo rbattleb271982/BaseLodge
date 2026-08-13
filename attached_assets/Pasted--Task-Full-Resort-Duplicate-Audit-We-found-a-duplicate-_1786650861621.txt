@@ -1,0 +1,138 @@
+# Task — Full Resort Duplicate Audit
+
+We found a duplicate in the new Mountains Visited selector: Maine contains "Mt. Abram" twice.
+
+Before publishing the new resort selector, perform a comprehensive READ-ONLY audit of the resort dataset to identify all possible duplicate resort records.
+
+IMPORTANT:
+- READ-ONLY investigation only.
+- Do NOT INSERT, UPDATE, DELETE, ALTER, merge, rename, or otherwise modify any database records.
+- Do NOT change code.
+- Do NOT change the resort selector.
+- Do NOT publish or push anything.
+- Do NOT modify any secrets.
+- Do NOT restart the application unless absolutely required for inspection.
+- No personal/user data is needed.
+
+GOAL
+
+Determine whether the Resort table contains duplicate or near-duplicate resort records that would appear as duplicate choices in Mountains Visited or Wishlist.
+
+STEP 1 — Exact duplicates
+
+Find resort records with the same normalized resort name within the same geographic location.
+
+Normalize names for comparison by:
+- lowercase
+- trim leading/trailing whitespace
+- collapse repeated whitespace
+- normalize obvious punctuation differences
+- compare within the same country and state/province/region
+
+Examples that should be flagged:
+- "Mt. Abram" vs "Mt. Abram"
+- "Mt. Abram" vs "Mt Abram"
+- "Mammoth Mountain" vs "Mammoth Mountain"
+- "Jackson Hole" vs "Jackson Hole Mountain Resort" if they appear to represent the same resort
+
+Do NOT automatically assume that similar names are duplicates. Flag them for review.
+
+STEP 2 — Slug duplicates
+
+Check for duplicate resort slugs.
+
+Report:
+- slug
+- number of rows sharing the slug
+- affected resort IDs
+- resort names
+- country/state information
+
+STEP 3 — Name duplicates by geography
+
+Find all cases where multiple Resort rows have the same or nearly identical normalized name within the same:
+- country
+- state/province/region
+
+This is especially important because the new selector groups resorts geographically.
+
+STEP 4 — Cross-geography duplicates
+
+Also identify identical resort names that occur in different states, provinces, regions, or countries.
+
+These are NOT necessarily errors.
+
+Report them separately so we can distinguish legitimate same-name resorts from actual duplicates.
+
+STEP 5 — Variant-name audit
+
+Look specifically for common naming variations that could represent the same physical resort:
+
+- Mt. vs Mount
+- St. vs Saint
+- punctuation differences
+- apostrophe differences
+- hyphen differences
+- "&" vs "and"
+- whitespace differences
+- capitalization differences
+- "Mountain" vs "Mountain Resort"
+- "Ski Area" vs omitted "Ski Area"
+- "Ski Resort" vs omitted "Ski Resort"
+- parenthetical text
+- legacy resort names vs current names
+
+Do not merge anything. Just identify candidates.
+
+STEP 6 — Resort identity fields
+
+Inspect the Resort model/table and determine what fields exist that can establish identity beyond the display name, such as:
+- slug
+- country
+- state/state_code
+- latitude/longitude
+- resort URL
+- external ID
+- other canonical identifiers
+
+Use those fields to distinguish true duplicates from legitimate similarly named resorts.
+
+If latitude/longitude exists, flag records with extremely close coordinates and the same/similar name as particularly strong duplicate candidates.
+
+STEP 7 — Full report
+
+Produce a report with these sections:
+
+### Confirmed exact duplicates
+Records that are clearly duplicate database entries.
+
+### Strong duplicate candidates
+Records that appear to represent the same physical resort but require confirmation.
+
+### Possible naming duplicates
+Records where the names are similar but the evidence is insufficient to call them duplicates.
+
+### Legitimate same-name resorts
+Same/similar names that appear to represent different resorts.
+
+### Slug duplicates
+Any duplicate slugs.
+
+### Clean records
+Total Resort row count and number of unique normalized resort identities after the audit.
+
+For every duplicate/candidate, report ONLY non-personal resort data:
+
+- resort ID
+- resort name
+- slug
+- country
+- state/province/region
+- relevant canonical identity fields
+
+Do NOT include users, emails, passwords, tokens, or other personal data.
+
+IMPORTANT:
+Do not make any database changes based on the findings.
+
+The deliverable is an audit/report only. After the report, we will separately decide whether any duplicate records should be corrected.
