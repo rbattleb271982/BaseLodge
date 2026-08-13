@@ -1,0 +1,37 @@
+READ-ONLY RECOVERED DATABASE CHECK — DO NOT MODIFY ANYTHING
+BaseLodge is now successfully running against the recovered Supabase database with:
+BASELODGE_SKIP_STARTUP_MIGRATIONS=1
+The next goal is to determine whether it is safe to re-enable normal startup migrations.
+Do NOT change code.
+Do NOT change Secrets.
+Do NOT run migrations.
+Do NOT restart BaseLodge.
+Do NOT execute INSERT, UPDATE, DELETE, ALTER, CREATE, DROP, TRUNCATE, or any other write.
+READ-ONLY SQL ONLY.
+Using the currently connected recovered database, determine exactly what run_ghost_user_cleanup_migration() would delete if normal startup migrations were enabled.
+Run read-only SELECT equivalents for:
+Friend rows where user_id does not exist in user
+Friend rows where friend_id does not exist in user
+Invitation rows where sender_id does not exist in user
+Invitation rows where receiver_id does not exist in user
+Return:
+Count for each of the four categories.
+Total distinct Friend rows that would be deleted.
+Total distinct Invitation rows that would be deleted.
+Whether any rows overlap between categories.
+Do not expose user emails, names, passwords, tokens, or other personal information.
+Do not delete anything.
+Do not repair anything.
+Do not run the migration itself.
+Also perform read-only checks for the other startup migrations that can mutate data:
+whether push token IDs 3 and 4 exist and whether they already have active = false and apns_environment = 'sandbox'
+whether any users still have pass_type = 'Epic' or 'Not Sure'
+whether any user.rider_types values appear non-canonical according to the current normalization logic
+whether any ski_trip_participant owner rows have pass_type IS NULL while the trip has a valid pass type
+whether the pass-mapping correction migration would currently add/delete/update anything, based on the same conditions in the code
+Return only counts/statuses and whether each migration would result in a net change.
+End with one of:
+SAFE TO RE-ENABLE STARTUP MIGRATIONS
+or
+KEEP STARTUP MIGRATIONS DISABLED
+Do not take any action after reporting.
