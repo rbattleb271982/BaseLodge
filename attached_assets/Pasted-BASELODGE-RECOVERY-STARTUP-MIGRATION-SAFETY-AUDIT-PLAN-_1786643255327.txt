@@ -1,0 +1,192 @@
+BASELODGE RECOVERY — STARTUP MIGRATION SAFETY AUDIT
+PLAN / INVESTIGATION MODE ONLY.
+SOURCE-CODE INSPECTION ONLY.
+DO NOT MODIFY ANYTHING.
+DO NOT RUN ANYTHING.
+We have now successfully established pytest database isolation:
+root conftest.py forces pytest startup onto SQLite before app.py imports;
+tests/test_profile_consolidation.py has its own SQLite isolation;
+the controlled test run confirmed the active test dialect was sqlite;
+neither Supabase database was accessed during that test.
+We are now preparing to reconnect BaseLodge to the recovered Supabase database.
+Before changing any database secret or starting BaseLodge, audit every database/schema migration or startup database mutation that automatically executes when app.py is imported or the application starts.
+The purpose is to determine exactly what will happen to the recovered database the first time BaseLodge starts against it.
+PRIMARY QUESTION
+If we change SUPABASE_DATABASE_URL to the recovered Supabase project's pooler connection string and start BaseLodge:
+Exactly what database operations will execute automatically, and could any of them delete, overwrite, corrupt, reset, unexpectedly transform, or otherwise endanger the recovered data?
+I need an answer before we reconnect the recovered database.
+1. INVENTORY EVERY AUTOMATIC DATABASE OPERATION
+Inspect app.py and any code it invokes during module import/application startup.
+Identify every automatic database operation, including but not limited to:
+startup migration functions;
+migration helper functions;
+db.create_all();
+db.drop_all();
+raw SQL;
+ALTER TABLE;
+CREATE TABLE;
+DROP TABLE;
+DROP COLUMN;
+TRUNCATE;
+DELETE;
+UPDATE;
+INSERT;
+data backfills;
+normalization/correction migrations;
+deduplication;
+row deletion;
+schema conversion;
+constraint changes;
+index changes;
+pass/resort mapping corrections;
+any startup cleanup;
+anything that commits database changes.
+Do not limit the investigation to the previously identified 20 functions if additional automatic database operations exist.
+Trace what actually executes automatically when BaseLodge starts.
+2. CLASSIFY EACH OPERATION
+For every automatic migration/database operation, provide:
+function name;
+file;
+line range;
+when it executes;
+whether it executes on PostgreSQL/Supabase;
+exact SQLAlchemy/SQL/database operations performed;
+tables affected;
+columns affected;
+whether it changes schema;
+whether it changes existing rows;
+whether it creates new rows;
+whether it deletes rows;
+whether it can overwrite existing values;
+whether it commits;
+whether it is conditional;
+the condition that determines whether it runs;
+whether it is idempotent;
+what happens if it is run twice;
+what happens if the recovered database already contains the migration's intended result.
+Classify each as exactly one of:
+A — SAFE / IDEMPOTENT
+Re-running it against an already-current recovered database should not materially change existing user data.
+B — DATA-CHANGING BUT EXPECTED
+It intentionally changes existing rows or values and therefore requires review before recovery startup.
+C — POTENTIALLY DANGEROUS
+It could delete, overwrite, duplicate, incorrectly transform, or otherwise materially affect recovered data depending on database state.
+D — DESTRUCTIVE / DO NOT RUN
+It contains behavior such as uncontrolled DROP, TRUNCATE, mass deletion, reset/rebuild, destructive replacement, or anything else that should block reconnecting the recovered database.
+3. SEARCH SPECIFICALLY FOR DESTRUCTIVE PATTERNS
+Search the entire application startup path for:
+drop_all
+DROP TABLE
+DROP COLUMN
+TRUNCATE
+DELETE FROM
+.delete(
+.delete()
+UPDATE
+.update(
+.update()
+INSERT
+.add(
+.add_all(
+bulk_
+ALTER TABLE
+CREATE TABLE
+create_all
+commit()
+execute(
+and any custom migration/correction/backfill functions.
+For every match that can execute automatically at application startup, explain it.
+Ignore destructive operations that exist only inside tests unless production application startup can invoke them.
+4. PAY SPECIAL ATTENTION TO DATA-CORRECTION MIGRATIONS
+We have previously made BaseLodge changes involving resort/pass mappings and other data corrections.
+Identify any startup migration that changes data, rather than merely schema.
+For example:
+resort records;
+pass mappings;
+ResortPass;
+pass_brands_json;
+users;
+friendships;
+trips;
+participants;
+messages;
+notifications;
+invite data;
+profile data;
+slugs;
+any other production records.
+For each data migration, show the exact criteria used to select rows and the exact mutation performed.
+5. DETERMINE WHETHER MIGRATIONS ARE TRACKED
+Determine whether BaseLodge has a real migration/version tracking mechanism for these startup migrations.
+Specifically:
+Is Alembic actually controlling them?
+Is there a migration table?
+Does each startup migration know whether it has already executed?
+Or does BaseLodge simply call these functions every time app.py loads?
+If they run on every application startup, state that clearly.
+Explain how each function attempts to make repeated execution safe.
+6. RECOVERED DATABASE RISK
+Based only on source inspection, determine what would happen if the recovered database represents BaseLodge immediately before the database-loss incident and the current application code starts against it.
+Do NOT connect to the recovered database to answer this.
+Identify:
+migrations that should effectively no-op because the schema/data is already current;
+migrations that would execute again and modify data;
+migrations whose outcome depends on the recovered database state;
+anything that could make the recovered database diverge from its recovered state immediately upon application startup.
+7. DETERMINE WHETHER WE NEED A SAFE FIRST BOOT
+Based on the audit, recommend one of these:
+OPTION 1 — NORMAL STARTUP IS SAFE
+The recovered database can be connected and BaseLodge can start normally.
+OPTION 2 — STARTUP MIGRATIONS SHOULD BE TEMPORARILY SUPPRESSED
+We should prevent automatic migrations from executing during the first recovered-database boot and initially verify read access only.
+OPTION 3 — SPECIFIC MIGRATIONS MUST BE DISABLED/FIXED FIRST
+Identify exactly which functions must be addressed before reconnecting.
+Do not implement any option.
+8. ABSOLUTE RESTRICTIONS
+DO NOT:
+modify any file;
+change SUPABASE_DATABASE_URL;
+change RECOVERED_SUPABASE_DATABASE_URL;
+modify any Replit Secret;
+connect to the old Supabase database;
+connect to the recovered Supabase database;
+query either database;
+execute SQL;
+run BaseLodge;
+import app.py through Python for verification;
+run Flask;
+run Gunicorn;
+run pytest;
+run migrations;
+run db.create_all();
+run db.drop_all();
+deploy;
+publish;
+commit;
+push.
+Static source-code inspection only.
+9. REQUIRED REPORT
+Return:
+Total number of automatic startup database operations/migrations found.
+Exact execution order.
+A table listing every operation and its A/B/C/D safety classification.
+Detailed analysis of every B, C, or D operation.
+Every operation capable of changing existing rows.
+Every operation capable of deleting rows.
+Every operation capable of dropping tables or columns.
+Every operation capable of inserting rows.
+Every operation capable of changing resort/pass mapping data.
+Whether db.create_all() executes against PostgreSQL during normal production startup.
+Whether db.drop_all() exists anywhere in the production startup path.
+Whether startup migrations are version-tracked or simply run repeatedly.
+What happens when each migration runs more than once.
+Whether any migration could damage an already-current recovered database.
+Whether starting BaseLodge against the recovered database would alter it immediately.
+Your recommended first-boot option: OPTION 1, OPTION 2, or OPTION 3.
+Exact reasoning for that recommendation.
+If OPTION 2 or OPTION 3, the smallest proposed next step — plan only, do not implement it.
+End the report with one of:
+RECOVERED DATABASE SAFE FOR NORMAL STARTUP
+RECOVERED DATABASE SHOULD USE CONTROLLED FIRST BOOT
+RECOVERED DATABASE NOT SAFE TO CONNECT YET
+Do not take any action after producing the report. Wait for approval.
