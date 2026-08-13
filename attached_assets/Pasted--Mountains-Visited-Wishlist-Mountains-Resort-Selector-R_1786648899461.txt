@@ -1,0 +1,559 @@
+# Mountains Visited + Wishlist Mountains — Resort Selector Redesign
+# PLANNING / INVESTIGATION ONLY
+
+We want to redesign the BaseLodge resort-selection experience for both:
+
+1. Mountains Visited
+2. Wishlist Mountains
+
+The goal is to make adding resorts much easier than manually typing resort names while creating a consistent, reusable BaseLodge experience.
+
+IMPORTANT:
+This is a PLANNING / INVESTIGATION task only.
+
+Do NOT modify any code, templates, CSS, JavaScript, routes, models, database records, or files.
+
+Do NOT commit, publish, push, restart the app, or change Secrets.
+
+Do NOT run migrations or make any database writes.
+
+---
+
+# 1. CURRENT PROBLEM
+
+The current Mountains Visited experience requires the user to manually enter a mountain/resort name.
+
+We believe there should be a much easier way to select resorts from the existing BaseLodge resort database.
+
+The same problem should be addressed for Wishlist Mountains.
+
+We want both experiences to use the same underlying resort-selection experience rather than having two unrelated ways to find and add resorts.
+
+---
+
+# 2. TARGET EXPERIENCE
+
+The proposed resort browser should use this hierarchy:
+
+Country → State/Province/Region → Resort
+
+## Geographic ordering
+
+### United States
+
+The United States must ALWAYS appear first.
+
+Within the United States:
+
+State → Resort
+
+Both should be alphabetical.
+
+Example:
+
+United States
+
+  California
+
+    Bear Valley
+    Heavenly
+    Mammoth Mountain
+    Palisades Tahoe
+    ...
+
+  Colorado
+
+    Arapahoe Basin
+    Aspen Mountain
+    Beaver Creek
+    Breckenridge
+    Copper Mountain
+    Keystone
+    Loveland
+    Vail
+    ...
+
+  Utah
+
+    Alta
+    Brighton
+    Snowbird
+    Solitude
+    ...
+
+### Other countries
+
+After United States, all other countries should appear alphabetically.
+
+For example:
+
+Austria
+Canada
+Chile
+France
+Italy
+Japan
+Norway
+Switzerland
+...
+
+Within each country:
+
+State/Province/Region → Resort
+
+Both levels should be alphabetical.
+
+Use whatever geographic subdivision already exists in the BaseLodge resort data. Do NOT assume every country literally has "states."
+
+---
+
+# 3. COLLAPSIBLE HIERARCHY
+
+The resort browser should not display the entire database expanded at once.
+
+Countries should be collapsible.
+
+States/provinces/regions should also be collapsible.
+
+The intended interaction is:
+
+United States
+  ↓
+Colorado
+  ↓
+Resort list
+
+The user can drill down to the resort they want.
+
+Do not invent unnecessarily complicated expansion behavior.
+
+If the existing data makes it possible, groups containing selected resorts may be surfaced intelligently, but this should remain secondary to the basic Country → State/Region → Resort hierarchy.
+
+---
+
+# 4. RESORT SELECTION
+
+Each resort should have a clear selection control, such as a checkbox.
+
+For Mountains Visited:
+
+Checked = user has visited the resort.
+Unchecked = user has not visited the resort.
+
+Existing visited resorts must appear checked automatically.
+
+For Wishlist Mountains:
+
+Checked = resort is on the user's wishlist.
+Unchecked = resort is not on the user's wishlist.
+
+Existing wishlist resorts must appear checked automatically.
+
+The user should be able to add/remove the resort by changing the selection.
+
+If the existing architecture safely supports immediate persistence without a full page reload, investigate that as the preferred experience.
+
+However, do NOT change the underlying data model simply to support this UI.
+
+---
+
+# 5. VISITED AND WISHLIST MUST REMAIN SEPARATE
+
+This is extremely important.
+
+Visited and Wishlist are two different user states.
+
+A resort can be:
+
+- visited only
+- wishlist only
+- both visited and wishlist
+- neither
+
+Do NOT merge these concepts.
+
+Do NOT change the underlying database representation merely to make the UI look unified.
+
+The goal is a shared selection EXPERIENCE, not a merged data model.
+
+---
+
+# 6. SEARCH
+
+The resort browser should also provide a search field near the top.
+
+Suggested placeholder:
+
+"Search mountains"
+
+The user should be able to search the existing BaseLodge resort database by resort name without drilling through the geographic hierarchy.
+
+For example:
+
+Typing:
+
+Whistler
+
+should quickly surface:
+
+Whistler Blackcomb
+
+The search should use the existing resort data.
+
+Do NOT create a manually maintained list of resorts.
+
+Investigate whether BaseLodge already has a resort/mountain search or autocomplete experience elsewhere that can be reused.
+
+---
+
+# 7. COUNTS
+
+Investigate showing useful counts at the country/state/region level.
+
+For example:
+
+United States · 8 visited
+
+Colorado · 8 visited
+
+For Wishlist, the equivalent could be:
+
+United States · 12 wishlisted
+
+Colorado · 4 wishlisted
+
+The counts should reflect the appropriate state:
+
+- Mountains Visited → number of visited resorts
+- Wishlist Mountains → number of wishlisted resorts
+
+Do not mix the two counts.
+
+Determine the cleanest way to present these counts without making the hierarchy visually heavy.
+
+---
+
+# 8. BOTH FEATURES SHOULD FEEL CONSISTENT
+
+Mountains Visited and Wishlist Mountains should use the same resort-selection pattern wherever practical:
+
+- same Country → State/Province/Region → Resort hierarchy
+- same alphabetical ordering
+- same search experience
+- same accordion behavior
+- same checkbox/selection treatment
+- same mobile tap-target standards
+- same BaseLodge visual language
+
+However, the pages should retain their own context.
+
+For example, when the user is on Mountains Visited, the interaction should clearly mean:
+
+"Add/remove this resort from Mountains Visited."
+
+When the user is on Wishlist Mountains, it should clearly mean:
+
+"Add/remove this resort from Wishlist."
+
+Do not make the user wonder which state they are modifying.
+
+---
+
+# 9. INVESTIGATE WHETHER A SHARED COMPONENT IS POSSIBLE
+
+Determine whether the resort browser/search should be implemented as one reusable component shared by both pages.
+
+Investigate:
+
+- shared template partials
+- shared CSS
+- shared JavaScript
+- existing reusable components
+- existing resort search infrastructure
+
+Prefer a shared component if it can be done cleanly without unnecessary refactoring.
+
+Do NOT create a large abstraction just for the sake of reuse.
+
+The goal is:
+
+One consistent resort selector
++
+Two separate selection states
+
+---
+
+# 10. INVESTIGATE THE CURRENT MOUNTAINS VISITED IMPLEMENTATION
+
+Determine:
+
+1. Exact template responsible for Mountains Visited.
+2. Current "Add a mountain" implementation.
+3. Current removal implementation.
+4. Routes handling add/remove.
+5. Models/tables involved.
+6. How resorts are currently identified.
+7. Whether current visited records can be preserved exactly as they are.
+8. Whether the current page already contains any search/autocomplete infrastructure.
+
+---
+
+# 11. INVESTIGATE THE CURRENT WISHLIST IMPLEMENTATION
+
+Determine:
+
+1. Exact template responsible for Wishlist Mountains.
+2. Current method for adding wishlist resorts.
+3. Current method for removing wishlist resorts.
+4. Routes handling add/remove.
+5. Models/tables involved.
+6. How wishlist resorts are identified.
+7. Whether current wishlist records can be preserved exactly as they are.
+8. Whether the current page already contains any search/autocomplete infrastructure.
+
+---
+
+# 12. INVESTIGATE THE RESORT DATA
+
+Inspect the existing Resort model/database representation and determine:
+
+- resort name
+- slug
+- country
+- state/province/region
+- any other geographic fields
+- whether these fields are consistently populated
+- whether any resorts lack the information needed for the hierarchy
+- whether duplicate or ambiguous geographic values exist
+
+Do NOT modify resort data.
+
+If the data is incomplete, report exactly what is missing and how significant the issue is.
+
+Do not invent geographic values.
+
+---
+
+# 13. SEARCH FOR EXISTING OR PREVIOUS IMPLEMENTATIONS
+
+Search the current codebase AND Git history for previous implementations or experiments involving:
+
+- mountain picker
+- resort picker
+- mountain search
+- resort search
+- autocomplete
+- resort autocomplete
+- mountain autocomplete
+- checkbox resort selection
+- accordion resort selection
+- country/state resort grouping
+- wishlist resort selection
+- visited mountain selection
+
+If a better implementation existed previously, identify:
+
+- the commit
+- the files
+- what it did
+- whether it was removed
+- why it was removed if the history documents that
+
+Do not automatically restore anything.
+
+---
+
+# 14. MOBILE UX REQUIREMENTS
+
+This is primarily a mobile app.
+
+Investigate existing BaseLodge patterns for:
+
+- accordions
+- checkboxes
+- search inputs
+- selected states
+- row heights
+- tap targets
+
+Selection controls and resort rows should maintain appropriate mobile tap targets, with **44px as the minimum**.
+
+Avoid making the hierarchy visually dense or difficult to operate with a finger.
+
+---
+
+# 15. PRESERVE EXISTING FUNCTIONALITY
+
+Do NOT change:
+
+- how visited resorts are stored
+- how wishlist resorts are stored
+- existing database models
+- unrelated resort functionality
+- resort pages
+- home page
+- profile equipment
+- trip functionality
+- bottom navigation
+- authentication
+
+unless the investigation finds a direct dependency that makes a change necessary.
+
+Do not redesign unrelated parts of either page.
+
+---
+
+# 16. NO BACKEND CHANGE UNLESS NECESSARY
+
+Determine whether the proposed experience can be built using the existing routes and data.
+
+If backend changes are unnecessary, explicitly say so.
+
+If backend changes are genuinely required, identify exactly why and which routes would need to change.
+
+Do NOT implement those changes in this task.
+
+---
+
+# 17. DELIVERABLE
+
+Return a detailed planning report containing:
+
+## A. Current Mountains Visited implementation
+
+Explain exactly how it currently works.
+
+## B. Current Wishlist implementation
+
+Explain exactly how it currently works.
+
+## C. Resort data assessment
+
+Explain whether the existing Resort data supports:
+
+Country → State/Province/Region → Resort
+
+and identify any data gaps.
+
+## D. Existing reusable infrastructure
+
+Identify existing search, autocomplete, accordion, checkbox, or resort-selection functionality that could be reused.
+
+## E. Git history findings
+
+Report whether a better implementation existed previously.
+
+## F. Proposed UX
+
+Describe the recommended final interaction for both pages.
+
+Include:
+
+- hierarchy
+- ordering
+- search
+- accordions
+- checkboxes
+- counts
+- selected states
+- add/remove behavior
+
+## G. Shared-component recommendation
+
+Explicitly recommend whether to build:
+
+- one shared resort selector
+- two page-specific selectors
+- or a shared core with page-specific configuration
+
+Explain why.
+
+## H. Exact files that would need to change
+
+List:
+
+- templates
+- CSS
+- JavaScript
+- Python/routes
+- any other files
+
+Do not modify them.
+
+## I. Backend/database impact
+
+Explicitly state whether any backend, model, schema, or database changes are required.
+
+## J. Risk assessment
+
+Identify risks involving:
+
+- existing visited records
+- existing wishlist records
+- resort geography
+- duplicate resorts
+- search
+- mobile interaction
+- regression of existing functionality
+
+## K. Implementation sequence
+
+Provide a step-by-step implementation plan that another agent could follow without guessing.
+
+## L. Scope boundary
+
+Clearly identify what should NOT be changed.
+
+---
+
+# ABSOLUTE RESTRICTIONS
+
+This is planning only.
+
+DO NOT:
+
+- modify files
+- create files
+- delete files
+- run tests
+- start BaseLodge
+- restart BaseLodge
+- access Supabase
+- query the database
+- modify database records
+- run migrations
+- change Secrets
+- change environment variables
+- commit
+- push
+- publish
+- reset Git
+- rebase
+- cherry-pick
+- checkout another commit
+
+Read-only source-code and Git-history inspection is allowed.
+
+Do not invent missing requirements.
+
+Do not silently change the requested hierarchy.
+
+The required hierarchy is:
+
+United States first
+→ State/Province/Region alphabetical
+→ Resort alphabetical
+
+Then:
+
+All other countries alphabetical
+→ State/Province/Region alphabetical
+→ Resort alphabetical
+
+Mountains Visited and Wishlist Mountains must share the same selection EXPERIENCE while keeping their underlying data and states completely separate.
+
+End the report with exactly:
+
+MOUNTAINS VISITED + WISHLIST RESORT SELECTOR PLAN READY — NO CHANGES MADE
+
+Then stop and wait for approval.
