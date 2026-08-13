@@ -2211,7 +2211,6 @@ def run_ski_trip_planning_post_migration():
             db.session.commit()
             print("ski_trip_planning_post_migration: table ready.")
     except Exception as e:
-        db.session.rollback()
         print(f"ski_trip_planning_post_migration: skipped ({e})")
 
 run_ski_trip_planning_post_migration()
