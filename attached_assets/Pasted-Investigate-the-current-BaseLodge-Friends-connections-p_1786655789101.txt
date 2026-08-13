@@ -1,0 +1,869 @@
+Investigate the current BaseLodge Friends, connections, profile settings, privacy, and notifications architecture and determine exactly what would be required to let users search for other registered BaseLodge members by name and send them a connection request from the existing Friends screen.
+
+This is an investigation only.
+
+Do not change any code, models, database schema, migrations, templates, styles, JavaScript, routes, services, tests, configuration, or settings.
+
+Do not commit, push, publish, or deploy anything.
+
+Product behavior we are considering
+
+BaseLodge already has a Friends screen with:
+
+* Header: Friends
+* Invite action
+* Existing Search friends field
+* Alphabetical list of current friends
+* Friend rows containing richer information such as:
+    * Name
+    * Skier / snowboarder
+    * Ability
+    * Passes
+    * Upcoming trip count
+
+We want to investigate extending this existing experience so users can also find people who have already signed up for BaseLodge.
+
+Proposed search experience
+
+The existing Search friends field would potentially do both:
+
+1. Search/filter the user’s existing friends
+2. Search eligible registered BaseLodge users who are not already friends
+
+Do not search by email.
+
+Search should be based on the person’s name.
+
+For a registered BaseLodge member who is not currently a friend, the result should be intentionally minimal.
+
+Proposed format:
+
+John Smith · Colorado         Connect
+4 mutual friends
+
+Another state:
+
+John Smith · California     Connect
+2 mutual friends
+
+Pending outgoing request:
+
+John Smith · Colorado     Requested
+4 mutual friends
+
+The purpose of showing home state is to help distinguish people with identical or similar names.
+
+The purpose of showing mutual friends is to provide additional social context so the user can identify the correct person.
+
+Do not assume this exact UI implementation is technically correct yet. Investigate what the existing architecture supports and recommend the smallest clean implementation.
+
+⸻
+
+1. Current Friends screen architecture
+
+Find everything involved in the existing Friends page.
+
+Document:
+
+* Route/controller
+* Function names
+* Templates
+* Partials
+* JavaScript
+* CSS
+* Supporting services/helpers
+* Models queried
+* Any APIs/endpoints involved
+
+Explain the complete data flow:
+
+request → database query → route/controller → template → JavaScript/browser
+
+Specifically determine:
+
+* How the current user’s friends are retrieved
+* How BaseLodge determines two users are friends
+* Whether the friend list is fully loaded on page load
+* How alphabetical grouping works
+* How friend metadata is loaded
+* How upcoming trip counts are calculated
+* Whether the existing search field is client-side or server-side
+* Exactly what happens as someone types into Search friends
+* Whether the existing search field can reasonably be extended rather than replaced
+
+⸻
+
+2. User/account model
+
+Inspect the relevant BaseLodge user/account models.
+
+Identify the exact fields used for:
+
+* First name
+* Last name
+* Full/display name
+* Username, if one exists
+* Home state
+* Home city/location
+* Profile photo/avatar, if any
+* Account active/inactive status
+* Deleted/deactivated accounts
+* Suspended/banned accounts, if relevant
+* Privacy settings
+* Blocking functionality
+* Any other field affecting who can discover or interact with a user
+
+For home state, determine:
+
+* Exact field/model
+* Whether it is already populated for users
+* Whether it contains abbreviations or full state names
+* Whether it is optional
+* Whether it is already displayed elsewhere in the app
+* Whether exposing home state in search results is consistent with existing profile visibility
+
+Do not propose email search.
+
+⸻
+
+3. Current connection/friendship architecture
+
+Trace the complete connection system.
+
+Find every relevant:
+
+* Model
+* Table
+* Enum/status
+* Route
+* Service
+* Helper
+* Template
+* JavaScript function
+* Notification integration
+* Test
+
+Determine:
+
+* How a connection request is created
+* How requester and recipient are stored
+* Whether friendship is directional or symmetric
+* All possible statuses
+* How acceptance works
+* How declining works
+* Whether a request can be cancelled
+* Whether a connection can be removed
+* How existing friendship is checked
+* Duplicate-request protections
+* Self-request protections
+* What happens if A requests B while B has already requested A
+* Whether someone can request again after decline
+* Whether someone can request again after removing a connection
+* Blocking behavior, if any
+
+Give exact names of models, columns, functions, routes, and relevant files.
+
+⸻
+
+4. Existing “Connect” / connection-request flow
+
+We need to know whether the search result can simply reuse the existing connection request system.
+
+Trace the full existing flow when one user requests to connect with another.
+
+Document:
+
+* Route/function
+* HTTP method
+* Payload
+* Authentication
+* Authorization
+* Validation
+* Database writes
+* Duplicate handling
+* Response returned to browser
+* UI update
+* In-app notification
+* Push notification
+* Messaging event emitted
+* Event constant
+* EventSpec / dispatch configuration
+* Any notification preferences that affect it
+
+Also trace:
+
+* Acceptance
+* Decline
+* Cancellation, if supported
+
+Answer specifically:
+
+Can a future Connect button in search simply call the existing connection-request route/service?
+
+If not, explain why.
+
+⸻
+
+5. Current Invite functionality
+
+Investigate the Invite action currently shown on the Friends page.
+
+Document:
+
+* Where it links
+* Route
+* Template/modal/page
+* Invite token/link logic
+* Whether invitees are expected to be users who are not yet registered
+* What happens when an invited person signs up
+* Whether they automatically become connected to the inviter
+* Whether invites can also be sent to existing users
+* Whether any invite logic overlaps with this proposed friend-search functionality
+
+Clearly distinguish:
+
+Invite
+
+Person is not yet on BaseLodge
+
+vs.
+
+Connect
+
+Person already has a BaseLodge account
+
+Determine whether those should remain separate systems.
+
+⸻
+
+6. Existing Search friends behavior
+
+Inspect the existing search field in detail.
+
+Determine:
+
+* DOM element
+* JavaScript event handling
+* Search algorithm
+* Fields searched
+* Case sensitivity
+* Whether it searches first + last name
+* Whether substring or prefix matching is used
+* Whether filtering happens locally
+* Whether it makes server requests
+* Whether results are throttled/debounced
+* Empty-query behavior
+* How alphabetical sections behave during search
+* Whether clearing the search restores the original Friends list
+
+Document exact files and functions.
+
+⸻
+
+7. Registered-user search architecture
+
+Based on the actual codebase, determine the best way to extend the existing search field to search registered users.
+
+Evaluate at least these approaches:
+
+Option A
+
+Extend the existing Friends search so a query returns:
+
+* Matching existing friends
+* Matching non-friend BaseLodge users
+
+Option B
+
+Keep friend filtering client-side but make a separate server request for registered BaseLodge users.
+
+Option C
+
+Create a dedicated search page/mode.
+
+Recommend the smallest and safest approach.
+
+For the recommended architecture determine:
+
+* Whether a new endpoint is needed
+* Route and method that would make sense
+* Query parameters
+* Server-side vs client-side search
+* Minimum search characters, if any
+* Debouncing
+* Result limits
+* Pagination, if necessary
+* Prefix vs substring matching
+* Case-insensitive matching
+* First name matching
+* Last name matching
+* Full name matching
+* Handling spaces in names
+* Handling apostrophes/hyphens
+* Duplicate names
+* Whether results should rank existing friends before non-friends
+* Whether exact matches should rank first
+
+Do not implement anything.
+
+⸻
+
+8. Eligibility rules for appearing in search
+
+Determine exactly which BaseLodge users should be returned.
+
+At minimum investigate excluding:
+
+* Current user
+* Users who have opted out of search
+* Deleted accounts
+* Deactivated accounts
+* Suspended accounts, if relevant
+* Blocked users
+* Users blocked by the current user
+* Users who have blocked the current user
+
+Determine whether existing friends should:
+
+* Appear in the same search results
+* Be separated into a Friends section
+* Remain visible using their existing richer row
+
+Recommend behavior based on the current architecture.
+
+⸻
+
+9. Search-result information for non-friends
+
+For someone who is not yet a friend, we currently want to expose only:
+
+First line
+
+Name · Home State
+
+Second line
+
+X mutual friends
+
+Right side
+
+Connection action/state
+
+Examples:
+
+John Smith · Colorado     Connect
+4 mutual friends
+
+John Smith · California  Requested
+1 mutual friend
+
+Investigate whether all three data points are readily available.
+
+Determine whether any additional query or helper would be required for:
+
+* Name
+* Home state
+* Mutual friend count
+* Relationship/request state
+
+Do not expose:
+
+* Email
+* Phone
+* Upcoming trips
+* Specific trip information
+* Detailed itinerary/activity
+* Other private account data
+
+Also investigate whether skier/snowboarder, ability, passes, or other profile information is currently public enough that it could be displayed, but make no recommendation to add it unless necessary.
+
+The intended minimal design is still:
+
+Name + state + mutual friend count
+
+⸻
+
+10. Mutual friends
+
+Investigate how mutual friend counts could be calculated using the existing connection data model.
+
+Determine:
+
+* How to obtain the current user’s friend IDs
+* How to obtain the candidate user’s friend IDs
+* How to calculate their intersection
+* Whether pending requests count — likely they should not, but verify existing semantics
+* Whether blocked connections affect the count
+* Whether removed/declined connections affect the count
+* Whether opted-out users should still count anonymously as a mutual connection
+
+Our current product assumption is:
+
+A person who opts out of search should not appear as a search result, but if they are already friends with both people, they may still anonymously contribute to:
+
+4 mutual friends
+
+Investigate whether there is any privacy or technical reason not to do this.
+
+Do not expose the names of the mutual friends at this stage.
+
+Only the numeric count is proposed.
+
+Performance
+
+Determine whether calculating mutual counts per search result would create an N+1 query problem.
+
+Recommend the cleanest query/helper strategy for returning mutual counts efficiently.
+
+⸻
+
+11. Relationship states shown in search
+
+Identify every possible state between the current user and a search result.
+
+At minimum investigate:
+
+* No relationship
+* Existing friends
+* Current user sent request
+* Candidate sent request
+* Declined request
+* Removed previous connection
+* Blocked
+* Any other existing status
+
+Return a table like:
+
+Relationship state	Show in results?	Proposed UI	Existing logic reusable?
+No relationship	Yes	Connect	
+Outgoing pending	Yes	Requested	
+Incoming pending	Yes	Determine best existing action	
+Existing friend	Yes	Existing friend treatment	
+Self	No	N/A	
+Blocked	Determine	N/A	
+
+For incoming pending requests, investigate what the existing product already does and recommend whether search should show:
+
+Accept
+
+or
+
+Respond
+
+or simply rely on the existing connection-request interface.
+
+⸻
+
+12. Profile privacy setting: search discoverability
+
+We also want to add a user-controlled setting so people can opt out of appearing in registered-user search.
+
+Proposed setting:
+
+Show me in friend search
+
+Description:
+
+Allow other BaseLodge members to find you by name.
+
+Control:
+
+On / Off
+
+Likely default:
+
+On
+
+This should be investigated, not implemented.
+
+Find the existing BaseLodge profile/settings architecture.
+
+Document:
+
+* Profile settings route(s)
+* Templates
+* Settings sections
+* Existing privacy settings
+* User preference model/table
+* Whether settings live directly on User
+* Existing toggle patterns
+* Existing PATCH/POST endpoints for settings
+* Existing JavaScript for toggles
+* Existing migration patterns for user settings
+
+Determine the cleanest place to store this preference.
+
+For example, investigate whether something like:
+
+discoverable_in_friend_search
+
+would belong:
+
+* On User
+* On an existing preferences/settings model
+* Somewhere else already used for privacy flags
+
+Do not create the field.
+
+⸻
+
+13. Discoverability-setting behavior
+
+Investigate how the proposed privacy setting should affect the system.
+
+Expected behavior when On:
+
+* User can appear in registered-user friend search.
+
+Expected behavior when Off:
+
+* User does not appear in non-friend search results.
+* Existing friends can still see them normally in Friends.
+* Existing connections remain unchanged.
+* Existing pending connection requests remain unchanged unless there is an architectural reason they should not.
+* User can still send connection requests to others.
+* User can still receive requests through any other legitimate mechanism, if such mechanisms exist.
+
+Investigate edge cases:
+
+* User turns search visibility off while appearing in someone’s active search
+* User turns it off while an outgoing request is pending
+* User turns it off while an incoming request is pending
+* User turns it back on
+* Existing friends search for them
+* Someone has their profile URL directly
+* Someone was invited by them previously
+
+Recommend expected behavior.
+
+⸻
+
+14. Default privacy behavior
+
+Investigate BaseLodge’s existing conventions for new user settings.
+
+We currently think Show me in friend search = On by default makes sense.
+
+Determine:
+
+* Whether BaseLodge typically defaults social/discovery features on or off
+* Whether any existing privacy precedent exists
+* Whether existing users would need a migration/default
+* Whether new users could simply inherit a model default
+* Whether this creates any meaningful consent/privacy concern
+
+Do not over-engineer this. Give a practical recommendation based on the existing app.
+
+⸻
+
+15. Privacy and security investigation
+
+Assess the practical implications of searchable users.
+
+Check:
+
+* User enumeration risk
+* Authentication requirements
+* Rate limiting
+* Search throttling
+* Minimum query length
+* Result limits
+* Whether someone can iterate through all users
+* Whether home state is appropriate to expose
+* Whether mutual friend count leaks meaningful sensitive information
+* Whether blocked users can infer each other’s existence
+* Input escaping/sanitization
+* SQL injection protections through ORM/query construction
+* Authorization
+* Whether search endpoint responses expose unnecessary columns
+* Whether profile photos, names, or state have current privacy assumptions
+
+Recommend the smallest protections appropriate for BaseLodge today.
+
+Do not design infrastructure for massive scale unless the current architecture genuinely requires it.
+
+⸻
+
+16. Database and performance
+
+Determine what database/search performance would look like.
+
+Inspect:
+
+* User table indexes
+* Name field indexes
+* State field indexes
+* Connection table indexes
+* Composite indexes
+* Status indexes
+
+Assess proposed queries for:
+
+* Name search
+* Friendship filtering
+* Pending request state
+* Mutual friend count
+* Discoverability flag
+
+Determine whether any new indexes would likely be useful.
+
+Specifically discuss:
+
+* %term%
+* term%
+* Case-insensitive search
+* SQL ILIKE or equivalent
+* Result limiting
+
+Estimate whether the simplest implementation is sufficient for BaseLodge’s current expected scale.
+
+⸻
+
+17. Existing profile/settings UI
+
+Find the exact place where Show me in friend search would best fit.
+
+Document:
+
+* Current profile/settings page structure
+* Existing sections such as profile/account/notifications/privacy
+* Toggle components/styles already used
+* Best existing design pattern to reuse
+
+Do not redesign settings.
+
+Recommend the smallest addition consistent with the current UI.
+
+⸻
+
+18. Notifications
+
+Trace the existing notification flow associated with connection requests.
+
+Determine whether adding a Connect button to search requires zero changes to notification logic if the existing connection-request route is reused.
+
+Verify:
+
+* In-app notification
+* Push notification
+* Event constant
+* EventSpec
+* Actor name
+* Target URL/deep-link
+* Notification preferences
+* Duplicate notification prevention, if any
+
+Also confirm whether acceptance currently notifies the requester.
+
+⸻
+
+19. Tests
+
+Find all existing tests covering:
+
+* Friends
+* Friend list
+* Connection creation
+* Duplicate connection requests
+* Self-request prevention
+* Request acceptance
+* Request decline
+* Connection removal
+* Authorization
+* Blocking, if any
+* Notifications
+* Profile settings
+* Privacy settings
+* Search/filtering
+* User model defaults
+
+Then identify the new tests that would eventually be needed.
+
+At minimum consider:
+
+Search
+
+* Search by first name
+* Search by last name
+* Case-insensitive search
+* Duplicate names
+* State returned correctly
+* Current user excluded
+* Deleted/deactivated users excluded
+* Opted-out users excluded
+* Result limit
+* Existing friend behavior
+
+Relationships
+
+* Connect button for unrelated user
+* Requested state for outgoing pending
+* Incoming-request state
+* Existing friend state
+* Duplicate request prevention
+* Blocked-user behavior
+
+Mutuals
+
+* Zero mutual friends
+* One mutual friend → 1 mutual friend
+* Multiple → 4 mutual friends
+* Pending connection not counted
+* Opted-out mutual still counted anonymously, if we retain that behavior
+
+Privacy
+
+* Discoverability defaults correctly
+* Turning setting off removes user from search
+* Turning setting back on restores search eligibility
+* Existing friends remain unaffected
+* Pending requests remain valid
+
+Do not write tests.
+
+⸻
+
+20. Exact implementation surface
+
+At the end of the investigation, provide a complete list of every file that would likely need to change if we later implement this.
+
+For each file provide:
+
+File	Existing purpose	Why it would change
+
+Separate:
+
+Existing files requiring modification
+
+from:
+
+New files potentially required
+
+Do not create anything.
+
+⸻
+
+Required final report
+
+Return the investigation in this exact structure:
+
+1. Executive Summary
+
+Answer:
+
+* Is this a small, medium, or large feature?
+* How much of the required functionality already exists?
+* What are the genuinely new pieces?
+
+2. Current Friends Architecture
+
+Exact route, templates, JS, models, and data flow.
+
+3. Existing Friends Search
+
+Exactly how Search friends behaves today.
+
+4. Connection Architecture
+
+Complete request → accept/decline → friendship lifecycle.
+
+5. Existing Connection Notifications
+
+Explain whether the proposed Connect action can reuse them unchanged.
+
+6. Invite Architecture
+
+Explain how Invite differs from finding an existing user.
+
+7. User and Profile Data
+
+Name/state fields and relevant account/privacy fields.
+
+8. Recommended Registered-User Search Architecture
+
+Describe the smallest implementation.
+
+9. Search Result Data
+
+Explain how to return:
+
+* Name
+* Home state
+* Mutual friend count
+* Relationship state
+
+10. Mutual Friends Architecture
+
+Exact method/query strategy and performance implications.
+
+11. Relationship/UI State Table
+
+Use the requested state table.
+
+12. Discoverability Privacy Setting
+
+Where it should live and how it should work.
+
+13. Privacy/Security Findings
+
+Only meaningful practical issues.
+
+14. Performance and Database Findings
+
+Queries, indexes, and scale.
+
+15. Exact Files That Would Change
+
+Complete table.
+
+16. New Routes/Endpoints/Fields Needed
+
+Only those actually necessary.
+
+17. Tests Needed
+
+Specific scenarios.
+
+18. Implementation Complexity
+
+Break into logical pieces such as:
+
+* Search backend
+* Existing Friends UI integration
+* Mutual friend counts
+* Connection state/actions
+* Discoverability setting
+* Tests
+
+For each, state whether it is:
+
+* Existing/reusable
+* Small change
+* Moderate change
+* Significant change
+
+19. Recommended Implementation Sequence
+
+Give the safest order of implementation.
+
+20. Open Product Questions
+
+Only include questions that genuinely cannot be answered from the codebase.
+
+21. Final Recommendation
+
+Answer these questions directly:
+
+1. Can the existing Search friends box be extended to search eligible registered BaseLodge users without materially redesigning the Friends page?
+2. Can a non-friend result display exactly:
+    Name · Home State
+    X mutual friends
+    with Connect / Requested on the right?
+3. Can the Connect action reuse the existing connection-request system and notification flow?
+4. Can mutual friend counts be calculated efficiently with the existing friendship model?
+5. Can we add a simple Show me in friend search profile setting without creating a separate privacy system?
+6. What is the smallest safe implementation based on the code that exists today?
+
+Again, this is investigation only.
+
+Do not modify anything. Do not create migrations. Do not run destructive commands. Do not commit, push, publish, or deploy.
