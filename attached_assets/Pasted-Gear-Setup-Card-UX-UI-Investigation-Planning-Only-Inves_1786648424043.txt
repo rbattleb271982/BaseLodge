@@ -1,0 +1,47 @@
+Gear Setup Card UX/UI Investigation — Planning Only
+Investigate the current gear/setup card shown when managing/editing a user's gear. Do not make any code changes yet.
+The current card visually shows:
+PRIMARY SETUP
+Setup 1
+Skis
+Elan · Ripstick 96 · Boots: Nordica Speedmachine
+Edit button
+Delete button
+The functionality is fine, but the card currently feels too large and visually loose for the amount of information it contains. There is excessive vertical whitespace, the PRIMARY SETUP badge is overly prominent, the equipment hierarchy is weak, and Edit/Delete feel more visually prominent than secondary management actions should.
+Desired direction
+Investigate a more compact hierarchy along these lines:
+Setup 1 + a small PRIMARY indicator
+Skis
+Elan Ripstick 96 · Nordica Speedmachine
+Then compact secondary Edit and Delete actions.
+This is a direction, not an implementation specification. First inspect the existing code and determine the safest way to achieve it while staying consistent with the current BaseLodge design system.
+Specifically investigate:
+Identify the exact template/component that renders this card.
+Identify every CSS selector responsible for its layout, typography, badge, equipment information, spacing, Edit button, and Delete button.
+Determine whether these styles are shared elsewhere. Do not propose changing a shared selector without identifying every other screen/component that would be affected.
+Determine how the equipment data is structured and whether skis/boots/etc. can be presented more cleanly without changing backend logic or data models.
+Evaluate changing PRIMARY SETUP to PRIMARY.
+Propose a tighter spacing hierarchy that substantially reduces the card's height without making it cramped.
+Keep Edit/Delete clearly available but visually secondary.
+Preserve all existing functionality, routes, form actions, confirmation behavior, and accessibility/tap-target requirements.
+Preserve all completed Batch 1 and Batch 2 styling unless a directly related rule must change.
+Important constraints
+Planning/investigation only.
+Do not modify any files.
+Do not change Python/backend logic.
+Do not change database/schema/data.
+Do not run migrations.
+Do not change Secrets.
+Do not publish, commit, or push.
+Deliverable
+Report:
+exact template/component and relevant line numbers
+exact CSS selectors involved
+whether any selectors are shared
+current markup structure
+proposed revised visual hierarchy
+proposed spacing/typography/action treatment
+exact files that would need to change
+regression risks
+a minimal implementation plan
+Stop after the planning report and wait for approval before making any changes.
