@@ -566,18 +566,7 @@
             color: var(--bl-color-primary);
             margin: 0 0 5px 0;
         }
-        .hc-dismiss-x {
-            background: none;
-            border: none;
-            font-size: 14px;
-            line-height: 1;
-            color: var(--bl-color-text-tertiary);
-            cursor: pointer;
-            padding: 0 0 0 6px;
-            margin-left: auto;
-            font-family: inherit;
-            -webkit-tap-highlight-color: transparent;
-        }
+        /* .hc-dismiss-x removed — no template element uses this class (dead CSS) */
         .hc-live-cta {
             display: inline-block;
             font-size: 14px;
@@ -650,6 +639,12 @@
             flex-shrink: 0;
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
+            /* 44×44px tap target — expands hit area while keeping the 14px × glyph centered */
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* ═══════════════════════════════════════════════════════
@@ -747,11 +742,8 @@
         .bl-happening-link--static {
             padding: 10px 44px 10px 16px;
         }
-        /* × button: visually subtle (13px, opacity 0.38) with a generous 41×41px tap target.
-           Anchored to top: 0; right: 0 — padding expands the hit area inward from the card corner.
-           The visible × sits at ~14px from right/top (inside the 14px padding).
-           Hit-area left edge = 14px (right-pad) + 13px (char) + 0 = 41px from card right,
-           which is inside the 44px content clearance — no overlap with text. */
+        /* × button: visually subtle (13px) anchored top:0 right:0.
+           padding:18px → 13px char + 18px×2 = 49×49px tap target (meets iOS 44pt + Android 48dp). */
         .bl-happening-dismiss {
             background: none;
             border: none;
@@ -762,7 +754,7 @@
             position: absolute;
             top: 0;
             right: 0;
-            padding: 14px;      /* 13px char + 14px pad × 2 = 41px square tap target */
+            padding: 18px;      /* 13px char + 18px pad × 2 = 49px square tap target */
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
@@ -909,10 +901,8 @@
             color: var(--bl-color-text-tertiary);
             flex-shrink: 0;
         }
-        /* × button: matches Happening dismiss — 13px visible, 0.38 opacity, 41×41px tap target.
-           Anchored top: 0; right: 0 so padding expands the hit area inward from the card corner.
-           The visible × sits at ~14px from top/right (inside the 14px padding).
-           Hit-area left edge = 14px + 13px = 27px from card right, inside the 44px link clearance. */
+        /* × button: matches Happening dismiss — 13px visible, anchored top:0 right:0.
+           padding:18px → 13px char + 18px×2 = 49×49px tap target (meets iOS 44pt + Android 48dp). */
         .bl-opp-dismiss {
             background: none;
             border: none;
@@ -923,7 +913,7 @@
             position: absolute;
             top: 0;
             right: 0;
-            padding: 14px;      /* 13px char + 14px pad × 2 = 41px square tap target */
+            padding: 18px;      /* 13px char + 18px pad × 2 = 49px square tap target */
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
