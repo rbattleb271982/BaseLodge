@@ -1,0 +1,128 @@
+Fix Task #247 follow-up: Resort Selector accordion interaction and indicators.
+
+The desktop styling is now correct, but the accordion behavior is not.
+
+CURRENT BEHAVIOR:
+- Country/state rows render correctly.
+- Resort checkboxes work correctly.
+- Colorado is currently expanded.
+- Tapping the open Colorado row does NOT collapse it.
+- Tapping another state does NOT reliably open that state.
+- The current indicators are chevron-style arrows.
+
+REQUIRED BEHAVIOR:
+
+1. ACCORDION INTERACTION
+
+Country and state headers must be true toggles.
+
+For every country header:
+- Closed → tapping it opens that country and reveals its states.
+- Open → tapping it closes that country and hides its states.
+
+For every state header:
+- Closed → tapping it opens that state and reveals its resorts.
+- Open → tapping it closes that state and hides its resorts.
+
+Tapping one accordion must not break the ability to open or close another accordion.
+
+Do NOT change resort selection behavior.
+
+Do NOT change the search behavior.
+
+Do NOT change the existing AJAX endpoints.
+
+Do NOT change the hierarchy, sorting, counts, or wishlist limit.
+
+IMPORTANT:
+Inspect the existing JavaScript in templates/partials/resort_selector.html and determine why the dynamically generated accordion buttons are not responding correctly.
+
+Do not simply add another click handler on top of the existing code. Fix the existing event/toggle logic cleanly and avoid duplicate listeners.
+
+Preserve native <button> elements for country/state headers.
+
+2. CHANGE THE INDICATOR DESIGN
+
+Replace the current rotating chevron SVG treatment with a simple directional caret.
+
+Desired appearance:
+
+CLOSED:
+    ›
+
+OPEN:
+    ⌄
+
+The indicator should:
+- be small, approximately 14–16px
+- be muted gray
+- sit at the far right of the row
+- not become oversized
+- not use a large 300×150 SVG fallback
+- clearly communicate closed vs open state
+
+Prefer a simple CSS/text/icon approach rather than an SVG if that is cleaner and already consistent with the BaseLodge design system.
+
+Do NOT change the resort checkbox icons.
+
+3. STATE OF THE ACCORDION
+
+When the page initially loads:
+- Existing behavior of automatically expanding groups containing selected resorts should remain intact.
+- Other groups should remain collapsed.
+
+After load, every country/state header must remain independently toggleable.
+
+4. VERIFY
+
+Test Mountains Visited on desktop:
+
+- Open United States.
+- Close United States.
+- Open Colorado.
+- Close Colorado.
+- Open California.
+- Close California.
+- Open Colorado again.
+- Open a different state.
+- Confirm each action works repeatedly.
+
+Then test resort selection:
+- Check a resort.
+- Uncheck it.
+- Confirm the count updates.
+- Confirm accordion state is preserved.
+
+Then test search.
+
+Then test Wishlist:
+- Accordion opens/closes.
+- Resort selection works.
+- 15-resort limit remains intact.
+
+Finally verify mobile WebKit so the interaction fix does not regress mobile.
+
+SCOPE:
+Only modify the resort selector partial and, if absolutely necessary, the associated .rs-* CSS in static/styles.css.
+
+Do not modify:
+- Python
+- routes
+- models
+- database
+- other templates
+- unrelated CSS
+- #245 information architecture
+- read-only friend views
+
+Do not publish or push to GitHub.
+
+DELIVER:
+- Root cause of the broken accordion interaction
+- Exact files changed
+- Exact interaction fix
+- Exact indicator change
+- Desktop verification
+- Mobile verification
+- Confirmation that resort selection/search/wishlist limit remain unchanged
+- Confirmation that no backend/database code changed

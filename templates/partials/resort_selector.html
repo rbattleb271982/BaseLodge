@@ -145,11 +145,10 @@
       + '<polyline points="20 6 9 17 4 12"/></svg>';
   }
 
-  /* ── Chevron SVG ────────────────────────────────────────────── */
-  function chevronSvg() {
-    return '<svg class="rs-chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
-      + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-      + '<path d="M9 18l6-6-6-6"/></svg>';
+  /* ── Caret indicator ────────────────────────────────────────── */
+  function caretHtml() {
+    /* U+203A › — right-pointing; rotated 90° via CSS when open */
+    return '<span class="rs-caret" aria-hidden="true">\u203a</span>';
   }
 
   /* ── Build accordion DOM ────────────────────────────────────── */
@@ -167,13 +166,12 @@
       html.push(
         '<div class="rs-country" data-cc="' + esc(cc) + '">'
         + '<button type="button" class="rs-country-row"'
-        + ' aria-expanded="' + (cOpen ? 'true' : 'false') + '"'
-        + ' onclick="rsToggleCountry(' + JSON.stringify(cc) + ')">'
+        + ' aria-expanded="' + (cOpen ? 'true' : 'false') + '">'
         + '<span class="rs-row-name">' + esc(cData.label) + '</span>'
         + '<span class="rs-count" id="rs-cc-count-' + ccId + '"'
         + (cCount > 0 ? '' : ' style="display:none"') + '>'
         + (cCount > 0 ? cCount + '\u00a0' + COUNT_WORD : '') + '</span>'
-        + chevronSvg()
+        + caretHtml()
         + '</button>'
         + '<div class="rs-country-body"' + (cOpen ? '' : ' style="display:none"') + '>'
       );
@@ -187,13 +185,12 @@
         html.push(
           '<div class="rs-state" data-sc="' + esc(sc) + '">'
           + '<button type="button" class="rs-state-row"'
-          + ' aria-expanded="' + (sOpen ? 'true' : 'false') + '"'
-          + ' onclick="rsToggleState(' + JSON.stringify(cc) + ',' + JSON.stringify(sc) + ')">'
+          + ' aria-expanded="' + (sOpen ? 'true' : 'false') + '">'
           + '<span class="rs-row-name">' + esc(sData.label) + '</span>'
           + '<span class="rs-count" id="rs-sc-count-' + scId + '"'
           + (sCount > 0 ? '' : ' style="display:none"') + '>'
           + (sCount > 0 ? sCount + '\u00a0' + COUNT_WORD : '') + '</span>'
-          + chevronSvg()
+          + caretHtml()
           + '</button>'
           + '<div class="rs-state-body"' + (sOpen ? '' : ' style="display:none"') + '>'
         );
@@ -222,35 +219,38 @@
 
     wrap.innerHTML = html.join('');
 
-    /* Keyboard: space/enter on resort rows */
+    /* ── Delegated accordion toggle ─────────────────────────────
+       Single listener handles all country + state buttons.
+       Uses btn.nextElementSibling — the body div is always the
+       immediate next sibling of the button in the generated HTML.
+       This avoids inline onclick attributes and the double-quote
+       escaping problem that JSON.stringify caused.               */
+    wrap.addEventListener('click', function (e) {
+      var btn = e.target.closest('.rs-country-row, .rs-state-row');
+      if (!btn) return;
+      var body = btn.nextElementSibling;
+      if (!body) return;
+      var isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : '';
+      btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+    });
+
+    /* ── Keyboard support ───────────────────────────────────────── */
     wrap.addEventListener('keydown', function (e) {
-      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('rs-resort-row')) {
-        e.preventDefault();
-        rsToggleResort(parseInt(e.target.id.replace('rs-resort-', ''), 10));
+      if (e.key === 'Enter' || e.key === ' ') {
+        var accBtn = e.target.closest('.rs-country-row, .rs-state-row');
+        if (accBtn) {
+          e.preventDefault();
+          accBtn.click();
+          return;
+        }
+        if (e.target.classList.contains('rs-resort-row')) {
+          e.preventDefault();
+          rsToggleResort(parseInt(e.target.id.replace('rs-resort-', ''), 10));
+        }
       }
     });
   }
-
-  /* ── Accordion toggles ──────────────────────────────────────── */
-  window.rsToggleCountry = function (cc) {
-    var sel   = '.rs-country[data-cc="' + CSS.escape(cc) + '"]';
-    var body  = document.querySelector(sel + ' > .rs-country-body');
-    var btn   = document.querySelector(sel + ' > .rs-country-row');
-    if (!body) return;
-    var open  = body.style.display !== 'none';
-    body.style.display = open ? 'none' : '';
-    if (btn) btn.setAttribute('aria-expanded', open ? 'false' : 'true');
-  };
-
-  window.rsToggleState = function (cc, sc) {
-    var sel  = '.rs-country[data-cc="' + CSS.escape(cc) + '"] .rs-state[data-sc="' + CSS.escape(sc) + '"]';
-    var body = document.querySelector(sel + ' > .rs-state-body');
-    var btn  = document.querySelector(sel + ' > .rs-state-row');
-    if (!body) return;
-    var open = body.style.display !== 'none';
-    body.style.display = open ? 'none' : '';
-    if (btn) btn.setAttribute('aria-expanded', open ? 'false' : 'true');
-  };
 
   /* ── Resort toggle ──────────────────────────────────────────── */
   window.rsToggleResort = function (id) {
