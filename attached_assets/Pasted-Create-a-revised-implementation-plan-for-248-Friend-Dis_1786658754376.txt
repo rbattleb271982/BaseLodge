@@ -1,0 +1,1261 @@
+Create a revised implementation plan for **#248 - Friend Discovery: Registered-User Search**.
+
+This is a **planning task only**.
+
+Do not modify code.
+
+Do not create migrations.
+
+Do not add tests.
+
+Do not commit, push, publish, or deploy anything.
+
+A full investigation has already been completed, and the product behavior below has already been decided. Your job is to convert this into a technically sound implementation plan based on the existing BaseLodge architecture.
+
+---
+
+# #248 - Friend Discovery: Registered-User Search
+
+## What & Why
+
+Extend the existing Friends page so users can find and connect with other registered BaseLodge members by name.
+
+Today the Search friends field only filters the user's existing friends client-side.
+
+This feature adds:
+
+* Server-side global registered-user search triggered on Enter/Search
+* Shared friend-request service logic
+* Pair-specific 24-hour request cooldown behavior
+* Mutual-friend counts
+* Relationship-state-aware search results
+* A user-controlled friend-discovery privacy setting
+
+The existing Friends page, `Friend` model, `Invitation` model, accept/decline routes, push notification events (`FRIEND_REQUEST_CREATED` / `FRIEND_REQUEST_ACCEPTED`), and profile-settings patterns should all be reused wherever possible.
+
+---
+
+# Done looks like
+
+* Typing into Search friends continues to filter existing friends client-side
+* Pressing Enter/Search with a valid two-component name triggers server-side BaseLodge user search
+* Global search replaces the normal friends list while active
+* Results show:
+
+  * Name
+  * Home state when available
+  * Mutual-friend count when greater than zero
+  * Relationship action/status
+* Possible states:
+
+  * Connect
+  * Requested
+  * Accept
+  * Connected
+  * No action during cooldown
+* Connect requires confirmation before sending
+* Accept acts immediately
+* Requested can be tapped to cancel
+* Decline, sender cancellation, and unfriend each create a 24-hour pair-specific cooldown
+* During cooldown both users can still appear in search, but neither gets a Connect action
+* Discoverability setting is added to Profile Settings above Notifications
+* Discoverability defaults On for existing and new users
+* Existing friends remain searchable even when discoverability is Off
+* A discoverability-Off user who has sent the current user a pending request may still appear to that recipient
+* A discoverability-Off user should not remain searchable merely because the searching user previously sent them a request
+* Opted-out users may still count anonymously toward mutual-friend totals
+* Existing friend-request push notification infrastructure is reused unchanged
+* Full automated test coverage is planned
+* Existing functionality remains intact
+
+---
+
+# Out of scope
+
+Do not plan to add:
+
+* Blocking system
+* Username system
+* Profile photos
+* 3rd-degree or 4th-degree ranking
+* Separate people-discovery page
+* Email search
+* Pagination / infinite scroll
+* Changes to the existing Invite flow
+* New messaging event constants
+* New notification architecture
+* Public non-friend profile browsing
+
+---
+
+# Product behavior
+
+## 1. Existing Friends search while typing
+
+The current Search friends behavior remains intact while the user types.
+
+Typing should continue to filter current friends client-side.
+
+Do not run global BaseLodge search automatically on each keystroke.
+
+---
+
+## 2. Global search trigger
+
+Global search runs only when the user presses Enter/Search.
+
+Minimum eligibility:
+
+* At least 2 characters in the first-name portion
+* At least 2 characters in the last-name portion
+* At least two name components overall
+
+Examples:
+
+`John`
+→ filters current friends only
+
+`John S`
+→ filters current friends only
+
+If Enter/Search is pressed before the minimum is met:
+
+**Enter more letters to search BaseLodge.**
+
+`Jo Sm`
+→ eligible global search
+
+`John Sm`
+→ eligible
+
+`John Smith`
+→ eligible
+
+Once global search begins:
+
+* Replace the normal Friends list with a loading state
+* Replace loading state with global results
+* Clearing the search restores the normal Friends view
+
+If no matches:
+
+**No BaseLodge users found**
+
+---
+
+# 3. Name matching requirements
+
+Global matching should be:
+
+* Case-insensitive
+* Accent/diacritic-insensitive
+* Apostrophe-tolerant
+* Hyphen-tolerant
+* Extra-whitespace tolerant
+* Prefix-oriented rather than arbitrary substring matching
+* Display should preserve the person's actual stored spelling
+
+Examples:
+
+`john smith`
+→ John Smith
+
+`JOHN SMITH`
+→ John Smith
+
+`Jose Garcia`
+→ José García
+
+`OConnor`
+→ O'Connor
+
+`Battle Baxter`
+→ Battle-Baxter
+
+`Anne Marie`
+→ Anne-Marie
+
+Do not allow arbitrary internal substring behavior like:
+
+`ohn mith`
+→ John Smith
+
+Names may contain multiple words.
+
+Support examples such as:
+
+* Mary Ann Smith
+* Ana Maria De La Cruz
+* John Van Buren
+* Anne-Marie Smith
+* Jean-Luc Martin
+* O'Connor
+* Battle-Baxter
+
+---
+
+# 4. Global result format
+
+All users in global-search mode use the same minimal result treatment, including existing friends.
+
+Examples:
+
+**John Smith · Colorado**          **Connect**
+4 mutual friends
+
+**John Smith · Colorado**          **Requested**
+4 mutual friends
+
+**John Smith · Colorado**          **Accept**
+4 mutual friends
+
+**John Smith · Colorado**          **Connected**
+4 mutual friends
+
+Cooldown:
+
+**John Smith · Colorado**
+4 mutual friends
+
+No action appears during cooldown.
+
+If no state exists:
+
+**John Smith**          **Connect**
+
+If zero mutual friends:
+
+Do not show a mutual-friend line.
+
+Use grammatically correct copy:
+
+* `1 mutual friend`
+* `2 mutual friends`
+
+Keep result rows visually consistent in height even when mutual-friend text is absent.
+
+Mutual counts are not clickable.
+
+Do not expose mutual identities.
+
+---
+
+# 5. Ranking
+
+Rank global results by:
+
+1. Best name match
+2. Mutual-friend count descending
+
+Do not automatically rank existing friends above non-friends.
+
+Do not implement 3rd- or 4th-degree ranking.
+
+Results should be scrollable.
+
+Use a reasonable backend safety cap but do not artificially limit the visible UX to only 5 or 10 matches.
+
+---
+
+# 6. Existing friends
+
+Existing friends can appear in global search.
+
+They use the same minimal global-result row.
+
+Status:
+
+**Connected**
+
+Connected is non-clickable.
+
+---
+
+# 7. Connect
+
+For a valid non-friend with no active request and no cooldown:
+
+Show:
+
+**Connect**
+
+Tap Connect → show confirmation.
+
+If state exists:
+
+**Send friend request to John Smith in Colorado?**
+
+If no state:
+
+**Send friend request to John Smith?**
+
+Actions:
+
+* Cancel
+* Send Request
+
+After success:
+
+* Connect changes immediately to Requested
+* No success toast
+
+If sending fails:
+
+* Leave Connect visible
+* Show:
+
+**Couldn't send friend request. Try again.**
+
+---
+
+# 8. Incoming request
+
+If the candidate already sent the current user a pending request:
+
+Show:
+
+**Accept**
+
+Do not show Connect.
+
+Do not allow a reverse pending request to be created.
+
+Accept should happen immediately with no confirmation.
+
+After success:
+
+* Change to Connected
+* Recalculate visible mutual counts
+* No full page reload
+
+The backend must prevent reverse-request creation independently of the UI.
+
+---
+
+# 9. Outgoing request
+
+If the current user already sent the candidate a pending request:
+
+Show:
+
+**Requested**
+
+Requested is tappable.
+
+On tap:
+
+**Cancel friend request?**
+
+Actions:
+
+* Keep Request
+* Cancel Request
+
+Successful cancellation:
+
+* Request becomes cancelled
+* Requested disappears
+* 24-hour pair cooldown begins
+* Person remains visible in search
+* No action shown during cooldown
+
+If cancellation fails:
+
+* Keep Requested visible
+* Show an error
+* Do not update optimistically
+
+---
+
+# 10. 24-hour cooldown
+
+Cooldown applies after:
+
+1. Request declined
+2. Sender cancels request
+3. Existing friendship is removed
+
+During cooldown:
+
+* Users may still appear in search
+* Home state still shows
+* Mutual-friend count still shows
+* No Connect action
+* No cooldown explanation
+* No countdown
+* No "try again later"
+
+After 24 hours:
+
+* Connect becomes available automatically
+* No manual reset required
+
+Cooldown must be enforced server-side.
+
+---
+
+# 11. Declines
+
+If a request is declined:
+
+* Do not notify the requester of the decline
+* Begin the 24-hour pair cooldown
+* Requested disappears once relationship state is refreshed
+* No Connect during cooldown
+* Connect returns after cooldown
+
+---
+
+# 12. Cancellation
+
+If a sender cancels:
+
+* Recipient should no longer see the request as pending
+* No cancelled-history UI
+* Begin 24-hour pair cooldown
+
+---
+
+# 13. Unfriend
+
+When existing friendship is removed:
+
+* Existing symmetric Friend removal behavior remains intact
+* Begin 24-hour pair cooldown
+* Both users may still find one another in search
+* No Connect until cooldown expires
+* Either user may reconnect after 24 hours
+
+---
+
+# 14. Mutual friends
+
+Mutual count includes only confirmed `Friend` relationships.
+
+Do not count:
+
+* Pending Invitations
+* Declined Invitations
+* Cancelled Invitations
+* Removed friendships
+
+A user who turned discoverability Off may still count anonymously if they are a confirmed friend of both users.
+
+Do not expose mutual-friend names.
+
+Avoid N+1 queries.
+
+Plan a batched mutual-count query/helper.
+
+---
+
+# 15. Discoverability setting
+
+Add a section in Profile Settings immediately above Notifications:
+
+**Friend Discovery**
+
+Setting:
+
+**Show me in friend search**
+
+Description:
+
+**Allow other BaseLodge members to find you by name. Turning this off does not affect your existing friends.**
+
+Behavior:
+
+* Default On for existing users
+* Default On for new users
+* Save with the existing profile form
+* No instant-save endpoint
+* Takes effect immediately after successful profile save
+
+Turning it Off:
+
+* Removes the user from non-friend global discovery
+* Does not affect existing friends
+* Does not delete pending Invitations
+* Does not prevent that user from searching for others
+* Does not prevent that user from sending requests
+* Does not remove them from anonymous mutual counts
+
+Special cases:
+
+### Existing friend
+
+They remain searchable.
+
+### Discoverability-Off user sends me a pending request
+
+They may appear to me because they initiated contact.
+
+### I sent them a pending request and they turn discoverability Off
+
+They disappear from my non-friend global search.
+
+The pending Invitation remains intact.
+
+If they later turn discoverability back On while the request is still pending, they reappear showing Requested.
+
+---
+
+# 16. Data returned by search
+
+Return only what global-result UI needs:
+
+* id
+* first_name
+* last_name
+* home_state
+* mutual_count
+* relationship_state
+* cooldown/action availability as necessary
+
+Do not expose:
+
+* email
+* phone
+* trips
+* trip counts
+* passes
+* ability
+* rider type
+* equipment
+* wish lists
+* auth provider information
+* notification preferences
+* other private account data
+
+---
+
+# 17. Security and abuse protections
+
+Plan for:
+
+* `@login_required`
+* CSRF where appropriate
+* Server-side input validation
+* Minimum search length enforcement
+* Explicit Enter/Search trigger
+* Reasonable result cap
+* Rate limiting
+* No user enumeration through blank/one-character browsing
+* Explicit JSON response serialization
+* Backend enforcement of cooldown
+* Backend prevention of duplicate/reverse requests
+
+---
+
+# 18. Existing notification architecture
+
+Reuse unchanged:
+
+* `FRIEND_REQUEST_CREATED`
+* `FRIEND_REQUEST_ACCEPTED`
+
+Do not create new messaging constants or EventSpecs.
+
+The shared friend-request logic should emit the existing create-request event.
+
+Acceptance should continue using the existing accepted event.
+
+---
+
+# REQUIRED PLAN CORRECTIONS
+
+The earlier draft plan contained five issues that must be corrected in this revised plan.
+
+These are mandatory.
+
+---
+
+## Correction 1 — cooldown must be pair-specific
+
+Do **not** store a general cooldown on `User`.
+
+A field such as:
+
+`User.friend_request_cooldown_until`
+
+is incorrect because a cooldown is between two specific people.
+
+Example:
+
+Richard cancels a request to John.
+
+That should mean:
+
+**Richard ↔ John are blocked from re-requesting each other for 24 hours.**
+
+It must NOT stop:
+
+* Richard → Sarah
+* Richard → Michael
+* John → Emily
+
+Determine the cleanest pair-specific architecture.
+
+Investigate whether the pair cooldown should be stored:
+
+* on the relevant `Invitation`
+* in a dedicated pair-level relationship/cooldown structure
+* or another existing relationship-level mechanism
+
+The plan must specify:
+
+* Exact storage location
+* Exact fields
+* How both A→B and B→A checks resolve the same pair-level cooldown
+* How decline creates it
+* How cancellation creates it
+* How unfriend creates it
+* How the friend-request service checks it
+* How global search determines `cooldown_active`
+* How expiration works automatically
+
+Prefer the smallest safe design.
+
+Do not introduce a user-wide cooldown.
+
+---
+
+## Correction 2 — fix discoverability exception direction
+
+The search eligibility logic must reflect the exact product decision.
+
+A discoverability-Off user can still appear when:
+
+### Existing friend
+
+The searching user is already connected to them.
+
+### Incoming request to the searching user
+
+The discoverability-Off candidate has themselves sent a pending request to the searching user.
+
+Example:
+
+John has discovery Off.
+
+John → Richard is pending.
+
+Richard searches John.
+
+John may appear with:
+
+**Accept**
+
+However:
+
+Richard → John is pending.
+
+John then turns discovery Off.
+
+John must disappear from Richard's non-friend search.
+
+Therefore do **not** use a condition equivalent to:
+
+`discoverable OR has_outgoing_request_from_me OR existing_friend`
+
+Instead plan the equivalent of:
+
+`discoverable OR existing_friend OR candidate_sent_pending_request_to_current_user`
+
+Be precise about sender/receiver direction.
+
+Include automated test cases specifically proving both directions.
+
+---
+
+## Correction 3 — multi-word names need a concrete split strategy
+
+The existing database has separate:
+
+* `first_name`
+* `last_name`
+
+Global search must support:
+
+* Mary Ann Smith
+* Ana Maria De La Cruz
+* John Van Buren
+* Anne-Marie Smith
+* Battle-Baxter
+* O'Connor
+
+Do not assume:
+
+`first token = first_name`
+
+and
+
+`everything else = last_name`
+
+For a multi-token query, plan how to evaluate plausible split points against the stored first and last name fields.
+
+Example:
+
+`Mary Ann Sm`
+
+Potential interpretation:
+
+`first_name = Mary Ann`
+
+`last_name prefix = Sm`
+
+Likewise:
+
+`Ana Maria De La`
+
+must be evaluated sensibly against stored first/last values.
+
+The plan should specify:
+
+* How query tokens are normalized
+* How possible first/last split points are generated
+* How those split points are compared against normalized stored first_name / last_name
+* How match quality is scored
+* How incorrect combinatorial explosion is avoided
+* How this behaves with hyphenated/apostrophe names
+
+Do not make the parsing brittle.
+
+---
+
+## Correction 4 — normalization must have a real database/query strategy
+
+Do not simply say:
+
+"Create a Python `normalize_name()` helper and apply it to stored names at query time."
+
+A Python helper cannot automatically execute against all stored PostgreSQL rows inside a normal SQL query.
+
+Do not plan to load the entire User table into Python and normalize every user in memory.
+
+The revised plan must specify a technically valid search strategy for:
+
+* Lowercase/case-insensitive comparison
+* Accent/diacritic-insensitive matching
+* Apostrophe normalization
+* Hyphen normalization
+* Whitespace normalization
+* Prefix matching
+
+Evaluate the current BaseLodge/PostgreSQL setup and recommend the smallest safe option.
+
+Possible approaches may include:
+
+* PostgreSQL `unaccent` if already available/appropriate
+* SQL expressions using `lower`, `replace`, etc.
+* A normalized searchable column
+* Functional index
+* Another PostgreSQL-native solution
+
+Do not introduce a new database extension casually without determining whether it is appropriate for BaseLodge's deployment environment.
+
+If a migration or normalized field is warranted, include it explicitly in the plan.
+
+Explain:
+
+* Query shape
+* Index strategy
+* Performance at current BaseLodge scale
+* How displayed names retain their stored spelling
+* How tests validate normalization behavior
+
+---
+
+## Correction 5 — do not pre-decide Invitation upsert behavior
+
+The earlier plan assumed the existing Invitation should simply be updated/upserted after cooldown.
+
+Do not lock in that design before verifying actual database semantics.
+
+First plan explicit tests for the existing constraint:
+
+`UNIQUE(sender_id, receiver_id, trip_id)`
+
+where friend requests use:
+
+`trip_id = NULL`
+
+Determine how BaseLodge's actual PostgreSQL configuration behaves for:
+
+* pending A→B
+* declined A→B
+* cancelled A→B
+* another A→B insert
+* reverse B→A insert
+* accepted/removal/reconnect
+
+Then decide whether the best history-preserving strategy is:
+
+* reuse/reset an existing Invitation
+* create a new Invitation
+* adjust the constraint
+* or another minimal relationship-history mechanism
+
+Regardless of the storage choice, the final architecture must guarantee:
+
+* No duplicate active requests
+* No simultaneous A→B and B→A pending requests
+* Re-request allowed after 24-hour cooldown
+* Historical resolved records handled intentionally
+* Push notification fires only for a legitimate new request
+* Cooldown cannot be bypassed
+
+The plan must explain the chosen approach and why.
+
+---
+
+# Other architecture requirements
+
+## Shared friend-request service
+
+Plan a single shared friend-request creation service/helper.
+
+Both:
+
+* existing email-based friend request
+* new user-ID-based search request
+
+must use it.
+
+It should own:
+
+* Self-request prevention
+* Existing friendship prevention
+* Existing outgoing request resolution
+* Incoming pending request detection
+* Pair cooldown enforcement
+* Invitation creation/reuse behavior
+* Notification emission
+* Transaction behavior
+* Structured result/error states
+
+Do not duplicate this logic across routes.
+
+---
+
+## New user-ID Connect endpoint
+
+Plan:
+
+`POST /api/users/<user_id>/connect`
+
+It should:
+
+* Require authentication
+* Reuse shared request service
+* Use user ID, not email
+* Validate authorization/state
+* Return structured JSON
+* Respect cooldown
+* Prevent reverse pending requests
+* Trigger existing request push notification
+
+Specify rate limit based on current app conventions.
+
+---
+
+## Cancel endpoint
+
+Plan authenticated sender-only cancellation.
+
+Likely shape:
+
+`DELETE /api/friends/invite/<invitation_id>`
+
+or another route consistent with existing API conventions.
+
+It should:
+
+* Verify sender ownership
+* Verify pending state
+* Cancel the Invitation
+* Trigger pair-specific cooldown
+* Not notify recipient
+* Return structured JSON
+
+---
+
+## Search endpoint
+
+Plan:
+
+`GET /api/users/search?q=<name>`
+
+It should:
+
+* Require authentication
+* Enforce global-search minimum on the server
+* Apply correct normalized multi-word matching
+* Respect discoverability rules
+* Respect incoming-request exception direction
+* Include existing friends
+* Exclude self
+* Return minimal fields only
+* Calculate mutual counts in batch
+* Calculate relationship states efficiently
+* Include cooldown state
+* Rank correctly
+* Enforce result cap
+* Be rate limited
+
+Avoid per-user relationship queries.
+
+---
+
+# Friends page JS behavior
+
+Plan changes to `templates/friends.html`.
+
+Keep current client-side friend filtering while typing.
+
+On Enter/Search:
+
+* Validate global eligibility
+* If invalid, show:
+  **Enter more letters to search BaseLodge.**
+* If valid:
+
+  * enter global-search mode
+  * show loading state
+  * fetch server results
+  * render minimal rows
+
+Use stale-result protection.
+
+Plan either:
+
+* AbortController
+* request-generation IDs
+* or both
+
+Clearing the input:
+
+* abort active global request
+* exit global-search mode
+* restore normal friend list
+
+---
+
+# Result actions
+
+Plan JS/UI states:
+
+| Relationship state | Display   | Action                    |
+| ------------------ | --------- | ------------------------- |
+| Existing friend    | Connected | None                      |
+| No relationship    | Connect   | Confirmation then request |
+| Incoming pending   | Accept    | Immediate accept          |
+| Outgoing pending   | Requested | Confirmation then cancel  |
+| Pair cooldown      | Blank     | None                      |
+
+After:
+
+### Connect
+
+Update to Requested in place.
+
+### Accept
+
+Update to Connected and refresh visible mutual counts.
+
+### Cancel
+
+Remove Requested and render cooldown/no-action state.
+
+### Failure
+
+Preserve server-truth UI state and display brief error.
+
+---
+
+# Profile settings
+
+Plan changes to:
+
+* `User`
+* migration
+* `templates/edit_profile.html`
+* existing profile POST handler
+
+Section goes above Notifications:
+
+**Friend Discovery**
+
+**Show me in friend search**
+
+**Allow other BaseLodge members to find you by name. Turning this off does not affect your existing friends.**
+
+Default On.
+
+Save with normal Profile Settings form.
+
+---
+
+# Testing plan
+
+The revised plan must include detailed tests for:
+
+## Search eligibility
+
+* One-word local filtering only
+* Invalid global query
+* Valid 2+ / 2+ query
+* Enter trigger only
+* No automatic server search while typing
+
+## Name matching
+
+* Case insensitive
+* Accent insensitive
+* Apostrophe normalization
+* Hyphen normalization
+* Extra whitespace
+* Multi-word first names
+* Multi-word last names
+* Multiple split-point handling
+* Prefix matching
+* No arbitrary substring matching
+
+## Discoverability direction
+
+* Off non-friend excluded
+* Off existing friend included
+* Off candidate → current_user pending included
+* current_user → Off candidate pending excluded
+* Toggle back On restores Requested visibility
+
+## Relationship states
+
+* Connect
+* Requested
+* Accept
+* Connected
+* cooldown
+
+## Reverse requests
+
+* A→B pending prevents B→A new request
+* Search shows Accept instead
+
+## Mutual friends
+
+* 0
+* 1
+* multiple
+* pending not counted
+* declined not counted
+* opted-out confirmed mutual still counted anonymously
+
+## Pair-specific cooldown
+
+Prove that:
+
+A↔B cooldown blocks A→B and B→A
+
+but does not block:
+
+A→C
+B→D
+
+Test cooldown after:
+
+* decline
+* cancellation
+* unfriend
+
+Test automatic expiry after 24 hours.
+
+Test direct API bypass prevention.
+
+## Invitation persistence semantics
+
+Explicitly test current PostgreSQL unique behavior involving `trip_id=NULL` before finalizing the storage strategy.
+
+## Notifications
+
+* Valid request fires existing `FRIEND_REQUEST_CREATED`
+* Reverse/duplicate/cooldown rejection does not fire push
+* Accept continues firing existing accepted event
+* Cancel/decline do not create new request notification
+
+## Sensitive data
+
+Search JSON must not expose email or other private fields.
+
+## Discoverability defaults
+
+* Existing users On
+* New users On
+* Profile save works
+* Existing friendships unaffected
+
+## Regression
+
+Full current test suite remains passing.
+
+---
+
+# Relevant files to inspect while planning
+
+* `app.py:5803-5862` — existing `invite_friend()`
+* `app.py:5905-5988` — accept/decline
+* `app.py:5991-6034` — remove_friend
+* `app.py:7917-8274` — Friends route
+* `templates/friends.html`
+* `templates/edit_profile.html`
+* `models.py:118-195` — User
+* `models.py:871-885` — Friend
+* `models.py:978-995` — Invitation
+* `services/messaging_constants.py`
+* `services/message_dispatch.py`
+* `static/styles.css`
+* `migrations/versions/`
+* existing tests for friends, authorization, notifications, profile settings, and invitations
+
+---
+
+# Required output
+
+Return a revised implementation plan in this structure:
+
+## 1. Executive Summary
+
+* Overall complexity
+* Existing architecture reused
+* New architecture required
+* Key risks
+
+## 2. Final Data Model Plan
+
+Include:
+
+* Discoverability field
+* Pair-specific cooldown storage
+* Invitation lifecycle/history strategy
+* Exact migrations required
+
+Explain why the cooldown model is pair-specific and prove it does not affect unrelated users.
+
+## 3. Friend Request Service Plan
+
+Exact shared helper/service responsibilities.
+
+Show how both email-based and user-ID-based entry points reuse it.
+
+## 4. Invitation Re-Request Semantics
+
+Document:
+
+* Tests to run first
+* Actual expected database behavior to verify
+* Proposed history-preserving strategy after verification
+* Reverse-request prevention
+
+## 5. Name Search and Normalization Plan
+
+Provide the actual database-safe strategy for:
+
+* case
+* accents
+* apostrophes
+* hyphens
+* whitespace
+* prefix matching
+* multi-word split points
+* indexing/performance
+
+Do not leave this at the conceptual-helper level.
+
+## 6. Search Endpoint Plan
+
+Exact query flow and filtering order.
+
+Be explicit about the discoverability exception direction.
+
+## 7. Mutual Friend Query Plan
+
+Show how counts are batched without N+1.
+
+## 8. Relationship State Resolver
+
+Explain efficient resolution of:
+
+* connected
+* outgoing pending
+* incoming pending
+* cooldown
+* connectable
+
+## 9. API Endpoint Plan
+
+Include:
+
+* search
+* connect-by-user-ID
+* cancel outgoing request
+
+For each include method, auth, CSRF, rate limiting, input, output, and errors.
+
+## 10. Friends UI Plan
+
+Explain local filtering vs global-search mode and all result states.
+
+## 11. Profile Settings Plan
+
+Exact UI/data flow.
+
+## 12. Cooldown Behavior Plan
+
+Explain decline, cancel, unfriend, expiry, reverse direction, and API enforcement.
+
+## 13. Privacy and Security Plan
+
+Include enumeration controls and minimal JSON response.
+
+## 14. Database / Performance Plan
+
+Indexes, query implications, expected current-scale behavior.
+
+## 15. Files That Would Change
+
+Use:
+
+| File | Planned change |
+| ---- | -------------- |
+
+Separate existing files from potential new files.
+
+## 16. Migration Plan
+
+List each exact schema change.
+
+## 17. Test Plan
+
+Detailed scenarios including all mandatory cases above.
+
+## 18. Implementation Sequence
+
+Give the safest ordered sequence.
+
+## 19. Risks / Edge Cases
+
+Only genuine risks.
+
+## 20. Open Questions
+
+Only include questions that truly cannot be answered from the existing codebase or the product decisions in this prompt.
+
+Do not re-ask decisions already made.
+
+## 21. Final Recommendation
+
+State whether #248 is ready for implementation after this revised plan.
+
+Again:
+
+**PLAN ONLY. DO NOT CHANGE ANY CODE. DO NOT CREATE MIGRATIONS. DO NOT COMMIT, PUSH, PUBLISH, OR DEPLOY ANYTHING.**
