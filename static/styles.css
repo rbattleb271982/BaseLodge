@@ -2504,3 +2504,179 @@ textarea:focus {
     background: var(--bl-color-border-soft);
     flex-shrink: 0;
 }
+
+/* ── Resort Selector — Mountains Visited + Wishlist ──────────────────
+   Shared styles for the collapsible Country → State → Resort picker.
+   Used by: templates/partials/resort_selector.html               ── */
+
+/* Search results dropdown */
+.rs-results {
+  display: none;
+  background: #F5F1E8;
+  border: 1px solid #E5DFD0;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.rs-results--show { display: block; }
+
+.rs-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px;
+  min-height: 44px;
+  border-bottom: 1px solid #E5DFD0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rs-result-row:last-child { border-bottom: none; }
+.rs-result-row:active { background: #F0DDD8; }
+
+.rs-result-name {
+  font-size: 15px;
+  color: #1A1A1A;
+  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+}
+.rs-result-geo {
+  color: #6B665A;
+  font-size: 14px;
+}
+.rs-no-results {
+  padding: 14px;
+  font-size: 14px;
+  color: #6B665A;
+  text-align: center;
+  margin: 0;
+}
+
+/* Accordion structure */
+.rs-accordion {
+  margin-bottom: 24px;
+}
+
+.rs-country-row,
+.rs-state-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #E5DFD0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.rs-country-row { padding: 12px 0; }
+
+.rs-row-name {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #6B665A;
+  text-align: left;
+}
+.rs-state-row .rs-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.rs-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5C1219;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.rs-chevron {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: #C5BFBA;
+  transition: transform 0.18s ease;
+}
+.rs-country-row[aria-expanded="true"] .rs-chevron,
+.rs-state-row[aria-expanded="true"] .rs-chevron {
+  transform: rotate(90deg);
+}
+
+/* State body indentation */
+.rs-state-row { padding-left: 0; border-bottom-color: rgba(229,223,208,0.6); }
+.rs-state-body { padding-left: 0; }
+
+/* Resort rows */
+.rs-resort-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 0 10px 16px;
+  border-bottom: 1px solid rgba(229,223,208,0.45);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.rs-resort-row:last-child { border-bottom: none; }
+.rs-resort-row:active { opacity: 0.72; }
+
+.rs-resort-name {
+  flex: 1;
+  font-size: 16px;
+  color: #1A1A1A;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+/* Circular checkbox */
+.rs-checkbox {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #C5BFBA;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.13s, background 0.13s;
+}
+.rs-resort-row--selected .rs-checkbox,
+.rs-result-row--selected .rs-checkbox {
+  border-color: #5C1219;
+  background: #5C1219;
+}
+.rs-checkbox svg {
+  width: 12px;
+  height: 12px;
+  stroke: #fff;
+  display: block;
+}
+
+/* Wishlist limit hint */
+.rs-limit-hint {
+  display: none;
+  font-size: 13px;
+  color: #6B665A;
+  margin: 0 0 16px 0;
+  padding: 10px 14px;
+  background: #F0DDD8;
+  border-radius: 8px;
+  text-align: center;
+}
+.rs-limit-hint--show { display: block; }

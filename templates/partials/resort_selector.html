@@ -1,0 +1,445 @@
+{#
+  Resort Selector — shared partial for Mountains Visited + Wishlist
+  ─────────────────────────────────────────────────────────────────
+  Required context variables (set by the including template):
+    resorts          — list of Resort objects (active, non-region)
+    rs_mode          — 'visited' | 'wishlist'
+    rs_selected_ids  — list of currently selected resort IDs
+    rs_limit         — None (visited) or integer max (e.g. 15 for wishlist)
+#}
+{% set _at_limit = rs_limit is not none and rs_selected_ids | length >= rs_limit %}
+
+{% if rs_limit is not none %}
+<p class="rs-limit-hint{% if _at_limit %} rs-limit-hint--show{% endif %}" id="rs-limit-hint">
+  You've added {{ rs_limit }} mountains — remove one to add another
+</p>
+{% endif %}
+
+<div class="rs-search-wrap" style="position:relative;margin-bottom:8px;">
+  <input type="text" class="bl-search-input" id="rs-search"
+         placeholder="Search mountains"
+         autocomplete="off" autocorrect="off" spellcheck="false">
+</div>
+<div class="rs-results" id="rs-results"></div>
+
+<div class="rs-accordion" id="rs-accordion"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Configuration ─────────────────────────────────────────── */
+  var RS_MODE   = {{ rs_mode | tojson }};
+  var RS_LIMIT  = {{ rs_limit | tojson }};
+  var ADD_URL    = RS_MODE === 'visited' ? '/api/mountains-visited/add'    : '/api/wishlist/add';
+  var REMOVE_URL = RS_MODE === 'visited' ? '/api/mountains-visited/remove' : '/api/wishlist/remove';
+  var COUNT_WORD = RS_MODE === 'visited' ? 'visited' : 'wishlisted';
+
+  /* ── Resort data (baked from server) ───────────────────────── */
+  var RS_DATA = {};
+  {% for r in resorts %}
+  RS_DATA[{{ r.id }}] = {
+    id: {{ r.id }},
+    name: {{ r.name | tojson }},
+    nameLower: {{ r.name.lower() | tojson }},
+    countryCode: {{ (r.country_code or '') | tojson }},
+    countryName: {{ (r.display_country_name or r.country_name or '') | tojson }},
+    stateCode: {{ (r.state_code or r.state or '') | tojson }},
+    stateName: {{ (r.state_name or r.state_full or r.state_code or r.state or '') | tojson }}
+  };
+  {% endfor %}
+
+  /* ── Currently selected resort IDs ─────────────────────────── */
+  var RS_SELECTED = new Set({{ rs_selected_ids | tojson }});
+
+  /* ── Build country → state hierarchy ──────────────────────── */
+  /* countries[cc] = { label, states: { sc: { label, resorts: [id,...] } }, _sortedStates: [...] } */
+  var countries = {};
+  Object.keys(RS_DATA).forEach(function (idStr) {
+    var r   = RS_DATA[idStr];
+    var cc  = r.countryCode || '__';
+    var sc  = r.stateCode   || '__';
+    if (!countries[cc]) {
+      countries[cc] = {
+        label:  r.countryName || cc,
+        states: {}
+      };
+    }
+    if (!countries[cc].states[sc]) {
+      countries[cc].states[sc] = {
+        label:   r.stateName || sc,
+        resorts: []
+      };
+    }
+    countries[cc].states[sc].resorts.push(r.id);
+  });
+
+  /* Sort countries: US first, then alphabetical */
+  var sortedCC = Object.keys(countries).sort(function (a, b) {
+    if (a === 'US' && b !== 'US') return -1;
+    if (b === 'US' && a !== 'US') return  1;
+    return countries[a].label.localeCompare(countries[b].label);
+  });
+
+  /* Sort states and resorts within each country */
+  sortedCC.forEach(function (cc) {
+    var sortedSC = Object.keys(countries[cc].states).sort(function (a, b) {
+      return countries[cc].states[a].label.localeCompare(countries[cc].states[b].label);
+    });
+    countries[cc]._sortedStates = sortedSC;
+    sortedSC.forEach(function (sc) {
+      countries[cc].states[sc].resorts.sort(function (a, b) {
+        return RS_DATA[a].name.localeCompare(RS_DATA[b].name);
+      });
+    });
+  });
+
+  /* ── Count helpers ─────────────────────────────────────────── */
+  function countForCountry(cc) {
+    var n = 0;
+    (countries[cc]._sortedStates || []).forEach(function (sc) {
+      countries[cc].states[sc].resorts.forEach(function (id) {
+        if (RS_SELECTED.has(id)) n++;
+      });
+    });
+    return n;
+  }
+
+  function countForState(cc, sc) {
+    var n = 0;
+    (countries[cc].states[sc].resorts || []).forEach(function (id) {
+      if (RS_SELECTED.has(id)) n++;
+    });
+    return n;
+  }
+
+  function setCountEl(el, n) {
+    if (!el) return;
+    if (n > 0) {
+      el.textContent  = n + '\u00a0' + COUNT_WORD;
+      el.style.display = '';
+    } else {
+      el.textContent  = '';
+      el.style.display = 'none';
+    }
+  }
+
+  /* ── Safe ID fragment (no special chars) ───────────────────── */
+  function safeId(s) {
+    return String(s).replace(/[^A-Za-z0-9_]/g, '_');
+  }
+
+  /* ── HTML escape ────────────────────────────────────────────── */
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,  '&amp;')
+      .replace(/</g,  '&lt;')
+      .replace(/>/g,  '&gt;')
+      .replace(/"/g,  '&quot;');
+  }
+
+  /* ── Check-mark SVG ─────────────────────────────────────────── */
+  function checkSvg() {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+      + ' stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+      + '<polyline points="20 6 9 17 4 12"/></svg>';
+  }
+
+  /* ── Chevron SVG ────────────────────────────────────────────── */
+  function chevronSvg() {
+    return '<svg class="rs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+      + ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M9 18l6-6-6-6"/></svg>';
+  }
+
+  /* ── Build accordion DOM ────────────────────────────────────── */
+  function buildAccordion() {
+    var wrap = document.getElementById('rs-accordion');
+    if (!wrap) return;
+    var html = [];
+
+    sortedCC.forEach(function (cc) {
+      var cData    = countries[cc];
+      var cCount   = countForCountry(cc);
+      var cOpen    = cCount > 0;
+      var ccId     = safeId(cc);
+
+      html.push(
+        '<div class="rs-country" data-cc="' + esc(cc) + '">'
+        + '<button type="button" class="rs-country-row"'
+        + ' aria-expanded="' + (cOpen ? 'true' : 'false') + '"'
+        + ' onclick="rsToggleCountry(' + JSON.stringify(cc) + ')">'
+        + '<span class="rs-row-name">' + esc(cData.label) + '</span>'
+        + '<span class="rs-count" id="rs-cc-count-' + ccId + '"'
+        + (cCount > 0 ? '' : ' style="display:none"') + '>'
+        + (cCount > 0 ? cCount + '\u00a0' + COUNT_WORD : '') + '</span>'
+        + chevronSvg()
+        + '</button>'
+        + '<div class="rs-country-body"' + (cOpen ? '' : ' style="display:none"') + '>'
+      );
+
+      cData._sortedStates.forEach(function (sc) {
+        var sData  = cData.states[sc];
+        var sCount = countForState(cc, sc);
+        var sOpen  = sCount > 0;
+        var scId   = safeId(cc) + '-' + safeId(sc);
+
+        html.push(
+          '<div class="rs-state" data-sc="' + esc(sc) + '">'
+          + '<button type="button" class="rs-state-row"'
+          + ' aria-expanded="' + (sOpen ? 'true' : 'false') + '"'
+          + ' onclick="rsToggleState(' + JSON.stringify(cc) + ',' + JSON.stringify(sc) + ')">'
+          + '<span class="rs-row-name">' + esc(sData.label) + '</span>'
+          + '<span class="rs-count" id="rs-sc-count-' + scId + '"'
+          + (sCount > 0 ? '' : ' style="display:none"') + '>'
+          + (sCount > 0 ? sCount + '\u00a0' + COUNT_WORD : '') + '</span>'
+          + chevronSvg()
+          + '</button>'
+          + '<div class="rs-state-body"' + (sOpen ? '' : ' style="display:none"') + '>'
+        );
+
+        sData.resorts.forEach(function (id) {
+          var r       = RS_DATA[id];
+          var checked = RS_SELECTED.has(id);
+          html.push(
+            '<div class="rs-resort-row' + (checked ? ' rs-resort-row--selected' : '') + '"'
+            + ' id="rs-resort-' + id + '"'
+            + ' onclick="rsToggleResort(' + id + ')"'
+            + ' role="checkbox"'
+            + ' aria-checked="' + (checked ? 'true' : 'false') + '"'
+            + ' tabindex="0">'
+            + '<span class="rs-resort-name">' + esc(r.name) + '</span>'
+            + '<span class="rs-checkbox" aria-hidden="true">' + (checked ? checkSvg() : '') + '</span>'
+            + '</div>'
+          );
+        });
+
+        html.push('</div></div>'); /* state-body / rs-state */
+      });
+
+      html.push('</div></div>'); /* rs-country-body / rs-country */
+    });
+
+    wrap.innerHTML = html.join('');
+
+    /* Keyboard: space/enter on resort rows */
+    wrap.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('rs-resort-row')) {
+        e.preventDefault();
+        rsToggleResort(parseInt(e.target.id.replace('rs-resort-', ''), 10));
+      }
+    });
+  }
+
+  /* ── Accordion toggles ──────────────────────────────────────── */
+  window.rsToggleCountry = function (cc) {
+    var sel   = '.rs-country[data-cc="' + CSS.escape(cc) + '"]';
+    var body  = document.querySelector(sel + ' > .rs-country-body');
+    var btn   = document.querySelector(sel + ' > .rs-country-row');
+    if (!body) return;
+    var open  = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    if (btn) btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  };
+
+  window.rsToggleState = function (cc, sc) {
+    var sel  = '.rs-country[data-cc="' + CSS.escape(cc) + '"] .rs-state[data-sc="' + CSS.escape(sc) + '"]';
+    var body = document.querySelector(sel + ' > .rs-state-body');
+    var btn  = document.querySelector(sel + ' > .rs-state-row');
+    if (!body) return;
+    var open = body.style.display !== 'none';
+    body.style.display = open ? 'none' : '';
+    if (btn) btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+  };
+
+  /* ── Resort toggle ──────────────────────────────────────────── */
+  window.rsToggleResort = function (id) {
+    if (RS_SELECTED.has(id)) {
+      rsRemove(id);
+    } else {
+      if (RS_LIMIT !== null && RS_SELECTED.size >= RS_LIMIT) return;
+      rsAdd(id);
+    }
+  };
+
+  /* ── AJAX add ───────────────────────────────────────────────── */
+  async function rsAdd(id) {
+    try {
+      var resp = await fetch(ADD_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ resort_id: id })
+      });
+      var data = await resp.json();
+      /* Wishlist: backend sends at_limit:true without success when already at cap */
+      if (!data.success && data.at_limit) return;
+      if (data.success) {
+        RS_SELECTED.add(id);
+        refreshResortRow(id);
+        refreshAllCounts();
+        refreshSubtext();
+        refreshLimitHint();
+        refreshSearchResult(id);
+      }
+    } catch (e) {
+      console.error('[ResortSelector] add failed', e);
+    }
+  }
+
+  /* ── AJAX remove ────────────────────────────────────────────── */
+  async function rsRemove(id) {
+    try {
+      var resp = await fetch(REMOVE_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ resort_id: id })
+      });
+      var data = await resp.json();
+      if (data.success) {
+        RS_SELECTED.delete(id);
+        refreshResortRow(id);
+        refreshAllCounts();
+        refreshSubtext();
+        refreshLimitHint();
+        refreshSearchResult(id);
+      }
+    } catch (e) {
+      console.error('[ResortSelector] remove failed', e);
+    }
+  }
+
+  /* ── DOM refresh helpers ─────────────────────────────────────── */
+  function refreshResortRow(id) {
+    var el = document.getElementById('rs-resort-' + id);
+    if (!el) return;
+    var checked = RS_SELECTED.has(id);
+    el.classList.toggle('rs-resort-row--selected', checked);
+    el.setAttribute('aria-checked', checked ? 'true' : 'false');
+    var cb = el.querySelector('.rs-checkbox');
+    if (cb) cb.innerHTML = checked ? checkSvg() : '';
+  }
+
+  function refreshAllCounts() {
+    sortedCC.forEach(function (cc) {
+      setCountEl(document.getElementById('rs-cc-count-' + safeId(cc)), countForCountry(cc));
+      countries[cc]._sortedStates.forEach(function (sc) {
+        setCountEl(
+          document.getElementById('rs-sc-count-' + safeId(cc) + '-' + safeId(sc)),
+          countForState(cc, sc)
+        );
+      });
+    });
+  }
+
+  function refreshSubtext() {
+    var n = RS_SELECTED.size;
+    /* Mountains Visited page */
+    var mv = document.getElementById('mv-subtext');
+    if (mv) mv.textContent = n + ' mountain' + (n !== 1 ? 's' : '') + ' so far';
+    /* Wishlist page */
+    var wl = document.getElementById('wl-subtext');
+    if (wl && RS_LIMIT !== null) wl.textContent = n + ' of ' + RS_LIMIT + ' chosen';
+  }
+
+  function refreshLimitHint() {
+    if (RS_LIMIT === null) return;
+    var hint   = document.getElementById('rs-limit-hint');
+    var search = document.getElementById('rs-search');
+    var atLimit = RS_SELECTED.size >= RS_LIMIT;
+    if (hint)   hint.classList.toggle('rs-limit-hint--show', atLimit);
+    if (search) search.disabled = atLimit;
+  }
+
+  /* ── Search result refresh ───────────────────────────────────── */
+  function refreshSearchResult(id) {
+    var el = document.getElementById('rs-result-' + id);
+    if (!el) return;
+    var checked = RS_SELECTED.has(id);
+    el.classList.toggle('rs-result-row--selected', checked);
+    var cb = el.querySelector('.rs-checkbox');
+    if (cb) cb.innerHTML = checked ? checkSvg() : '';
+  }
+
+  /* ── Search ──────────────────────────────────────────────────── */
+  function rsSearch(q) {
+    var resultsEl = document.getElementById('rs-results');
+    if (!resultsEl) return;
+    q = (q || '').trim().toLowerCase();
+    if (!q) {
+      resultsEl.innerHTML = '';
+      resultsEl.classList.remove('rs-results--show');
+      return;
+    }
+    /* When at limit, hide search results (can still remove via accordion) */
+    if (RS_LIMIT !== null && RS_SELECTED.size >= RS_LIMIT) {
+      resultsEl.innerHTML = '';
+      resultsEl.classList.remove('rs-results--show');
+      return;
+    }
+
+    var allIds = Object.keys(RS_DATA);
+    var matches = allIds.filter(function (idStr) {
+      var r = RS_DATA[idStr];
+      return (
+        r.nameLower.includes(q) ||
+        (r.stateName  && r.stateName.toLowerCase().includes(q))  ||
+        (r.stateCode  && r.stateCode.toLowerCase().includes(q))  ||
+        (r.countryName && r.countryName.toLowerCase().includes(q)) ||
+        (r.countryCode && r.countryCode.toLowerCase().includes(q))
+      );
+    }).slice(0, 12);
+
+    if (!matches.length) {
+      resultsEl.innerHTML = '<p class="rs-no-results">No mountains found</p>';
+    } else {
+      resultsEl.innerHTML = matches.map(function (idStr) {
+        var r       = RS_DATA[idStr];
+        var geo     = r.stateName || r.stateCode || r.countryName || '';
+        var checked = RS_SELECTED.has(r.id);
+        return (
+          '<div class="rs-result-row' + (checked ? ' rs-result-row--selected' : '') + '"'
+          + ' id="rs-result-' + r.id + '"'
+          + ' onclick="rsResultClick(' + r.id + ')">'
+          + '<span class="rs-result-name">' + esc(r.name)
+          + (geo ? '<span class="rs-result-geo"> \u00b7 ' + esc(geo) + '</span>' : '')
+          + '</span>'
+          + '<span class="rs-checkbox" aria-hidden="true">' + (checked ? checkSvg() : '') + '</span>'
+          + '</div>'
+        );
+      }).join('');
+    }
+    resultsEl.classList.add('rs-results--show');
+  }
+
+  window.rsResultClick = function (id) {
+    if (RS_SELECTED.has(id)) {
+      rsRemove(id);
+    } else {
+      if (RS_LIMIT !== null && RS_SELECTED.size >= RS_LIMIT) return;
+      rsAdd(id);
+    }
+  };
+
+  /* Close search results when tapping outside */
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.rs-search-wrap') && !e.target.closest('#rs-results')) {
+      var r = document.getElementById('rs-results');
+      if (r) { r.innerHTML = ''; r.classList.remove('rs-results--show'); }
+    }
+  });
+
+  /* ── Initialise ──────────────────────────────────────────────── */
+  var _initialAtLimit = RS_LIMIT !== null && RS_SELECTED.size >= RS_LIMIT;
+
+  /* Wire search input */
+  var searchEl = document.getElementById('rs-search');
+  if (searchEl) {
+    searchEl.addEventListener('input', function () { rsSearch(this.value); });
+    if (_initialAtLimit) searchEl.disabled = true;
+  }
+
+  buildAccordion();
+  refreshLimitHint();
+
+})();
+</script>

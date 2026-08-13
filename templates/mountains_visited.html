@@ -113,25 +113,9 @@
 
 {% block content %}
     <div class="page-container">
-        <!-- Header -->
         {% if read_only %}
+        <!-- Read-only friend view — unchanged presentation -->
         <p class="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} ridden</p>
-        {% else %}
-        <p class="mv-subtext" id="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} so far</p>
-        {% endif %}
-
-        {% if not read_only %}
-        <!-- Search bar -->
-        <div class="mv-search-wrap">
-            <input type="text" class="bl-search-input" id="mv-search"
-                   placeholder="Add a mountain"
-                   autocomplete="off"
-                   oninput="mvSearch(this.value)">
-        </div>
-        <div class="mv-results" id="mv-results"></div>
-        {% endif %}
-
-        <!-- Visited list -->
         <div id="mv-list">
             {% if grouped_selected and grouped_selected|length > 0 %}
                 {% for group in grouped_selected %}
@@ -141,186 +125,27 @@
                     <div class="mv-row" id="mv-row-{{ resort.id }}">
                         <div class="mv-row-left">
                             <p class="mv-row-name">{{ resort.name }}, {{ resort.state_code or resort.country_code }}</p>
-                            {% if read_only and user_wishlist_ids and resort.id in user_wishlist_ids %}
+                            {% if user_wishlist_ids and resort.id in user_wishlist_ids %}
                             <p class="mv-row-badge">On your wish list</p>
                             {% endif %}
                         </div>
-                        {% if not read_only %}
-                        <button class="mv-remove" onclick="mvRemove({{ resort.id }})" type="button">remove</button>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
                 {% endfor %}
             {% else %}
-                <p class="mv-empty" id="mv-empty-state">{% if read_only %}No mountains yet{% else %}Add mountains you've ridden above{% endif %}</p>
+                <p class="mv-empty">No mountains yet</p>
             {% endif %}
         </div>
+        {% else %}
+        <!-- Owner view — interactive resort selector -->
+        <p class="mv-subtext" id="mv-subtext">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} so far</p>
+        {% set rs_mode = 'visited' %}
+        {% set rs_selected_ids = selected_resort_ids %}
+        {% set rs_limit = none %}
+        {% include 'partials/resort_selector.html' %}
+        {% endif %}
     </div>
-
-    {% endblock %}
-
-{% block scripts %}
-
-    {% if not read_only %}
-    <script>
-    const RESORT_DATA = {};
-    const ALL_RESORT_IDS = [];
-    {% for r in resorts %}
-    ALL_RESORT_IDS.push({{ r.id }});
-    RESORT_DATA[{{ r.id }}] = {
-        id: {{ r.id }},
-        name: {{ r.name | tojson }},
-        stateCode: {{ (r.state_code or r.state or '') | tojson }},
-        countryCode: {{ (r.country_code or '') | tojson }},
-        countryName: {{ (r.display_country_name or '') | tojson }},
-        nameLower: {{ r.name.lower() | tojson }}
-    };
-    {% endfor %}
-
-    const selectedIds = new Set({{ selected_resort_ids | tojson }});
-    const searchableIds = ALL_RESORT_IDS.filter(id => !selectedIds.has(id));
-
-    function getGroupLabel(r) {
-        if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
-        return r.stateName || r.countryCode || 'Other';
-    }
-
-    function mvSearch(val) {
-        const q = val.trim().toLowerCase();
-        const resultsEl = document.getElementById('mv-results');
-        if (!resultsEl) return;
-        if (q.length < 1) {
-            resultsEl.innerHTML = '';
-            resultsEl.classList.remove('show');
-            return;
-        }
-        const matches = searchableIds.filter(id => {
-            const r = RESORT_DATA[id];
-            return r && r.nameLower.includes(q);
-        }).slice(0, 10);
-        if (!matches.length) {
-            resultsEl.innerHTML = '<p class="mv-no-results">No matching mountains found</p>';
-        } else {
-            resultsEl.innerHTML = matches.map(id => {
-                const r = RESORT_DATA[id];
-                return `<div class="mv-result-row" onclick="mvAdd(${id})"><p class="mv-result-name">${r.name}</p></div>`;
-            }).join('');
-        }
-        resultsEl.classList.add('show');
-    }
-
-    async function mvAdd(resortId) {
-        if (selectedIds.has(resortId)) return;
-        try {
-            const resp = await fetch('/api/mountains-visited/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resort_id: resortId })
-            });
-            const data = await resp.json();
-            if (data.success) {
-                selectedIds.add(resortId);
-                renderRow(resortId);
-                const idx = searchableIds.indexOf(resortId);
-                if (idx !== -1) searchableIds.splice(idx, 1);
-                updateSubtext(data.count);
-                const r = document.getElementById('mv-results');
-                r.classList.remove('show');
-                r.innerHTML = '';
-            }
-        } catch (e) { console.error('Add failed', e); }
-    }
-
-    async function mvRemove(resortId) {
-        try {
-            const resp = await fetch('/api/mountains-visited/remove', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resort_id: resortId })
-            });
-            const data = await resp.json();
-            if (data.success) {
-                selectedIds.delete(resortId);
-                const row = document.getElementById('mv-row-' + resortId);
-                if (row) row.remove();
-                updateSubtext(data.count);
-                cleanEmptyGroups();
-                if (!selectedIds.size) ensureEmptyState();
-            }
-        } catch (e) { console.error('Remove failed', e); }
-    }
-
-    function renderRow(resortId) {
-        const r = RESORT_DATA[resortId];
-        if (!r) return;
-        const groupLabel = getGroupLabel(r);
-
-        const emptyEl = document.getElementById('mv-empty-state');
-        if (emptyEl) emptyEl.remove();
-
-        let groupEl = document.querySelector(`.mv-group[data-group="${CSS.escape(groupLabel)}"]`);
-        if (!groupEl) {
-            groupEl = document.createElement('div');
-            groupEl.className = 'mv-group';
-            groupEl.setAttribute('data-group', groupLabel);
-            groupEl.innerHTML = `<p class="mv-group-label">${groupLabel}</p>`;
-            const list = document.getElementById('mv-list');
-            const groups = list.querySelectorAll('.mv-group');
-            let inserted = false;
-            for (const g of groups) {
-                if (g.getAttribute('data-group') > groupLabel) {
-                    list.insertBefore(groupEl, g);
-                    inserted = true;
-                    break;
-                }
-            }
-            if (!inserted) list.appendChild(groupEl);
-        }
-
-        const rowEl = document.createElement('div');
-        rowEl.className = 'mv-row';
-        rowEl.id = 'mv-row-' + resortId;
-        rowEl.innerHTML = `
-            <div class="mv-row-left">
-                <p class="mv-row-name">${r.name}, ${r.stateCode || r.countryCode}</p>
-            </div>
-            <button class="mv-remove" onclick="mvRemove(${resortId})" type="button">remove</button>
-        `;
-        groupEl.appendChild(rowEl);
-    }
-
-    function cleanEmptyGroups() {
-        document.querySelectorAll('.mv-group').forEach(g => {
-            if (!g.querySelector('.mv-row')) g.remove();
-        });
-    }
-
-    function ensureEmptyState() {
-        const list = document.getElementById('mv-list');
-        if (!document.getElementById('mv-empty-state')) {
-            const p = document.createElement('p');
-            p.className = 'mv-empty';
-            p.id = 'mv-empty-state';
-            p.textContent = 'Add mountains you\'ve ridden above';
-            list.appendChild(p);
-        }
-    }
-
-    const mvSearchInput = document.getElementById('mv-search');
-    if (mvSearchInput) mvSearchInput.addEventListener('input', function() { mvSearch(this.value); });
-
-    function updateSubtext(count) {
-        const el = document.getElementById('mv-subtext');
-        if (el) el.textContent = count + ' mountain' + (count !== 1 ? 's' : '') + ' so far';
-    }
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.mv-search-wrap') && !e.target.closest('#mv-results')) {
-            const r = document.getElementById('mv-results');
-            if (r) { r.classList.remove('show'); }
-        }
-    });
-    </script>
-    {% endif %}
 {% endblock %}
+
+{% block scripts %}{% endblock %}

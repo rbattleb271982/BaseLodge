@@ -118,29 +118,9 @@
 
 {% block content %}
     <div class="page-container">
-        <!-- Header -->
         {% if read_only %}
+        <!-- Read-only friend view — unchanged presentation -->
         <p class="wl-subtext">Mountains they want to ski</p>
-        {% else %}
-        <p class="wl-subtext" id="wl-subtext">
-            {% set cnt = wish_list_ids | length %}
-            {{ cnt }} of 15 chosen
-        </p>
-        {% endif %}
-
-        {% if not read_only %}
-        <!-- Search bar -->
-        <div class="wl-search-wrap">
-            <input type="text" class="bl-search-input" id="wl-search"
-                   placeholder="Search mountains to add"
-                   autocomplete="off"
-                   oninput="wlSearch(this.value)">
-        </div>
-        <div class="wl-results" id="wl-results"></div>
-        <p class="wl-limit-hint" id="wl-limit-hint">You've added 15 mountains — remove one to add another</p>
-        {% endif %}
-
-        <!-- Wish list -->
         <div id="wl-list">
             {% if grouped_wish_list and grouped_wish_list|length > 0 %}
                 {% for group in grouped_wish_list %}
@@ -150,203 +130,27 @@
                     <div class="wl-row" id="wl-row-{{ resort.id }}">
                         <div class="wl-row-left">
                             <p class="wl-row-name">{{ resort.name }}, {{ resort.state_code or resort.country_code }}</p>
-                            {% if read_only and user_visited_ids and resort.id in user_visited_ids %}
+                            {% if user_visited_ids and resort.id in user_visited_ids %}
                             <p class="wl-row-badge">You've been here</p>
                             {% endif %}
                         </div>
-                        {% if not read_only %}
-                        <button class="wl-remove" onclick="wlRemove({{ resort.id }})" type="button">remove</button>
-                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
                 {% endfor %}
             {% else %}
-                <p class="wl-empty" id="wl-empty-state">{% if read_only %}Nothing on their list yet{% else %}Add up to 15 mountains above{% endif %}</p>
+                <p class="wl-empty">Nothing on their list yet</p>
             {% endif %}
         </div>
+        {% else %}
+        <!-- Owner view — interactive resort selector -->
+        <p class="wl-subtext" id="wl-subtext">{% set cnt = wish_list_ids | length %}{{ cnt }} of 15 chosen</p>
+        {% set rs_mode = 'wishlist' %}
+        {% set rs_selected_ids = wish_list_ids %}
+        {% set rs_limit = 15 %}
+        {% include 'partials/resort_selector.html' %}
+        {% endif %}
     </div>
-
-    {% endblock %}
-
-{% block scripts %}
-
-    {% if not read_only %}
-    <script>
-    const WL_RESORT_DATA = {};
-    const WL_ALL_IDS = [];
-    {% for r in resorts %}
-    WL_ALL_IDS.push({{ r.id }});
-    WL_RESORT_DATA[{{ r.id }}] = {
-        id: {{ r.id }},
-        name: {{ r.name | tojson }},
-        stateCode: {{ (r.state_code or r.state or '') | tojson }},
-        countryCode: {{ (r.country_code or '') | tojson }},
-        countryName: {{ (r.display_country_name or '') | tojson }},
-        nameLower: {{ r.name.lower() | tojson }}
-    };
-    {% endfor %}
-
-    const wlSelected = new Set({{ wish_list_ids | tojson }});
-    const wlSearchableIds = WL_ALL_IDS.filter(id => !wlSelected.has(id));
-
-    function wlGroupLabel(r) {
-        if (r.countryCode && r.countryCode !== 'US') return r.countryName || r.countryCode;
-        return r.stateName || r.countryCode || 'Other';
-    }
-
-    function wlUpdateSubtext(count) {
-        const el = document.getElementById('wl-subtext');
-        if (el) el.textContent = count + ' of 15 chosen';
-    }
-
-    function wlUpdateLimitHint() {
-        const hint = document.getElementById('wl-limit-hint');
-        const search = document.getElementById('wl-search');
-        if (!hint) return;
-        if (wlSelected.size >= 15) {
-            hint.classList.add('show');
-            if (search) search.disabled = true;
-        } else {
-            hint.classList.remove('show');
-            if (search) search.disabled = false;
-        }
-    }
-
-    function wlSearch(val) {
-        const q = val.trim().toLowerCase();
-        const resultsEl = document.getElementById('wl-results');
-        if (!resultsEl) return;
-        if (q.length < 1 || wlSelected.size >= 15) {
-            resultsEl.innerHTML = '';
-            resultsEl.classList.remove('show');
-            return;
-        }
-        const matches = wlSearchableIds.filter(id => {
-            const r = WL_RESORT_DATA[id];
-            return r && r.nameLower.includes(q);
-        }).slice(0, 10);
-        if (!matches.length) {
-            resultsEl.innerHTML = '<p class="wl-no-results">No matching mountains found</p>';
-        } else {
-            resultsEl.innerHTML = matches.map(id => {
-                const r = WL_RESORT_DATA[id];
-                return `<div class="wl-result-row" onclick="wlAdd(${id})"><p class="wl-result-name">${r.name}</p></div>`;
-            }).join('');
-        }
-        resultsEl.classList.add('show');
-    }
-
-    async function wlAdd(resortId) {
-        if (wlSelected.has(resortId) || wlSelected.size >= 15) return;
-        try {
-            const resp = await fetch('/api/wishlist/add', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resort_id: resortId })
-            });
-            const data = await resp.json();
-            if (data.success) {
-                wlSelected.add(resortId);
-                wlRenderRow(resortId);
-                wlSearchableIds.splice(wlSearchableIds.indexOf(resortId), 1);
-                wlUpdateSubtext(data.count);
-                wlUpdateLimitHint();
-                const r = document.getElementById('wl-results');
-                r.classList.remove('show');
-                r.innerHTML = '';
-            }
-        } catch (e) { console.error('WL add failed', e); }
-    }
-
-    async function wlRemove(resortId) {
-        try {
-            const resp = await fetch('/api/wishlist/remove', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ resort_id: resortId })
-            });
-            const data = await resp.json();
-            if (data.success) {
-                wlSelected.delete(resortId);
-                const row = document.getElementById('wl-row-' + resortId);
-                if (row) row.remove();
-                wlUpdateSubtext(data.count);
-                wlUpdateLimitHint();
-                wlCleanGroups();
-                if (!wlSelected.size) wlEnsureEmpty();
-            }
-        } catch (e) { console.error('WL remove failed', e); }
-    }
-
-    function wlRenderRow(resortId) {
-        const r = WL_RESORT_DATA[resortId];
-        if (!r) return;
-        const groupLabel = wlGroupLabel(r);
-
-        const emptyEl = document.getElementById('wl-empty-state');
-        if (emptyEl) emptyEl.remove();
-
-        let groupEl = document.querySelector(`.wl-group[data-group="${CSS.escape(groupLabel)}"]`);
-        if (!groupEl) {
-            groupEl = document.createElement('div');
-            groupEl.className = 'wl-group';
-            groupEl.setAttribute('data-group', groupLabel);
-            groupEl.innerHTML = `<p class="wl-group-label">${groupLabel}</p>`;
-            const list = document.getElementById('wl-list');
-            const groups = list.querySelectorAll('.wl-group');
-            let inserted = false;
-            for (const g of groups) {
-                if (g.getAttribute('data-group') > groupLabel) {
-                    list.insertBefore(groupEl, g);
-                    inserted = true;
-                    break;
-                }
-            }
-            if (!inserted) list.appendChild(groupEl);
-        }
-
-        const rowEl = document.createElement('div');
-        rowEl.className = 'wl-row';
-        rowEl.id = 'wl-row-' + resortId;
-        rowEl.innerHTML = `
-            <div class="wl-row-left">
-                <p class="wl-row-name">${r.name}, ${r.stateCode || r.countryCode}</p>
-            </div>
-            <button class="wl-remove" onclick="wlRemove(${resortId})" type="button">remove</button>
-        `;
-        groupEl.appendChild(rowEl);
-    }
-
-    function wlCleanGroups() {
-        document.querySelectorAll('.wl-group').forEach(g => {
-            if (!g.querySelector('.wl-row')) g.remove();
-        });
-    }
-
-    const wlSearchInput = document.getElementById('wl-search');
-    if (wlSearchInput) wlSearchInput.addEventListener('input', function() { wlSearch(this.value); });
-
-    function wlEnsureEmpty() {
-        const list = document.getElementById('wl-list');
-        if (!document.getElementById('wl-empty-state')) {
-            const p = document.createElement('p');
-            p.className = 'wl-empty';
-            p.id = 'wl-empty-state';
-            p.textContent = 'Add up to 15 mountains above';
-            list.appendChild(p);
-        }
-    }
-
-    // Init limit hint state
-    wlUpdateLimitHint();
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.wl-search-wrap') && !e.target.closest('#wl-results')) {
-            const r = document.getElementById('wl-results');
-            if (r) r.classList.remove('show');
-        }
-    });
-    </script>
-    {% endif %}
 {% endblock %}
+
+{% block scripts %}{% endblock %}

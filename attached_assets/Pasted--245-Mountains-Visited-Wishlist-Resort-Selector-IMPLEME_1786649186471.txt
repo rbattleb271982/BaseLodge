@@ -1,0 +1,780 @@
+# #245 — Mountains Visited + Wishlist Resort Selector
+# IMPLEMENTATION
+
+Implement the approved Mountains Visited + Wishlist resort-selector redesign.
+
+The goal is to replace the current manual/search-and-dropdown resort selection experience with a consistent, browsable resort selector shared by both:
+
+1. Mountains Visited
+2. Wishlist Mountains
+
+The implementation must preserve all existing functionality and data.
+
+IMPORTANT:
+This is now an IMPLEMENTATION task.
+
+Make only the changes described below.
+
+Do NOT modify the database schema or data.
+Do NOT modify Python routes unless the investigation proved a backend change is genuinely required. The approved plan says no backend changes are required.
+Do NOT modify unrelated screens.
+Do NOT modify authentication, trips, profiles, resort detail pages, bottom navigation, or other functionality.
+Do NOT modify the existing read-only friend views.
+Do NOT commit, push, or publish.
+Do NOT run the full test suite.
+
+After implementation, inspect the diff and deliver a complete implementation report.
+Do not run tests unless separately authorized.
+
+---
+
+# 1. TARGET EXPERIENCE
+
+Both Mountains Visited and Wishlist Mountains should use the same resort-selection experience.
+
+The hierarchy is:
+
+Country → State/Province/Region → Resort
+
+## Ordering
+
+### United States
+
+United States MUST ALWAYS appear first.
+
+Within the United States:
+
+State/region alphabetically
+→ Resort alphabetically
+
+Example:
+
+United States
+
+  California
+
+    Bear Valley
+    Heavenly
+    Mammoth Mountain
+    Palisades Tahoe
+
+  Colorado
+
+    Arapahoe Basin
+    Aspen Mountain
+    Beaver Creek
+    Breckenridge
+    Copper Mountain
+    Keystone
+    Loveland
+    Vail
+
+  Utah
+
+    Alta
+    Brighton
+    Snowbird
+    Solitude
+
+### Other countries
+
+After United States, all other countries must appear alphabetically.
+
+For example:
+
+Austria
+Canada
+Chile
+France
+Italy
+Japan
+Norway
+Switzerland
+
+Within each country:
+
+State/Province/Region alphabetically
+→ Resort alphabetically
+
+Use the existing canonical Resort geography fields.
+
+Do NOT invent or hard-code geographic groupings.
+
+---
+
+# 2. SHARED RESORT SELECTOR
+
+Create one reusable template partial:
+
+templates/partials/resort_selector.html
+
+Both pages must use this shared selector rather than duplicating the implementation.
+
+Mountains Visited should configure it as:
+
+rs_mode = 'visited'
+rs_selected_ids = selected_resort_ids
+rs_limit = None
+
+Wishlist should configure it as:
+
+rs_mode = 'wishlist'
+rs_selected_ids = wish_list_ids
+rs_limit = 15
+
+The shared partial should use rs_mode to determine:
+
+- correct AJAX add endpoint
+- correct AJAX remove endpoint
+- appropriate checkbox/ARIA labels
+- visited vs wishlist count language
+- wishlist limit behavior
+
+Do NOT merge the underlying visited and wishlist data.
+
+They remain completely separate states.
+
+---
+
+# 3. SEARCH
+
+At the top of the selector, provide:
+
+Search mountains
+
+Use the existing canonical:
+
+.bl-search-input
+
+Search must operate across the entire resort dataset, not only the currently expanded accordion.
+
+Search should match:
+
+- resort name
+- state name
+- state code
+- country name
+- country code
+
+Search results should provide enough geographic context to distinguish resorts with similar names.
+
+For example:
+
+Mammoth Mountain · California
+
+Tapping a search result should immediately add the resort using the existing AJAX endpoint.
+
+The corresponding resort checkbox in the hierarchy must immediately reflect the new state.
+
+Do not create a new manually maintained resort list.
+
+Use the existing resort data already supplied to the templates.
+
+---
+
+# 4. HIERARCHICAL ACCORDION
+
+Below the search field, display the full active, non-region resort database in the hierarchy:
+
+Country
+→ State/Province/Region
+→ Resort
+
+Countries are collapsible.
+
+States/provinces/regions are collapsible.
+
+Resort rows are selectable.
+
+## Initial expansion behavior
+
+This is important:
+
+- Countries containing at least one selected resort should be expanded automatically on page load.
+- States/provinces/regions containing at least one selected resort should be expanded automatically on page load.
+- Countries with no selected resorts should remain collapsed.
+- States with no selected resorts should remain collapsed.
+
+This allows the user to immediately see where their existing visited/wishlisted resorts are without dumping the entire resort database onto the screen.
+
+Do NOT expand the entire database by default.
+
+## Interaction
+
+Tapping a country header toggles its state/province/region rows.
+
+Tapping a state/province/region header toggles its resort rows.
+
+Use a clear chevron/expanded indicator.
+
+Use appropriate ARIA attributes such as aria-expanded where applicable.
+
+---
+
+# 5. RESORT ROWS
+
+Each resort should be represented by a full-height tappable row.
+
+Minimum tap target:
+
+44px.
+
+The row should contain:
+
+Left:
+Resort name
+
+Right:
+Checkbox/selection indicator
+
+Tapping anywhere on the resort row should toggle the selection.
+
+Do not require the user to hit the tiny checkbox itself.
+
+The checkbox/selection control must remain visually clear.
+
+Selected resorts should have a clear selected state consistent with BaseLodge's existing design language.
+
+Do not introduce an unrelated visual style.
+
+---
+
+# 6. COUNTS
+
+Show selected-resort counts on country and state/province/region headers.
+
+For Mountains Visited:
+
+United States · 8 visited
+Colorado · 3 visited
+
+For Wishlist:
+
+United States · 12 wishlisted
+Colorado · 4 wishlisted
+
+Counts must:
+
+- reflect only the relevant selection state
+- update immediately when a resort is added
+- update immediately when a resort is removed
+- remain accurate after search-based additions/removals
+
+Do not mix visited and wishlist counts.
+
+---
+
+# 7. MOUNTAINS VISITED
+
+Mountains Visited must continue using:
+
+POST /api/mountains-visited/add
+
+and:
+
+POST /api/mountains-visited/remove
+
+Do not create replacement endpoints.
+
+Do not change how visited resorts are stored.
+
+Existing:
+
+User.visited_resort_ids
+
+remains the source of truth.
+
+The existing:
+
+User.mountains_visited
+
+backward-compatibility field must continue to be maintained exactly as it currently is through the existing endpoints.
+
+Existing visited resorts must appear checked when the page loads.
+
+Unchecking a resort must remove it using the existing endpoint.
+
+There is NO maximum number of visited resorts.
+
+---
+
+# 8. WISHLIST MOUNTAINS
+
+Wishlist must continue using:
+
+POST /api/wishlist/add
+
+and:
+
+POST /api/wishlist/remove
+
+Do not create replacement endpoints.
+
+Do not change:
+
+User.wish_list_resorts
+
+The existing 15-resort limit MUST remain enforced.
+
+When the user has 15 wishlist resorts:
+
+- prevent adding a 16th resort
+- preserve the existing limit behavior
+- preserve the existing limit messaging
+- keep existing selected resorts removable
+- unchecking an existing wishlist resort should allow another resort to be selected
+
+The backend remains the ultimate enforcement mechanism.
+
+Do not weaken or bypass it.
+
+---
+
+# 9. EXISTING READ-ONLY FRIEND VIEWS
+
+DO NOT redesign the read-only friend views.
+
+These routes must continue working:
+
+GET /mountains-visited/<user_id>
+
+GET /wishlist/<user_id>
+
+The current grouped-list presentation for another user's mountains/wishlist should remain unchanged.
+
+The new interactive resort accordion/search selector is for the owner's selection experience.
+
+Do NOT expose owner-only add/remove controls in read-only views.
+
+Do NOT accidentally replace the friend-view display with the interactive selector.
+
+---
+
+# 10. RESORT DATA
+
+Use the existing Resort fields:
+
+- country_code
+- country_name
+- country_name_override
+- display_country_name
+- state_code
+- state_name
+- name
+- id
+
+Use:
+
+display_country_name
+
+for country display where appropriate.
+
+Use:
+
+state_name
+
+for state/province/region display.
+
+If state_name is unavailable for a resort, use the existing appropriate fallback such as state_code.
+
+Do NOT modify resort records.
+
+Do NOT add or change geographic data.
+
+Do NOT modify the Resort model.
+
+The JS resort data should include:
+
+stateName
+
+in addition to the existing country/name/id information.
+
+The template can obtain this directly from the existing Resort objects.
+
+---
+
+# 11. REGION-LEVEL RESORTS
+
+Continue using the existing route filtering:
+
+is_active=True
+is_region=False
+
+Do not show region-level entities such as "Rocky Mountains" as selectable resorts.
+
+Do not change the existing route filtering.
+
+---
+
+# 12. CSS
+
+Add shared selector styles to:
+
+static/styles.css
+
+Use a consistent naming scheme, such as:
+
+.rs-country-row
+.rs-state-row
+.rs-resort-row
+.rs-chevron
+.rs-count
+.rs-checkbox
+
+and associated selected/expanded states as needed.
+
+All interactive rows must maintain a minimum 44px tap target.
+
+The design should feel native to the existing BaseLodge visual system.
+
+Do not introduce:
+
+- new global colors unnecessarily
+- unrelated typography
+- unrelated spacing changes
+- a new design language
+
+Reuse existing BaseLodge variables and patterns wherever practical.
+
+The existing:
+
+.bl-search-input
+
+should be reused.
+
+Do not redesign the search input itself.
+
+---
+
+# 13. TEMPLATE CHANGES
+
+## templates/mountains_visited.html
+
+Replace the current owner-facing:
+
+- Add a mountain search block
+- search-results dropdown
+- interactive visited resort list
+- associated JavaScript
+
+with the shared resort selector.
+
+Preserve:
+
+- page header
+- title
+- subtitle/count messaging where appropriate
+- existing page chrome
+- read-only behavior
+- all unrelated functionality
+
+Do not modify the friend-view presentation.
+
+## templates/settings_wish_list.html
+
+Replace the current owner-facing:
+
+- wishlist search block
+- search-results dropdown
+- interactive wishlist list
+- associated JavaScript
+
+with the shared resort selector.
+
+Preserve:
+
+- page header
+- subtitle
+- wishlist limit messaging
+- existing page chrome
+- read-only behavior
+- all unrelated functionality
+
+Do not modify the friend-view presentation.
+
+---
+
+# 14. JAVASCRIPT
+
+The shared partial should contain the selector JavaScript unless there is an existing cleaner shared mechanism already present.
+
+The JavaScript should handle:
+
+1. Building the Country → State → Resort hierarchy.
+2. US-first country ordering.
+3. Alphabetical ordering everywhere else.
+4. Automatically expanding groups containing selected resorts.
+5. Country expand/collapse.
+6. State expand/collapse.
+7. Resort selection.
+8. Search.
+9. AJAX add.
+10. AJAX remove.
+11. Checkbox state synchronization.
+12. Dynamic country counts.
+13. Dynamic state counts.
+14. Wishlist 15-resort limit.
+15. Search-result selection.
+16. Appropriate accessibility attributes.
+
+Avoid unnecessary duplication.
+
+Do not introduce a framework or large abstraction.
+
+---
+
+# 15. IMPORTANT: SHARED COMPONENT SHOULD REMAIN SIMPLE
+
+The shared component should be a straightforward reusable template partial.
+
+Do not create:
+
+- a new frontend framework
+- a large component architecture
+- unnecessary Python abstractions
+- new APIs
+- database migrations
+
+The approved design is intentionally lightweight:
+
+One shared partial
++
+shared CSS
++
+page-specific configuration
+
+---
+
+# 16. PROTECT EXISTING BATCH 1 / BATCH 2 WORK
+
+Do not overwrite or revert unrelated UX/UI work.
+
+In particular, preserve the existing work in:
+
+- static/styles.css
+- templates/mountains_visited.html
+- templates/settings_wish_list.html
+
+Only change the portions directly required for this resort-selector redesign.
+
+Do not make opportunistic cleanup changes.
+
+Do not reformat unrelated code.
+
+Do not change unrelated selectors.
+
+---
+
+# 17. FILE SCOPE
+
+Expected files:
+
+NEW:
+templates/partials/resort_selector.html
+
+MODIFY:
+templates/mountains_visited.html
+templates/settings_wish_list.html
+static/styles.css
+
+Expected files that MUST NOT change:
+
+app.py
+models.py
+Any database migration
+Any other template
+Any other JavaScript file
+Any other CSS file
+
+If implementation genuinely requires a different file, STOP and report why before modifying it.
+
+Do not silently expand scope.
+
+---
+
+# 18. NO BACKEND CHANGES
+
+The approved plan determined that the existing backend is sufficient.
+
+Use the existing:
+
+/api/mountains-visited/add
+/api/mountains-visited/remove
+/api/wishlist/add
+/api/wishlist/remove
+
+Do not modify these routes.
+
+Do not modify Python.
+
+Do not modify database models.
+
+Do not modify database schema.
+
+Do not create migrations.
+
+---
+
+# 19. FUNCTIONAL REQUIREMENTS
+
+Before declaring implementation complete, inspect the resulting code and verify from source that:
+
+### Mountains Visited
+
+- Existing visited resorts are selected on initial render.
+- Adding a resort uses the existing add endpoint.
+- Removing a resort uses the existing remove endpoint.
+- There is no artificial maximum.
+- Counts update.
+- Search works.
+- Country/state/resort ordering is correct.
+- United States is first.
+- Selected groups open automatically.
+
+### Wishlist
+
+- Existing wishlist resorts are selected on initial render.
+- Adding uses the existing wishlist add endpoint.
+- Removing uses the existing wishlist remove endpoint.
+- 15-resort maximum remains enforced.
+- Counts update.
+- Search works.
+- United States is first.
+- Selected groups open automatically.
+- Existing limit messaging remains functional.
+
+### Both
+
+- Resort rows have 44px+ tap targets.
+- Checkbox state stays synchronized with the actual selection.
+- Search additions update the hierarchy.
+- Country/state counts update immediately.
+- No duplicate resort can be added.
+- Read-only friend views remain unchanged.
+
+---
+
+# 20. DO NOT RUN TESTS YET
+
+Do NOT run:
+
+pytest
+npm tests
+full test suite
+browser automation
+database tests
+
+unless separately authorized.
+
+You may perform source inspection, static validation, and inspect the Git diff.
+
+Do not start or restart BaseLodge.
+
+Do not query or modify Supabase.
+
+---
+
+# 21. FINAL DIFF REVIEW
+
+Before stopping:
+
+Run only whatever read-only Git/source inspection is necessary to review the implementation.
+
+Confirm:
+
+1. Exact files modified.
+2. New files created.
+3. No unexpected files changed.
+4. No Python files changed.
+5. No models changed.
+6. No database changes.
+7. No Secrets changed.
+8. No unrelated templates changed.
+9. No Batch 1/Batch 2 work was reverted.
+10. Read-only friend views remain protected.
+
+If the diff contains anything outside the approved scope, do NOT clean it up automatically. Report it.
+
+---
+
+# 22. DELIVERY REPORT
+
+Return a complete implementation report containing:
+
+## Files changed
+
+List every file.
+
+## Exact implementation
+
+Explain the shared selector and how the two pages configure it.
+
+## Hierarchy
+
+Confirm:
+
+United States first
+→ alphabetical states/provinces/regions
+→ alphabetical resorts
+
+Then:
+
+alphabetical countries
+→ alphabetical states/provinces/regions
+→ alphabetical resorts
+
+## Selection behavior
+
+Explain visited and wishlist behavior separately.
+
+## Search
+
+Explain what fields search matches.
+
+## Counts
+
+Explain how counts update.
+
+## Wishlist limit
+
+Confirm the 15-resort limit remains enforced.
+
+## Read-only views
+
+Confirm they remain unchanged.
+
+## Tap targets
+
+Confirm interactive rows remain ≥44px.
+
+## Backend
+
+Confirm no Python/backend/database changes were required.
+
+## Scope verification
+
+Confirm exact files changed and that no unrelated files were modified.
+
+## Tests
+
+Explicitly state:
+
+"No tests were run."
+
+## Deployment
+
+Explicitly state:
+
+"Nothing was committed, pushed, or published."
+
+Then STOP.
+
+Do not make any additional changes.
+
+Do not suggest unrelated improvements.
+
+Do not publish.
+
+Do not push.
+
+Do not commit.
