@@ -83,38 +83,37 @@
         line-height: 1.55;
     }
     /* Setup cards */
-    .eq-cards { display: grid; gap: 12px; margin-bottom: 20px; }
+    .eq-cards { display: grid; gap: 10px; margin-bottom: 20px; }
     .eq-card {
         border: 1.5px solid #E5DFD0;
         border-radius: 14px;
-        padding: 16px;
+        padding: 12px 14px;
         background: var(--bl-color-surface, #FBFAF7);
     }
     .eq-card-header {
+        margin-bottom: 4px;
+    }
+    .eq-card-name-row {
         display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        margin-bottom: 10px;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 2px;
     }
     .eq-card-badge {
-        display: inline-block;
-        font-size: 10px;
+        display: inline-flex;
+        align-items: center;
+        flex-shrink: 0;
+        font-size: 9px;
         font-weight: 700;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.6px;
         text-transform: uppercase;
-        padding: 3px 8px;
+        padding: 2px 6px;
         border-radius: 100px;
         background: #5C1219;
         color: #fff;
-        margin-bottom: 4px;
-    }
-    .eq-card-badge.secondary {
-        background: transparent;
-        color: #6B665A;
-        border: 1px solid #C5BFBA;
     }
     .eq-card-name {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 600;
         color: var(--bl-color-text);
         margin: 0;
@@ -123,7 +122,7 @@
     .eq-card-discipline {
         font-size: 12px;
         color: #6B665A;
-        margin: 2px 0 0 0;
+        margin: 0;
     }
     .eq-rider-nudge {
         background: #F5F1E8;
@@ -165,8 +164,8 @@
     .eq-card-detail {
         font-size: 13px;
         color: #6B665A;
-        line-height: 1.6;
-        margin-bottom: 12px;
+        line-height: 1.5;
+        margin-bottom: 8px;
     }
     .eq-card-actions {
         display: flex;
@@ -174,11 +173,15 @@
         flex-wrap: wrap;
     }
     .eq-card-btn {
-        padding: 7px 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 12px;
         border-radius: 100px;
         border: 1px solid #C5BFBA;
         background: transparent;
-        font-size: 13px;
+        font-size: 12px;
         color: #6B665A;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
@@ -400,19 +403,11 @@
                 {% for setup in all_setups %}
                 <div class="eq-card" id="eq-card-{{ setup.id }}" data-setup-id="{{ setup.id }}">
                     <div class="eq-card-header">
-                        <div>
-                            {% if setup.is_primary %}
-                            <div class="eq-card-badge">Primary Setup</div>
-                            {% else %}
-                            <div class="eq-card-badge secondary">Setup</div>
-                            {% endif %}
-                            <p class="eq-card-name">
-                                {{ setup.label if setup.label else (setup.brand ~ ' ' ~ setup.model if setup.brand or setup.model else 'Unnamed setup') }}
-                            </p>
-                            <p class="eq-card-discipline">
-                                {{ 'Snowboard' if setup.discipline and setup.discipline.value == 'snowboarder' else 'Skis' }}
-                            </p>
+                        <div class="eq-card-name-row">
+                            <p class="eq-card-name">{{ setup.label if setup.label else (setup.brand ~ ' ' ~ setup.model if setup.brand or setup.model else 'Unnamed setup') }}</p>
+                            {% if setup.is_primary %}<span class="eq-card-badge">Primary</span>{% endif %}
                         </div>
+                        <p class="eq-card-discipline">{{ 'Snowboard' if setup.discipline and setup.discipline.value == 'snowboarder' else 'Skis' }}</p>
                     </div>
                     <div class="eq-card-detail">
                         {% set detail_parts = [] %}
