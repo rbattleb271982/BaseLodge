@@ -355,23 +355,6 @@
         </div>
     </div>
 
-    <!-- Friend Discovery toggle -->
-    <div class="ep-section">
-        <p class="ep-section-label">Friend Discovery</p>
-        <label class="ep-toggle-row" for="ep-discoverable">
-            <div class="ep-toggle-text">
-                <span class="ep-field-label" style="margin:0; display:block;">Show me in friend search</span>
-                <span class="ep-field-hint" style="margin:4px 0 0;">Allow other BaseLodge members to find you by name. Turning this off does not affect your existing friends.</span>
-            </div>
-            <div class="ep-toggle-switch">
-                <input type="checkbox" id="ep-discoverable"
-                       {% if current_user.discoverable_in_friend_search %}checked{% endif %}
-                       onchange="document.getElementById('discoverable_hidden').value=this.checked?'1':'0';markDirty();">
-                <span class="ep-toggle-track"></span>
-            </div>
-        </label>
-    </div>
-
     <!-- Hidden form (submitted on Save) -->
     <form method="POST" action="{{ url_for('edit_profile') }}" id="editProfileForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -384,8 +367,6 @@
         <input type="hidden" name="previous_pass" id="previous_pass_hidden" value="{{ current_user.previous_pass or '' }}">
         <input type="hidden" name="gender" value="{{ current_user.gender or '' }}">
         <input type="hidden" name="birth_year" value="{{ current_user.birth_year or '' }}">
-        <input type="hidden" name="discoverable_in_friend_search" id="discoverable_hidden"
-               value="{{ '1' if current_user.discoverable_in_friend_search else '0' }}">
     </form>
 
     <!-- Floating Save -->

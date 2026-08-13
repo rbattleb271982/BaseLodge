@@ -4312,7 +4312,8 @@ def edit_profile():
         _old_pass_ep = user.pass_type  # capture before overwrite for change detection
         user.pass_type = normalized_passes
         user.home_state = request.form.get("home_state") or None
-        user.discoverable_in_friend_search = request.form.get('discoverable_in_friend_search') == '1'
+        # Note: discoverable_in_friend_search is managed via the Profile screen toggle
+        # (POST /api/profile/update), not through this form.
         # Clear skill_level only for Social-only users, otherwise use form value
         is_social_only = rider_types == ["Social"]
         user.skill_level = None if is_social_only else (request.form.get("skill_level") or None)
@@ -8999,9 +9000,11 @@ def update_profile():
         if count_real_passes(_norm_pt) > 3:
             return jsonify({"success": False, "message": "You can select up to 3 passes."}), 400
         user.pass_type = _norm_pt
-    
+    if "discoverable_in_friend_search" in data:
+        user.discoverable_in_friend_search = bool(data["discoverable_in_friend_search"])
+
     db.session.commit()
-    
+
     return jsonify({"success": True, "message": "Profile updated"}), 200
 
 @app.route("/create-trip")

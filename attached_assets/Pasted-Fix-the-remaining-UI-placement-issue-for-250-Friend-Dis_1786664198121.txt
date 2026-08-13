@@ -1,0 +1,113 @@
+Fix the remaining UI placement issue for **#250 Friend Discovery**.
+
+This is a small implementation task.
+
+Do not change any friend-search backend logic, cooldown logic, search normalization, database schema, migrations, notification behavior, or API endpoints.
+
+## Current issue
+
+The **Show me in friend search** setting is currently implemented in:
+
+`templates/edit_profile.html`
+
+That is the wrong location.
+
+The intended location is the main Profile / Account settings screen:
+
+`templates/profile.html`
+
+The current Account section shows:
+
+* Push notifications
+* Change password
+* Log out
+* Delete account
+
+The Friend Discovery setting should appear **directly above Push notifications**.
+
+## Required behavior
+
+Add a row/control to the main Profile screen for:
+
+**Show me in friend search**
+
+Supporting text:
+
+**Allow other BaseLodge members to find you by name. Turning this off does not affect your existing friends.**
+
+Use the same visual language as the existing Account settings rows.
+
+The control should reflect the current value of:
+
+`current_user.discoverable_in_friend_search`
+
+Users must be able to change the setting from this main Profile screen.
+
+Use the smallest implementation consistent with the existing Profile settings architecture.
+
+If the existing Profile page already uses sub-screens for individual settings such as Push notifications, follow that established pattern rather than inventing a new one.
+
+If a direct inline toggle is cleaner and consistent with the existing page, that is also acceptable.
+
+The key requirement is:
+
+**The user must see and be able to access/change this setting directly from the main Profile screen above Push notifications.**
+
+## Existing Edit Profile toggle
+
+The same setting currently exists in `edit_profile.html`.
+
+Determine the cleanest UX:
+
+* remove the duplicate from Edit Profile, or
+* keep it there only if there is a clear reason
+
+Prefer a single obvious location unless the existing settings architecture strongly supports both.
+
+Do not change the underlying `discoverable_in_friend_search` behavior.
+
+## Validation
+
+After the UI fix:
+
+1. Confirm the setting appears on `/profile` directly above Push notifications.
+2. Confirm current On/Off state renders correctly.
+3. Toggle Off and save/change using the intended UI.
+4. Confirm `discoverable_in_friend_search` becomes false.
+5. Toggle On again.
+6. Confirm it becomes true.
+7. Confirm no other Profile rows are visually broken.
+8. Confirm Friend Discovery search behavior remains unchanged.
+
+Run:
+
+* Relevant profile/settings tests
+* The 111 Friend Discovery feature tests
+* The **full test suite**
+
+Report exact test counts and results.
+
+## Final report
+
+Return:
+
+### Files changed
+
+### Exact UI change
+
+### Whether the old Edit Profile toggle was removed or retained, and why
+
+### Validation performed
+
+### Feature test results
+
+### Full suite results
+
+### Git diff summary
+
+Confirm:
+
+* Nothing committed
+* Nothing pushed
+* Nothing published
+* Nothing deployed
