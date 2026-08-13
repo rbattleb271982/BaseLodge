@@ -1,0 +1,69 @@
+FINAL VALIDATION OF TASK #239 — PLAN ONLY. DO NOT IMPLEMENT OR RUN ANYTHING.
+The proposed root-level conftest.py approach is conceptually approved, but before implementation I need two assumptions proven from source/framework behavior.
+1. Prove pytest hook ordering
+The entire safety design depends on root-level:
+pytest_configure(config)
+executing BEFORE pytest imports:
+tests/conftest.py
+which currently contains:
+from app import app, limiter
+Verify whether this is actually guaranteed by pytest's conftest discovery/plugin lifecycle.
+Do not assume it.
+If root conftest.py itself is imported before tests/conftest.py but its pytest_configure() hook is not necessarily called until after child conftest discovery/import, then the proposed design is unsafe.
+Determine the exact ordering:
+root conftest.py import
+root pytest_configure()
+tests/conftest.py import
+from app import app, limiter
+State whether the proposed environment mutation is guaranteed to occur before step 4.
+If pytest_configure() is too late, identify the earliest safe mechanism available in root conftest.py, including whether the environment variables should instead be overridden at root conftest module import time before any application imports.
+2. Prove BaseLodge's database fallback
+Inspect the exact current code in app.py that determines:
+app.config["SQLALCHEMY_DATABASE_URI"]
+Show exactly what happens when:
+SUPABASE_DATABASE_URL=""
+Confirm whether an empty string causes BaseLodge to select an isolated SQLite database.
+Do not infer this.
+Show the exact relevant source logic.
+Also determine whether DATABASE_URL, another environment variable, or any other fallback could still cause PostgreSQL/Supabase to be selected after SUPABASE_DATABASE_URL is cleared.
+Search all database configuration sources used during application initialization.
+Required safety property
+Before app.py is imported, the pytest process must already be configured so that application initialization cannot resolve any external PostgreSQL/Supabase database.
+This must protect the 20 startup migrations themselves, not merely tests that execute afterward.
+Prefer a fail-closed design. If BaseLodge could resolve an external database through another environment variable or fallback, account for it.
+Session guard
+Separately evaluate the proposed session-scoped:
+assert db.engine.dialect.name == "sqlite"
+This is useful as a second layer, but explicitly recognize that it cannot protect import-time startup migrations because it executes after application import.
+The pre-import environment isolation is the primary safety layer.
+ABSOLUTE RESTRICTIONS
+DO NOT:
+create root conftest.py
+modify any file
+run pytest
+import app
+execute Python that imports BaseLodge
+start BaseLodge
+execute SQL
+connect to Supabase
+query Supabase
+run migrations
+modify secrets
+modify deployment
+SOURCE INSPECTION ONLY.
+Return
+Exact pytest ordering and whether pytest_configure() is early enough.
+Exact BaseLodge database-selection code.
+Every environment variable capable of selecting PostgreSQL during startup.
+Exact behavior when each relevant variable is absent or empty.
+Whether the proposed Task #239 design is safe exactly as written.
+If not, corrected final design.
+Complete proposed root conftest.py.
+Why the environment is guaranteed safe BEFORE tests/conftest.py imports app.
+Why all 20 startup migrations would therefore operate only against SQLite.
+How the session-level dialect assertion provides a second fail-closed layer.
+End with either:
+TASK #239 DESIGN VERIFIED — READY TO IMPLEMENT
+or
+TASK #239 DESIGN REQUIRES CORRECTION
+DO NOT IMPLEMENT. STOP AFTER THE REPORT.
