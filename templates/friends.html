@@ -246,6 +246,59 @@
             margin: 4px 0 0 0;
         }
 
+        /* ── Global member search results ────────────────────────────── */
+        #fr-global-results {
+            margin-top: 4px;
+        }
+        .fr-global-row {
+            padding: 12px 0;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .fr-global-row:first-child { border-top: 1px solid #E5DFD0; }
+        .fr-global-row:last-child  { border-bottom: none; }
+        .fr-global-row-main {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .fr-global-name {
+            font-size: 16px;
+            color: #1A1A1A;
+            min-width: 0;
+            flex: 1;
+        }
+        .fr-global-meta {
+            color: var(--bl-color-text-muted);
+            font-weight: 400;
+            font-size: 15px;
+        }
+        .fr-global-mutual {
+            font-size: 12px;
+            color: var(--bl-color-text-muted);
+            margin-top: 3px;
+            min-height: 16px;
+        }
+        .fr-global-action { flex-shrink: 0; }
+        .fr-action-btn {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            transition: opacity 0.15s;
+            white-space: nowrap;
+        }
+        .fr-action-btn:active  { opacity: 0.65; }
+        .fr-action-btn:disabled { opacity: 0.4; cursor: default; }
+        .fr-action-connect  { background: #5C1219; color: #fff; }
+        .fr-action-requested { background: #F0EBE3; color: #5C1219; }
+        .fr-action-accept   { background: #5C1219; color: #fff; }
+        .fr-action-connected { font-size: 13px; color: var(--bl-color-text-muted); font-weight: 500; }
+
         /* ── Requests-highlight pulse (when ?requests=1) ──────────────── */
         @keyframes fr-requests-pulse {
             0%   { background: transparent; }
@@ -371,12 +424,18 @@
             <input type="search" class="bl-search-input" id="fr-search"
                    placeholder="Search friends"
                    autocomplete="off" autocorrect="off" autocapitalize="off"
-                   oninput="searchFriends(this.value)">
+                   oninput="searchFriends(this.value)"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();_frGlobalSearch();}">
         </div>
+
+        <p id="fr-search-hint" style="display:none; font-size:13px; color:var(--bl-color-text-muted); margin:6px 0 0;"></p>
 
         <p class="fr-no-results" id="fr-no-results" style="display: none;">
             No friends match &ldquo;<span id="fr-query-text"></span>&rdquo;.
         </p>
+
+        <!-- Global member search results (hidden until search is triggered) -->
+        <div id="fr-global-results" style="display:none;"></div>
 
         <div id="fr-alpha-list">
             {% for group in alpha_groups %}
@@ -482,6 +541,17 @@
     // ── Client-side friend search ──────────────────────────────────────────
     function searchFriends(query) {
         var q = (query || '').trim().toLowerCase();
+
+        // If we're in global search mode and the field is cleared, exit it
+        if (_frSearchQuery && !q) {
+            _frExitGlobalSearch();
+            return;
+        }
+
+        // If we're in global search mode and the user is typing again,
+        // stay in client-side mode until they press Enter again
+        if (_frSearchQuery) return;
+
         var groups = document.querySelectorAll('.fr-alpha-group');
         var noResultsEl = document.getElementById('fr-no-results');
         var queryTextEl = document.getElementById('fr-query-text');
@@ -512,6 +582,267 @@
         } else {
             if (noResultsEl) noResultsEl.style.display = 'none';
         }
+    }
+
+    // ── Global member search ───────────────────────────────────────────────
+    var _frSearchQuery = '';
+    var _frSearchGen = 0;
+    var _frSearchController = null;
+
+    function _frGlobalSearch() {
+        var q = (document.getElementById('fr-search').value || '').trim();
+        var tokens = q.split(/\s+/).filter(function(t) { return t.length > 0; });
+        var valid = tokens.length >= 2 && tokens.every(function(t) { return t.length >= 2; });
+
+        var hint = document.getElementById('fr-search-hint');
+        if (!valid) {
+            if (hint) {
+                hint.textContent = 'Enter first and last name (2+ letters each) to search BaseLodge.';
+                hint.style.display = '';
+            }
+            return;
+        }
+        if (hint) hint.style.display = 'none';
+
+        _frSearchQuery = q;
+        var gen = ++_frSearchGen;
+
+        var alphaList = document.getElementById('fr-alpha-list');
+        var globalResults = document.getElementById('fr-global-results');
+        var noResults = document.getElementById('fr-no-results');
+
+        if (alphaList) alphaList.style.display = 'none';
+        if (noResults) noResults.style.display = 'none';
+        if (globalResults) {
+            globalResults.style.display = '';
+            globalResults.innerHTML = '<p style="color:var(--bl-color-text-muted);font-size:14px;padding:16px 0 8px;">Searching\u2026</p>';
+        }
+
+        if (_frSearchController) _frSearchController.abort();
+        _frSearchController = new AbortController();
+
+        fetch('/api/users/search?q=' + encodeURIComponent(q), {
+            signal: _frSearchController.signal
+        })
+        .then(function(res) {
+            if (gen !== _frSearchGen) return null;
+            if (res.redirected || res.status === 401) throw { __auth__: true };
+            return res.json();
+        })
+        .then(function(data) {
+            if (data === null || gen !== _frSearchGen) return;
+            _frRenderGlobalResults(data);
+        })
+        .catch(function(err) {
+            if (gen !== _frSearchGen) return;
+            if (err && err.name === 'AbortError') return;
+            if (err && err.__auth__) {
+                window.location.href = '/login';
+                return;
+            }
+            var gr = document.getElementById('fr-global-results');
+            if (gr) gr.innerHTML = '<p style="color:var(--bl-color-text-muted);font-size:14px;padding:16px 0 8px;">Search unavailable. Try again.</p>';
+        });
+    }
+
+    function _frExitGlobalSearch() {
+        _frSearchGen++;
+        if (_frSearchController) _frSearchController.abort();
+        _frSearchController = null;
+        _frSearchQuery = '';
+        var alphaList = document.getElementById('fr-alpha-list');
+        var globalResults = document.getElementById('fr-global-results');
+        var noResults = document.getElementById('fr-no-results');
+        var hint = document.getElementById('fr-search-hint');
+        if (alphaList) alphaList.style.display = '';
+        if (globalResults) { globalResults.style.display = 'none'; globalResults.innerHTML = ''; }
+        if (noResults) noResults.style.display = 'none';
+        if (hint) hint.style.display = 'none';
+        // Re-apply client-side filter for whatever is still in the input
+        var cur = (document.getElementById('fr-search').value || '');
+        if (!cur) searchFriends('');
+    }
+
+    function _frRefreshSearch() {
+        if (!_frSearchQuery) return;
+        var q = _frSearchQuery;
+        var gen = ++_frSearchGen;
+
+        if (_frSearchController) _frSearchController.abort();
+        _frSearchController = new AbortController();
+
+        fetch('/api/users/search?q=' + encodeURIComponent(q), {
+            signal: _frSearchController.signal
+        })
+        .then(function(res) {
+            if (gen !== _frSearchGen) return null;
+            return res.json();
+        })
+        .then(function(data) {
+            if (data === null || gen !== _frSearchGen) return;
+            _frRenderGlobalResults(data);
+        })
+        .catch(function() {});
+    }
+
+    function _frRenderGlobalResults(results) {
+        var globalResults = document.getElementById('fr-global-results');
+        if (!globalResults) return;
+
+        if (!results || !results.length) {
+            globalResults.innerHTML = '<p style="color:var(--bl-color-text-muted);font-size:14px;padding:16px 0 8px;">No members found.</p>';
+            return;
+        }
+
+        var html = '';
+        results.forEach(function(u) {
+            var displayName = u.first_name + (u.last_name ? ' ' + u.last_name : '');
+            var metaText = u.home_state ? '\u00b7 ' + u.home_state : '';
+            var mutualHtml = u.mutual_count > 0
+                ? _frEsc(u.mutual_count + ' mutual friend' + (u.mutual_count !== 1 ? 's' : ''))
+                : '&nbsp;';
+            var actionHtml = _frActionHtml(u);
+
+            html += '<div class="fr-global-row" id="fr-gr-' + u.id + '"'
+                + ' data-uid="' + u.id + '"'
+                + ' data-inv="' + (u.invitation_id || '') + '"'
+                + ' data-state="' + u.relationship_state + '">';
+            html += '<div class="fr-global-row-main">';
+            html += '<div class="fr-global-name">'
+                + '<strong>' + _frEsc(displayName) + '</strong>'
+                + (metaText ? ' <span class="fr-global-meta">' + _frEsc(metaText) + '</span>' : '')
+                + '</div>';
+            html += '<div class="fr-global-action">' + actionHtml + '</div>';
+            html += '</div>';
+            html += '<div class="fr-global-mutual">' + mutualHtml + '</div>';
+            html += '</div>';
+        });
+
+        globalResults.innerHTML = html;
+    }
+
+    function _frActionHtml(u) {
+        var state = u.relationship_state;
+        var uid = u.id;
+        var invId = u.invitation_id;
+
+        if (state === 'friend') {
+            return '<span class="fr-action-connected">Connected</span>';
+        } else if (state === 'outgoing') {
+            return '<button class="fr-action-btn fr-action-requested"'
+                + ' onclick="_frCancelRequest(' + uid + ',' + invId + ',this)">Requested</button>';
+        } else if (state === 'incoming') {
+            return '<button class="fr-action-btn fr-action-accept"'
+                + ' onclick="_frAcceptRequest(' + uid + ',' + invId + ',this)">Accept</button>';
+        } else if (state === 'cooldown') {
+            return '';
+        } else {
+            return '<button class="fr-action-btn fr-action-connect"'
+                + ' onclick="_frConnect(' + uid + ',this)">Connect</button>';
+        }
+    }
+
+    function _frEsc(s) {
+        return ('' + (s || ''))
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    var _frCsrf = {{ csrf_token() | tojson }};
+
+    function _frConnect(uid, btn) {
+        var row = document.getElementById('fr-gr-' + uid);
+        var name = '';
+        if (row) {
+            var nameEl = row.querySelector('.fr-global-name strong');
+            if (nameEl) name = nameEl.textContent;
+        }
+        if (!confirm('Send a connection request to ' + (name || 'this person') + '?')) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Sending\u2026'; }
+
+        fetch('/api/users/' + uid + '/connect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _frCsrf }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var invId = data.invitation_id;
+                if (row) {
+                    row.dataset.state = 'outgoing';
+                    row.dataset.inv = invId;
+                    var actionDiv = row.querySelector('.fr-global-action');
+                    if (actionDiv) {
+                        actionDiv.innerHTML = '<button class="fr-action-btn fr-action-requested"'
+                            + ' onclick="_frCancelRequest(' + uid + ',' + invId + ',this)">Requested</button>';
+                    }
+                }
+            } else if (data.code === 'INCOMING_PENDING') {
+                _frRefreshSearch();
+            } else {
+                if (btn) { btn.disabled = false; btn.textContent = 'Connect'; }
+                alert(data.error || 'Could not send request. Try again.');
+            }
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = 'Connect'; }
+        });
+    }
+
+    function _frAcceptRequest(uid, invId, btn) {
+        if (btn) { btn.disabled = true; btn.textContent = 'Accepting\u2026'; }
+
+        fetch('/api/friends/invite/' + invId + '/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _frCsrf }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                // 1. Immediately swap accepted row to Connected
+                var row = document.getElementById('fr-gr-' + uid);
+                if (row) {
+                    row.dataset.state = 'friend';
+                    var actionDiv = row.querySelector('.fr-global-action');
+                    if (actionDiv) actionDiv.innerHTML = '<span class="fr-action-connected">Connected</span>';
+                }
+                // 2. Re-run current search to refresh all mutual counts and states
+                _frRefreshSearch();
+            } else {
+                if (btn) { btn.disabled = false; btn.textContent = 'Accept'; }
+            }
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = 'Accept'; }
+        });
+    }
+
+    function _frCancelRequest(uid, invId, btn) {
+        if (!confirm('Cancel this connection request?')) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Cancelling\u2026'; }
+
+        fetch('/api/friends/invite/' + invId, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': _frCsrf }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data.success) {
+                var row = document.getElementById('fr-gr-' + uid);
+                if (row) {
+                    row.dataset.state = 'cooldown';
+                    var actionDiv = row.querySelector('.fr-global-action');
+                    if (actionDiv) actionDiv.innerHTML = '';
+                }
+            } else {
+                if (btn) { btn.disabled = false; btn.textContent = 'Requested'; }
+            }
+        })
+        .catch(function() {
+            if (btn) { btn.disabled = false; btn.textContent = 'Requested'; }
+        });
     }
 
     // ── Accept / Decline friend requests ──────────────────────────────────

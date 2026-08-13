@@ -189,6 +189,11 @@ class User(UserMixin, db.Model):
     previous_pass = db.Column(db.String(100), nullable=True)  # Pass held last season
     password_changed_at = db.Column(db.DateTime, nullable=True)  # Set on every successful password change/reset
 
+    # Friend discovery (2026)
+    discoverable_in_friend_search = db.Column(db.Boolean, default=True, nullable=False, server_default='true')
+    search_first_name = db.Column(db.String(120), nullable=True)  # normalized form of first_name for search; never displayed
+    search_last_name = db.Column(db.String(120), nullable=True)   # normalized form of last_name for search; never displayed
+
     trips = db.relationship('SkiTrip', foreign_keys='SkiTrip.user_id', backref='user', lazy=True)
     friend_requests_sent = db.relationship('Invitation', foreign_keys='Invitation.sender_id', backref='sender', lazy=True)
     friend_requests_received = db.relationship('Invitation', foreign_keys='Invitation.receiver_id', backref='receiver', lazy=True)
@@ -993,6 +998,28 @@ class Invitation(db.Model):
 
     def __repr__(self):
         return f'<Invitation {self.invite_type.value} from {self.sender_id} to {self.receiver_id} trip={self.trip_id}>'
+
+
+class FriendCooldown(db.Model):
+    """Pair-specific cooldown preventing friend requests after decline / cancel / unfriend.
+
+    Canonical pair: user_a_id = min(uid1, uid2), user_b_id = max(uid1, uid2).
+    One row per user pair; expiry is checked at read time against expires_at.
+    A stale row (expires_at in the past) is treated as no cooldown.
+    """
+    __tablename__ = 'friend_cooldown'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_a_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_b_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_a_id', 'user_b_id', name='uq_friend_cooldown_pair'),
+    )
+
+    def __repr__(self):
+        return f'<FriendCooldown {self.user_a_id}<->{self.user_b_id} until={self.expires_at}>'
 
 
 class InviteToken(db.Model):

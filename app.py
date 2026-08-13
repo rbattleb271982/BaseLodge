@@ -95,7 +95,8 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown
+from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.message_events import create_message_event, is_duplicate_event, should_retry
@@ -2239,6 +2240,105 @@ if not _SKIP_STARTUP_MIGRATIONS:
     run_ski_trip_planning_post_migration()
 
 
+_FRIEND_DISCOVERY_ALEMBIC_REV = '3a7f1c9e2b4d'
+
+
+def run_friend_discovery_migration():
+    """Add friend-discovery columns + friend_cooldown table (idempotent).
+
+    Applies DDL using IF NOT EXISTS so it is safe whether or not the Alembic
+    migration (revision 3a7f1c9e2b4d) has been run separately.  The two
+    approaches are complementary and safe to run in either order:
+      - Fresh deployment: run `flask db upgrade` first (or alongside) to apply
+        the Alembic migration and advance the revision chain; startup migration
+        is a no-op on the schema (IF NOT EXISTS guards) and never touches
+        alembic_version.
+      - Legacy Supabase deployment: startup migration applies schema at boot;
+        run `flask db stamp 3a7f1c9e2b4d` once to align Alembic state.
+
+    Constraint names match the Alembic migration exactly:
+      uq_friend_cooldown_pair, ck_friend_cooldown_order
+    """
+    try:
+        with app.app_context():
+            conn = db.engine.connect()
+            trans = conn.begin()
+            try:
+                conn.execute(db.text(
+                    'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS '
+                    'discoverable_in_friend_search BOOLEAN NOT NULL DEFAULT TRUE'
+                ))
+                conn.execute(db.text(
+                    'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS '
+                    'search_first_name VARCHAR(120)'
+                ))
+                conn.execute(db.text(
+                    'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS '
+                    'search_last_name VARCHAR(120)'
+                ))
+                conn.execute(db.text('''
+                    CREATE TABLE IF NOT EXISTS friend_cooldown (
+                        id SERIAL PRIMARY KEY,
+                        user_a_id INTEGER NOT NULL
+                            REFERENCES "user"(id) ON DELETE CASCADE,
+                        user_b_id INTEGER NOT NULL
+                            REFERENCES "user"(id) ON DELETE CASCADE,
+                        expires_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                        CONSTRAINT uq_friend_cooldown_pair
+                            UNIQUE (user_a_id, user_b_id),
+                        CONSTRAINT ck_friend_cooldown_order
+                            CHECK (user_a_id < user_b_id)
+                    )
+                '''))
+                conn.execute(db.text(
+                    'CREATE INDEX IF NOT EXISTS ix_friend_cooldown_user_a '
+                    'ON friend_cooldown (user_a_id)'
+                ))
+                conn.execute(db.text(
+                    'CREATE INDEX IF NOT EXISTS ix_friend_cooldown_user_b '
+                    'ON friend_cooldown (user_b_id)'
+                ))
+                conn.execute(db.text(
+                    'CREATE INDEX IF NOT EXISTS ix_user_search_first_name '
+                    'ON "user" (search_first_name varchar_pattern_ops)'
+                ))
+                conn.execute(db.text(
+                    'CREATE INDEX IF NOT EXISTS ix_user_search_last_name '
+                    'ON "user" (search_last_name varchar_pattern_ops)'
+                ))
+                # NOTE: alembic_version is intentionally NOT touched here.
+                # Use `flask db upgrade` or `flask db stamp 3a7f1c9e2b4d` to
+                # align Alembic revision state after deploying.
+                trans.commit()
+            except Exception as inner_e:
+                trans.rollback()
+                print(f'friend_discovery_migration inner error (rolled back): {inner_e}')
+                conn.close()
+                return
+            finally:
+                conn.close()
+
+            # Backfill search columns for existing users (outside the DDL tx)
+            backfilled = 0
+            for _u in User.query.filter(
+                db.or_(
+                    User.search_first_name.is_(None),
+                    User.search_last_name.is_(None),
+                )
+            ).all():
+                _u.search_first_name = normalize_for_search(_u.first_name or '')
+                _u.search_last_name  = normalize_for_search(_u.last_name  or '')
+                backfilled += 1
+            if backfilled:
+                db.session.commit()
+            print(f'friend_discovery_migration: ready (backfilled={backfilled}).')
+    except Exception as e:
+        print(f'friend_discovery_migration: skipped ({e})')
+
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_friend_discovery_migration()
+
+
 def run_participant_pass_migration():
     """
     Phase 1 / My Setup personal pass.
@@ -3465,6 +3565,8 @@ def auth():
                 auth_provider="email",
                 buddy_passes_available=True,
                 created_at=datetime.utcnow(),
+                search_first_name=normalize_for_search(first_name),
+                search_last_name=normalize_for_search(last_name),
             )
             new_user.set_password(password)
             
@@ -4189,6 +4291,9 @@ def edit_profile():
             user.first_name = new_first
         if new_last:
             user.last_name = new_last
+        # Keep normalized search columns in sync with display name
+        user.search_first_name = normalize_for_search(user.first_name or '')
+        user.search_last_name = normalize_for_search(user.last_name or '')
 
         user.gender = request.form.get("gender") or None
         birth_year_raw = request.form.get("birth_year")
@@ -4207,6 +4312,7 @@ def edit_profile():
         _old_pass_ep = user.pass_type  # capture before overwrite for change detection
         user.pass_type = normalized_passes
         user.home_state = request.form.get("home_state") or None
+        user.discoverable_in_friend_search = request.form.get('discoverable_in_friend_search') == '1'
         # Clear skill_level only for Social-only users, otherwise use form value
         is_social_only = rider_types == ["Social"]
         user.skill_level = None if is_social_only else (request.form.get("skill_level") or None)
@@ -5800,66 +5906,184 @@ def api_invite_share():
         return jsonify({"ok": True})  # always 200 — never block the share UX
 
 
+# ── Friend-request helpers ─────────────────────────────────────────────────────
+
+def _set_pair_cooldown(uid1, uid2, hours=24):
+    """Upsert a pair-specific friend-request cooldown between two users.
+
+    Canonical pair uses min/max so the same row covers both directions.
+    Does NOT commit — caller is responsible for committing.
+    """
+    a, b = min(uid1, uid2), max(uid1, uid2)
+    expires = datetime.utcnow() + timedelta(hours=hours)
+    cooldown = FriendCooldown.query.filter_by(user_a_id=a, user_b_id=b).first()
+    if cooldown:
+        cooldown.expires_at = expires
+    else:
+        db.session.add(FriendCooldown(user_a_id=a, user_b_id=b, expires_at=expires))
+
+
+def create_friend_request(actor_id, target_id):
+    """Shared helper: create a friend request from actor → target.
+
+    Enforces all guards: self-request, existing friendship, duplicate outgoing,
+    incoming pending (which the UI should show as Accept), and pair cooldown.
+
+    Returns dict with keys:
+        ok           (bool)
+        code         (str) — SUCCESS | SELF | ALREADY_FRIENDS | OUTGOING_PENDING
+                             | INCOMING_PENDING | COOLDOWN | ERROR
+        invitation_id (int | None)
+    """
+    if actor_id == target_id:
+        return {'ok': False, 'code': 'SELF', 'invitation_id': None}
+
+    # Already confirmed friends?
+    if Friend.query.filter_by(user_id=actor_id, friend_id=target_id).first():
+        return {'ok': False, 'code': 'ALREADY_FRIENDS', 'invitation_id': None}
+
+    # Existing outgoing pending request from actor → target (friend-only, not trip)?
+    existing_out = Invitation.query.filter_by(
+        sender_id=actor_id, receiver_id=target_id, status='pending'
+    ).filter(Invitation.trip_id.is_(None)).first()
+    if existing_out:
+        return {'ok': False, 'code': 'OUTGOING_PENDING', 'invitation_id': existing_out.id}
+
+    # Existing incoming pending request from target → actor?
+    existing_in = Invitation.query.filter_by(
+        sender_id=target_id, receiver_id=actor_id, status='pending'
+    ).filter(Invitation.trip_id.is_(None)).first()
+    if existing_in:
+        return {'ok': False, 'code': 'INCOMING_PENDING', 'invitation_id': existing_in.id}
+
+    # Pair cooldown?
+    a, b = min(actor_id, target_id), max(actor_id, target_id)
+    cooldown = FriendCooldown.query.filter_by(user_a_id=a, user_b_id=b).first()
+    if cooldown and cooldown.expires_at > datetime.utcnow():
+        return {'ok': False, 'code': 'COOLDOWN', 'invitation_id': None}
+
+    try:
+        invitation = Invitation(
+            sender_id=actor_id,
+            receiver_id=target_id,
+            status='pending',
+            invite_type=InviteType.OUTBOUND,
+        )
+        db.session.add(invitation)
+        db.session.flush()  # get invitation.id before emitting event
+
+        actor = db.session.get(User, actor_id)
+        emit_messaging_event(
+            event_name=EventName.FRIEND_REQUEST_CREATED,
+            actor_user_id=actor_id,
+            recipient_user_id=target_id,
+            entity_type='user',
+            entity_id=target_id,
+            metadata={
+                'actor_name':    (actor.first_name if actor else '') or '',
+                'invitation_id': invitation.id,
+                'user_id':       actor_id,
+            },
+            source_route='create_friend_request',
+        )
+        db.session.commit()
+        return {'ok': True, 'code': 'SUCCESS', 'invitation_id': invitation.id}
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('create_friend_request failed actor=%s target=%s', actor_id, target_id)
+        return {'ok': False, 'code': 'ERROR', 'invitation_id': None}
+
+
 @app.route("/api/friends/invite", methods=["POST"])
 @login_required
 @limiter.limit("20 per hour", key_func=_user_or_ip)
 def invite_friend():
+    """Email-based friend invite (legacy path). Resolves email → user ID then
+    delegates to create_friend_request()."""
     validate_csrf_request()
-    # Authentication guard (already protected by @login_required)
     if not current_user.is_authenticated:
         abort(401)
-    
-    # Safe form data handling
+
     data = request.get_json() or {}
     friend_email = data.get("friend_email")
-    
+
     if not friend_email:
         return jsonify({"success": False, "error": "Friend email is required"}), 400
-    
-    # Validate target user exists
+
     friend = User.query.filter_by(email=friend_email).first()
     if not friend:
         return jsonify({"success": False, "error": "User not found"}), 404
-    
-    if friend.id == current_user.id:
+
+    result = create_friend_request(current_user.id, friend.id)
+    code = result['code']
+
+    if result['ok']:
+        return jsonify({"success": True, "message": "Invitation sent"}), 201
+    if code == 'SELF':
         return jsonify({"success": False, "error": "Cannot add yourself as a friend"}), 400
-    
-    # Prevent duplicate friendships
-    existing_friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend.id).first()
-    if existing_friendship:
+    if code == 'ALREADY_FRIENDS':
         return jsonify({"success": False, "error": "Already friends"}), 409
-    
-    # Prevent duplicate invites
-    existing_invitation = Invitation.query.filter_by(sender_id=current_user.id, receiver_id=friend.id, status='pending').first()
-    if existing_invitation:
+    if code in ('OUTGOING_PENDING',):
         return jsonify({"success": False, "error": "Invitation already sent"}), 409
-    
-    # Database write safety
-    try:
-        invitation = Invitation(sender_id=current_user.id, receiver_id=friend.id, status='pending')
-        db.session.add(invitation)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.exception("Invite failed")
-        return jsonify({"success": False, "error": "Invite failed"}), 500
+    if code == 'INCOMING_PENDING':
+        return jsonify({"success": False, "error": "Invitation already sent"}), 409
+    if code == 'COOLDOWN':
+        return jsonify({"success": False, "error": "Request not available right now"}), 429
+    return jsonify({"success": False, "error": "Invite failed"}), 500
 
-    # ── B1: friend.request.created — routed through centralized dispatch ──
-    emit_messaging_event(
-        event_name=EventName.FRIEND_REQUEST_CREATED,
-        actor_user_id=current_user.id,
-        recipient_user_id=friend.id,
-        entity_type="user",
-        entity_id=friend.id,
-        metadata={
-            "actor_name":    current_user.first_name or current_user.username,
-            "invitation_id": invitation.id,
-            "user_id":       current_user.id,
-        },
-        source_route="invite_friend",
-    )
 
-    return jsonify({"success": True, "message": "Invitation sent"}), 201
+@app.route("/api/users/<int:user_id>/connect", methods=["POST"])
+@login_required
+@limiter.limit("20 per hour", key_func=_user_or_ip)
+def user_connect(user_id):
+    """Send a friend request by user ID (global search path).
+
+    Enforces target discoverability server-side so knowing a numeric ID does
+    not bypass the privacy setting.  Narrow exceptions that mirror the search
+    visibility logic:
+      • Already confirmed friends (state-only check; handled by create_friend_request)
+      • Target has sent the current user a pending friend request (incoming)
+        — in this case the right action is Accept, not Connect, but we surface
+        the INCOMING_PENDING code so the client can redirect appropriately.
+    """
+    validate_csrf_request()
+    target = db.session.get(User, user_id)
+    if not target:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    # Enforce discoverability unless an exception applies.
+    if not target.discoverable_in_friend_search:
+        # Exception 1: already confirmed friends (create_friend_request handles this)
+        is_friend = Friend.query.filter_by(
+            user_id=current_user.id, friend_id=user_id
+        ).first()
+        # Exception 2: target sent current user a pending request
+        incoming = Invitation.query.filter_by(
+            sender_id=user_id, receiver_id=current_user.id, status='pending'
+        ).filter(Invitation.trip_id.is_(None)).first()
+
+        if not is_friend and not incoming:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    result = create_friend_request(current_user.id, user_id)
+    code = result['code']
+
+    if result['ok']:
+        return jsonify({'success': True, 'invitation_id': result['invitation_id']}), 201
+    if code == 'SELF':
+        return jsonify({'success': False, 'error': 'Cannot connect with yourself'}), 400
+    if code in ('ALREADY_FRIENDS', 'OUTGOING_PENDING'):
+        return jsonify({'success': False, 'error': 'Already connected or pending', 'code': code}), 409
+    if code == 'INCOMING_PENDING':
+        return jsonify({
+            'success': False,
+            'error': 'Incoming request pending',
+            'code': code,
+            'invitation_id': result['invitation_id'],
+        }), 409
+    if code == 'COOLDOWN':
+        return jsonify({'success': False, 'error': 'Request not available right now', 'code': code}), 429
+    return jsonify({'success': False, 'error': 'Request failed'}), 500
 
 @app.route("/api/friends", methods=["GET"])
 @login_required
@@ -5914,10 +6138,16 @@ def accept_invitation(invitation_id):
     if invitation.receiver_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
 
-    # Guard: declined invitations cannot be accepted. Blocks the direct-API edge
-    # case where a receiver declines via the UI and then calls accept on the same
-    # invitation ID. Only 'pending' invitations may proceed to accept.
-    if invitation.status == 'declined':
+    # Guard: only friend invitations (trip_id IS NULL) may be accepted here.
+    # Trip join requests use a separate flow and must not create Friend rows.
+    if invitation.trip_id is not None:
+        return jsonify({"success": False, "error": "Not a friend invitation"}), 400
+
+    # Guard: only 'pending' (or already-'accepted') invitations may proceed.
+    # Rejecting 'cancelled' here is critical: the sender withdrew the request
+    # and a 24-hour pair cooldown was set; allowing acceptance would bypass it.
+    # 'declined' is also blocked — a rejected invite must be re-sent.
+    if invitation.status not in ('pending', 'accepted'):
         return jsonify({"success": False, "error": "This invitation is no longer active"}), 409
 
     # Idempotency: if users are already friends (double-tap, retry, or QR path raced ahead),
@@ -5980,12 +6210,45 @@ def decline_invitation(invitation_id):
     if invitation.status != 'pending':
         return jsonify({"success": True, "message": "Already resolved"}), 200
     invitation.status = 'declined'
+    # Only set a friend-pair cooldown for friend invitations (trip_id IS NULL).
+    # Trip join-request declines must not impose a social reconnect cooldown.
+    if invitation.trip_id is None:
+        _set_pair_cooldown(invitation.sender_id, current_user.id)
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
         return jsonify({"success": False, "error": "Could not decline"}), 500
     return jsonify({"success": True, "message": "Invitation declined"}), 200
+
+
+@app.route("/api/friends/invite/<int:invitation_id>", methods=["DELETE"])
+@login_required
+def cancel_friend_invite(invitation_id):
+    """Cancel an outgoing pending friend request (sender only). Sets a 24h cooldown.
+
+    Scoped to friend invitations only (trip_id IS NULL).  Trip join requests
+    are managed through the trip workflow and must not be cancelled here.
+    """
+    validate_csrf_request()
+    invitation = db.session.get(Invitation, invitation_id)
+    if not invitation:
+        return jsonify({"success": False, "error": "Invitation not found"}), 404
+    if invitation.sender_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    # Enforce scope: only friend invitations (no trip) may be cancelled here
+    if invitation.trip_id is not None:
+        return jsonify({"success": False, "error": "Not a friend invitation"}), 400
+    if invitation.status != 'pending':
+        return jsonify({"success": False, "error": "Invitation is not pending"}), 409
+    invitation.status = 'cancelled'
+    _set_pair_cooldown(current_user.id, invitation.receiver_id)
+    try:
+        db.session.commit()
+        return jsonify({"success": True}), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "Could not cancel"}), 500
 
 
 @app.route("/api/friends/<int:friend_id>", methods=["DELETE"])
@@ -6028,6 +6291,9 @@ def remove_friend(friend_id):
     for _tok in InviteToken.query.filter_by(inviter_id=current_user.id).all():
         if not _tok.is_used() and not _tok.is_expired():
             _tok.expires_at = _now
+
+    # 24-hour cooldown so neither user can immediately re-request
+    _set_pair_cooldown(current_user.id, friend_id)
 
     db.session.commit()
 
@@ -7914,6 +8180,167 @@ def pass_category(pass_type):
         return "Ikon"
     return "Other"
 
+@app.route("/api/users/search")
+@login_required
+@limiter.limit("60 per hour", key_func=_user_or_ip)
+def user_search():
+    """Global registered-user name search for friend discovery.
+
+    GET /api/users/search?q=<name>
+
+    Requires ≥2 whitespace-separated tokens each ≥2 chars.
+    Returns JSON array of up to 50 result objects:
+      id, first_name, last_name, home_state, mutual_count,
+      relationship_state (friend|outgoing|incoming|cooldown|none),
+      invitation_id (int or null — set for outgoing/incoming states)
+    """
+    from sqlalchemy import or_, func
+
+    q_raw = (request.args.get('q') or '').strip()
+
+    # Validation: need ≥2 tokens each ≥2 chars
+    raw_tokens = q_raw.split()
+    if len(raw_tokens) < 2 or any(len(t) < 2 for t in raw_tokens):
+        return jsonify({'error': 'insufficient_query'}), 400
+
+    normalized_q = normalize_for_search(q_raw)
+    name_clauses = build_name_search_clauses(
+        normalized_q, User.search_first_name, User.search_last_name
+    )
+    if not name_clauses:
+        return jsonify({'error': 'insufficient_query'}), 400
+
+    now = datetime.utcnow()
+    current_uid = current_user.id
+
+    # ── Pre-fetch relationship context (all in 4 indexed queries) ─────────────
+    my_friend_ids = {
+        r.friend_id for r in Friend.query.filter_by(user_id=current_uid).all()
+    }
+
+    _out_rows = (
+        Invitation.query
+        .filter_by(sender_id=current_uid, status='pending')
+        .filter(Invitation.trip_id.is_(None))
+        .all()
+    )
+    my_outgoing = {r.receiver_id: r.id for r in _out_rows}  # {target_uid: inv_id}
+
+    _in_rows = (
+        Invitation.query
+        .filter_by(receiver_id=current_uid, status='pending')
+        .filter(Invitation.trip_id.is_(None))
+        .all()
+    )
+    my_incoming = {r.sender_id: r.id for r in _in_rows}  # {sender_uid: inv_id}
+
+    my_cooldown_set = set()
+    for c in FriendCooldown.query.filter(
+        FriendCooldown.user_a_id == current_uid,
+        FriendCooldown.expires_at > now,
+    ).all():
+        my_cooldown_set.add(c.user_b_id)
+    for c in FriendCooldown.query.filter(
+        FriendCooldown.user_b_id == current_uid,
+        FriendCooldown.expires_at > now,
+    ).all():
+        my_cooldown_set.add(c.user_a_id)
+
+    # ── Visibility filter ──────────────────────────────────────────────────────
+    # discoverable OR existing friend OR candidate sent me a pending request
+    visibility_conds = [User.discoverable_in_friend_search == True]  # noqa: E712
+    if my_friend_ids:
+        visibility_conds.append(User.id.in_(list(my_friend_ids)))
+    if my_incoming:
+        visibility_conds.append(User.id.in_(list(my_incoming.keys())))
+    visibility_filter = or_(*visibility_conds)
+
+    # ── Name filter (OR of partition clauses) ─────────────────────────────────
+    name_filter = or_(*name_clauses)
+
+    # Fetch the full eligible set (no SQL limit) so Python ranking can select
+    # the best 50 from all matches rather than an arbitrary DB-chosen subset.
+    # The result set is bounded by the name-prefix filter; for common first+last
+    # name combinations this could be a few hundred rows at most.
+    candidates = (
+        User.query
+        .filter(User.id != current_uid)
+        .filter(visibility_filter)
+        .filter(name_filter)
+        .all()
+    )
+
+    if not candidates:
+        return jsonify([]), 200
+
+    candidate_ids = [u.id for u in candidates]
+
+    # ── Batch mutual-friend count ──────────────────────────────────────────────
+    # COUNT of friends-of-current-user who are also friends of each candidate.
+    mutual_counts = {}
+    if candidate_ids and my_friend_ids:
+        f1 = db.aliased(Friend)
+        f2 = db.aliased(Friend)
+        rows = (
+            db.session.query(f2.friend_id, func.count().label('cnt'))
+            .join(f1, f1.friend_id == f2.user_id)
+            .filter(f1.user_id == current_uid)
+            .filter(f2.friend_id.in_(candidate_ids))
+            .group_by(f2.friend_id)
+            .all()
+        )
+        for cid, cnt in rows:
+            mutual_counts[cid] = cnt
+
+    # ── Score: rank by best prefix-match length, then mutual count ────────────
+    # Sort the full eligible set in Python, THEN take the top 50, so ranking
+    # is applied across all matches rather than an arbitrary DB-chosen subset.
+    norm_tokens = normalized_q.split()
+
+    def _score(u):
+        fn = u.search_first_name or ''
+        ln = u.search_last_name or ''
+        best = 0
+        for i in range(1, len(norm_tokens)):
+            fp = ' '.join(norm_tokens[:i])
+            lp = ' '.join(norm_tokens[i:])
+            if fn.startswith(fp) and ln.startswith(lp):
+                s = len(fp) + len(lp)
+                if s > best:
+                    best = s
+        return (-best, -(mutual_counts.get(u.id, 0)))
+
+    candidates.sort(key=_score)
+    candidates = candidates[:50]  # cap after ranking so best matches win
+
+    # ── Build response ─────────────────────────────────────────────────────────
+    result = []
+    for u in candidates:
+        uid = u.id
+        if uid in my_friend_ids:
+            state, inv_id = 'friend', None
+        elif uid in my_outgoing:
+            state, inv_id = 'outgoing', my_outgoing[uid]
+        elif uid in my_incoming:
+            state, inv_id = 'incoming', my_incoming[uid]
+        elif uid in my_cooldown_set:
+            state, inv_id = 'cooldown', None
+        else:
+            state, inv_id = 'none', None
+
+        result.append({
+            'id':                 uid,
+            'first_name':         u.first_name,
+            'last_name':          u.last_name,
+            'home_state':         u.home_state,
+            'mutual_count':       mutual_counts.get(uid, 0),
+            'relationship_state': state,
+            'invitation_id':      inv_id,
+        })
+
+    return jsonify(result), 200
+
+
 @app.route("/friends")
 @login_required
 def friends():
@@ -8529,6 +8956,9 @@ def remove_friend_web(friend_id):
     for _tok in InviteToken.query.filter_by(inviter_id=current_user.id).all():
         if not _tok.is_used() and not _tok.is_expired():
             _tok.expires_at = _now
+
+    # 24-hour cooldown so neither user can immediately re-request via search
+    _set_pair_cooldown(current_user.id, friend_id)
 
     db.session.commit()
 
@@ -13033,14 +13463,17 @@ def auth_google_callback():
             db.session.commit()
         else:
             _is_new_google_user = True
+            _goog_fname = given_name or email.split("@")[0]
             user = User(
                 email=email,
-                first_name=given_name or email.split("@")[0],
+                first_name=_goog_fname,
                 last_name=family_name,
                 auth_provider="google",
                 provider_id=sub,
                 buddy_passes_available=True,
                 created_at=datetime.utcnow(),
+                search_first_name=normalize_for_search(_goog_fname),
+                search_last_name=normalize_for_search(family_name or ''),
             )
             db.session.add(user)
             db.session.commit()
