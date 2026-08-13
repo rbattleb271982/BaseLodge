@@ -1,0 +1,192 @@
+# Task — Remove Confirmed Duplicate Resort Records
+
+We have completed a read-only dependency audit of the BaseLodge production database.
+
+There are 10 confirmed duplicate Resort records that should now be removed.
+
+IMPORTANT: This task involves production database writes. Before making any write, perform the final verification described below. Do not make any changes until the verification passes.
+
+## Canonical mappings
+
+Delete the duplicate ID and retain the canonical ID:
+
+- 385 → 814 — Sölden
+- 738 → 811 — Hörnerbahn
+- 399 → 776 — Sierra Nevada
+- 173 → 812 — Méribel
+- 175 → 815 — Val d'Isère
+- 425 → 813 — Sälen
+- 460 → 224 — Mt. Abram
+- 703 → 302 — Bluewood
+- 759 → 424 — Hemsedal
+- 758 → 423 — Trysil
+
+## Critical decision regarding Mt. Abram
+
+Do NOT migrate the `resort_pass` row with:
+
+resort_id = 460
+pass_name = 'Other'
+
+to canonical resort 224.
+
+`Other` is not a meaningful pass brand for this purpose. Allow the duplicate's `Other` row to be removed with the duplicate Resort record.
+
+Do NOT create an `Other` row for resort 224.
+
+## Val d'Isère
+
+Duplicate resort 175 has:
+
+resort_pass:
+resort_id = 175
+pass_name = 'Ikon'
+
+Canonical resort 815 already has:
+
+resort_id = 815
+pass_name = 'Ikon'
+
+Do NOT create another Ikon row.
+
+The duplicate 175 resort_pass row may be deleted/cascaded when resort 175 is deleted. Canonical 815's Ikon mapping must remain untouched.
+
+---
+
+# PHASE 1 — FINAL READ-ONLY SAFETY CHECK
+
+Immediately before any write, run SELECT queries confirming that none of the 10 duplicate Resort IDs are currently referenced by:
+
+1. `ski_trip.resort_id`
+2. `user.home_resort_id`
+3. `mountain_page_view.resort_id`
+4. `user.visited_resort_ids`
+5. `user.wish_list_resorts`
+
+Also inspect `resort_pass` for the 10 duplicate IDs.
+
+Expected result:
+
+- 0 ski_trip references
+- 0 user.home_resort_id references
+- 0 mountain_page_view references
+- 0 visited_resort_ids references
+- 0 wish_list_resorts references
+
+For resort_pass, the only expected rows are:
+
+- resort 175 → Ikon
+- resort 460 → Other
+
+If any unexpected dependency exists, STOP. Do not write anything.
+
+If any new user/trip reference has appeared since the previous audit, STOP and report it.
+
+Do not rely only on the previous audit because new records could have been created since then.
+
+---
+
+# PHASE 2 — VERIFY CANONICAL RECORDS
+
+Before deletion, SELECT all 20 Resort IDs involved and confirm:
+
+- each canonical record exists
+- each duplicate record exists
+- names/geography match the intended mapping
+- canonical and duplicate records are not reversed
+
+STOP if anything differs from the expected mappings.
+
+---
+
+# PHASE 3 — DELETE DUPLICATES
+
+Only after Phase 1 and Phase 2 pass:
+
+Delete the 10 duplicate Resort rows:
+
+385
+738
+399
+173
+175
+425
+460
+703
+759
+758
+
+Use a single database transaction.
+
+Do not modify any canonical Resort records.
+
+Do not modify user records.
+
+Do not modify trips.
+
+Do not modify visited/wishlist JSON.
+
+Do not modify resort names, geography, slugs, or pass mappings on canonical records.
+
+The only expected child-row deletion is through the existing `resort_pass.resort_id ON DELETE CASCADE` relationship:
+
+- ID 175's duplicate Ikon row will disappear.
+- ID 460's Other row will disappear.
+
+No canonical resort_pass rows should be changed or deleted.
+
+---
+
+# PHASE 4 — POST-DELETE VERIFICATION
+
+After the transaction completes, run SELECT queries confirming:
+
+1. All 10 duplicate Resort IDs no longer exist.
+2. All 10 canonical Resort IDs still exist.
+3. Canonical 815 still has `Ikon`.
+4. Canonical 224 does NOT have an `Other` row.
+5. No user visited/wishlist references were changed.
+6. No ski_trip references were changed.
+7. No user.home_resort_id references were changed.
+8. No mountain_page_view references were changed.
+9. Total Resort count decreased by exactly 10.
+10. No duplicate names remain for these 10 cases.
+
+Also rerun the duplicate-name audit from the previous investigation to confirm that the confirmed duplicate pairs are gone.
+
+---
+
+# REPORT
+
+Return a concise implementation report containing:
+
+### Before
+- Resort count
+- References found immediately before deletion
+- Resort_pass rows involved
+
+### Deleted
+| Duplicate ID | Canonical ID | Resort | Result |
+|---|---:|---|---|
+
+### Preserved
+Confirm that all canonical Resort records remain intact.
+
+### Post-delete verification
+- Duplicate IDs remaining: 0
+- Canonical IDs remaining: 10
+- Unexpected references: 0
+- Canonical Ikon mapping for Val d'Isère: preserved
+- `Other` mapping for Mt. Abram: removed
+- Resort count reduction: exactly 10
+
+### Safety
+Confirm:
+- no user data changed
+- no trip data changed
+- no wishlist/visited data changed
+- no canonical Resort records changed
+
+Do not publish, push, or make unrelated code changes.
+
+If any safety check fails, STOP before making any database write.

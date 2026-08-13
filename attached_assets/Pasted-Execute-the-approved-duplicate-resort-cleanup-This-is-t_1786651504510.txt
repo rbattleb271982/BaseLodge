@@ -1,0 +1,61 @@
+Execute the approved duplicate-resort cleanup.
+
+This is the implementation step following the completed read-only dependency audit. Do not repeat the planning/audit phase unless a safety check fails.
+
+DELETE these 10 confirmed duplicate Resort records:
+
+- 385 → keep 814 — Sölden
+- 738 → keep 811 — Hörnerbahn
+- 399 → keep 776 — Sierra Nevada
+- 173 → keep 812 — Méribel
+- 175 → keep 815 — Val d'Isère
+- 425 → keep 813 — Sälen
+- 460 → keep 224 — Mt. Abram
+- 703 → keep 302 — Bluewood
+- 759 → keep 424 — Hemsedal
+- 758 → keep 423 — Trysil
+
+Before writing anything, perform ONLY the final safety SELECTs:
+
+1. Confirm all 10 duplicate IDs still have zero references in:
+   - ski_trip.resort_id
+   - user.home_resort_id
+   - mountain_page_view.resort_id
+   - user.visited_resort_ids
+   - user.wish_list_resorts
+
+2. Confirm all 10 canonical IDs still exist.
+
+3. Confirm:
+   - Resort 175 has its duplicate Ikon resort_pass row.
+   - Resort 815 already has Ikon.
+   - Resort 460 has the Other resort_pass row.
+   - Resort 224 does NOT have Other.
+
+If any unexpected reference exists or any canonical record is missing, STOP and make no changes.
+
+If all checks pass:
+
+- Delete the 10 duplicate Resort rows in a single database transaction.
+- Do NOT update or delete any canonical Resort records.
+- Do NOT create an Other pass row for Mt. Abram.
+- Do NOT migrate the duplicate Val d'Isère Ikon row to 815. It should disappear with Resort 175; 815's existing Ikon row must remain.
+- Allow the existing resort_pass CASCADE to remove child rows belonging to the deleted duplicates.
+- Make no unrelated database changes.
+
+After the transaction, verify:
+
+- All 10 duplicate IDs are gone.
+- All 10 canonical IDs remain.
+- Resort 815 still has Ikon.
+- Resort 224 has no Other row.
+- No user, trip, wishlist, visited, or mountain-page-view data was changed.
+- Resort count decreased by exactly 10.
+- The duplicate resort-name pairs are no longer present.
+
+Return a concise report with the before/after counts and verification results.
+
+Do not change code.
+Do not publish.
+Do not push to GitHub.
+Do not modify secrets.
