@@ -1,0 +1,94 @@
+We completed a UX/UI audit of BaseLodge against iOS, Android, accessibility, and general mobile UX standards.
+
+For this task, investigate the following four findings against the **current production codebase**.
+
+**DO NOT CHANGE ANY CODE. DO NOT IMPLEMENT ANY FIXES. DO NOT PUBLISH OR DEPLOY.**
+
+The purpose of this task is to independently verify the findings, identify the complete scope of each issue, and recommend the safest implementation.
+
+### Finding 11 — Muted text contrast
+
+The audit identified hardcoded `#8A857A` text, particularly in Trip Detail and Profile, that measures approximately 3.26:1 against BaseLodge cream `#F5F1E8`, below WCAG AA for normal-sized text.
+
+The audit recommends replacing inappropriate uses with existing BaseLodge colors such as:
+
+* `var(--bl-color-text-muted)` / `#57534A`
+* potentially existing `#6B665A` where a lighter secondary hierarchy is appropriate
+
+Investigate:
+
+* Every current use of `#8A857A`
+* Backgrounds on which it appears
+* Font sizes/weights involved
+* Whether each use actually fails applicable contrast requirements
+* Whether `--bl-color-text-muted` is the correct replacement everywhere or whether some uses require another existing BaseLodge token
+* Any visual or functional side effects
+
+Do not introduce new palette colors.
+
+### Finding 12 — Auth inactive-tab contrast
+
+The audit identified `.auth-tab` inactive text using `#9A8F82` on `#EDE9E1`, approximately 2.62:1.
+
+Investigate:
+
+* Confirm the current values
+* Confirm the contrast issue
+* Determine the appropriate existing BaseLodge token/value to use instead
+* Confirm that active/inactive hierarchy will remain visually obvious
+
+Do not redesign the auth tabs.
+
+### Finding 13 — Chevron and dismiss-control contrast
+
+The audit identified several functional affordances using low opacity, including:
+
+* `.profile-row-chevron`
+* `.hc-dismiss-x`
+* `.hc-idea-dismiss`
+* `.bl-opp-dismiss`
+* `.bl-happening-dismiss`
+
+Investigate every relevant occurrence.
+
+Determine:
+
+* Effective contrast against its actual background
+* Whether each element communicates functionality and therefore needs non-text contrast treatment
+* Which existing BaseLodge color/token should be used
+* Whether opacity can simply be removed/reduced without changing the intended visual hierarchy
+
+The goal is to improve accessibility without making these controls visually dominant.
+
+### Finding 15 — Duplicate primary bordeaux
+
+The audit identified:
+
+* `var(--bl-color-primary)` = `#5C1219`
+* `.bl-cta-trip` hardcoded to `#5C1A1B`
+
+Investigate whether this discrepancy still exists and whether there are any other near-duplicate primary bordeaux values being used for equivalent primary actions.
+
+The intended BaseLodge primary color remains `var(--bl-color-primary)`. Do not change the BaseLodge palette.
+
+### Required return
+
+For **each finding**, report:
+
+1. **VERIFIED / PARTIALLY VERIFIED / NOT VERIFIED**
+2. Exact files/classes/selectors affected
+3. Every relevant occurrence found
+4. Current value/behavior
+5. Recommended value/change
+6. Why the recommendation is appropriate
+7. Any potential regressions or visual side effects
+8. Tests that should be added or updated
+9. Whether the change can safely be made independently or has dependencies on another audit finding
+
+Then provide a proposed **Batch 1 implementation plan** showing exactly what would change if approved.
+
+Again:
+
+**DO NOT CHANGE CODE.**
+
+Wait for explicit approval before implementing anything.
