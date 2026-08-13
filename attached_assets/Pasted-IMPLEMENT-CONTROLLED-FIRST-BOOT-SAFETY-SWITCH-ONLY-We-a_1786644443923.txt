@@ -1,0 +1,60 @@
+IMPLEMENT CONTROLLED-FIRST-BOOT SAFETY SWITCH ONLY
+We are preparing to reconnect BaseLodge to the recovered Supabase database.
+The startup migration audit found that BaseLodge automatically runs 20 migration functions every time app.py starts. Most are safe/idempotent, but run_ghost_user_cleanup_migration() executes DELETE operations against friend and invitation, so we do not want any startup migrations running during the first recovered-database boot.
+AUTHORIZED CHANGE
+Modify app.py only.
+Add support for an environment variable:
+BASELODGE_SKIP_STARTUP_MIGRATIONS
+When:
+BASELODGE_SKIP_STARTUP_MIGRATIONS=1
+BaseLodge must skip all 20 automatic module-level startup migration calls.
+When the variable is absent, empty, or not "1", BaseLodge must behave exactly as it does today and run all 20 migrations normally.
+IMPLEMENTATION REQUIREMENTS
+Define a single boolean near the startup migration block, based on:
+os.environ.get("BASELODGE_SKIP_STARTUP_MIGRATIONS") == "1"
+Wrap the execution/call sites only for all 20 startup migrations.
+Do not remove or alter the migration function definitions.
+When skipping, none of the 20 migration functions may execute.
+Do NOT suppress unrelated read-only startup behavior such as:
+get_ambiguous_resort_names(...)
+or read-only startup diagnostics unless they are inside the same migration block and require separation.
+Add a clear startup log message when migrations are skipped, for example:
+STARTUP MIGRATIONS: SKIPPED via BASELODGE_SKIP_STARTUP_MIGRATIONS=1
+Do not print Secrets or database URLs.
+Add a normal log message when migrations are enabled if useful, but keep the change minimal.
+ABSOLUTE SCOPE
+Do NOT modify:
+any migration function body
+tests/
+models.py
+Supabase configuration
+Replit Secrets
+SUPABASE_DATABASE_URL
+RECOVERED_SUPABASE_DATABASE_URL
+deployment configuration
+any other file
+DO NOT RUN ANYTHING
+After editing app.py:
+DO NOT start BaseLodge.
+DO NOT run pytest.
+DO NOT import app.py for verification.
+DO NOT run migrations.
+DO NOT execute SQL.
+DO NOT connect to either Supabase database.
+DO NOT change any Secret.
+DO NOT deploy or publish.
+DO NOT commit or push.
+AFTER IMPLEMENTATION
+STOP and return:
+Exact file changed.
+Exact code added.
+Exact 20 migration call sites now protected.
+Confirmation migration function bodies were unchanged.
+Confirmation the default behavior remains unchanged when the variable is not "1".
+Confirmation BASELODGE_SKIP_STARTUP_MIGRATIONS=1 skips all 20 calls.
+Confirmation read-only startup behavior remains enabled.
+Confirmation no tests were run.
+Confirmation BaseLodge was not started.
+Confirmation neither Supabase database was accessed.
+Confirmation no Secrets were changed.
+Do not proceed beyond this code change. Wait for approval.

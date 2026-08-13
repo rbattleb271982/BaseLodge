@@ -1474,7 +1474,13 @@ def run_equipment_migration():
         print(f"equipment_migration: skipped ({e})")
 
 
-run_equipment_migration()
+# ── Startup migration safety switch ───────────────────────────────────────────
+_SKIP_STARTUP_MIGRATIONS = os.environ.get("BASELODGE_SKIP_STARTUP_MIGRATIONS") == "1"
+if _SKIP_STARTUP_MIGRATIONS:
+    print("STARTUP MIGRATIONS: SKIPPED via BASELODGE_SKIP_STARTUP_MIGRATIONS=1")
+
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_equipment_migration()
 
 
 def run_push_token_migration():
@@ -1512,7 +1518,8 @@ def run_push_token_migration():
         print(f"push_token_migration: skipped ({e})")
 
 
-run_push_token_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_push_token_migration()
 
 
 def run_batch_trip_migration():
@@ -1542,7 +1549,8 @@ def run_batch_trip_migration():
         print(f"batch_trip_migration: skipped ({e})")
 
 
-run_batch_trip_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_batch_trip_migration()
 
 
 def run_push_notif_pref_migration():
@@ -1572,7 +1580,8 @@ def run_push_notif_pref_migration():
         print(f"push_notif_pref_migration: skipped ({e})")
 
 
-run_push_notif_pref_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_push_notif_pref_migration()
 
 
 def run_message_event_log_migration():
@@ -1624,7 +1633,8 @@ def run_message_event_log_migration():
         print(f"message_event_log_migration: skipped ({e})")
 
 
-run_message_event_log_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_message_event_log_migration()
 
 
 def run_mel_dedupe_index_migration():
@@ -1672,7 +1682,8 @@ def run_mel_dedupe_index_migration():
         print(f"mel_dedupe_index_migration: skipped ({e})")
 
 
-run_mel_dedupe_index_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_mel_dedupe_index_migration()
 
 
 def run_deploy_b_schema_migration():
@@ -1717,7 +1728,8 @@ def run_deploy_b_schema_migration():
         print(f"deploy_b_schema_migration: skipped ({e})")
 
 
-run_deploy_b_schema_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_deploy_b_schema_migration()
 
 
 def run_ghost_user_cleanup_migration():
@@ -1760,7 +1772,8 @@ def run_ghost_user_cleanup_migration():
         print(f"ghost_user_cleanup_migration: ERROR — {e}")
 
 
-run_ghost_user_cleanup_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_ghost_user_cleanup_migration()
 
 
 def run_ski_trip_updated_at_migration():
@@ -1779,7 +1792,8 @@ def run_ski_trip_updated_at_migration():
     except Exception as e:
         print(f"ski_trip_updated_at_migration: skipped ({e})")
 
-run_ski_trip_updated_at_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_ski_trip_updated_at_migration()
 
 
 def run_trip_invite_token_migration():
@@ -1813,7 +1827,8 @@ def run_trip_invite_token_migration():
     except Exception as e:
         print(f"trip_invite_token_migration: skipped ({e})")
 
-run_trip_invite_token_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_trip_invite_token_migration()
 
 
 def run_pass_system_expansion_migration():
@@ -1887,7 +1902,8 @@ def run_pass_system_expansion_migration():
         print(f"pass_system_expansion_migration: skipped ({e})")
 
 
-run_pass_system_expansion_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_pass_system_expansion_migration()
 
 
 # ============================================================================
@@ -1924,7 +1940,8 @@ def run_mountain_page_view_migration():
         print(f"mountain_page_view_migration: skipped ({e})")
 
 
-run_mountain_page_view_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_mountain_page_view_migration()
 
 
 # ============================================================================
@@ -2011,7 +2028,8 @@ def run_rider_type_normalization_migration():
     except Exception as e:
         print(f"rider_type_normalization_migration: skipped ({e})")
 
-run_rider_type_normalization_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_rider_type_normalization_migration()
 
 
 # ============================================================================
@@ -2051,7 +2069,8 @@ def _run_app_store_metric_migration():
     except Exception as _e:
         print(f"app_store_metric_migration: skipped ({_e})")
 
-_run_app_store_metric_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    _run_app_store_metric_migration()
 
 
 def _run_invite_share_event_migration():
@@ -2085,7 +2104,8 @@ def _run_invite_share_event_migration():
     except Exception as _e:
         print(f"invite_share_event_migration: skipped ({_e})")
 
-_run_invite_share_event_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    _run_invite_share_event_migration()
 
 
 # ============================================================================
@@ -2159,7 +2179,8 @@ def run_perf_index_migration():
         print(f"perf_index_migration: skipped ({_e})")
 
 
-run_perf_index_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_perf_index_migration()
 
 
 def run_ski_trip_notes_migration():
@@ -2178,7 +2199,8 @@ def run_ski_trip_notes_migration():
     except Exception as e:
         print(f"ski_trip_notes_migration: skipped ({e})")
 
-run_ski_trip_notes_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_ski_trip_notes_migration()
 
 
 def run_ski_trip_planning_post_migration():
@@ -2213,7 +2235,8 @@ def run_ski_trip_planning_post_migration():
     except Exception as e:
         print(f"ski_trip_planning_post_migration: skipped ({e})")
 
-run_ski_trip_planning_post_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_ski_trip_planning_post_migration()
 
 
 def run_participant_pass_migration():
@@ -2261,7 +2284,8 @@ def run_participant_pass_migration():
     except Exception as e:
         print(f"participant_pass_migration: skipped ({e})")
 
-run_participant_pass_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_participant_pass_migration()
 
 
 def _run_pass_mapping_correction_migration():
@@ -2500,7 +2524,8 @@ def _run_pass_mapping_correction_migration():
             print(f"pass_mapping_migration: FAILED — {_e}")
 
 
-_run_pass_mapping_correction_migration()
+if not _SKIP_STARTUP_MIGRATIONS:
+    _run_pass_mapping_correction_migration()
 
 
 # ============================================================================
