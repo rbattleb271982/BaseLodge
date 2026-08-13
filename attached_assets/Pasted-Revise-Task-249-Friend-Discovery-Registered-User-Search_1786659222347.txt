@@ -1,0 +1,182 @@
+Revise **Task #249 — Friend Discovery: Registered-User Search** with only the two final plan corrections below.
+
+This is still a **planning task only**.
+
+Do not modify code.
+
+Do not create migrations.
+
+Do not add tests.
+
+Do not commit, push, publish, or deploy anything.
+
+The current revised plan is otherwise approved. Preserve the existing plan structure and all previously incorporated product decisions and corrections. Only make the two changes below and return the updated plan.
+
+## Final correction 1 — mutual counts after Accept
+
+The current plan says that after accepting an incoming request from global search, the UI should "re-fetch mutual counts for all visible cards" and suggests either reusing the search response or creating a lightweight mutual-count-only fetch.
+
+Do **not** introduce a separate mutual-count-only endpoint.
+
+Instead, after a successful Accept:
+
+1. Immediately update the accepted result from **Accept** → **Connected**.
+2. Re-run the **same current global search query** using the existing `GET /api/users/search?q=<name>` endpoint.
+3. Replace/update the currently visible global-search result data from that response.
+
+This refresh should update all relevant server-derived state together:
+
+* Mutual-friend counts
+* Relationship states
+* Discoverability eligibility
+* Cooldown state
+* Ranking/order if mutual counts changed
+* Any other search-result state returned by the endpoint
+
+Do not require a full page reload.
+
+Preserve the current search query and remain in global-search mode.
+
+This should remain protected against stale responses using the same AbortController/request-generation logic already planned.
+
+Update all relevant plan sections, including:
+
+* Mutual count refresh after Accept
+* Friends page JS behavior
+* Accept behavior
+* API usage
+* Tests
+
+No new endpoint should be added for mutual-count refresh.
+
+---
+
+## Final correction 2 — Unicode normalization beyond NFD
+
+The current plan describes `normalize_for_search()` as producing an "ASCII-safe" result by:
+
+1. Lowercasing
+2. Unicode NFD decomposition
+3. Removing combining marks
+4. Normalizing apostrophes/hyphens
+5. Collapsing whitespace
+
+That is incomplete.
+
+Unicode NFD + combining-mark removal correctly handles characters such as:
+
+* `é → e`
+* `ñ → n`
+* `ü → u`
+
+but it does **not** reliably transliterate all non-ASCII letters.
+
+For example:
+
+* `ø` does not simply decompose to `o` under basic NFD behavior.
+
+The revised plan must explicitly define how search normalization handles common Latin characters that do not decompose through NFD.
+
+At minimum investigate and plan explicit normalization/transliteration for characters such as:
+
+* `ø → o`
+* `Ø → o`
+* `ł → l`
+* `Ł → l`
+* `đ → d`
+* `Đ → d`
+* `ð → d`
+* `Ð → d`
+* `þ → th`
+* `Þ → th`
+* `æ → ae`
+* `Æ → ae`
+* `œ → oe`
+* `Œ → oe`
+* `ß → ss`
+
+Use the smallest reliable approach for BaseLodge.
+
+Options may include:
+
+* A small explicit translation map maintained inside `normalize_for_search()`
+* A standard-library-compatible transliteration approach if one already exists in the environment
+* Another lightweight existing dependency, but do not add a new dependency casually
+
+Prefer a simple explicit map if that cleanly satisfies the supported-name requirements.
+
+The resulting normalized search values should be deterministic and suitable for storing in:
+
+* `User.search_first_name`
+* `User.search_last_name`
+
+Original `first_name` and `last_name` values must remain untouched and must always be used for display.
+
+Examples that should work:
+
+`Jose Garcia`
+→ **José García**
+
+`Soren`
+→ **Søren**
+
+`Francois`
+→ **François**
+
+`Muller`
+→ **Müller**
+
+`Gross`
+→ a stored surname containing `ß` where the normalized form resolves appropriately
+
+`OConnor`
+→ **O'Connor**
+
+`Battle Baxter`
+→ **Battle-Baxter**
+
+Update the normalization tests accordingly.
+
+Do not claim that NFD alone makes the value ASCII-safe.
+
+The plan should explicitly document:
+
+* The normalization order
+* The special-character transliteration map/strategy
+* How punctuation normalization interacts with transliteration
+* How whitespace is normalized
+* How normalized fields are populated for new users
+* How they are updated when names change
+* How migration backfill uses exactly the same helper
+* How tests prove stored and query normalization produce identical output
+* That original display spelling remains unchanged
+
+---
+
+# Required output
+
+Return the full revised #249 plan, preserving all previously approved sections and corrections.
+
+Specifically update any affected sections involving:
+
+* Name normalization
+* Database search columns
+* Migration/backfill
+* Search tests
+* Friends page Accept behavior
+* Mutual count refresh behavior
+* Stale-result handling
+
+At the end, explicitly confirm:
+
+1. **No mutual-count-only endpoint is planned.**
+2. **Accept refreshes the current results by re-running the existing global search.**
+3. **Normalization handles non-NFD Latin characters such as `ø` explicitly.**
+4. **Original stored names remain unchanged for display.**
+5. **No code was changed.**
+6. **No migration was created.**
+7. **Nothing was committed, pushed, published, or deployed.**
+
+Again:
+
+**PLAN ONLY. DO NOT IMPLEMENT ANYTHING.**
