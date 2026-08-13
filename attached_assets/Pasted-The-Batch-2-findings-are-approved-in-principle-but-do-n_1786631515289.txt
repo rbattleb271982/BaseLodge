@@ -1,0 +1,56 @@
+The Batch 2 findings are approved in principle, but **do not change code yet**. Please refine the implementation plan before approval.
+
+### 1. Cross-platform target sizing
+
+Do not assume that 44×44px is automatically sufficient for Android simply because it is close to the Android 48dp recommendation.
+
+For each affected control, determine whether we can safely provide an approximately **48×48px interactive hit target** without materially changing BaseLodge's visual appearance or layout.
+
+Prefer 48×48 where practical so one implementation comfortably accommodates both iOS and Android.
+
+If a particular control should remain 44×44 rather than 48×48, explain why.
+
+### 2. `.td-success-close`
+
+The proposed change produces approximately 44×38px according to your own calculation, so it does not solve the vertical target-size issue.
+
+Revise this recommendation so the actual interactive target meets the selected cross-platform target on both axes without unnecessarily enlarging the visible × glyph or disrupting the success UI.
+
+### 3. Chips
+
+Re-evaluate:
+
+* `.bl-chip`
+* `.chip`
+
+We do **not** want to mechanically turn visually compact chips into visibly 44–48px-tall pills if an expanded interactive hit area can accomplish the accessibility objective while preserving the existing visual chip dimensions.
+
+Investigate whether pseudo-elements, transparent hit-area expansion, compensated padding/margins, or another safe CSS approach can enlarge the tappable area while keeping the visible chip substantially unchanged.
+
+Also account for adjacent chips: expanded invisible targets must **not overlap neighboring interactive targets**.
+
+Finding 16 chip/pill consolidation remains out of scope.
+
+### 4. Other controls
+
+For the remaining verified controls, revise the implementation dimensions around the selected cross-platform target where practical.
+
+Preserve:
+
+* Current typography
+* Visible glyph sizes
+* Existing component hierarchy
+* BaseLodge's visual density
+* Existing spacing wherever possible
+
+### 5. Controls recommended to remain unchanged
+
+Continue to leave the identified supplementary/contained controls unchanged for this batch. Do not expand scope to them.
+
+### Return
+
+Provide the revised exact implementation plan, including the **resulting estimated tappable width and height for every control being changed**.
+
+Flag any control where achieving the target would cause a meaningful visible or layout change.
+
+**DO NOT CHANGE CODE.**
