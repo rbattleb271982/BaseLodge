@@ -1,0 +1,77 @@
+PLAN MODE ONLY. SOURCE INSPECTION ONLY.
+The fixture-level destructive database bug in tests/test_profile_consolidation.py has now been fixed.
+DO NOT RUN PYTEST YET.
+Before any test execution, investigate the remaining import/collection-time database safety issue.
+Question to answer
+When I eventually run:
+pytest tests/test_profile_consolidation.py -v
+can pytest import/collection cause app.py to connect to, query, migrate, or otherwise access the real Supabase database before the repaired SQLite fixture executes?
+Determine this from source code only.
+Inspect
+Trace the exact startup sequence involving:
+tests/conftest.py
+tests/test_profile_consolidation.py
+app.py
+db.init_app(app)
+SQLALCHEMY_DATABASE_URI
+SUPABASE_DATABASE_URL
+all module-level/startup migration calls
+_swap_engine and other existing test isolation infrastructure
+Determine:
+What pytest loads first.
+Whether tests/conftest.py imports app before test modules are collected.
+What database configuration exists at that exact moment.
+Whether importing app.py causes any database operations.
+Exactly which startup migration functions execute at import time.
+Whether those functions can read from or write to Supabase.
+Whether any existing protection prevents that during pytest.
+Whether _swap_engine executes early enough to protect import-time startup, or only later when fixtures execute.
+Whether merely running pytest can therefore reach Supabase before any fixture starts.
+Required safety property
+Before we authorize pytest, I want a fail-closed guarantee that:
+From the moment pytest starts through test collection, fixture setup, test execution, and teardown, no test process can connect to either Supabase database or any external PostgreSQL database.
+If existing infrastructure already guarantees this, prove it from the source and recommend no unnecessary change.
+If it does NOT guarantee this, design the smallest test-only change necessary to establish that guarantee before app.py is imported.
+Prefer an architecture where the test process is forced onto SQLite before application import rather than relying on a later fixture swap.
+Also consider a fail-closed test-environment guard so that if a test process ever resolves a PostgreSQL/Supabase database URL, it aborts before database access.
+Do not change production application behavior.
+ABSOLUTE RESTRICTIONS
+DO NOT:
+modify files
+run pytest
+collect tests
+import app.py
+execute Python that imports BaseLodge
+start Flask
+start the application
+execute SQL
+connect to either Supabase database
+query either Supabase database
+run migrations
+run create_all
+run drop_all
+modify secrets
+modify database URLs
+deploy
+publish
+commit or push
+Static source inspection only.
+Return
+Give me:
+Exact pytest → conftest → app → test-module lifecycle.
+Whether Supabase is currently reachable during import/collection: YES or NO.
+Exact evidence supporting that answer.
+Every database operation that can happen before fixtures execute.
+Whether the existing test infrastructure protects that phase.
+If unsafe, the smallest proposed fix.
+Exact file(s) that would need to change.
+Exact proposed code.
+Why the proposed protection exists before app.py import, not afterward.
+How it fails closed if PostgreSQL/Supabase would otherwise be used.
+Whether, after that change, it would be safe to authorize the single command:
+pytest tests/test_profile_consolidation.py -v
+End with exactly one of:
+SAFE TO IMPLEMENT PROPOSED IMPORT-TIME GUARD
+or
+NO IMPORT-TIME CHANGE REQUIRED
+Do not implement anything. Stop after the report.
