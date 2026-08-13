@@ -1,0 +1,100 @@
+We are continuing the approved BaseLodge UX/UI audit work.
+
+For Batch 2, investigate **Finding 6 and Finding 7: mobile touch-target sizing** against the current production codebase.
+
+**DO NOT CHANGE ANY CODE. DO NOT IMPLEMENT ANY FIXES. DO NOT PUBLISH OR DEPLOY.**
+
+The goal is to independently verify Claude's findings and determine the safest implementation without unnecessarily changing BaseLodge's visual design or spacing.
+
+## Finding 6 — Dismiss controls
+
+The audit identified dismiss "×" controls that may fall below recommended mobile touch-target sizes, including:
+
+* `.bl-happening-dismiss`
+* `.bl-opp-dismiss`
+* `.hc-dismiss-x`
+* `.hc-idea-dismiss`
+
+The audit recommends standardizing the interactive target to approximately:
+
+* iOS: minimum 44×44pt
+* Android: minimum 48×48dp
+
+Important: we do **not** want the visible × glyph enlarged simply to achieve the target size. The goal is to enlarge the tappable area while preserving the existing visual treatment and card layout.
+
+Investigate:
+
+1. Every consumer-facing dismiss/close control in the current codebase, not just the four named above.
+2. Current visible dimensions and actual tappable dimensions.
+3. Which controls fall below relevant iOS, Android and WCAG target-size guidance.
+4. Whether increasing padding/minimum dimensions would alter card layout, alignment or spacing.
+5. Whether invisible/expanded hit areas can be used where appropriate.
+6. Whether iOS and Android actually require different implementations in our Capacitor architecture or whether one safe cross-platform target can be used.
+7. Whether any dismiss action is sufficiently consequential that Undo should be added.
+
+Do not automatically add Undo. Report where it would and would not make sense.
+
+## Finding 7 — Inline actions, buttons, chips and other interactive controls
+
+The audit specifically identified examples including:
+
+* `.td-edit-link`
+* `.home-match-primary`
+* `.fr-copy-link`
+* `.fr-show-qr-btn`
+* `.bl-btn-ghost`
+* `.bl-chip`
+* `.chip`
+
+However, do **not** assume every visually small control needs to become a visibly 44–48px-tall component.
+
+Inventory consumer-facing interactive controls whose actual tap area falls below appropriate mobile guidance.
+
+For each type, distinguish between:
+
+* Text links/actions
+* Buttons
+* Selection chips
+* Filter chips
+* Action pills
+* Inline controls
+* Controls contained within a larger tappable parent
+* Controls where sufficient spacing or equivalent targeting may satisfy applicable accessibility guidance
+
+Determine the safest way to enlarge the **interactive target** while preserving the current BaseLodge visual design and vertical rhythm.
+
+Where padding would visibly distort the interface, investigate approaches such as expanded invisible hit areas, pseudo-elements, or padding combined with compensating margins.
+
+Do **not** mechanically set every chip or inline action to `min-height: 44px`.
+
+## Important constraints
+
+* Preserve BaseLodge's current visual identity.
+* Do not enlarge typography as part of this task.
+* Do not redesign cards, chips or buttons.
+* Do not change navigation.
+* Do not modify unrelated spacing.
+* Do not combine this work with Finding 16's future chip/pill consolidation.
+* Finding 16 will be handled separately.
+* Existing controls that already satisfy the relevant guidance should remain untouched.
+
+## Required return
+
+For each finding report:
+
+1. **VERIFIED / PARTIALLY VERIFIED / NOT VERIFIED**
+2. Complete inventory of affected consumer-facing controls
+3. File, selector and approximate current target dimensions
+4. Applicable target-size requirement/guidance
+5. Recommended implementation for each control/type
+6. Whether the visible UI would change
+7. Potential layout/regression risks
+8. Whether any controls should explicitly remain unchanged
+9. Whether Undo is appropriate for any dismiss action and why
+10. Tests that should be added or updated
+
+Then provide a proposed **Batch 2 implementation plan** with the exact files/selectors that would change if approved.
+
+**DO NOT CHANGE CODE.**
+
+Wait for explicit approval before implementing anything.
