@@ -1,0 +1,98 @@
+# Task — Duplicate Resort Dependency Audit
+
+We have identified 10 confirmed duplicate Resort rows that are candidates for removal:
+
+385 → 814  Sölden
+738 → 811  Hörnerbahn
+399 → 776  Sierra Nevada
+173 → 812  Méribel
+175 → 815  Val d'Isère
+425 → 813  Sälen
+460 → 224  Mt. Abram
+703 → 302  Bluewood
+759 → 424  Hemsedal
+758 → 423  Trysil
+
+The first ID in each pair is the proposed duplicate to remove.
+The second ID is the canonical record to keep.
+
+BEFORE making any changes, perform a completely READ-ONLY dependency audit.
+
+IMPORTANT:
+- Do NOT delete anything.
+- Do NOT deactivate anything.
+- Do NOT UPDATE any records.
+- Do NOT migrate any references.
+- Do NOT modify code.
+- Do NOT modify the database schema.
+- Do NOT publish or push.
+- SELECT queries only.
+
+GOAL
+
+Determine every place in the database where any of the 10 duplicate Resort IDs are referenced, so we can safely migrate those references to the canonical Resort IDs before removing the duplicates.
+
+For each duplicate/canonical pair, check all relevant tables and relationships in the BaseLodge schema, including at minimum:
+
+- mountains visited / visited resort relationships
+- wishlist relationships
+- trip-related resort references
+- trip planning resort references
+- any participant/trip resort references
+- mountain page/view tracking if it references resort IDs
+- equipment or gear references if applicable
+- any other foreign-key or application-level reference to Resort.id
+
+Do not assume table names. Inspect the schema/model definitions and database foreign keys first.
+
+For every reference found, report:
+
+- table name
+- column name
+- duplicate resort ID
+- number of rows referencing it
+- whether the reference can safely be migrated to the canonical ID
+- whether a unique constraint could create a collision when migrated
+
+IMPORTANT COLLISION CHECK:
+
+For relationship tables such as visited/wishlist, check whether a user already has a relationship with BOTH:
+
+duplicate ID AND canonical ID.
+
+Example:
+
+User X → Mt. Abram ID 460
+User X → Mt. Abram ID 224
+
+If both exist, we must NOT blindly migrate because it could create a duplicate relationship.
+
+Also identify any direct foreign-key constraints that would prevent deletion.
+
+PAIR-BY-PAIR REPORT
+
+Produce a table like:
+
+| Duplicate | Canonical | Table | Column | References | Collision risk | Migration required |
+|---|---|---|---|---:|---|---|
+
+Then provide:
+
+### Safe to migrate
+Pairs where all references can be moved cleanly.
+
+### Collision cases
+Any users/records that already reference both IDs.
+
+### No references
+Pairs with zero dependent rows.
+
+### Deletion blockers
+Any foreign-key or application-level dependencies that require special handling.
+
+### Recommended migration order
+Explain exactly what should happen before the duplicate rows are removed.
+
+DO NOT MAKE ANY CHANGES.
+
+This is an investigation only. We will separately authorize the actual migration after reviewing the results.
