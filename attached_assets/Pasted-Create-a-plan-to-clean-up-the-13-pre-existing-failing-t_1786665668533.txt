@@ -1,0 +1,286 @@
+Create a plan to clean up the **13 pre-existing failing tests** in the BaseLodge full test suite.
+
+This is a **planning task only**.
+
+Do not modify code.
+
+Do not change tests.
+
+Do not change fixtures.
+
+Do not commit, push, publish, or deploy anything.
+
+Current authoritative full-suite result:
+
+* **267 tests collected**
+* **254 passed**
+* **13 failed**
+
+These 13 failures existed before the Friend Discovery profile-placement fix and are unrelated to #250.
+
+The failing groups are:
+
+### 1. `tests/test_profile_consolidation.py` — 6 failures
+
+Failing tests:
+
+* `test_profile_redirects`
+* `test_profile_post_redirects`
+* `test_edit_profile_save_redirects`
+* `test_no_profile_template_reference`
+* `test_trip_duration_display`
+* `test_no_redirect_to_old_profile`
+
+Current understanding:
+
+These appear to contain stale assertions from an older refactor where `/profile` was expected to redirect to `/more` and `profile.html` was expected to no longer be referenced.
+
+The current BaseLodge product clearly uses `/profile` as the main Profile/Account screen, including:
+
+* Account settings
+* Push notifications
+* Change password
+* Log out
+* Delete account
+* Friend Discovery
+
+Investigate whether these tests are obsolete and should be updated/removed, or whether any current behavior actually violates an intended architecture.
+
+Do not assume the tests are wrong until you inspect:
+
+* Current `/profile` route
+* Current `/more` route, if it still exists
+* Current templates
+* Current navigation
+* Any comments/docs/tests describing the intended consolidation behavior
+* Git history if available
+
+For each of the 6 tests determine:
+
+* What behavior it currently expects
+* What the app currently does
+* Which behavior is actually intended now
+* Whether the fix belongs in:
+
+  * test only
+  * application code
+  * both
+  * test removal
+
+---
+
+### 2. `tests/test_invite_cross_account.py` — 6 failures
+
+Failing tests:
+
+* `test_a`
+* `test_b`
+* `test_c`
+* `test_d`
+* `test_e`
+* `test_f`
+
+Current failure:
+
+`sqlalchemy.exc.OperationalError`
+
+Current understanding:
+
+Likely SQLite test-fixture/database setup issue.
+
+Investigate deeply.
+
+Determine:
+
+* Exact failing SQL/operation
+* Exact stack trace root cause
+* Whether tables are missing
+* Whether schema/migrations differ from the shared test fixture
+* Whether the test uses a different app/database setup than the rest of the suite
+* Whether foreign keys or transaction handling are involved
+* Whether `FriendCooldown`, Friend Discovery schema additions, or any newer models exposed an old fixture flaw
+* Whether the tests are valid but their fixture is broken
+* Whether the tests themselves are obsolete
+
+Compare this test file's setup to:
+
+* `tests/conftest.py`
+* Other tests that successfully use the in-memory SQLite database
+* Any helper that swaps Flask-SQLAlchemy engines
+* Current model metadata / `db.create_all()`
+* Migration assumptions
+
+The goal is to fix the **root fixture/setup issue**, not skip or delete valid cross-account coverage.
+
+For each of the 6 failures determine whether the correct fix is:
+
+* shared test fixture
+* local fixture in the file
+* model compatibility
+* test logic
+* application code
+* test removal
+
+---
+
+### 3. `tests/test_regression_guards.py` — 1 failure
+
+Failing test:
+
+`test_pass_display_override_does_not_mutate_normalize_pass`
+
+Current mismatch:
+
+Expected one pass label but actual value differs:
+
+* `'Ikon'`
+* `'Other pass'`
+
+Current understanding:
+
+This is related to Killington pass display/normalization behavior and predates Friend Discovery.
+
+Investigate:
+
+* Exact function under test
+* What `normalize_pass` is supposed to return
+* What display override logic is supposed to do
+* Killington's current pass mapping
+* Any recent corrections to Epic/Ikon/resort mappings
+* Whether the test expectation is stale
+* Whether the code has regressed
+* Whether display labeling and normalized canonical values are being conflated
+
+Do not change the pass mapping until the intended current behavior is clear.
+
+Determine whether the fix belongs in:
+
+* test expectation
+* display override
+* normalization logic
+* resort mapping data
+* migration/correction logic
+* another location
+
+---
+
+# Required investigation
+
+For every failing test:
+
+1. Run/read the exact assertion and stack trace.
+2. Inspect the relevant application code.
+3. Determine the intended current product behavior.
+4. Identify whether the failure indicates:
+
+   * stale test
+   * broken fixture
+   * actual regression
+   * obsolete test
+   * environment-specific issue
+5. Recommend the smallest correct fix.
+
+Do not simply make the suite green by weakening assertions, skipping tests, or deleting coverage without justification.
+
+---
+
+# Required output
+
+Return the plan in this structure:
+
+## 1. Executive Summary
+
+State:
+
+* Which failures are stale tests
+* Which are fixture/infrastructure failures
+* Which are actual product/code regressions
+* Overall implementation complexity
+
+## 2. Profile Consolidation Failures
+
+For each of the 6 tests use:
+
+| Test | Current expectation | Current app behavior | Intended behavior | Recommended fix |
+| ---- | ------------------- | -------------------- | ----------------- | --------------- |
+
+Then state whether `test_profile_consolidation.py` should be:
+
+* updated
+* partially rewritten
+* partially deleted
+* replaced
+* left intact with app changes
+
+## 3. Invite Cross-Account Failures
+
+Provide:
+
+* Exact root cause of the SQLite OperationalError
+* Why all 6 tests fail
+* Whether the shared test fixture is affected
+* Why other test files still pass
+* Smallest correct fix
+* Any risk of altering production code unnecessarily
+
+Use a table:
+
+| Test | Failure point | Root cause | Recommended fix |
+| ---- | ------------- | ---------- | --------------- |
+
+## 4. Killington Regression Guard
+
+Explain:
+
+* Intended canonical pass value
+* Intended display label
+* Current code path
+* Why the assertion fails
+* Whether test or code is wrong
+* Recommended fix
+
+## 5. Files That Would Change
+
+Use:
+
+| File | Planned change | Why |
+| ---- | -------------- | --- |
+
+Separate:
+
+* test-only changes
+* fixture changes
+* application changes
+
+## 6. Test Strategy
+
+After fixes, plan to run:
+
+1. The directly affected tests
+2. Relevant adjacent test files
+3. Friend Discovery 111 tests
+4. Full suite
+
+Expected final target:
+
+**267 passed, 0 failed**
+
+If any test should intentionally be removed or replaced, explain how the collected count changes and why.
+
+## 7. Implementation Order
+
+Give the safest sequence.
+
+## 8. Risks
+
+Only genuine risks.
+
+## 9. Final Recommendation
+
+Answer:
+
+**Can these 13 failures be cleaned up without changing the intended current BaseLodge product behavior?**
+
+Again:
+
+**PLAN ONLY. DO NOT CHANGE ANYTHING.**
