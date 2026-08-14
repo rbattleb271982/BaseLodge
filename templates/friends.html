@@ -1,7 +1,6 @@
 {% extends "base_app.html" %}
 {% block title %}BaseLodge — Friends{% endblock %}
 {% block topbar_title %}Friends{% endblock %}
-{% block topbar_right %}<a href="{{ url_for('invite') }}" class="bl-top-bar-action">Invite →</a>{% endblock %}
 {% block head %}
 <link rel="prefetch" href="{{ url_for('home') }}">
 <link rel="prefetch" href="{{ url_for('my_trips') }}">
@@ -20,9 +19,9 @@
         }
         .fr-header-row {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 14px;
         }
         .fr-invite-link {
             font-size: 13px;
@@ -394,7 +393,10 @@
         <!-- ══════════════════════════════════════════════════════════════
              EMPTY STATE — 0 friends
         ══════════════════════════════════════════════════════════════ -->
-        <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0 0 14px; line-height:1.45;">The people who make the season better.</p>
+        <div class="fr-header-row">
+            <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0; line-height:1.45; flex:1; min-width:0;">The people who make the season better.</p>
+            <a href="{{ url_for('invite') }}" class="fr-invite-link" style="margin-left:12px;">Invite →</a>
+        </div>
 
         <div class="fr-empty-section">
             <h2 class="fr-empty-headline">Add a friend</h2>
@@ -418,7 +420,10 @@
              POPULATED STATE — 1+ friends
         ══════════════════════════════════════════════════════════════ -->
 
-        <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0 0 14px; line-height:1.45;">The people who make the season better.</p>
+        <div class="fr-header-row">
+            <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0; line-height:1.45; flex:1; min-width:0;">The people who make the season better.</p>
+            <a href="{{ url_for('invite') }}" class="fr-invite-link" style="margin-left:12px;">Invite →</a>
+        </div>
 
         <div class="fr-search-wrap">
             <input type="search" class="bl-search-input" id="fr-search"

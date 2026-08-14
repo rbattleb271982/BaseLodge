@@ -1,0 +1,146 @@
+Update the **Friends page header layout** so it matches the header pattern used on the other primary BaseLodge tabs.
+
+This is a small UI-only change.
+
+Do not change backend logic, friend search behavior, Invite functionality, notifications, database models, routes, or tests unless a very small template regression test is needed.
+
+## Current inconsistency
+
+On the main tabs:
+
+* **Home** shows the circular RB/profile button in the top-right
+* **Trips** shows the circular RB/profile button in the top-right
+* **Mountains** shows the circular RB/profile button in the top-right
+* **Friends** currently uses that top-right position for **Invite →**, so the RB/profile button is missing
+
+This makes the Friends header inconsistent with the other primary tabs.
+
+## Required layout
+
+Change the Friends page to:
+
+### Top header row
+
+Left:
+
+**Friends**
+
+Right:
+
+The same circular **profile initials/avatar button** used on Trips and Mountains.
+
+Reuse the exact existing profile-button component/markup/styles if possible.
+
+Do not recreate a visually similar version if the existing pattern can be reused.
+
+### Second row
+
+Place the Friends subtitle and Invite action on the same horizontal row.
+
+Left:
+
+**The people who make the season better.**
+
+Right:
+
+**Invite →**
+
+Invite should be right-aligned.
+
+The intended visual structure is:
+
+`Friends                                      RB`
+
+`The people who make the season better.   Invite →`
+
+## Responsive behavior
+
+Preserve the current mobile-first layout.
+
+The subtitle should take the available space on the left and Invite should remain aligned to the right.
+
+Do not let Invite overlap the subtitle.
+
+If necessary:
+
+* use a flex row
+* allow the subtitle side to flex/shrink
+* keep Invite from wrapping unnecessarily
+
+At the normal BaseLodge mobile viewport, both should remain on the same row.
+
+Do not reduce the subtitle typography unless necessary.
+
+## Profile button behavior
+
+The RB/profile button on Friends must behave exactly like the profile button on the other primary tabs.
+
+Confirm:
+
+* same destination/action
+* same dimensions
+* same border
+* same initials
+* same spacing from the right edge
+* same vertical alignment
+
+## Invite behavior
+
+Do not change what **Invite →** does.
+
+Only move it from the top header row to the subtitle row.
+
+Its link/action must remain exactly the same.
+
+## Visual consistency
+
+Compare the resulting Friends header against:
+
+* Home
+* Trips
+* Mountains
+
+The top-level title/profile treatment should now be consistent across all four main tabs.
+
+Do not redesign any other part of the Friends screen.
+
+## Validation
+
+After the change, verify:
+
+1. Friends title remains left-aligned.
+2. RB/profile button appears in the upper-right.
+3. Profile button matches Trips/Mountains.
+4. `The people who make the season better.` remains directly below the header.
+5. `Invite →` appears on the same row as that sentence and is right-aligned.
+6. Invite still works.
+7. Profile button still works.
+8. Search friends field and all Friend Discovery behavior remain unchanged.
+9. No changes occur to Home, Trips, or Mountains.
+
+Run the relevant template/UI tests and the full suite if practical.
+
+## Final report
+
+Return:
+
+### Files changed
+
+### Exact header change
+
+### Profile-button reuse
+
+### Responsive behavior
+
+### Validation performed
+
+### Tests run/results
+
+### Git diff summary
+
+Confirm:
+
+* Nothing committed
+* Nothing pushed
+* Nothing published
+* Nothing deployed
