@@ -1,0 +1,507 @@
+We are working on BaseLodge task **BL-8: Finalize shareable winter profile card**.
+
+**IMPORTANT: PLANNING / INVESTIGATION ONLY.**
+
+Do not modify code.
+Do not create files.
+Do not commit, push, deploy, or publish anything.
+Do not implement the redesign yet.
+
+The complete specification and Option 4 visual reference are attached to BL-8 in Notion. I am also attaching the Option 4 screenshot to this prompt.
+
+Treat the **written BL-8 specification + attached Option 4 visual** as the design source of truth.
+
+Your previous investigation was directionally correct, but before implementation I want one final planning pass that resolves the remaining questions around:
+
+* season membership
+* fixed 4:5 behavior
+* density/layout behavior
+* no clipping
+* full-season trip history
+* scope protection
+
+# Core Product Requirement
+
+The Winter Card is a **shareable social artifact**, not a normal flexible-height content card.
+
+The final card must:
+
+* Maintain a **fixed 4:5 portrait aspect ratio**
+* Be visually equivalent to **1080 × 1350**
+* Keep BaseLodge branding inside the burgundy identity header
+* Show **every trip that belongs to the applicable BaseLodge season**
+* Include trips that have already happened within that season
+* Support trips in any month
+* Never assume skiing only happens November through April
+* Never silently hide or truncate trips
+* Never use internal scrolling
+* Never use `+N more`
+* Never grow beyond 4:5 as an escape hatch
+* Adapt typography, spacing, columns, and month grouping to fit the content
+
+The surrounding Season screen is **out of scope** except where technically required to support the card.
+
+# 1. Determine the Correct BaseLodge Season Logic
+
+Do **not** hard-code the season as November 1 through April 30.
+
+BaseLodge users may ski in:
+
+* October
+* May
+* summer glacier destinations
+* Southern Hemisphere seasons
+* other destinations with different ski calendars
+
+The card should show **all trips that belong to the applicable BaseLodge season**, regardless of month.
+
+Before recommending a query, inspect the codebase for any existing concept of:
+
+* season
+* season year
+* ski season
+* winter year
+* season boundaries
+* selected season
+* season labels
+* trip-to-season assignment
+* season start/end calculation
+* anything else used elsewhere to group trips into a ski season
+
+Search broadly. Do not assume `/season-snapshot` is the only implementation that deals with seasons.
+
+Report:
+
+1. Whether BaseLodge already has an explicit season concept.
+2. Every relevant helper, model field, route, template, or utility you find.
+3. Whether trips are already assignable to a particular season.
+4. Whether season membership is stored or inferred from dates.
+5. Whether there is already logic we can reuse rather than inventing another definition.
+
+## If an existing BaseLodge season definition exists
+
+Recommend reusing it.
+
+Explain exactly how `/season-snapshot` should use it.
+
+## If NO explicit season definition exists
+
+Do **not** arbitrarily invent Nov–Apr boundaries.
+
+Instead, recommend the smallest robust approach for defining a BaseLodge ski season.
+
+Consider whether the correct model should be something like an **annual season identity** such as:
+
+**2026/27**
+
+with trips assigned based on a consistent season-year rule rather than specific allowed months.
+
+If you recommend a date-based inference rule, explain how it handles:
+
+* October skiing
+* May skiing
+* June–September Southern Hemisphere skiing
+* trips that cross calendar years
+* trips that cross whatever season boundary you recommend
+* multiple ski trips in the same calendar year that may logically belong to different ski seasons
+
+The goal is not to solve global ski climatology. The goal is to establish a predictable BaseLodge product rule that does not accidentally exclude legitimate trips.
+
+Return a recommendation, but **do not implement it yet**.
+
+# 2. Full-Season History Requirement
+
+The Winter Card represents the user's **entire applicable season**, not merely upcoming trips.
+
+Once a trip belongs to the selected/applicable season, it should remain on that season's card after the trip ends.
+
+For example:
+
+If a user views their 2026/27 card in March 2027, their December 2026 and January 2027 trips should still appear.
+
+Therefore, the current:
+
+`end_date >= today`
+
+behavior is not appropriate for this card.
+
+Determine the exact query/data-selection change required once you have resolved season membership.
+
+The query must continue to support:
+
+* owned trips
+* accepted guest trips
+
+Also inspect how duplicates are currently prevented when combining owned and guest trips.
+
+Report how undated trips should behave if they cannot reliably be assigned to a season or month.
+
+Do not implement.
+
+# 3. Fixed 4:5 Is a Hard Constraint
+
+This is important.
+
+The **4:5 aspect ratio is a hard requirement**, not a minimum height and not merely a target.
+
+The card itself must remain a consistent Instagram-ready artifact.
+
+Do **not** propose:
+
+* letting the card grow taller
+* treating `aspect-ratio: 4/5` as only a minimum
+* `overflow: visible` as a way to escape the card boundary
+* clipping trips
+* internal scrolling
+* `+N more`
+* truncating destination names
+
+The implementation must satisfy both:
+
+**Fixed 4:5 card**
+and
+**Every trip visible**
+
+# 4. Revise the Density/Layout Algorithm to Guarantee Fit
+
+BL-8 currently defines these primary density tiers:
+
+### 1–3 trips
+
+* 1 column
+* Georgia destination typography
+* large editorial treatment
+
+### 4–7 trips
+
+* 1 column
+* Georgia destination typography
+* reduced scale
+
+### 8–11 trips
+
+* approximately 2 columns
+* system sans destinations
+* compact treatment
+
+### 12–15+ trips
+
+* up to 3 columns
+* system sans destinations
+* maximum-density treatment
+
+These are design tiers, but the actual implementation must be resilient enough to keep the fixed 4:5 constraint.
+
+Revisit the proposed algorithm and explain how it should respond when content is unusually dense.
+
+The system may progressively adjust:
+
+* destination font size
+* month font size
+* line height
+* row spacing
+* month-group spacing
+* column gaps
+* body padding
+* header spacing
+* header typography
+* number of columns within the approved 1–3 column framework
+
+Do not introduce a fourth column unless you believe it is absolutely necessary and can justify that against BL-8.
+
+# 5. Month Groups Are Preferred, Not Absolute
+
+Chronology remains:
+
+**top to bottom in column 1 → top to bottom in column 2 → top to bottom in column 3**
+
+Earlier trips must visually precede later trips.
+
+The preference is to keep a month group together.
+
+However, BL-8 says month groups should remain intact **whenever practical**.
+
+That means an entire month must **not** become an indivisible block if doing so causes the fixed 4:5 card to fail.
+
+For example:
+
+If someone has 10 trips in January and 5 trips in February, keeping all 10 January trips in one column may produce a terrible or impossible layout.
+
+The algorithm should be allowed to continue a month in the next column when necessary.
+
+If a month is split, determine how the month label should behave.
+
+Possible approaches might include:
+
+* repeat `JAN` at the top of the continuation
+* use a subtle continuation treatment
+* another clean approach consistent with the Option 4 visual system
+
+Recommend the simplest understandable treatment.
+
+# 6. Column Balancing
+
+Revisit your previous server-side column distribution proposal.
+
+The previous algorithm balanced based primarily on trip counts.
+
+That may not be sufficient because:
+
+* a month label consumes vertical space
+* long destinations may wrap
+* different months contain different trip counts
+* three pass names can increase header height
+* a long user's name can increase header height
+
+I do **not** want unnecessary JavaScript layout measurement if we can avoid it.
+
+Determine the smallest deterministic approach that will give us reliable layout behavior.
+
+Consider whether the server-side algorithm should use a simple **layout weight** rather than raw trip count.
+
+For example, a month group might have weight based on:
+
+* number of trips
+* month-label overhead
+* expected wrapping risk
+
+Do not overengineer this. I want a predictable implementation that can be tested.
+
+Explain your recommended algorithm clearly.
+
+# 7. Long Destination Names
+
+The requirement remains:
+
+1. Preserve consistent typography within a card whenever possible.
+2. Reduce font size through the density system before wrapping.
+3. Wrap when necessary.
+4. Never truncate.
+
+Use realistic examples:
+
+* Whistler Blackcomb
+* Park City Mountain
+* Aspen Snowmass
+* Shiga Kogen
+* Jackson Hole
+* Val d'Isère
+
+Determine whether `overflow-wrap: anywhere` is actually the right rule.
+
+Prefer natural word-boundary wrapping where possible. We should not split a normal word into arbitrary fragments unless there is genuinely no other way to fit it.
+
+Recommend the appropriate CSS behavior.
+
+# 8. Header Height Must Also Be Controlled
+
+The fixed 4:5 card means the header cannot simply grow without limit.
+
+The header needs to support:
+
+### User names
+
+* Amy
+* Richard
+* Christopher
+* Alexandra
+* longer realistic names
+
+### Pass states
+
+* 0 passes
+* 1 pass
+* 2 passes
+* 3 passes
+
+Examples:
+
+**SKIER · ADVANCED · IKON**
+
+or
+
+**SKIER · ADVANCED**
+**IKON · EPIC · MOUNTAIN COLLECTIVE**
+
+or
+
+**SKIER · ADVANCED**
+**NO PASS**
+
+Determine the adaptive rules for:
+
+* title sizing
+* title wrapping
+* metadata sizing
+* pass wrapping
+* header padding
+* vertical spacing
+
+The header should remain visually consistent with Option 4 and should not consume an unpredictable portion of the fixed-height card.
+
+# 9. Typography Must Follow BL-8
+
+Do not introduce new fonts.
+
+Use the existing BaseLodge typography system.
+
+### Georgia / serif
+
+* personalized headline
+* `in BaseLodge`
+* destination names at 1–7 trips
+
+### System sans-serif
+
+* skier/skill/pass metadata
+* month labels
+* destination names at 8+ trips
+
+Verify the actual existing variables/classes and recommend reuse.
+
+# 10. Surrounding Season Screen Is Out of Scope
+
+Do **not** remove or redesign:
+
+* `.ss-tagline`
+* `.ss-page`
+* navigation
+* topbar
+* bottom navigation
+* entry-point pill
+* other Season-screen copy
+
+unless a technical dependency absolutely requires it.
+
+The only current content explicitly removed **inside the card** is:
+
+**THIS WINTER / This Winter**
+
+because that identity is replaced by:
+
+**Richard's 2026/27 Winter**
+**SKIER · ADVANCED · IKON**
+**in BaseLodge**
+
+Do not expand BL-8 into a Season-screen redesign.
+
+# 11. Revalidate the Proposed File Scope
+
+Your previous recommendation was approximately:
+
+* `app.py`
+* `templates/season_snapshot.html`
+* new `tests/test_season_snapshot.py`
+
+Revalidate that after investigating season logic.
+
+If BaseLodge already has an existing season helper elsewhere, we should reuse it rather than duplicating logic in the route.
+
+List exactly which files you now believe would change.
+
+For each file, explain why.
+
+Do not change anything yet.
+
+# 12. Testing Strategy
+
+Update the testing plan to include the season behavior as well as layout/data behavior.
+
+At minimum, plan coverage for:
+
+### Season membership
+
+* past trip within current season remains visible
+* future trip within current season visible
+* trip outside applicable season excluded
+* accepted guest trip within season visible
+* October trip
+* May trip
+* Southern Hemisphere / summer-month trip if the selected season rule supports it
+
+### Card states
+
+* 0 trips
+* 1 trip / 0 passes
+* 1 trip / 1 pass
+* 3 trips / 1 pass
+* 5 trips
+* 8 trips / 2 passes
+* 10 trips
+* 15 trips / 3 passes
+
+### Stress states
+
+* 15 trips distributed across many months
+* 15 trips concentrated in 1–2 months
+* multiple destinations with long names
+* long user first name
+* 3 long pass names
+* multiple trips in the same month
+
+Separate what can be verified by automated Flask tests from what requires manual visual QA.
+
+# FINAL DELIVERABLE
+
+Return a **revised implementation plan only**.
+
+Structure it as:
+
+## 1. Existing BaseLodge Season Logic
+
+What you found in the codebase.
+
+## 2. Recommended Season Definition
+
+How BaseLodge should determine the applicable season and why.
+
+## 3. Revised Trip Query
+
+How owned and accepted guest trips should be selected for the full season.
+
+## 4. Fixed 4:5 Layout Strategy
+
+How the card remains exactly 4:5 under all supported states.
+
+## 5. Density & Typography Algorithm
+
+Exact logic for 1–3, 4–7, 8–11, and 12–15+ trips, including fallback compression.
+
+## 6. Column & Month Distribution Algorithm
+
+How chronology, balancing, and month splitting should work.
+
+## 7. Header Adaptation
+
+How names and 0–3 passes remain within the fixed header area.
+
+## 8. Long-Name Handling
+
+Destination and user-name behavior.
+
+## 9. Proposed File Changes
+
+Every file that would need modification.
+
+## 10. Testing & Manual QA Plan
+
+Automated and visual validation.
+
+## 11. Risks / Edge Cases
+
+Remaining concerns before implementation.
+
+## 12. Final Recommendation
+
+The smallest clean implementation you recommend.
+
+**STOP AFTER THE PLAN.**
+
+Do not modify code.
+Do not create files.
+Do not commit.
+Do not push.
+Do not deploy.
+Do not publish.
+
+I will explicitly approve implementation after reviewing this final plan.
