@@ -320,6 +320,60 @@
         font-size: 9.5px;
         margin-bottom: 1px;
     }
+
+    /* ── Share / save button ── */
+    .ss-actions {
+        width: calc(100% - 32px);
+        max-width: 440px;
+        margin-top: 16px;
+        display: flex;
+        gap: 10px;
+    }
+
+    .ss-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        height: 48px;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+        transition: opacity 0.15s;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+    .ss-btn:active { opacity: 0.72; }
+    .ss-btn:disabled { opacity: 0.5; cursor: default; }
+
+    .ss-btn-primary {
+        background: var(--bl-color-primary, #5C1219);
+        color: #F5F1E8;
+    }
+
+    /* Loading spinner inside button */
+    .ss-btn .ss-spinner {
+        display: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid rgba(245,241,232,0.35);
+        border-top-color: #F5F1E8;
+        border-radius: 50%;
+        animation: ss-spin 0.7s linear infinite;
+        flex-shrink: 0;
+    }
+    .ss-btn.is-loading .ss-spinner { display: block; }
+    .ss-btn.is-loading .ss-btn-icon { display: none; }
+    .ss-btn.is-loading .ss-btn-label { display: none; }
+
+    @keyframes ss-spin {
+        to { transform: rotate(360deg); }
+    }
 </style>
 {% endblock %}
 
@@ -418,6 +472,123 @@
     </div>
     <!-- end .ss-card -->
 
+    <!-- Share / save actions -->
+    <div class="ss-actions">
+        <button class="ss-btn ss-btn-primary" id="ss-share-btn" type="button" aria-label="Share or save season card">
+            <span class="ss-spinner" aria-hidden="true"></span>
+            <svg class="ss-btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+            </svg>
+            <span class="ss-btn-label">Share Card</span>
+        </button>
+    </div>
+
 </div>
 <!-- end .ss-page -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+    'use strict';
+
+    var btn = document.getElementById('ss-share-btn');
+    var card = document.querySelector('.ss-card');
+
+    if (!btn || !card) return;
+
+    btn.addEventListener('click', function () {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.classList.add('is-loading');
+
+        // Target export width 1080px (4:5 → 1350px tall).
+        // Compute scale so the canvas is always 1080px wide regardless of device.
+        var cardWidth = card.offsetWidth;
+        var scale = cardWidth > 0 ? (1080 / cardWidth) : 2.5;
+
+        html2canvas(card, {
+            scale: scale,
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: null,
+            logging: false,
+            // Ensure the capture includes the full card height
+            height: card.offsetHeight,
+            width: cardWidth,
+            scrollX: 0,
+            scrollY: 0,
+        }).then(function (canvas) {
+            canvas.toBlob(function (blob) {
+                if (!blob) {
+                    _fallbackDownload(canvas);
+                    _reset();
+                    return;
+                }
+
+                var filename = 'season-card.png';
+
+                // Try Web Share API (mobile browsers / PWA)
+                if (navigator.share && navigator.canShare) {
+                    var file = new File([blob], filename, { type: 'image/png' });
+                    if (navigator.canShare({ files: [file] })) {
+                        navigator.share({
+                            files: [file],
+                            title: 'My Season Card',
+                        }).then(function () {
+                            _reset();
+                        }).catch(function (err) {
+                            // User cancelled share — not an error
+                            if (err && err.name === 'AbortError') {
+                                _reset();
+                            } else {
+                                // Share failed — fall back to download
+                                _downloadBlob(blob, filename);
+                                _reset();
+                            }
+                        });
+                        return;
+                    }
+                }
+
+                // Fallback: direct PNG download
+                _downloadBlob(blob, filename);
+                _reset();
+
+            }, 'image/png');
+        }).catch(function (err) {
+            console.error('[ss] html2canvas error', err);
+            _reset();
+        });
+    });
+
+    function _downloadBlob(blob, filename) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 200);
+    }
+
+    function _fallbackDownload(canvas) {
+        var a = document.createElement('a');
+        a.download = 'season-card.png';
+        a.href = canvas.toDataURL('image/png');
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { document.body.removeChild(a); }, 200);
+    }
+
+    function _reset() {
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+    }
+}());
+</script>
 {% endblock %}
