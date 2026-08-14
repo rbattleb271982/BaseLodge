@@ -4,12 +4,9 @@
 {% block topbar_title %}Season{% endblock %}
 {% block head %}
 <style>
-    /* ── Page background — warm studio taupe ── */
-    body {
-        background: #EDE8DE;
-    }
+    body { background: #EDE8DE; }
 
-    /* ── Outer page wrapper ── */
+    /* ── Page wrapper ── */
     .ss-page {
         display: flex;
         flex-direction: column;
@@ -18,11 +15,11 @@
         padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 88px);
     }
 
-    /* ── Editorial tagline above card ── */
+    /* ── Editorial tagline — out of scope, preserved exactly ── */
     .ss-tagline {
         width: calc(100% - 32px);
         max-width: 440px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
         font-size: 12px;
         font-style: italic;
         font-weight: 400;
@@ -32,135 +29,134 @@
         margin-bottom: 12px;
     }
 
-    /* ── Poster card — grows with content ── */
+    /* ── Card shell — hard fixed 4:5 aspect ratio ── */
     .ss-card {
         width: calc(100% - 32px);
         max-width: 440px;
+        aspect-ratio: 4 / 5;
         border-radius: 18px;
-        overflow: visible;
+        overflow: hidden;
         box-shadow: 0 10px 44px rgba(36, 20, 12, 0.20);
         display: flex;
         flex-direction: column;
     }
 
-    /* ── Maroon header band ── */
+    /* ── Header — maroon band ── */
     .ss-header {
-        background: #5C1219;
+        background: var(--bl-color-primary, #5C1219);
         border-radius: 18px 18px 0 0;
-        padding: 22px 24px 18px;
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
     }
+
     .ss-title {
-        font-family: Georgia, 'Times New Roman', serif;
-        font-size: clamp(22px, 6.2vw, 30px);
+        font-family: var(--bl-font-serif, Georgia, 'Times New Roman', serif);
         font-weight: 400;
-        color: #F5F1E8;
+        color: var(--bl-color-bg, #F5F1E8);
         line-height: 1.15;
-        margin-bottom: 9px;
         letter-spacing: -0.2px;
-        white-space: nowrap;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+        margin: 0 0 7px;
     }
     .ss-title em {
         font-style: italic;
         color: #F2C4C0;
     }
+
     .ss-meta {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        font-size: 11px;
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
         font-weight: 600;
-        letter-spacing: 1.3px;
+        letter-spacing: 1.2px;
         text-transform: uppercase;
         color: rgba(245, 241, 232, 0.72);
-        margin-bottom: 4px;
-        white-space: nowrap;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        margin: 0 0 3px;
     }
+
     .ss-pass {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        font-size: 12px;
-        font-weight: 400;
-        letter-spacing: 0.1px;
-        color: rgba(245, 241, 232, 0.52);
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
         font-style: italic;
-        white-space: nowrap;
+        color: rgba(245, 241, 232, 0.52);
+        margin: 0 0 3px;
     }
 
-    /* ── Cream body ── */
+    .ss-brand {
+        font-family: var(--bl-font-serif, Georgia, 'Times New Roman', serif);
+        font-style: italic;
+        color: rgba(245, 241, 232, 0.38);
+        line-height: 1.3;
+        margin: 0;
+    }
+
+    /* ── Body — cream ── */
     .ss-body {
-        background: #F5F1E8;
+        background: var(--bl-color-bg, #F5F1E8);
         border-radius: 0 0 18px 18px;
-        padding: 14px 22px calc(28px + env(safe-area-inset-bottom, 0px));
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
     }
 
-    /* "THIS WINTER" label */
-    .ss-attribution {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 1.6px;
-        text-transform: uppercase;
-        color: #A8152B;
-        margin-bottom: 13px;
-        flex-shrink: 0;
-    }
-
-    /* ── Month grid — mobile-first, single column ── */
-    .ss-months-grid {
+    /* ── Columns grid ── */
+    .ss-columns {
         display: grid;
-        grid-template-columns: 1fr;
-        gap: 16px;
+        flex: 1;
+        min-height: 0;
         align-items: start;
-    }
-    @media (min-width: 769px) {
-        .ss-months-grid {
-            grid-template-columns: 1fr 1fr;
-        }
+        overflow: hidden;
     }
 
-    /* Month block */
-    .ss-month {
+    .ss-col {
         min-width: 0;
-    }
-    .ss-month-label {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        font-size: 14px;
-        font-weight: 700;
-        letter-spacing: 1.4px;
-        text-transform: uppercase;
-        color: #A8152B;
-        margin-bottom: 9px;
-    }
-    .ss-trip-rows {
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        gap: 9px;
     }
+
+    /* ── Month group ── */
+    .ss-month-group { margin: 0; }
+
+    .ss-month-label {
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+        font-weight: 700;
+        text-transform: uppercase;
+        color: var(--bl-color-logo, #A8152B);
+        display: block;
+    }
+    .ss-month-label.is-continuation {
+        opacity: 0.5;
+    }
+
+    /* ── Trip row ── */
     .ss-trip-row {
         display: flex;
         align-items: flex-start;
-        gap: 8px;
     }
+
     .ss-trip-bar {
-        width: 3px;
-        height: 20px;
+        width: 2px;
         border-radius: 999px;
-        background: #5C1219;
+        background: var(--bl-color-primary, #5C1219);
         flex-shrink: 0;
-        margin-top: 2px;
     }
+
     .ss-trip-dest {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-        font-size: clamp(15px, 4vw, 18px);
         font-weight: 500;
         color: #1A1A1A;
         line-height: 1.25;
-        word-break: break-word;
+        word-break: normal;
         overflow-wrap: break-word;
+        hyphens: auto;
         min-width: 0;
     }
 
-    /* Empty state */
+    /* ── Empty state ── */
     .ss-empty {
         flex: 1;
         display: flex;
@@ -171,17 +167,112 @@
         padding: 0 12px;
     }
     .ss-empty-hl {
-        font-family: Georgia, 'Times New Roman', serif;
+        font-family: var(--bl-font-serif, Georgia, 'Times New Roman', serif);
         font-size: 17px;
         font-style: italic;
         color: #3A3530;
         margin-bottom: 6px;
     }
     .ss-empty-sub {
-        font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
         font-size: 12px;
         color: #9A8F84;
         line-height: 1.5;
+    }
+
+
+    /* ═══════════════════════════════════════════════════
+       DENSITY TIER OVERRIDES
+       Tier 1 (1–3 trips)  · 1 col · Georgia destinations · editorial
+       Tier 2 (4–7 trips)  · 1 col · Georgia destinations · reduced
+       Tier 3 (8–11 trips) · 2 col · system sans destinations
+       Tier 4 (12–20 trips)· 3 col · compact system sans
+       Tier 5 (21+ trips)  · 3 col · ultra-compact
+       ═══════════════════════════════════════════════════ */
+
+    /* ── Tier 1 ── */
+    [data-density="1"] .ss-header      { padding: 22px 24px 16px; }
+    [data-density="1"] .ss-title       { font-size: clamp(22px, 6.2vw, 30px); margin-bottom: 9px; }
+    [data-density="1"] .ss-meta        { font-size: 11px; letter-spacing: 1.3px; }
+    [data-density="1"] .ss-pass        { font-size: 12px; }
+    [data-density="1"] .ss-brand       { font-size: 11px; margin-top: 6px; }
+    [data-density="1"] .ss-body        { padding: 16px 22px 20px; }
+    [data-density="1"] .ss-columns     { gap: 0; }
+    [data-density="1"] .ss-month-label { font-size: 13px; letter-spacing: 1.3px; margin-bottom: 8px; }
+    [data-density="1"] .ss-month-group { margin-bottom: 18px; }
+    [data-density="1"] .ss-trip-row    { gap: 8px; margin-bottom: 11px; }
+    [data-density="1"] .ss-trip-bar    { height: 22px; margin-top: 3px; width: 3px; }
+    [data-density="1"] .ss-trip-dest   {
+        font-family: var(--bl-font-serif, Georgia, 'Times New Roman', serif);
+        font-size: clamp(18px, 5vw, 22px);
+    }
+
+    /* ── Tier 2 ── */
+    [data-density="2"] .ss-header      { padding: 18px 22px 13px; }
+    [data-density="2"] .ss-title       { font-size: clamp(19px, 5.5vw, 26px); margin-bottom: 7px; }
+    [data-density="2"] .ss-meta        { font-size: 10px; letter-spacing: 1.2px; }
+    [data-density="2"] .ss-pass        { font-size: 11px; }
+    [data-density="2"] .ss-brand       { font-size: 10px; margin-top: 5px; }
+    [data-density="2"] .ss-body        { padding: 13px 20px 16px; }
+    [data-density="2"] .ss-columns     { gap: 0; }
+    [data-density="2"] .ss-month-label { font-size: 11px; letter-spacing: 1.2px; margin-bottom: 6px; }
+    [data-density="2"] .ss-month-group { margin-bottom: 13px; }
+    [data-density="2"] .ss-trip-row    { gap: 7px; margin-bottom: 9px; }
+    [data-density="2"] .ss-trip-bar    { height: 18px; margin-top: 2px; width: 3px; }
+    [data-density="2"] .ss-trip-dest   {
+        font-family: var(--bl-font-serif, Georgia, 'Times New Roman', serif);
+        font-size: clamp(15px, 4.2vw, 18px);
+    }
+
+    /* ── Tier 3 ── */
+    [data-density="3"] .ss-header      { padding: 15px 20px 11px; }
+    [data-density="3"] .ss-title       { font-size: clamp(17px, 5vw, 22px); margin-bottom: 6px; }
+    [data-density="3"] .ss-meta        { font-size: 9.5px; letter-spacing: 1.1px; }
+    [data-density="3"] .ss-pass        { font-size: 10px; }
+    [data-density="3"] .ss-brand       { font-size: 9px; margin-top: 4px; }
+    [data-density="3"] .ss-body        { padding: 11px 16px 14px; }
+    [data-density="3"] .ss-columns     { gap: 12px; }
+    [data-density="3"] .ss-month-label { font-size: 10px; letter-spacing: 1.1px; margin-bottom: 5px; }
+    [data-density="3"] .ss-month-group { margin-bottom: 10px; }
+    [data-density="3"] .ss-trip-row    { gap: 5px; margin-bottom: 6px; }
+    [data-density="3"] .ss-trip-bar    { height: 15px; margin-top: 2px; }
+    [data-density="3"] .ss-trip-dest   {
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+        font-size: 13px;
+    }
+
+    /* ── Tier 4 ── */
+    [data-density="4"] .ss-header      { padding: 12px 18px 9px; }
+    [data-density="4"] .ss-title       { font-size: clamp(15px, 4.5vw, 19px); margin-bottom: 5px; }
+    [data-density="4"] .ss-meta        { font-size: 9px; letter-spacing: 1px; }
+    [data-density="4"] .ss-pass        { font-size: 9px; }
+    [data-density="4"] .ss-brand       { font-size: 8.5px; margin-top: 4px; }
+    [data-density="4"] .ss-body        { padding: 9px 14px 11px; }
+    [data-density="4"] .ss-columns     { gap: 8px; }
+    [data-density="4"] .ss-month-label { font-size: 9px; letter-spacing: 1px; margin-bottom: 4px; }
+    [data-density="4"] .ss-month-group { margin-bottom: 7px; }
+    [data-density="4"] .ss-trip-row    { gap: 4px; margin-bottom: 4px; }
+    [data-density="4"] .ss-trip-bar    { height: 13px; margin-top: 1px; }
+    [data-density="4"] .ss-trip-dest   {
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+        font-size: 11px;
+    }
+
+    /* ── Tier 5 (ultra-compact) ── */
+    [data-density="5"] .ss-header      { padding: 10px 16px 8px; }
+    [data-density="5"] .ss-title       { font-size: clamp(13px, 4vw, 17px); margin-bottom: 4px; }
+    [data-density="5"] .ss-meta        { font-size: 8px; letter-spacing: 0.9px; }
+    [data-density="5"] .ss-pass        { font-size: 8px; }
+    [data-density="5"] .ss-brand       { font-size: 7.5px; margin-top: 3px; }
+    [data-density="5"] .ss-body        { padding: 7px 12px 9px; }
+    [data-density="5"] .ss-columns     { gap: 6px; }
+    [data-density="5"] .ss-month-label { font-size: 8px; letter-spacing: 0.9px; margin-bottom: 3px; }
+    [data-density="5"] .ss-month-group { margin-bottom: 5px; }
+    [data-density="5"] .ss-trip-row    { gap: 3px; margin-bottom: 3px; }
+    [data-density="5"] .ss-trip-bar    { height: 11px; margin-top: 1px; }
+    [data-density="5"] .ss-trip-dest   {
+        font-family: var(--bl-font-ui, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+        font-size: 9.5px;
     }
 </style>
 {% endblock %}
@@ -189,83 +280,66 @@
 {% block content %}
 <div class="ss-page">
 
-    <!-- Editorial tagline -->
+    <!-- Editorial tagline — out of scope, preserved exactly -->
     <p class="ss-tagline">A snapshot of your winter — the mountains, destinations, and adventures ahead.</p>
 
-    <!-- 1:1 poster card -->
-    <div class="ss-card">
+    <!-- Winter profile card — hard fixed 4:5 -->
+    <div class="ss-card" data-density="{{ density_tier }}">
 
-        <!-- Maroon header band -->
+        <!-- Maroon header -->
         <div class="ss-header">
-            <p class="ss-title">{{ user.first_name }}'s <em>Winter</em></p>
+            <p class="ss-title">{{ user.first_name }}'s {{ season_label }} <em>Winter</em></p>
 
-            {% set id_line = user|identity_line %}
-            {% if id_line %}
-                {% set id_parts = id_line.split(' · ') %}
-
+            {% if pass_count == 1 %}
+                {# 1 pass: inline with rider/skill in the meta row #}
                 <p class="ss-meta">
-                    {{- id_parts[0] -}}
-                    {%- if id_parts|length > 1 %} &middot; {{ id_parts[1] }}{% endif -%}
+                    {{- rider_display | upper -}}
+                    {%- if skill_display %} &middot; {{ skill_display | upper }}{% endif -%}
+                    {%- if pass_display_str %} &middot; {{ pass_display_str | upper }}{% endif -%}
                 </p>
-
-                {% if id_parts|length > 2 %}
-                    {% set raw_pass = id_parts[2:] | join(' · ') %}
-                    {% if raw_pass | lower in ['not sure', 'not_sure', 'other', 'unsure', 'undecided'] %}
-                        <p class="ss-pass">Still deciding on pass</p>
-                    {% else %}
-                        <p class="ss-pass">{{ raw_pass }}</p>
-                    {% endif %}
+            {% else %}
+                {# 0 or 2–3 passes: rider/skill on meta, pass on separate row #}
+                <p class="ss-meta">
+                    {{- rider_display | upper -}}
+                    {%- if skill_display %} &middot; {{ skill_display | upper }}{% endif -%}
+                </p>
+                {% if pass_count == 0 %}
+                    <p class="ss-pass">No pass</p>
+                {% else %}
+                    <p class="ss-pass">{{ pass_display_str }}</p>
                 {% endif %}
             {% endif %}
+
+            <p class="ss-brand">in BaseLodge</p>
         </div>
+        <!-- end .ss-header -->
 
         <!-- Cream body -->
         <div class="ss-body">
-
-            <p class="ss-attribution">This Winter</p>
-
-            {% if all_upcoming %}
-                {# Build per-month trip lists — only the 6 season months #}
-                {% set ns = namespace(NOV=[], DEC=[], JAN=[], FEB=[], MAR=[], APR=[]) %}
-                {% for full_name, trips in group_trips_by_month(all_upcoming) %}
-                    {% if full_name == "November" %}{% set ns.NOV = trips %}
-                    {% elif full_name == "December" %}{% set ns.DEC = trips %}
-                    {% elif full_name == "January" %}{% set ns.JAN = trips %}
-                    {% elif full_name == "February" %}{% set ns.FEB = trips %}
-                    {% elif full_name == "March" %}{% set ns.MAR = trips %}
-                    {% elif full_name == "April" %}{% set ns.APR = trips %}
-                    {% endif %}
-                {% endfor %}
-
-                <div class="ss-months-grid">
-
-                    {% for month_key, month_label in [('NOV','NOV'),('DEC','DEC'),('JAN','JAN'),('FEB','FEB'),('MAR','MAR'),('APR','APR')] %}
-                    {% set month_trips = ns | attr(month_key) %}
-                    {% if month_trips %}
-                    <div class="ss-month">
-                        <p class="ss-month-label">{{ month_label }}</p>
-                        <div class="ss-trip-rows">
-                            {% for trip in month_trips %}
-                            {% set mtn = (trip.resort | resort_display) if trip.resort else (trip.mountain or 'TBD') %}
+            {% if n_trips > 0 %}
+                <div class="ss-columns" style="grid-template-columns: repeat({{ n_cols }}, 1fr);">
+                    {% for col_groups in columns %}
+                    <div class="ss-col">
+                        {% for month_label, destinations, is_continuation in col_groups %}
+                        <div class="ss-month-group">
+                            <span class="ss-month-label{% if is_continuation %} is-continuation{% endif %}">{{ month_label }}</span>
+                            {% for dest in destinations %}
                             <div class="ss-trip-row">
                                 <div class="ss-trip-bar"></div>
-                                <p class="ss-trip-dest">{{ mtn }}</p>
+                                <p class="ss-trip-dest">{{ dest }}</p>
                             </div>
                             {% endfor %}
                         </div>
+                        {% endfor %}
                     </div>
-                    {% endif %}
                     {% endfor %}
-
                 </div>
-
             {% else %}
                 <div class="ss-empty">
                     <p class="ss-empty-hl">Nothing planned yet.</p>
                     <p class="ss-empty-sub">Add your first trip and it'll appear here.</p>
                 </div>
             {% endif %}
-
         </div>
         <!-- end .ss-body -->
 

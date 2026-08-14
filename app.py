@@ -3215,6 +3215,119 @@ def get_seasonal_empty_state(context_type='trip'):
     
     return ""
 
+
+# ── Season Snapshot helpers (BL-8) ────────────────────────────────────────────
+# Local inference rule for /season-snapshot only.
+# Season window: June 1 of year N through May 31 of year N+1.
+# NOT a global BaseLodge canonical season definition — candidate for promotion
+# to a shared utility if BaseLodge later formalises season membership.
+
+def get_ski_season_year(d):
+    """Return (start_year, end_year) for the ski season containing date d.
+
+    Season runs June 1 through May 31 of the following calendar year.
+
+    Examples:
+        Aug 2026 → (2026, 2027)  "2026/27"
+        Jan 2027 → (2026, 2027)  "2026/27"
+        May 2027 → (2026, 2027)  "2026/27"
+        Jun 2027 → (2027, 2028)  "2027/28"
+    """
+    if d.month < 6:
+        return (d.year - 1, d.year)
+    return (d.year, d.year + 1)
+
+
+def get_ski_season_label(d):
+    """Return a display label like '2026/27' for the ski season containing date d."""
+    start_year, end_year = get_ski_season_year(d)
+    return f"{start_year}/{str(end_year)[2:]}"
+
+
+def get_ski_season_window(d):
+    """Return (season_start, season_end) date objects for the season containing date d."""
+    start_year, end_year = get_ski_season_year(d)
+    return date(start_year, 6, 1), date(end_year, 5, 31)
+
+
+def distribute_columns_ss(month_groups, n_cols):
+    """Distribute month groups into n_cols columns for the Season Snapshot card.
+
+    Args:
+        month_groups: list of (month_abbrev, [dest_str, ...]) tuples, chronological.
+        n_cols: 1, 2, or 3.
+
+    Returns:
+        List of n_cols lists. Each inner list contains
+        (month_abbrev, dest_list, is_continuation) tuples.
+        is_continuation=True when the month label is repeated because the group
+        was split across a column boundary (render at 50% opacity).
+
+    Algorithm: flatten to unit items (1 unit per month label, 1 per trip dest),
+    split evenly across columns by total-unit target. Month groups that straddle
+    a split are labelled as continuations in the second column.
+    """
+    if n_cols <= 1 or not month_groups:
+        return [[(lbl, trips, False) for lbl, trips in month_groups]]
+
+    # Flat item list: ("L", label) | ("T", label, dest)
+    flat = []
+    for lbl, trips in month_groups:
+        flat.append(("L", lbl))
+        for dest in trips:
+            flat.append(("T", lbl, dest))
+
+    total = len(flat)
+    target = total / n_cols  # floating-point target units per column
+
+    # Greedy split: commit current column when it hits the target
+    cols_flat: list = []
+    col: list = []
+    col_units = 0.0
+
+    for i, item in enumerate(flat):
+        col.append(item)
+        col_units += 1
+        is_last = (i == total - 1)
+        if not is_last and col_units >= target and len(cols_flat) < n_cols - 1:
+            cols_flat.append(col)
+            col = []
+            col_units = 0.0
+
+    cols_flat.append(col)
+    while len(cols_flat) < n_cols:
+        cols_flat.append([])
+
+    # Reconstruct (label, trips, is_continuation) groups per column
+    result = []
+    for col_items in cols_flat:
+        groups: list = []
+        i = 0
+        while i < len(col_items):
+            item = col_items[i]
+            if item[0] == "L":
+                lbl = item[1]
+                trips: list = []
+                j = i + 1
+                while j < len(col_items) and col_items[j][0] == "T" and col_items[j][1] == lbl:
+                    trips.append(col_items[j][2])
+                    j += 1
+                groups.append((lbl, trips, False))
+                i = j
+            else:  # "T" without a preceding "L" in this column = continuation
+                lbl = item[1]
+                cont_trips: list = [item[2]]
+                j = i + 1
+                while j < len(col_items) and col_items[j][0] == "T" and col_items[j][1] == lbl:
+                    cont_trips.append(col_items[j][2])
+                    j += 1
+                groups.append((lbl, cont_trips, True))
+                i = j
+        result.append(groups)
+
+    return result
+
+
 # State name mappings for display
 STATE_NAMES = {
     'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
@@ -4697,18 +4810,28 @@ def my_trips():
 @app.route("/season-snapshot")
 @login_required
 def season_snapshot():
+    """Winter profile card — fixed 4:5 shareable poster (BL-8)."""
     today = date.today()
+
+    # ── Season window (BL-8 local inference: June 1–May 31) ──
+    season_start, season_end = get_ski_season_window(today)
+    season_label = get_ski_season_label(today)  # e.g. "2026/27"
+
+    # ── Owned trips in season ──
     try:
-        upcoming_owned = (
+        owned = (
             SkiTrip.query
+            .options(db.joinedload(SkiTrip.resort))
             .filter(SkiTrip.user_id == current_user.id)
-            .filter(SkiTrip.end_date >= today)
+            .filter(SkiTrip.start_date >= season_start)
+            .filter(SkiTrip.start_date <= season_end)
             .order_by(SkiTrip.start_date.asc())
             .all()
         ) or []
     except Exception:
-        upcoming_owned = []
+        owned = []
 
+    # ── Accepted guest trips in season ──
     try:
         accepted_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == current_user.id,
@@ -4716,25 +4839,98 @@ def season_snapshot():
         ).all()
         accepted_trip_ids = [p.trip_id for p in accepted_participations]
         if accepted_trip_ids:
-            accepted_guest_trips = SkiTrip.query.filter(
-                SkiTrip.id.in_(accepted_trip_ids),
-                SkiTrip.user_id != current_user.id,
-                SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).all() or []
+            guest_trips = (
+                SkiTrip.query
+                .options(db.joinedload(SkiTrip.resort))
+                .filter(
+                    SkiTrip.id.in_(accepted_trip_ids),
+                    SkiTrip.user_id != current_user.id,
+                    SkiTrip.start_date >= season_start,
+                    SkiTrip.start_date <= season_end,
+                )
+                .order_by(SkiTrip.start_date.asc())
+                .all()
+            ) or []
         else:
-            accepted_guest_trips = []
+            guest_trips = []
     except Exception:
-        accepted_guest_trips = []
+        guest_trips = []
 
-    all_upcoming = sorted(
-        upcoming_owned + accepted_guest_trips,
-        key=lambda t: t.start_date if t.start_date else date.max
-    )
+    # Merge, deduplicate by id, sort; exclude undated trips
+    seen_ids: set = set()
+    all_trips = []
+    for t in sorted(owned + guest_trips,
+                    key=lambda t: t.start_date if t.start_date else date.max):
+        if t.id not in seen_ids and t.start_date is not None:
+            seen_ids.add(t.id)
+            all_trips.append(t)
+
+    # ── Pass display ──
+    raw_pass = getattr(current_user, 'pass_type', None) or ''
+    pass_count = count_real_passes(raw_pass)
+    has_pass = pass_count > 0
+    pass_display_str = format_passes_for_display(raw_pass) if raw_pass else ''
+
+    # ── Density tier ──
+    n_trips = len(all_trips)
+    if n_trips <= 3:
+        density_tier, n_cols = 1, 1
+    elif n_trips <= 7:
+        density_tier, n_cols = 2, 1
+    elif n_trips <= 11:
+        density_tier, n_cols = 3, 2
+    elif n_trips <= 20:
+        density_tier, n_cols = 4, 3
+    else:
+        density_tier, n_cols = 5, 3  # ultra-compact
+
+    is_ultra_compact = density_tier == 5
+
+    # ── Month groups (abbreviated labels, chronological) ──
+    _MONTH_ABBREVS = {
+        'January': 'JAN', 'February': 'FEB', 'March': 'MAR',
+        'April': 'APR', 'May': 'MAY', 'June': 'JUN',
+        'July': 'JUL', 'August': 'AUG', 'September': 'SEP',
+        'October': 'OCT', 'November': 'NOV', 'December': 'DEC',
+    }
+    month_dict: dict = {}
+    month_order: list = []
+    for trip in all_trips:
+        full_name = trip.start_date.strftime('%B')
+        abbrev = _MONTH_ABBREVS.get(full_name, full_name[:3].upper())
+        dest = (
+            _resort_display_name(trip.resort, AMBIGUOUS_RESORT_NAMES)
+            if trip.resort
+            else (trip.mountain or 'TBD')
+        )
+        if abbrev not in month_dict:
+            month_dict[abbrev] = []
+            month_order.append(abbrev)
+        month_dict[abbrev].append(dest)
+
+    month_groups = [(m, month_dict[m]) for m in month_order]
+
+    # ── Column distribution ──
+    columns = distribute_columns_ss(month_groups, n_cols)
+
+    # ── Rider / skill for header ──
+    rider_display = getattr(current_user, 'display_rider_type', None) or ''
+    skill_display = getattr(current_user, 'skill_level', None) or ''
 
     return render_template(
         "season_snapshot.html",
         user=current_user,
-        all_upcoming=all_upcoming,
+        season_label=season_label,
+        n_trips=n_trips,
+        density_tier=density_tier,
+        is_ultra_compact=is_ultra_compact,
+        n_cols=n_cols,
+        columns=columns,
+        pass_count=pass_count,
+        has_pass=has_pass,
+        pass_display_str=pass_display_str,
+        rider_display=rider_display,
+        skill_display=skill_display,
         today=today,
     )
 
