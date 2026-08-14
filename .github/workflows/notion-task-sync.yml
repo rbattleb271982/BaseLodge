@@ -1,0 +1,134 @@
+name: Sync completed task to Notion
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync-notion:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Find Task ID in commit
+        id: task
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          TASK_ID=$(printf '%s' "$COMMIT_MESSAGE" | grep -oE 'BL-[0-9]+' | head -1 || true)
+
+          if [ -z "$TASK_ID" ]; then
+            echo "No BL task ID found. Nothing to sync."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found task: $TASK_ID"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "task_id=$TASK_ID" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync task to Notion
+        if: steps.task.outputs.found == 'true'
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_TASKS_DATABASE_ID }}
+          TASK_ID: ${{ steps.task.outputs.task_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import urllib.request
+          import urllib.error
+          import datetime
+
+          token = os.environ["NOTION_TOKEN"]
+          database_id = os.environ["NOTION_DATABASE_ID"]
+          task_id = os.environ["TASK_ID"]
+          sha = os.environ["COMMIT_SHA"]
+
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json",
+              "Notion-Version": "2022-06-28",
+          }
+
+          def notion_request(url, method="GET", body=None):
+              data = json.dumps(body).encode() if body is not None else None
+              req = urllib.request.Request(
+                  url,
+                  data=data,
+                  headers=headers,
+                  method=method,
+              )
+              try:
+                  with urllib.request.urlopen(req) as response:
+                      return json.loads(response.read().decode())
+              except urllib.error.HTTPError as e:
+                  detail = e.read().decode()
+                  raise RuntimeError(
+                      f"Notion API error {e.code}: {detail}"
+                  )
+
+          result = notion_request(
+              f"https://api.notion.com/v1/databases/{database_id}/query",
+              "POST",
+              {
+                  "filter": {
+                      "property": "Task ID",
+                      "rich_text": {
+                          "equals": task_id
+                      }
+                  }
+              },
+          )
+
+          pages = result.get("results", [])
+
+          if not pages:
+              raise RuntimeError(
+                  f"No Notion task found with Task ID {task_id}"
+              )
+
+          if len(pages) > 1:
+              raise RuntimeError(
+                  f"More than one Notion task has Task ID {task_id}"
+              )
+
+          page_id = pages[0]["id"]
+
+          today = datetime.datetime.now(
+              datetime.timezone.utc
+          ).date().isoformat()
+
+          notion_request(
+              f"https://api.notion.com/v1/pages/{page_id}",
+              "PATCH",
+              {
+                  "properties": {
+                      "Status": {
+                          "status": {
+                              "name": "Done"
+                          }
+                      },
+                      "Git Commit": {
+                          "rich_text": [
+                              {
+                                  "type": "text",
+                                  "text": {
+                                      "content": sha[:7]
+                                  }
+                              }
+                          ]
+                      },
+                      "Completed": {
+                          "date": {
+                              "start": today
+                          }
+                      }
+                  }
+              },
+          )
+
+          print(f"Successfully updated {task_id} in Notion.")
+          PY
