@@ -33,7 +33,6 @@ jobs:
           NOTION_DATABASE_ID: ${{ secrets.NOTION_TASKS_DATABASE_ID }}
           TASK_ID: ${{ steps.task.outputs.task_id }}
           COMMIT_SHA: ${{ github.sha }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           python3 <<'PY'
           import json
@@ -41,6 +40,7 @@ jobs:
           import urllib.request
           import urllib.error
           import datetime
+          from zoneinfo import ZoneInfo
 
           token = os.environ["NOTION_TOKEN"]
           database_id = os.environ["NOTION_DATABASE_ID"]
@@ -55,12 +55,14 @@ jobs:
 
           def notion_request(url, method="GET", body=None):
               data = json.dumps(body).encode() if body is not None else None
+
               req = urllib.request.Request(
                   url,
                   data=data,
                   headers=headers,
                   method=method,
               )
+
               try:
                   with urllib.request.urlopen(req) as response:
                       return json.loads(response.read().decode())
@@ -70,14 +72,16 @@ jobs:
                       f"Notion API error {e.code}: {detail}"
                   )
 
+          task_number = int(task_id.split("-")[1])
+
           result = notion_request(
               f"https://api.notion.com/v1/databases/{database_id}/query",
               "POST",
               {
                   "filter": {
                       "property": "Task ID",
-                      "rich_text": {
-                          "equals": task_id
+                      "unique_id": {
+                          "equals": task_number
                       }
                   }
               },
