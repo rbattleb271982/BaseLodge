@@ -21,4 +21,6 @@ Ski trips are often coordinated across group chats, spreadsheets, and multiple a
 - Replit
 
 ## Status
-Actively building and iterating
+Actively building and iterating.
+
+<!-- Updated: August 2026 -->
