@@ -185,7 +185,7 @@ class TestSeasonSnapshotRoute:
         html = resp.data.decode()
         assert resp.status_code == 200
         assert tname in html
-        assert "No pass" in html
+        assert "NO PASS" in html
         assert 'data-density="1"' in html
 
     # ── 1 trip / 1 pass ───────────────────────────────────────────────────────
