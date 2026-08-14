@@ -1,0 +1,334 @@
+We are working on BaseLodge task BL-8: “Finalize shareable winter profile card.”
+
+IMPORTANT: INVESTIGATION / PLANNING ONLY.
+
+Do not modify any code.
+Do not create files.
+Do not commit, push, deploy, or publish anything.
+Do not implement the redesign yet.
+
+The complete product/design specification and Option 4 visual reference are in Notion under BL-8. Treat BL-8 as the source of truth for this task.
+
+Please review BL-8 in full before beginning the investigation.
+
+OBJECTIVE
+
+Investigate the existing BaseLodge Season Winter Card implementation and determine the smallest, cleanest, safest way to implement the BL-8 design.
+
+The final card will be a fixed 4:5 shareable winter profile artifact with:
+
+- Burgundy identity/header block
+- Personalized “[Name]’s 2026/27 Winter” headline
+- Rider type / skill level / pass metadata
+- “in BaseLodge” branding within the burgundy header
+- Cream trip-content area
+- Trips grouped chronologically by month
+- Adaptive typography and layout based on trip count
+- 1–3 column behavior depending on density
+- Every trip displayed
+- No footer
+- No exact dates
+- No trip/country counts
+- No +N more behavior
+
+Do not rely on this abbreviated list instead of BL-8. The detailed Notion task and attached Option 4 mockup govern the design.
+
+INVESTIGATION
+
+Start by locating and inspecting the existing implementation.
+
+We believe the relevant template is:
+
+season_snapshot.html
+
+But verify that rather than assuming it is the only relevant file.
+
+Trace everything that currently controls the Winter Card, including:
+
+1. Template structure
+2. CSS/styles
+3. Server-side data passed into the template
+4. Trip ordering
+5. Current date/month formatting
+6. User name
+7. Rider type
+8. Skill level
+9. Pass/pass-list data
+10. Current trip-count or truncation behavior
+11. Any JavaScript affecting the card
+12. Responsive/mobile behavior
+13. Any tests covering the Season screen or Winter Card
+
+Also determine whether any existing BaseLodge design-system variables, classes, components, typography rules, burgundy/cream colors, spacing rules, or utilities should be reused.
+
+SPECIFIC QUESTIONS TO ANSWER
+
+A. 4:5 CARD
+
+How should we enforce the fixed 4:5 aspect ratio while allowing the card to display correctly within the existing mobile Season screen?
+
+Determine whether CSS `aspect-ratio`, calculated dimensions, or another existing BaseLodge pattern is most appropriate.
+
+Explain how the card can remain visually equivalent to 1080 × 1350 without literally rendering at those dimensions on a phone.
+
+B. DENSITY TIERS
+
+BL-8 defines these approximate states:
+
+1–3 trips:
+- 1 column
+- Georgia destinations
+- Large editorial treatment
+
+4–7 trips:
+- 1 column
+- Georgia destinations
+- Reduced scale
+
+8–11 trips:
+- approximately 2 columns
+- System sans destinations
+- compact treatment
+
+12–15+ trips:
+- up to 3 columns
+- System sans destinations
+- maximum-density treatment
+
+Determine the cleanest way to calculate and expose the density tier.
+
+Tell me whether this belongs in Python/server logic, Jinja, CSS classes, or another layer, and why.
+
+C. MONTH GROUPING
+
+Determine how trips are currently ordered and whether the existing data makes it straightforward to group them by month.
+
+We need month groups like:
+
+JAN
+Shiga Kogen
+
+FEB
+Courchevel
+Big Sky
+
+Months should appear once per logical month group.
+
+Explain the cleanest implementation.
+
+D. MULTI-COLUMN DISTRIBUTION
+
+For 8+ trips, determine how we should distribute month groups across columns while maintaining chronology.
+
+Required reading order:
+
+top → bottom in column 1
+then
+top → bottom in column 2
+then column 3 when applicable
+
+Earlier months should remain to the left of later months.
+
+Month groups should remain intact whenever practical.
+
+Investigate whether CSS columns, CSS grid, server-side grouping, or another approach is safest.
+
+Pay particular attention to whether CSS column behavior could create unexpected chronology or split month groups.
+
+E. TYPOGRAPHY
+
+Inspect the actual typography currently used by BaseLodge.
+
+BL-8 calls for:
+
+Georgia:
+- Header identity
+- “in BaseLodge”
+- Destination names at 1–7 trips
+
+System sans:
+- Metadata
+- Months
+- Destination names at 8+ trips
+
+Determine what existing CSS/font variables/classes we can reuse.
+
+Do not introduce another font family.
+
+F. RESPONSIVE TYPE SIZING
+
+The Option 4 mockup contains approximate sizing examples, but these are not rigid pixel requirements.
+
+Investigate the best implementation method for responsive sizing.
+
+Consider whether existing CSS patterns, `clamp()`, density classes, container-relative sizing, or another simple approach would work best.
+
+Avoid unnecessary complexity.
+
+G. LONG DESTINATION NAMES
+
+Determine how the existing card handles destinations such as:
+
+Whistler Blackcomb
+Park City Mountain
+Aspen Snowmass
+Shiga Kogen
+Jackson Hole
+Val d’Isère
+
+The desired priority is:
+
+1. Preserve consistent typography within a card
+2. Reduce sizing when necessary
+3. Wrap only as a last resort
+4. Never truncate
+
+Explain how you recommend implementing this.
+
+H. PASSES
+
+Trace how pass data currently reaches the Season screen.
+
+The new card must gracefully support:
+
+- 0 passes
+- 1 pass
+- 2 passes
+- 3 passes
+
+One pass can appear with the metadata:
+
+SKIER · ADVANCED · IKON
+
+Multiple passes may need:
+
+SKIER · ADVANCED
+IKON · EPIC · MOUNTAIN COLLECTIVE
+
+For zero passes, the design should use:
+
+NO PASS
+
+not:
+
+No pass yet
+
+Determine whether the current data structure already supports this without backend changes.
+
+I. PERSONALIZED HEADLINE
+
+Determine where the user's display/first name and season year currently come from.
+
+The desired headline is conceptually:
+
+Richard’s 2026/27 Winter
+
+It must support different name lengths without truncation.
+
+Explain how you recommend making the headline responsive while keeping it visually coherent.
+
+J. CURRENT ELEMENTS TO REMOVE
+
+Identify exactly where the following current elements are generated so we know what implementation would remove:
+
+- THIS WINTER
+- Exact dates
+- Footer
+- Trip count
+- Country count
+- Date-range summary
+- Separate BaseLodge footer branding
+- Any mountain/logo attribution added specifically to the card
+- +N more behavior, if present
+
+Do not remove them yet.
+
+K. SCOPE PROTECTION
+
+Confirm how the Winter Card can be changed without unintentionally changing:
+
+- Broader Season screen
+- Season navigation
+- Bottom navigation
+- Other screens
+- Trip functionality
+- Trip data
+- Pass functionality
+- Profile functionality
+
+The implementation should be tightly scoped to BL-8.
+
+L. TESTING
+
+Inspect the existing test suite and identify:
+
+- Relevant existing tests
+- Tests that would need updating
+- New tests we should add
+- Visual/layout behavior that cannot realistically be validated by the Python test suite and will require manual QA
+
+At minimum, think through these states:
+
+- 1 trip / 0 passes
+- 1 trip / 1 pass
+- 3 trips / 1 pass
+- 5 trips
+- 8 trips / 2 passes
+- 10 trips
+- 15 trips / 3 passes
+- Long user name
+- Long destination name
+- Multiple trips in the same month
+
+DELIVERABLE
+
+Return an investigation report with:
+
+1. Current implementation
+   - Relevant files
+   - Relevant functions/routes
+   - Existing HTML structure
+   - Existing CSS
+   - Existing data flow
+
+2. BL-8 implementation mapping
+   For each major requirement, explain exactly where and how you recommend implementing it.
+
+3. Proposed file changes
+   List every file you believe would need modification and what would change in each.
+
+4. Backend changes
+   Explicitly state whether any backend/data-model changes are required.
+
+5. Layout algorithm
+   Explain the proposed:
+   - density-tier logic
+   - month grouping
+   - column distribution
+   - typography switching
+   - long-name handling
+   - pass wrapping behavior
+
+6. Testing plan
+   Existing tests, new/updated tests, and manual QA states.
+
+7. Risks / edge cases
+   Anything that could cause layout failure, regression, overflow, chronology problems, or unexpected behavior.
+
+8. Recommended implementation sequence
+   Give the safest order in which you would make the changes once approved.
+
+9. Final recommendation
+   State the smallest clean implementation you recommend.
+
+IMPORTANT FINAL INSTRUCTION
+
+Stop after the investigation report.
+
+Do not implement anything.
+Do not edit any files.
+Do not commit anything.
+Do not push anything.
+Do not publish anything.
+
+I will review the investigation and explicitly tell you when you are approved to build.
