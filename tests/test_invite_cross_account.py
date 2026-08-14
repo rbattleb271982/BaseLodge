@@ -22,9 +22,53 @@ logging.getLogger("werkzeug").setLevel(logging.ERROR)
 logging.getLogger("sqlalchemy").setLevel(logging.ERROR)
 logging.getLogger().setLevel(logging.ERROR)
 
+import pytest
+import sqlalchemy as sa
+from sqlalchemy.pool import StaticPool
+
 import app as appmod
 from app import app, db
 from models import User, Friend, InviteToken, SkiTrip, TripInviteToken, GuestStatus
+
+
+# ── Pytest database bootstrap ─────────────────────────────────────────────────
+#
+# This file was originally a standalone script that called db.create_all()
+# inside `if __name__ == "__main__":`.  When pytest discovers the test_*
+# functions it never executes that block, leaving the tests without a schema.
+#
+# This module-scoped autouse fixture installs a fresh SQLite in-memory engine,
+# creates all tables, yields (allowing the 6 tests to run), then drops all
+# tables and restores the original engine — matching the isolation pattern
+# used by conftest.py and test_profile_consolidation.py.
+
+@pytest.fixture(autouse=True, scope="module")
+def _sqlite_db_for_module():
+    engines_map = db._app_engines.setdefault(app, {})
+    key_existed = None in engines_map
+    original_engine = engines_map.get(None)
+
+    sqlite_engine = sa.create_engine(
+        "sqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    engines_map[None] = sqlite_engine
+
+    with app.app_context():
+        db.create_all()
+
+    yield
+
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
+
+    if key_existed:
+        engines_map[None] = original_engine
+    else:
+        engines_map.pop(None, None)
+    sqlite_engine.dispose()
 
 SUFFIX = uuid.uuid4().hex[:8]
 _created_user_ids   = []

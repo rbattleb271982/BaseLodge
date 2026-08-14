@@ -1,0 +1,228 @@
+Implement **Task #254 — Fix 13 Pre-Existing Failing Tests** exactly according to the approved plan.
+
+Use **Economy**.
+
+This is a test-cleanup task only.
+
+Do not change production application behavior.
+
+Do not modify:
+
+* `app.py`
+* `models.py`
+* templates
+* services
+* migrations
+* production configuration
+
+Only change the test files required to eliminate the 13 known pre-existing failures.
+
+## Scope
+
+Current full-suite baseline:
+
+* 267 collected tests
+* 254 passed
+* 13 failed
+
+The 13 failures are:
+
+### `tests/test_profile_consolidation.py`
+
+6 failures:
+
+* `test_profile_redirects`
+* `test_profile_post_redirects`
+* `test_edit_profile_save_redirects`
+* `test_no_profile_template_reference`
+* `test_trip_duration_display`
+* `test_no_redirect_to_old_profile`
+
+### `tests/test_invite_cross_account.py`
+
+6 failures:
+
+* `test_a`
+* `test_b`
+* `test_c`
+* `test_d`
+* `test_e`
+* `test_f`
+
+### `tests/test_regression_guards.py`
+
+1 failure:
+
+* `test_pass_display_override_does_not_mutate_normalize_pass`
+
+## Required changes
+
+### 1. `tests/test_profile_consolidation.py`
+
+Remove the 5 obsolete tests whose assumptions are no longer valid because `/profile` is now intentionally the canonical Profile/Account screen:
+
+* `test_profile_redirects`
+* `test_profile_post_redirects`
+* `test_edit_profile_save_redirects`
+* `test_no_profile_template_reference`
+* `test_no_redirect_to_old_profile`
+
+Do not replace them with assertions that preserve the old `/more` behavior.
+
+Keep `test_trip_duration_display`.
+
+Fix only its test setup so the `Resort` object satisfies the current model requirements and the valid trip-duration assertion can run.
+
+Do not change production duration logic.
+
+### 2. `tests/test_invite_cross_account.py`
+
+Keep all 6 tests and their behavioral assertions.
+
+Fix the pytest database bootstrap.
+
+The current file relied on `db.create_all()` inside:
+
+`if __name__ == "__main__":`
+
+which does not run under pytest.
+
+Add the smallest module-level pytest fixture necessary so that:
+
+* a fresh isolated SQLite test engine is installed before these tests
+* `db.create_all()` runs before test execution
+* test data is isolated
+* tables/session are cleaned afterward
+* the original engine/session state is restored safely
+
+Follow the same engine-swap/isolation pattern already used successfully elsewhere in the test suite.
+
+Do not modify shared `tests/conftest.py` unless absolutely necessary.
+
+Prefer a local fixture in `test_invite_cross_account.py`.
+
+Do not weaken or delete the 6 cross-account tests.
+
+### 3. `tests/test_regression_guards.py`
+
+In:
+
+`test_pass_display_override_does_not_mutate_normalize_pass`
+
+change the stale test fixture from:
+
+`ResortPass(pass_name="other")`
+
+to the current canonical data:
+
+`ResortPass(pass_name="ikon")`
+
+Preserve the core regression assertions proving that:
+
+* canonical normalization stays `"ikon"`
+* display labeling produces `"Ikon"`
+* `normalize_pass()` is not mutated by display behavior
+
+Do not change production pass logic or resort mappings.
+
+## Validation order
+
+Run the affected tests first:
+
+`python -m pytest tests/test_regression_guards.py`
+
+`python -m pytest tests/test_profile_consolidation.py`
+
+`python -m pytest tests/test_invite_cross_account.py`
+
+Then run the Friend Discovery feature tests:
+
+`python -m pytest tests/test_name_normalization.py tests/test_friend_request_service.py tests/test_friend_search.py`
+
+Then run the full suite:
+
+`python -m pytest tests/`
+
+## Expected final result
+
+Because 5 obsolete tests are being removed, the collected test count should likely decrease from 267 to approximately:
+
+**262 tests**
+
+Target:
+
+**262 passed, 0 failed**
+
+If pytest collects a different number, report the exact count and explain why.
+
+Do not create replacement tests merely to preserve the old numeric count.
+
+## Guardrails
+
+Do not:
+
+* skip failing tests
+* mark tests xfail
+* weaken valid assertions
+* suppress exceptions
+* change production code to satisfy stale tests
+* modify friend discovery behavior
+* modify pass mappings
+* modify profile behavior
+* alter database migrations
+* commit
+* push
+* publish
+* deploy
+
+## Final report
+
+Return:
+
+### Files changed
+
+Exact files only.
+
+### Tests removed
+
+List the 5 obsolete tests and briefly explain why each was removed.
+
+### Tests repaired
+
+Explain:
+
+* `test_trip_duration_display` setup fix
+* `test_invite_cross_account.py` fixture fix
+* Killington regression fixture-data fix
+
+### Affected-test results
+
+Give exact pass/fail counts for each affected file.
+
+### Friend Discovery test results
+
+Give exact result for the 111 feature tests.
+
+### Full suite result
+
+Give exact:
+
+* tests collected
+* passed
+* failed
+* skipped, if any
+
+### Git diff summary
+
+Confirm that only test files changed.
+
+### Safety confirmation
+
+Explicitly confirm:
+
+* No production application code changed
+* No migrations changed
+* Nothing committed
+* Nothing pushed
+* Nothing published
+* Nothing deployed

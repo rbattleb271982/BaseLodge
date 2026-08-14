@@ -221,11 +221,11 @@ def test_pass_display_override_does_not_mutate_normalize_pass(client):
         db.session.add(resort)
         db.session.flush()
 
-        # A ResortPass row that resolves to the generic "other" key is required
-        # so that _pass_data returns pk=["other"].  With pk==["other"] and the
-        # "killington" slug present in _RESORT_PASS_OVERRIDES, the builder then
-        # sets pass_labels = "Ikon" — the code path the guard is exercising.
-        rp = ResortPass(resort_id=resort.id, pass_name="other", is_primary=True)
+        # A ResortPass row with pass_name="ikon" so that _pass_data returns
+        # pk=["ikon"] and display_pass_label("ikon") → "Ikon".
+        # The guard verifies that this display-layer lookup does not mutate
+        # what normalize_pass("Ikon") returns (must stay "ikon", not "Ikon").
+        rp = ResortPass(resort_id=resort.id, pass_name="ikon", is_primary=True)
         db.session.add(rp)
         db.session.commit()
         resort_id = resort.id
