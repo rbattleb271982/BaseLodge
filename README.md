@@ -23,4 +23,4 @@ Ski trips are often coordinated across group chats, spreadsheets, and multiple a
 ## Status
 Actively building and iterating.
 
-<!-- Updated: August 2026 | BL-001 -->
+<!-- Updated: August 2026 | BL-001 | BL-5 -->
