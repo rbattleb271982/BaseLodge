@@ -1,0 +1,483 @@
+We are continuing BaseLodge task BL-8: “Finalize shareable winter profile card.”
+
+This is a VISUAL ALIGNMENT PASS ONLY.
+
+The underlying BL-8 functionality has already been implemented and tested:
+- 43 BL-8 tests pass
+- 305 total tests pass
+- season inference works
+- owned + accepted guest trips work
+- past trips in the season work
+- density tiers work
+- month grouping works
+- fixed 4:5 behavior exists
+- pass states work
+
+DO NOT re-plan or rewrite the underlying implementation.
+
+IMPORTANT VISUAL REFERENCE INSTRUCTION
+
+I am attaching the “OPTION 4: ADAPTIVE HYBRID TYPOGRAPHY SYSTEM” design-system reference.
+
+This image contains FOUR example cards.
+
+For my current BaseLodge account, the relevant visual target is specifically:
+
+“3 TRIPS · 1 PASS”
+“Single column, comfortable scale”
+
+This is the SECOND CARD from the left in the attached Option 4 reference.
+
+DO NOT attempt to reproduce:
+- the entire design-system sheet
+- the labels above the cards
+- the typography explanation below the cards
+- the 1-trip example as my current card
+- the 8-trip example as my current card
+- the 15-trip example as my current card
+
+Those other examples exist only to demonstrate how the same design system adapts at other trip densities.
+
+For the current 3-trip state, use the SECOND CARD as the visual composition target.
+
+NOTE ABOUT PASS DATA
+
+My current rendered BaseLodge account is showing NO PASS.
+
+That is okay for this visual pass.
+
+Do not fabricate IKON just because the design reference shows IKON.
+
+Use the actual pass data.
+
+The target is therefore visually equivalent to the 3-trip reference, but with:
+
+SKIER · ADVANCED
+NO PASS
+
+if that is what the current account data contains.
+
+DO NOT change pass data or pass logic.
+
+==================================================
+CURRENT PROBLEM
+==================================================
+
+The new BL-8 code is definitely rendering, but the actual card does not visually match the approved Option 4 design.
+
+The current rendered version has:
+
+- an oversized burgundy header
+- left-aligned header content
+- an oversized title
+- excessive empty space in the header
+- “in BaseLodge” too faint and left-aligned
+- old-style burgundy vertical bars beside destinations
+- destination/month structure that does not match Option 4
+- excessive unused cream space
+- overall proportions that still feel like the old Season card
+
+The functionality is correct.
+
+The visual implementation is not yet correct.
+
+Your job is to bring the current 3-trip card into close visual alignment with the SECOND CARD in the attached Option 4 reference.
+
+==================================================
+1. HEADER COMPOSITION
+==================================================
+
+The burgundy header should closely follow the 3-trip Option 4 example.
+
+It should be:
+
+- compact
+- centered
+- horizontally balanced
+- substantially shorter than the current implementation
+
+The hierarchy should be:
+
+Richard’s 2026/27 Winter
+
+SKIER · ADVANCED
+NO PASS
+
+— in BaseLodge —
+
+For an account with one pass, the existing logic may instead produce:
+
+SKIER · ADVANCED · IKON
+
+Do not change that logic.
+
+The important requirement for this pass is the visual composition.
+
+==================================================
+2. TITLE
+==================================================
+
+The current title is much too large.
+
+Match the approximate visual scale of the 3-trip Option 4 reference.
+
+The design-system reference suggests approximately:
+
+Header title: ~28px for the 3-trip state
+
+Treat that as responsive guidance, not an immutable pixel requirement.
+
+Use Georgia.
+
+Keep:
+
+Richard’s 2026/27 Winter
+
+as one coherent headline.
+
+“Winter” may remain Georgia italic.
+
+Center the headline.
+
+Keep it on one line when the user's name reasonably allows it.
+
+Do not force wrapping unnecessarily.
+
+Long names must still be supported through the existing adaptive system.
+
+==================================================
+3. HEADER SPACING
+==================================================
+
+Reduce the vertical padding substantially.
+
+The relationship should feel approximately like:
+
+TITLE
+small gap
+METADATA
+small gap
+IN BASELODGE
+
+The header should occupy roughly the same visual proportion of the card as the 3-trip Option 4 reference.
+
+Do not let it become a large hero block.
+
+Preserve enough cream body height for the trip composition.
+
+==================================================
+4. METADATA
+==================================================
+
+Center the rider/skill/pass metadata.
+
+Use system sans-serif semibold.
+
+For the current zero-pass state:
+
+SKIER · ADVANCED
+NO PASS
+
+should be compact and centered.
+
+Do not make NO PASS a large separate visual element.
+
+It should remain secondary metadata.
+
+For one pass, preserve the existing approved behavior:
+
+SKIER · ADVANCED · IKON
+
+For multiple passes, preserve the existing wrapping logic.
+
+Do not change the underlying data logic.
+
+==================================================
+5. “IN BASELODGE”
+==================================================
+
+The current implementation is too faint, too small, and left-aligned.
+
+Match the Option 4 reference much more closely.
+
+Use:
+
+— in BaseLodge —
+
+Treatment:
+
+- centered
+- Georgia italic
+- clearly legible
+- subtle but intentional
+- approximately 13px in the 3-trip reference
+- small decorative horizontal rules on either side
+
+Do not reduce opacity so much that the branding disappears.
+
+This is the intentional BaseLodge signature of the shareable card.
+
+==================================================
+6. CREAM TRIP BODY — USE OPTION 4 STRUCTURE
+==================================================
+
+The current body still resembles the old Season card.
+
+Replace that visual treatment with the composition shown in the 3-trip Option 4 reference.
+
+For the current trips, the structure should visually resemble:
+
+JAN   |   Shiga Kogen
+
+----------------------------
+
+FEB   |   Courchevel
+      |   Big Sky
+
+The exact spacing can be responsive, but the structure matters.
+
+==================================================
+7. MONTH COLUMN
+==================================================
+
+Create a narrow month-label column on the left.
+
+Month labels should be:
+
+- uppercase
+- system sans-serif bold
+- burgundy
+- visually secondary to destinations
+- aligned with the top destination in the month group
+
+For the 3-trip state, the reference suggests approximately 15px month typography.
+
+Do not put JAN or FEB above the destination as a separate full-width row.
+
+It should participate in the left-column composition.
+
+==================================================
+8. VERTICAL DIVIDER
+==================================================
+
+Use the subtle vertical divider shown in Option 4 between:
+
+MONTH | DESTINATION
+
+This divider belongs to the MONTH GROUP structure.
+
+It is NOT a separate burgundy bar beside every destination.
+
+For February, for example, Courchevel and Big Sky should visually belong to the same month group.
+
+==================================================
+9. REMOVE THE OLD BURGUNDY DESTINATION BARS
+==================================================
+
+The current rendered card has a short burgundy vertical bar immediately beside every destination.
+
+That is NOT the Option 4 treatment.
+
+Remove those destination-level bars.
+
+The only vertical line in the low-density treatment should be the subtle structural divider separating the month column from the destination column.
+
+==================================================
+10. DESTINATION TYPOGRAPHY
+==================================================
+
+For 3 trips, destinations remain Georgia.
+
+The Option 4 sizing reference suggests approximately:
+
+38px destination typography
+
+for the 3-trip example.
+
+Again, treat this as responsive guidance rather than an immutable value.
+
+The current destination typography should be adjusted so the overall composition resembles the reference.
+
+Destinations should be:
+
+- prominent
+- elegant
+- Georgia
+- left aligned within the destination column
+- comfortably spaced
+- not so oversized that the layout feels sparse or accidental
+
+Courchevel and Big Sky should clearly read as two destinations belonging to February.
+
+==================================================
+11. HORIZONTAL MONTH-GROUP SEPARATORS
+==================================================
+
+The Option 4 3-trip card uses a subtle horizontal divider between the January and February groups.
+
+Add that treatment.
+
+It should:
+
+- begin with the content area rather than necessarily spanning edge-to-edge
+- be subtle
+- use a light neutral/border tone
+- visually separate month groups without making the card look like a table
+
+Do not put a horizontal line between Courchevel and Big Sky because they belong to the same month.
+
+==================================================
+12. BODY SPACING / EMPTY SPACE
+==================================================
+
+The current card leaves an enormous amount of unused cream space below the three trips.
+
+The reference also has negative space, so DO NOT try to fill the entire card artificially.
+
+However, the composition should feel intentional.
+
+Use the Option 4 3-trip reference as the guide for:
+
+- top body padding
+- month-group spacing
+- destination sizing
+- divider spacing
+- overall vertical rhythm
+
+The trips should occupy a more balanced portion of the upper/middle cream body.
+
+Do not vertically center the entire itinerary.
+
+Do not make destinations enormous merely to consume space.
+
+Negative space is part of the design.
+
+==================================================
+13. FIXED 4:5 REMAINS REQUIRED
+==================================================
+
+Do not change the hard 4:5 card requirement.
+
+Do not:
+
+- allow the card to grow
+- add scrolling
+- hide trips
+- add +N more
+- truncate content
+
+This pass is about aligning the visual treatment within the existing fixed card.
+
+==================================================
+14. DO NOT CHANGE FUNCTIONAL LOGIC
+==================================================
+
+Do not change:
+
+- `get_ski_season_year`
+- season window logic
+- trip query logic
+- owned-trip logic
+- accepted guest-trip logic
+- deduplication
+- density thresholds
+- month grouping logic
+- column distribution logic
+- pass data
+- pass-count logic
+- trip data
+- user data
+
+The functional implementation already passes.
+
+==================================================
+15. SURROUNDING SEASON SCREEN REMAINS OUT OF SCOPE
+==================================================
+
+Do not redesign:
+
+- `.ss-tagline`
+- `.ss-page`
+- top navigation
+- bottom navigation
+- Season navigation
+- surrounding page copy
+- other screens
+
+The text above the card:
+
+“A snapshot of your winter — the mountains, destinations, and adventures ahead.”
+
+is outside BL-8 for this pass.
+
+Leave it alone.
+
+==================================================
+16. FILE SCOPE
+==================================================
+
+This should preferably require changes ONLY to:
+
+templates/season_snapshot.html
+
+because this is a visual alignment pass.
+
+If you determine `app.py` must change, STOP before changing it and explain exactly why.
+
+Do not touch unrelated files.
+
+==================================================
+17. CHECK OTHER DENSITY STATES AFTERWARD
+==================================================
+
+The primary target for this pass is the current 3-trip card.
+
+After making the changes, quickly verify that the shared CSS does not obviously break:
+
+- 1-trip state
+- 8-trip state
+- 15-trip state
+
+Do not redesign those states in this pass unless a shared CSS change causes an obvious regression.
+
+We will visually QA those states separately.
+
+==================================================
+DELIVERABLE
+==================================================
+
+Implement the visual alignment.
+
+Then report:
+
+1. Exact file(s) changed
+
+2. What changed in:
+   - header height
+   - header alignment
+   - headline size
+   - metadata alignment/spacing
+   - NO PASS treatment
+   - in BaseLodge treatment
+   - month-column structure
+   - vertical divider
+   - horizontal month separators
+   - destination typography
+   - body spacing
+
+3. Confirm whether any Python/data/route logic changed.
+
+4. BL-8 test result.
+
+5. Full test-suite result.
+
+6. Any remaining visual differences between the rendered 3-trip card and the SECOND CARD in the attached Option 4 reference.
+
+7. Any visual QA still needed for the 1-trip, 8-trip, and 15-trip states.
+
+DO NOT commit.
+DO NOT push.
+DO NOT deploy.
+DO NOT publish.
+
+Stop after the implementation and delivery report.

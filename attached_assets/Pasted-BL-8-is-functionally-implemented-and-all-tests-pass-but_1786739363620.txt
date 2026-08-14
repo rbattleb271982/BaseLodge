@@ -1,0 +1,177 @@
+BL-8 is functionally implemented and all tests pass, but the rendered 3-trip card does **not yet visually match the approved Option 4 reference**.
+
+This is now a **visual alignment pass only**.
+
+Do **not** change:
+
+* season inference logic
+* trip queries
+* guest-trip logic
+* density-tier thresholds
+* pass logic
+* month grouping logic
+* tests unless a visual markup change requires a narrowly scoped assertion update
+* surrounding Season-screen content
+* any unrelated functionality
+
+Use the attached **Option 4 visual reference** as the source of truth for the visual treatment.
+
+The current rendered 3-trip state is attached as well.
+
+## Current visual problems to fix
+
+### 1. Header is too tall
+
+The burgundy header currently consumes too much of the 4:5 card.
+
+For the 3-trip state, make it much more compact, closer to the Option 4 reference.
+
+The header should feel like a tight identity block, not a large hero panel.
+
+### 2. Header content must be centered
+
+Current implementation is left-aligned.
+
+Option 4 is centered.
+
+Center:
+
+* `[Name]'s 2026/27 Winter`
+* rider / skill / pass metadata
+* `in BaseLodge`
+
+### 3. Headline is too large
+
+For the 3-trip state, reduce the headline size so it visually matches the Option 4 example.
+
+The headline should remain one coherent line whenever the name fits.
+
+`Winter` may remain italicized.
+
+Do not make the title dominate half the card.
+
+### 4. Metadata needs to be tighter
+
+The metadata should sit directly beneath the headline with tighter vertical spacing.
+
+For one pass, the intended treatment remains:
+
+`SKIER · ADVANCED · IKON`
+
+For zero passes:
+
+`SKIER · ADVANCED`
+`NO PASS`
+
+Do not change the underlying pass logic.
+
+### 5. `in BaseLodge` needs to become a deliberate signature
+
+It is currently too faint, too small, and left-aligned.
+
+Match the Option 4 treatment more closely:
+
+* centered
+* Georgia italic
+* clearly legible
+* subtle, but not barely visible
+* include the small decorative horizontal rules on either side if practical
+
+Target feel:
+
+`—  in BaseLodge  —`
+
+### 6. Trip body still resembles the old card
+
+The 3-trip state should visually match the Option 4 3-trip example.
+
+The approved composition is:
+
+* month label in a narrow left column
+* subtle vertical divider between month and destination
+* destination to the right
+* horizontal separators between month groups
+* no burgundy mini-bar beside each destination
+
+For example:
+
+`JAN | Shiga Kogen`
+
+then a subtle horizontal divider
+
+`FEB | Courchevel`
+
+with `Big Sky` beneath it as another February destination.
+
+The month label should align to the top of its month group.
+
+### 7. Remove old destination mini-bars
+
+The current vertical burgundy bar beside each trip destination is not part of Option 4.
+
+Remove that treatment.
+
+Replace it with the Option 4 month/destination divider structure.
+
+### 8. Use the cream-body space more intentionally
+
+The current 3-trip state has a very large unused lower area.
+
+Do **not** simply make destinations huge.
+
+Instead:
+
+* use slightly larger editorial Georgia destination text than the dense states
+* increase vertical breathing room between month groups
+* keep the composition balanced in the upper/middle portion of the cream body
+* visually distribute the groups more like the Option 4 reference
+
+The card should feel designed, not like three database rows at the top of an empty container.
+
+### 9. Preserve fixed 4:5
+
+Do not change the hard 4:5 requirement.
+
+Do not let the card grow vertically.
+
+Do not introduce scrolling.
+
+Do not hide content.
+
+### 10. Scope this pass to visual CSS/HTML
+
+The data and route logic are already approved.
+
+Prefer changing only `templates/season_snapshot.html`.
+
+If you believe `app.py` must change for this visual alignment, stop and explain why before touching it.
+
+## Target for this pass
+
+Focus first on making the **3-trip state** visually align with the approved Option 4 example.
+
+Do not attempt a broad redesign beyond the existing BL-8 system.
+
+Once the 3-trip state is aligned, verify that the changes do not obviously break the other density tiers.
+
+## Deliverable
+
+Make the visual changes, then report:
+
+1. Exact file(s) changed
+2. What changed in:
+
+   * header height
+   * alignment
+   * title sizing
+   * metadata spacing
+   * `in BaseLodge`
+   * month/destination structure
+   * separators
+   * destination typography
+3. Whether any route/data logic changed
+4. Relevant test result
+5. Full test-suite result
+6. Any visual QA still needed for 1-trip, 8-trip, and 15-trip states
+
+Do not commit, push, deploy, or publish.
