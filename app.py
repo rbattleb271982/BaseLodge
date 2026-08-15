@@ -2628,6 +2628,73 @@ if not _SKIP_STARTUP_MIGRATIONS:
     _run_pass_mapping_correction_migration()
 
 
+def _run_connection_toast_backfill_migration():
+    """Backfill DismissedInsightCard rows for CONNECTION_ACCEPTED Activity rows
+    created before this feature's deploy date (2026-08-15).
+
+    WHY a fixed date rather than datetime.utcnow():
+      This migration runs at every app restart. Using a live cutoff would suppress
+      any connection accepted before the restart, meaning a connection made yesterday
+      would be silently dismissed the next time the server reboots — the user would
+      never see their toast. The hardcoded deploy date is the correct boundary: it
+      permanently marks only pre-feature history, and post-deploy activities are
+      never touched on subsequent restarts.
+
+    card_key = str(activity.id) — the format used by /api/home/connection-toast-seen.
+    Uses the SQLAlchemy ORM so this runs correctly in both PostgreSQL (production)
+    and SQLite (tests). Idempotent: skips rows where a DismissedInsightCard already
+    exists for the same (user_id, card_type, card_key) triple.
+    """
+    _BACKFILL_CUTOFF = datetime(2026, 8, 15, 0, 0, 0)  # BL-10 feature deploy date
+
+    try:
+        with app.app_context():
+            try:
+                historical = Activity.query.filter(
+                    Activity.type == ActivityType.CONNECTION_ACCEPTED.value,
+                    Activity.created_at < _BACKFILL_CUTOFF,
+                ).all()
+
+                if not historical:
+                    print("connection_toast_backfill: no pre-deploy activities found.")
+                    return
+
+                hist_ids = [a.id for a in historical]
+                already_dismissed = {
+                    d.card_key
+                    for d in DismissedInsightCard.query.filter(
+                        DismissedInsightCard.card_type == 'connection_accepted',
+                        DismissedInsightCard.card_key.in_([str(aid) for aid in hist_ids]),
+                    ).all()
+                }
+
+                inserted = 0
+                for act in historical:
+                    if str(act.id) not in already_dismissed:
+                        db.session.add(DismissedInsightCard(
+                            user_id=act.recipient_user_id,
+                            card_type='connection_accepted',
+                            card_key=str(act.id),
+                        ))
+                        inserted += 1
+
+                if inserted:
+                    db.session.commit()
+                print(
+                    f"connection_toast_backfill: {inserted} rows inserted "
+                    f"({len(historical) - inserted} already present)."
+                )
+            except Exception as inner_e:
+                db.session.rollback()
+                print(f"connection_toast_backfill inner error (rolled back): {inner_e}")
+    except Exception as e:
+        print(f"connection_toast_backfill: skipped ({e})")
+
+
+if not _SKIP_STARTUP_MIGRATIONS:
+    _run_connection_toast_backfill_migration()
+
+
 # ============================================================================
 # RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
 # ============================================================================
@@ -6374,11 +6441,6 @@ def accept_invitation(invitation_id):
         'is_first_friend': _fc_count == 1,
     })
 
-    # Store sender name for the one-time home page "connected" moment (acting user only)
-    sender = db.session.get(User, invitation.sender_id)
-    if sender:
-        session['new_connection_name'] = sender.first_name or sender.username or 'your new friend'
-
     # ── B2: friend.request.accepted — routed through centralized dispatch ──
     emit_messaging_event(
         event_name=EventName.FRIEND_REQUEST_ACCEPTED,
@@ -9936,75 +9998,69 @@ def home():
     today = date.today()
     _rp_t0 = time.perf_counter()
 
-    # One-time connection success message (set by accept_invitation, consumed here)
-    new_connection_name = session.pop('new_connection_name', None)
-
-    # Activity-based connection card: surfaces for both the acceptor and the invite sender.
-    # Uses DismissedInsightCard so it never reappears once seen.
-    # Only shows events from the last 48h to avoid stale product moments.
-    sender_connection_card = None
+    # ── Connection toast data (BL-10) ────────────────────────────────────────
+    # Query all unseen CONNECTION_ACCEPTED Activity rows for this user.
+    # Deduplicate by stable sorted user-pair key (integer IDs, not names).
+    # The home route does NOT mark activities surfaced — that only happens after the
+    # toast is actually rendered client-side via POST /api/home/connection-toast-seen.
+    # The sessionStorage + bl_sid gate in home.html suppresses same-session re-display.
+    connection_toast_msg = None
+    connection_toast_activity_ids = []
+    bl_sid = session.get('_id', '')
     try:
-        cutoff = datetime.utcnow() - timedelta(hours=48)
         _hp_t0 = time.perf_counter()
-        recent_connections = Activity.query.filter(
+        _pending_conn_acts = Activity.query.filter(
             Activity.recipient_user_id == user.id,
             Activity.type == ActivityType.CONNECTION_ACCEPTED.value,
-            Activity.created_at >= cutoff,
         ).order_by(Activity.created_at.desc()).all()
         if app.debug:
-            print(f"[HOME_PERF] connection_activity={time.perf_counter()-_hp_t0:.4f}s count={len(recent_connections)}")
+            print(f"[HOME_PERF] connection_toast_query={time.perf_counter()-_hp_t0:.4f}s count={len(_pending_conn_acts)}")
 
-        # Batch-fetch dismissed keys and actor users before looping — avoids N+1.
-        _conn_card_keys = [
-            f"connection:{act.actor_user_id}:{act.recipient_user_id}"
-            for act in recent_connections
-        ]
-        _dismissed_conn_keys = set()
-        if _conn_card_keys:
+        if _pending_conn_acts:
+            # Batch-fetch dismissed keys (card_key = str(activity.id))
+            _all_conn_ids = [a.id for a in _pending_conn_acts]
             _dismissed_conn_rows = DismissedInsightCard.query.filter(
                 DismissedInsightCard.user_id == user.id,
                 DismissedInsightCard.card_type == 'connection_accepted',
-                DismissedInsightCard.card_key.in_(_conn_card_keys),
+                DismissedInsightCard.card_key.in_([str(aid) for aid in _all_conn_ids]),
             ).all()
             _dismissed_conn_keys = {d.card_key for d in _dismissed_conn_rows}
-        _conn_actor_ids = list({act.actor_user_id for act in recent_connections})
-        _conn_actors_map = (
-            {u.id: u for u in User.query.filter(User.id.in_(_conn_actor_ids)).all()}
-            if _conn_actor_ids else {}
-        )
-        for act in recent_connections:
-            card_key = f"connection:{act.actor_user_id}:{act.recipient_user_id}"
-            if card_key not in _dismissed_conn_keys:
-                other_user = _conn_actors_map.get(act.actor_user_id)
-                if other_user:
-                    sender_connection_card = {
-                        'name': other_user.first_name or other_user.username or 'your new friend',
-                        'card_key': card_key,
-                    }
-                    break
+
+            # Filter to unseen activities
+            _unseen_conn = [a for a in _pending_conn_acts if str(a.id) not in _dismissed_conn_keys]
+
+            # Deduplicate by stable sorted pair key; collect ALL activity IDs per pair
+            # so duplicate rows for the same connection are all marked surfaced later.
+            _conn_pairs = {}  # pair_key -> list of activity_ids
+            for _act in _unseen_conn:
+                _uid_a, _uid_b = _act.recipient_user_id, _act.actor_user_id
+                _pair_key = f"{min(_uid_a, _uid_b)}:{max(_uid_a, _uid_b)}"
+                if _pair_key not in _conn_pairs:
+                    _conn_pairs[_pair_key] = []
+                _conn_pairs[_pair_key].append(_act.id)
+
+            if _conn_pairs:
+                # Collect all IDs to send to the client (includes duplicates within same pair)
+                connection_toast_activity_ids = [
+                    aid for ids in _conn_pairs.values() for aid in ids
+                ]
+                _unique_conn_count = len(_conn_pairs)
+                if _unique_conn_count == 1:
+                    # Single connection — show the person's name
+                    _rep_act_id = list(_conn_pairs.values())[0][0]
+                    _rep_act = next(a for a in _unseen_conn if a.id == _rep_act_id)
+                    _conn_actor = db.session.get(User, _rep_act.actor_user_id)
+                    _conn_name = (
+                        (_conn_actor.first_name or _conn_actor.username or 'your new friend')
+                        if _conn_actor else 'your new friend'
+                    )
+                    connection_toast_msg = f"You and {_conn_name} are now connected."
+                else:
+                    connection_toast_msg = f"You have {_unique_conn_count} new connections."
     except Exception:
         db.session.rollback()
-        sender_connection_card = None
-
-    # If the session-based card (acceptor path) is already showing for this same
-    # connection, pre-dismiss the Activity card so they don't see two "connected" messages.
-    if new_connection_name and sender_connection_card:
-        try:
-            existing = DismissedInsightCard.query.filter_by(
-                user_id=user.id,
-                card_type='connection_accepted',
-                card_key=sender_connection_card['card_key'],
-            ).first()
-            if not existing:
-                db.session.add(DismissedInsightCard(
-                    user_id=user.id,
-                    card_type='connection_accepted',
-                    card_key=sender_connection_card['card_key'],
-                ))
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
-        sender_connection_card = None
+        connection_toast_msg = None
+        connection_toast_activity_ids = []
 
     # --- Next Trip (created or accepted) ---
     try:
@@ -10388,8 +10444,9 @@ def home():
         stat_wishlist_url=url_for('settings_wish_list'),
         home_eq=home_eq,
         friend_count=len(friend_ids),
-        new_connection_name=new_connection_name,
-        sender_connection_card=sender_connection_card,
+        connection_toast_msg=connection_toast_msg,
+        connection_toast_activity_ids=connection_toast_activity_ids,
+        bl_sid=bl_sid,
         is_admin=is_admin,
         show_ideas_diagnostic=show_ideas_diagnostic,
         ideas_diag=ideas_diag,
@@ -10509,6 +10566,53 @@ def dismiss_nudge():
         except ValueError:
             pass
     return redirect(url_for("home"))
+
+
+@app.route("/api/home/connection-toast-seen", methods=["POST"])
+@login_required
+def connection_toast_seen():
+    """Mark specific CONNECTION_ACCEPTED Activity rows as surfaced for the current user.
+
+    Called client-side after the connection toast is actually rendered (BL-10).
+    Accepts { "activity_ids": [<int>, ...] }. Idempotent — safe to call multiple
+    times with the same IDs. Validates that every Activity belongs to the current user
+    before inserting DismissedInsightCard rows (card_key = str(activity.id)).
+    """
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get('activity_ids', [])
+    if not raw_ids or not isinstance(raw_ids, list):
+        return jsonify({"ok": True}), 200
+
+    try:
+        activity_ids = [int(aid) for aid in raw_ids]
+    except (TypeError, ValueError):
+        return jsonify({"ok": True}), 200
+
+    # Validate ownership — only act on CONNECTION_ACCEPTED Activities for this user
+    valid_acts = Activity.query.filter(
+        Activity.id.in_(activity_ids),
+        Activity.recipient_user_id == current_user.id,
+        Activity.type == ActivityType.CONNECTION_ACCEPTED.value,
+    ).all()
+
+    for act in valid_acts:
+        try:
+            existing = DismissedInsightCard.query.filter_by(
+                user_id=current_user.id,
+                card_type='connection_accepted',
+                card_key=str(act.id),
+            ).first()
+            if not existing:
+                db.session.add(DismissedInsightCard(
+                    user_id=current_user.id,
+                    card_type='connection_accepted',
+                    card_key=str(act.id),
+                ))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    return jsonify({"ok": True}), 200
 
 
 @app.route("/dismiss-insight-card", methods=["POST"])
@@ -14978,11 +15082,6 @@ def connect_from_trip(user_id):
     # Same helper + same argument order as accept_invitation: actor=current_user, other=them
     emit_connection_accepted_activity(current_user.id, user_to_connect.id)
     db.session.commit()
-
-    # One-time Home card for the acting user — same session pattern as accept_invitation
-    session['new_connection_name'] = (
-        user_to_connect.first_name or user_to_connect.username or 'your new friend'
-    )
 
     flash(f"Connected with {user_to_connect.first_name}!", "success")
     return redirect(url_for("friend_profile", friend_id=user_id))

@@ -1,0 +1,147 @@
+Approved. Proceed with implementation for **BL-10 — Improve connection accepted confirmation UX** using the final revised plan.
+
+Use the following implementation requirements exactly:
+
+### Core behavior
+
+* Replace the two existing large inline Home connection banners with one compact floating toast near the **top of the screen**, below the fixed header/native safe area.
+* The toast must not push Home content down.
+* Auto-dismiss after approximately **4.5 seconds**.
+* No × dismiss control.
+* Tapping the toast navigates to `/friends`.
+
+Message behavior:
+
+* 1 unseen connection acceptance: `You and [First name] are now connected.`
+* 2+ unseen connection acceptances: `You have [N] new connections.`
+
+### Session behavior
+
+Use the approved `sessionStorage` + Flask-Login `session["_id"]` mechanism.
+
+On every Home load:
+
+* Read the stored session ID from `sessionStorage`.
+* Compare it to the current server-rendered `bl_sid`.
+* Always write the current `bl_sid` into `sessionStorage`, even when there are no pending connection acceptances.
+* If it is the same app/login session, suppress the toast.
+* If it is a new app/login session and pending connection acceptances exist, show the toast.
+
+An acceptance that occurs while the user is actively using BaseLodge must:
+
+* Not surface during that same session.
+* Remain unseen.
+* Surface on the next login/cold-start session.
+
+### Data path
+
+Remove the old `session['new_connection_name']` mechanism from:
+
+* `accept_invitation`
+* `direct_connect`
+
+Use the existing `ActivityType.CONNECTION_ACCEPTED` Activity records as the single source of truth.
+
+The Home route must:
+
+* Query unseen connection-accepted Activities for the current user.
+* Deduplicate by stable user-pair identity using integer user IDs, not first name.
+* Build `connection_toast_msg`.
+* Build `connection_toast_activity_ids`.
+* Pass those values plus `bl_sid` to the template.
+* **Do not create `DismissedInsightCard` rows in the Home route.**
+
+### Marking surfaced
+
+Add:
+
+`POST /api/home/connection-toast-seen`
+
+The endpoint should:
+
+* Require login.
+* Accept `{ "activity_ids": [...] }`.
+* Validate that every Activity belongs to the current user before acting on it.
+* Insert the appropriate `DismissedInsightCard` records.
+* Be idempotent.
+* Return success if the same IDs are submitted more than once.
+
+Only call this endpoint **after the connection toast has actually been rendered**.
+
+### Deduplication
+
+Use a stable pair key based on user IDs, such as:
+
+`f"{min(uid_a, uid_b)}:{max(uid_a, uid_b)}"`
+
+Requirements:
+
+* Two different people with the same first name count separately.
+* Duplicate Activity rows for the same connection pair count only once.
+* When deduplicating duplicate Activity rows, ensure **all Activity IDs represented by that deduplicated connection are ultimately marked surfaced**, so duplicate rows cannot reappear later.
+
+### Existing-history backfill
+
+Implement the approved startup backfill so existing historical `CONNECTION_ACCEPTED` Activity rows from before this feature deployment do not suddenly generate stale toasts.
+
+The backfill must be:
+
+* Safe
+* Idempotent
+* Scoped only to historical connection-accepted Activities
+* Consistent with existing migration patterns in the app
+
+### UI implementation
+
+Create a dedicated top-anchored connection toast rather than modifying the existing bottom `blToast`.
+
+Use the existing top-bar dimensions/safe-area behavior so the toast sits approximately 8px below the fixed header.
+
+Keep the styling consistent with BaseLodge rather than using a generic green success-alert design.
+
+### Remove old UI
+
+Remove:
+
+* `#new-connection-card`
+* `#sender-connection-card`
+
+Remove any now-unused template variables and old connection-banner logic.
+
+Do not modify unrelated Home alerts or toast behavior.
+
+### Tests
+
+Add automated coverage for at least:
+
+* `accept_invitation` no longer writes `session['new_connection_name']`.
+* `direct_connect` no longer writes `session['new_connection_name']`.
+* One unseen connection generates the single-name message.
+* Two or more unseen connections generate the count message.
+* Zero unseen connections generates no toast data.
+* Home route does not mark Activities surfaced.
+* Seen endpoint marks only Activities belonging to the current user.
+* Seen endpoint is idempotent.
+* Duplicate Activity rows for the same connection pair count once and all represented Activity IDs are marked surfaced.
+* Two users with the same first name count as two connections.
+* Critical lifecycle:
+
+  * acceptance occurs while user is active
+  * same-session Home visit suppresses toast
+  * Activity remains unseen
+  * simulated new session shows toast
+  * seen endpoint then marks represented Activity rows surfaced
+* Historical backfill is idempotent and prevents stale pre-deploy connection Activities from surfacing.
+
+Run the full relevant test suite after implementation.
+
+Then report:
+
+* Exact files changed
+* Exact logic changed
+* Tests added or modified
+* Full test results
+* Any deviations from the approved plan
+* Any unexpected behavior discovered
+
+Do not commit, push, or publish yet.
