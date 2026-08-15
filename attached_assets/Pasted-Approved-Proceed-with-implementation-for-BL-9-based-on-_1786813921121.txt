@@ -1,0 +1,54 @@
+Approved. Proceed with implementation for **BL-9** based on the validation plan, with the following scope clarifications.
+
+### Implement
+
+1. **Multi-pass validation**
+
+   * Add the HTTP-level regression test for a friend with a comma-separated multi-pass value such as `ikon,mountain_collective`.
+   * Verify the rendered `data-pass` attribute preserves the multi-pass representation correctly.
+   * Do not change the existing multi-pass matching logic unless the test reveals an actual problem.
+
+2. **Fix the global-search empty-state bug**
+
+   * Update `_frGlobalSearch()` so `#fr-filter-no-results` is hidden when entering global member-search mode, just as the existing friends-list empty state is hidden.
+   * This should prevent “No friends match these filters” from appearing alongside global member-search results.
+
+3. **Add regression coverage**
+
+   * Add a test confirming the filter empty state is not visible while global member-search results are being displayed.
+   * Add a test confirming that filters selected while global search is active remain selected and are correctly applied to the Friends list when the user exits global search.
+
+### Explicit behavior decision
+
+The new Friends filters are for **filtering the Friends list only**.
+
+Do **not** make Pass, Rider Type, or Skill Level filters apply to global BaseLodge member-search results.
+
+If a user changes filters while global member search is active:
+
+* Preserve the selected filters.
+* Preserve the chips and active-filter count.
+* Do not alter the global member-search results based on those filters.
+* When the user exits global search, apply the selected filters to the Friends list normally.
+
+### Out of scope
+
+Do not:
+
+* Add filter persistence when navigating away from and back to Friends.
+* Redesign global member search.
+* Change existing search semantics.
+* Add new filter categories.
+* Make unrelated Friends-page changes.
+
+Keep the implementation narrowly scoped to BL-9.
+
+Run the relevant tests after implementation and report:
+
+* Exact files changed
+* Exact logic changed
+* Tests added or modified
+* Test results
+* Any unexpected behavior discovered
+
+Do not commit, push, or publish anything yet.

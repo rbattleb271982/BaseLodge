@@ -8887,6 +8887,12 @@ def friends():
     for inv in pending_incoming:
         inv._sender = _senders_map.get(inv.sender_id)
 
+    from services.pass_utils import CANONICAL_PASS_ORDER, PASS_DISPLAY_MAP as _PASS_DISPLAY_MAP
+    filter_passes = [
+        {"slug": slug, "label": _PASS_DISPLAY_MAP.get(slug, slug)}
+        for slug in CANONICAL_PASS_ORDER
+    ]
+
     return render_template(
         "friends.html",
         user=user,
@@ -8895,6 +8901,7 @@ def friends():
         friend_count=friend_count,
         alpha_groups=alpha_groups,
         pending_incoming=pending_incoming,
+        filter_passes=filter_passes,
     )
 
 @app.route("/friends/<int:friend_id>")

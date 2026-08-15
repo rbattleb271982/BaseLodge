@@ -1,0 +1,268 @@
+We are working on BaseLodge task **BL-9: Add filters to Friends list**.
+
+IMPORTANT: PLANNING / INVESTIGATION ONLY.
+
+Do not modify code.
+Do not create files.
+Do not commit, push, deploy, or publish anything.
+
+The task already exists in Notion as **BL-9**. Treat the BL-9 task description as the product source of truth.
+
+OBJECTIVE
+
+Add filtering to the existing Friends list so users can narrow friends by:
+
+- ski pass
+- rider type
+- skill level
+
+while continuing to use the existing “Search friends” behavior.
+
+The intended UX is:
+
+1. Existing Search friends field remains.
+2. A compact **Filter** control appears directly below search.
+3. Tapping Filter opens a bottom sheet.
+4. Bottom sheet contains three multi-select sections:
+   - Pass
+   - Rider type
+   - Skill level
+5. Active filters appear as removable chips beneath the search/filter controls.
+6. Filter button shows active-filter count, e.g. `Filter (3)`.
+7. Search and filters work together.
+8. Existing alphabetical friend grouping remains correct.
+9. Existing friend-row design, Invite flow, navigation, and profile behavior remain unchanged.
+
+PLANNING QUESTIONS
+
+Please inspect the current Friends implementation and answer:
+
+## 1. Current implementation
+Identify:
+- route(s)
+- template(s)
+- relevant CSS
+- any JavaScript
+- how friend data is loaded
+- how search currently works
+- how alphabetical section grouping is generated
+- how rider type, skill level, pass type, and trip count are currently exposed to the template
+
+## 2. Filter execution model
+Recommend the smallest clean implementation.
+
+Determine whether filtering should happen:
+- entirely client-side
+- server-side
+- hybrid
+
+Explain why.
+
+If the full friend list is already rendered on the page, prefer the simplest approach unless there is a clear scalability or correctness reason not to.
+
+## 3. Filter semantics
+Use these rules unless current data constraints require an adjustment:
+
+### Within one category
+Multiple selections are OR logic.
+
+Example:
+`Ikon + Epic`
+means friends with either Ikon OR Epic.
+
+### Across categories
+Different categories are AND logic.
+
+Example:
+`Ikon + Advanced`
+means friends who match an Ikon filter AND Advanced skill level.
+
+### Search
+Text search should combine with active filters.
+
+Example:
+search = `Bry`
+filters = `Ikon + Expert`
+
+Only friends matching both the search term and filter conditions should remain.
+
+## 4. Pass filtering
+Inspect the actual pass data structure and display helpers.
+
+The filter needs to support at minimum:
+- Ikon
+- Epic
+- Mountain Collective
+- No pass
+
+Determine:
+- exact canonical values
+- whether users can hold multiple passes
+- how “No pass” is represented
+- whether any other pass types exist and whether they should automatically appear as filter options
+
+Do not hard-code assumptions if the app already has a canonical pass list/helper.
+
+## 5. Rider type filtering
+Inspect the actual rider type representation.
+
+Desired conceptual options:
+- Skier
+- Snowboarder
+- Both
+
+Determine exact stored values and how “Both” is represented today.
+
+Do not invent new data fields.
+
+## 6. Skill-level filtering
+Inspect exact existing skill-level values.
+
+Expected examples:
+- Beginner
+- Intermediate
+- Advanced
+- Expert
+
+Report any additional/alternate values currently supported.
+
+## 7. Bottom-sheet interaction
+Inspect whether BaseLodge already has a reusable bottom-sheet pattern/component.
+
+If yes, recommend reusing it.
+
+If no, recommend the smallest implementation consistent with the current app.
+
+The sheet should include:
+- title: `Filter friends`
+- Reset
+- Done
+- multi-select controls
+- tappable selected/unselected states
+
+Avoid redesigning unrelated page components.
+
+## 8. Active chips
+Recommend how chips should be rendered and removed.
+
+Examples:
+`Ikon ×`
+`Advanced ×`
+`Expert ×`
+
+Determine:
+- whether chips update immediately while selecting
+- whether filters apply live or only after tapping Done
+- how Clear all / Reset should behave
+
+My preference is:
+- selections can update in the sheet
+- results apply when Done is tapped
+- Reset clears the sheet selections
+- Clear all on the Friends page immediately removes all active filters
+
+If the existing UI patterns strongly suggest another behavior, explain it.
+
+## 9. Filter count
+Define what `Filter (3)` means.
+
+Recommendation:
+Count individual active values, not categories.
+
+Example:
+Ikon + Advanced + Expert = `Filter (3)`.
+
+Confirm the simplest implementation.
+
+## 10. Alphabetical grouping
+The existing A / B / C sections must remain correct after filtering.
+
+Explain:
+- whether empty letter sections should disappear
+- how grouping should be recomputed
+- whether current DOM structure complicates filtering
+
+Expected behavior:
+Empty alphabet sections should disappear.
+
+## 11. Empty-state behavior
+Recommend a filtered-results empty state.
+
+It should clearly distinguish:
+- “You have no friends”
+from
+- “No friends match these filters”
+
+Keep it concise and consistent with BaseLodge.
+
+## 12. URL/state persistence
+Determine whether filter state should:
+- exist only during the current page visit
+- persist through navigation/back
+- be encoded in query params
+- use session/local storage
+
+For BL-9, prefer the smallest behavior unless there is an existing Friends/search state pattern worth preserving.
+
+## 13. Accessibility / mobile behavior
+Check:
+- tap target sizes
+- focus behavior
+- keyboard/search interaction
+- sheet scrolling if the viewport is small
+- selected-state clarity
+- screen-reader labeling where applicable
+
+Keep this proportional to the existing BaseLodge app.
+
+## 14. Testing
+Identify:
+- relevant existing tests
+- tests that need updating
+- new tests required
+
+Plan coverage for:
+- no filters
+- one pass filter
+- multiple pass filters
+- rider type
+- skill level
+- multiple categories combined
+- search + filters
+- clear all
+- no matching results
+- alphabetical groups disappearing/reappearing correctly
+- No pass filtering
+- user with multiple passes
+- Both rider type
+
+DELIVERABLE
+
+Return a planning report with:
+
+1. Current Friends implementation
+2. Recommended architecture
+3. Exact filter data mapping
+4. Bottom-sheet UX recommendation
+5. Search + filter logic
+6. Alphabetical grouping behavior
+7. Empty-state behavior
+8. Proposed file changes
+9. Testing plan
+10. Risks / edge cases
+11. Final recommendation
+
+STOP AFTER THE PLAN.
+
+Do not modify code.
+Do not create files.
+Do not commit.
+Do not push.
+Do not deploy.
+Do not publish.
+
+IMPORTANT WORKFLOW NOTE
+
+This task is **BL-9**.
+
+When implementation is eventually approved and later committed to GitHub, the commit message MUST include `BL-9` so the GitHub → Notion workflow can identify and update the correct task.
