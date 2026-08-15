@@ -25,6 +25,7 @@ import httpx
 from datetime import datetime, date, timedelta, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
+from sqlalchemy.exc import IntegrityError
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
@@ -95,7 +96,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -310,7 +311,7 @@ def inject_countries():
 _NOTIF_TYPES = [
     'join_request_received', 'join_request_accepted', 'join_request_declined',
     'connection_accepted', 'trip_invite_received', 'trip_invite_accepted', 'trip_invite_declined',
-    'trip_location_changed', 'trip_pass_changed',
+    'trip_location_changed', 'trip_pass_changed', 'friend_suggestions_received',
 ]
 
 
@@ -631,6 +632,48 @@ def state_fullname_filter(resort_or_code):
     if isinstance(resort_or_code, str):
         return resort_or_code
     return ""
+
+
+_STATE_ABBREV_TO_NAME = {
+    # US states + territories
+    'AL': 'Alabama',       'AK': 'Alaska',         'AZ': 'Arizona',
+    'AR': 'Arkansas',      'CA': 'California',      'CO': 'Colorado',
+    'CT': 'Connecticut',   'DE': 'Delaware',        'FL': 'Florida',
+    'GA': 'Georgia',       'HI': 'Hawaii',          'ID': 'Idaho',
+    'IL': 'Illinois',      'IN': 'Indiana',         'IA': 'Iowa',
+    'KS': 'Kansas',        'KY': 'Kentucky',        'LA': 'Louisiana',
+    'ME': 'Maine',         'MD': 'Maryland',        'MA': 'Massachusetts',
+    'MI': 'Michigan',      'MN': 'Minnesota',       'MS': 'Mississippi',
+    'MO': 'Missouri',      'MT': 'Montana',         'NE': 'Nebraska',
+    'NV': 'Nevada',        'NH': 'New Hampshire',   'NJ': 'New Jersey',
+    'NM': 'New Mexico',    'NY': 'New York',        'NC': 'North Carolina',
+    'ND': 'North Dakota',  'OH': 'Ohio',            'OK': 'Oklahoma',
+    'OR': 'Oregon',        'PA': 'Pennsylvania',    'RI': 'Rhode Island',
+    'SC': 'South Carolina','SD': 'South Dakota',    'TN': 'Tennessee',
+    'TX': 'Texas',         'UT': 'Utah',            'VT': 'Vermont',
+    'VA': 'Virginia',      'WA': 'Washington',      'WV': 'West Virginia',
+    'WI': 'Wisconsin',     'WY': 'Wyoming',         'DC': 'Washington D.C.',
+    # Canadian provinces
+    'AB': 'Alberta',       'BC': 'British Columbia','MB': 'Manitoba',
+    'NB': 'New Brunswick', 'NL': 'Newfoundland',    'NS': 'Nova Scotia',
+    'ON': 'Ontario',       'PE': 'Prince Edward Island', 'QC': 'Quebec',
+    'SK': 'Saskatchewan',  'NT': 'Northwest Territories', 'NU': 'Nunavut',
+    'YT': 'Yukon',
+}
+
+
+@app.template_filter('state_name')
+def state_name_filter(abbrev):
+    """Convert a USPS / Canada 2-letter state/province code to its full name.
+
+    Returns the full name (e.g. 'CO' → 'Colorado').
+    Falls back to the original string if the code is not recognized.
+    Usage: {{ user.home_state | state_name }}
+    """
+    if not abbrev:
+        return ''
+    code = str(abbrev).strip().upper()
+    return _STATE_ABBREV_TO_NAME.get(code, abbrev)
 
 
 @app.template_filter('resort_display')
@@ -6559,6 +6602,82 @@ def remove_friend(friend_id):
     return jsonify({"success": True, "message": "Friend removed"}), 200
 
 
+# ── BL-12: Suggested Friends API endpoints ────────────────────────────────────
+
+@app.route("/api/friends/suggestions/dismiss", methods=["POST"])
+@login_required
+def dismiss_suggestion():
+    """Dismiss all active FriendSuggestion rows for a given suggested_user_id.
+
+    Sets dismissed_at on every row where recipient == current_user and
+    suggested_user == given_id, regardless of which suggester created the row.
+    A later new suggestion from any suggester may cause the person to reappear.
+    """
+    validate_csrf_request()
+    data = request.get_json() or {}
+    suggested_user_id = data.get('suggested_user_id')
+    if not suggested_user_id:
+        return jsonify({'success': False, 'error': 'suggested_user_id required'}), 400
+
+    now = datetime.utcnow()
+    FriendSuggestion.query.filter(
+        FriendSuggestion.recipient_id == current_user.id,
+        FriendSuggestion.suggested_user_id == int(suggested_user_id),
+        FriendSuggestion.dismissed_at.is_(None),
+    ).update({'dismissed_at': now}, synchronize_session='fetch')
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Could not dismiss'}), 500
+
+    return jsonify({'success': True})
+
+
+@app.route("/api/friends/suggestions/connect", methods=["POST"])
+@login_required
+@limiter.limit("30 per hour", key_func=_user_or_ip)
+def suggestions_connect():
+    """Send a friend request from the Suggested Friends tab.
+
+    Bypasses the discoverable_in_friend_search guard because the suggested user
+    is a known connection of a mutual friend — not a result of global search.
+    Uses create_friend_request() for all other guards (self, cooldown, duplicate).
+    """
+    validate_csrf_request()
+    data = request.get_json() or {}
+    target_id = data.get('user_id')
+    if not target_id:
+        return jsonify({'success': False, 'error': 'user_id required'}), 400
+
+    target = db.session.get(User, int(target_id))
+    if not target:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+
+    result = create_friend_request(current_user.id, int(target_id))
+    code = result['code']
+
+    if result['ok']:
+        return jsonify({'success': True, 'invitation_id': result['invitation_id']}), 201
+    if code == 'SELF':
+        return jsonify({'success': False, 'error': 'Cannot connect with yourself', 'code': code}), 400
+    if code == 'ALREADY_FRIENDS':
+        return jsonify({'success': False, 'error': 'Already connected', 'code': code}), 409
+    if code == 'OUTGOING_PENDING':
+        return jsonify({'success': False, 'error': 'Request already sent', 'code': code}), 409
+    if code == 'INCOMING_PENDING':
+        return jsonify({
+            'success': False,
+            'error': 'Incoming request pending — use Accept',
+            'code': code,
+            'invitation_id': result['invitation_id'],
+        }), 409
+    if code == 'COOLDOWN':
+        return jsonify({'success': False, 'error': 'Request not available right now', 'code': code}), 429
+    return jsonify({'success': False, 'error': 'Request failed'}), 500
+
+
 @app.route("/api/friends/<int:friend_id>/set-trip-invites", methods=["POST"])
 @login_required
 def set_trip_invites(friend_id):
@@ -8955,6 +9074,73 @@ def friends():
         for slug in CANONICAL_PASS_ORDER
     ]
 
+    # ── BL-12: Suggested Friends tab data ─────────────────────────────────────
+    initial_tab = request.args.get('tab', 'friends')
+    suggested_friends = []
+    suggested_count = 0
+    try:
+        from collections import defaultdict as _defaultdict
+        _now_dt = datetime.utcnow()
+
+        _sugg_rows = FriendSuggestion.query.filter(
+            FriendSuggestion.recipient_id == user.id,
+            FriendSuggestion.dismissed_at.is_(None),
+            FriendSuggestion.expires_at > _now_dt,
+        ).order_by(FriendSuggestion.created_at.asc()).all()
+
+        if _sugg_rows:
+            # Group by suggested_user_id in Python (avoids dialect-specific array_agg)
+            _sugg_by_uid = _defaultdict(list)
+            for _sr in _sugg_rows:
+                _sugg_by_uid[_sr.suggested_user_id].append(_sr)
+
+            _sugg_groups = []
+            for _sugg_uid, _rows in _sugg_by_uid.items():
+                _latest_at = max(r.created_at for r in _rows)
+                _rows_chron = sorted(_rows, key=lambda r: r.created_at)
+                _sugg_groups.append({
+                    'suggested_user_id': _sugg_uid,
+                    'suggester_ids':     [r.suggester_id for r in _rows_chron],
+                    'latest_at':         _latest_at,
+                })
+            _sugg_groups.sort(key=lambda g: g['latest_at'], reverse=True)
+
+            _all_sugg_ids = [g['suggested_user_id'] for g in _sugg_groups]
+            _all_sr_ids   = list({sid for g in _sugg_groups for sid in g['suggester_ids']})
+            _sugg_user_map = {
+                u.id: u for u in User.query.filter(User.id.in_(_all_sugg_ids)).all()
+            }
+            _sr_user_map = {
+                u.id: u for u in User.query.filter(User.id.in_(_all_sr_ids)).all()
+            } if _all_sr_ids else {}
+
+            # Batch-check inbound pending Invitations (Accept vs Connect)
+            _inbound_invs = Invitation.query.filter(
+                Invitation.receiver_id == user.id,
+                Invitation.sender_id.in_(_all_sugg_ids),
+                Invitation.trip_id.is_(None),
+                Invitation.status == 'pending',
+            ).all()
+            _inbound_inv_map = {inv.sender_id: inv for inv in _inbound_invs}
+
+            for g in _sugg_groups:
+                _su = _sugg_user_map.get(g['suggested_user_id'])
+                if not _su:
+                    continue
+                _inv = _inbound_inv_map.get(g['suggested_user_id'])
+                suggested_friends.append({
+                    'user':                _su,
+                    'attribution':         _build_suggestion_attribution(g['suggester_ids'], _sr_user_map),
+                    'has_inbound_request': _inv is not None,
+                    'inbound_invitation_id': _inv.id if _inv else None,
+                    'latest_at':           g['latest_at'],
+                })
+            suggested_count = len(suggested_friends)
+    except Exception:
+        db.session.rollback()
+        suggested_friends = []
+        suggested_count   = 0
+
     return render_template(
         "friends.html",
         user=user,
@@ -8964,6 +9150,9 @@ def friends():
         alpha_groups=alpha_groups,
         pending_incoming=pending_incoming,
         filter_passes=filter_passes,
+        initial_tab=initial_tab,
+        suggested_friends=suggested_friends,
+        suggested_count=suggested_count,
     )
 
 @app.route("/friends/<int:friend_id>")
@@ -9230,6 +9419,245 @@ def remove_friend_web(friend_id):
 
     flash("Friend removed.", "success")
     return redirect(url_for("friends"))
+
+
+# ── BL-12: Suggest connections page routes ────────────────────────────────────
+
+def _build_suggestion_attribution(suggester_ids, sr_user_map):
+    """Return attribution string for a group of suggester IDs (chronological order)."""
+    names = []
+    for sid in suggester_ids:
+        u = sr_user_map.get(sid)
+        names.append(u.first_name if (u and u.first_name) else 'Someone')
+    if len(names) == 1:
+        return f"Suggested by {names[0]}"
+    if len(names) == 2:
+        return f"Suggested by {names[0]} and {names[1]}"
+    extra = len(names) - 2
+    return f"Suggested by {names[0]}, {names[1]} +{extra}"
+
+
+@app.route("/friends/<int:friend_id>/suggest", methods=["GET"])
+@login_required
+def suggest_connections(friend_id):
+    """Full-screen selector: Richard chooses connections to suggest to Jon.
+
+    Auth guard runs first (before any eligibility logic). Non-friends get 404
+    to avoid disclosing user existence.
+    """
+    _friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    if not _friendship:
+        abort(404)
+
+    recipient = db.session.get(User, friend_id)
+    if not recipient:
+        abort(404)
+
+    now = datetime.utcnow()
+
+    # Load Richard's connections alphabetically (batch)
+    richard_connections = (
+        db.session.query(User)
+        .join(Friend, Friend.friend_id == User.id)
+        .filter(Friend.user_id == current_user.id)
+        .order_by(User.first_name.asc(), User.last_name.asc())
+        .all()
+    )
+
+    # Batch 1: Jon's confirmed friend IDs (hide from selector)
+    jon_friend_ids = {
+        row.friend_id for row in Friend.query.filter_by(user_id=friend_id).all()
+    }
+
+    # Batch 2: IDs with pending Invitation involving Jon (either direction)
+    pending_with_jon_ids = set()
+    _pend_invs = Invitation.query.filter(
+        Invitation.trip_id.is_(None),
+        Invitation.status == 'pending',
+        db.or_(
+            Invitation.sender_id == friend_id,
+            Invitation.receiver_id == friend_id,
+        )
+    ).all()
+    for inv in _pend_invs:
+        other = inv.sender_id if inv.receiver_id == friend_id else inv.receiver_id
+        pending_with_jon_ids.add(other)
+
+    # Batch 3: IDs Richard has already actively suggested to Jon (not expired, not dismissed)
+    already_suggested_ids = {
+        row.suggested_user_id for row in FriendSuggestion.query.filter(
+            FriendSuggestion.suggester_id == current_user.id,
+            FriendSuggestion.recipient_id == friend_id,
+            FriendSuggestion.dismissed_at.is_(None),
+            FriendSuggestion.expires_at > now,
+        ).all()
+    }
+
+    candidates = []
+    for conn in richard_connections:
+        if conn.id == friend_id:
+            continue  # Jon himself — exclude
+        if conn.id == current_user.id:
+            continue  # self — exclude
+        if conn.id in jon_friend_ids:
+            continue  # already connected to Jon — hide
+        if conn.id in pending_with_jon_ids:
+            candidates.append({'user': conn, 'state': 'disabled', 'status_label': 'Request pending'})
+        elif conn.id in already_suggested_ids:
+            candidates.append({'user': conn, 'state': 'disabled', 'status_label': 'Already suggested'})
+        else:
+            candidates.append({'user': conn, 'state': 'selectable', 'status_label': None})
+
+    return render_template(
+        'suggest_connections.html',
+        recipient=recipient,
+        candidates=candidates,
+    )
+
+
+@app.route("/friends/<int:friend_id>/suggest", methods=["POST"])
+@login_required
+@limiter.limit("60 per hour", key_func=_user_or_ip)
+def submit_suggestions(friend_id):
+    """Process submitted friend suggestions from Richard to Jon.
+
+    Server-side revalidates every ID. Uses savepoints so a concurrency
+    collision on one user does not roll back the rest of the batch.
+    """
+    _friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    if not _friendship:
+        abort(404)
+
+    recipient = db.session.get(User, friend_id)
+    if not recipient:
+        abort(404)
+
+    raw_ids = request.form.getlist('suggested_user_ids')
+    try:
+        submitted_ids = list({int(x) for x in raw_ids if str(x).strip()})
+    except (ValueError, TypeError):
+        submitted_ids = []
+
+    if not submitted_ids:
+        flash("Please select at least one person to suggest.", "error")
+        return redirect(url_for('suggest_connections', friend_id=friend_id))
+
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=30)
+    _SUGGESTION_PUSH_COOLDOWN_HOURS = 12
+
+    # Server-side validation sets (batch)
+    richard_friend_ids = {
+        row.friend_id for row in Friend.query.filter_by(user_id=current_user.id).all()
+    }
+    jon_friend_ids = {
+        row.friend_id for row in Friend.query.filter_by(user_id=friend_id).all()
+    }
+
+    inserted_count = 0
+
+    for sid in submitted_ids:
+        if sid not in richard_friend_ids:
+            continue  # Not Richard's connection — reject
+        if sid == current_user.id or sid == friend_id:
+            continue  # Self or Jon — reject
+        if sid in jon_friend_ids:
+            continue  # Already connected to Jon — skip silently
+
+        # Lazy close any expired active rows for this exact tuple so the partial
+        # unique index (WHERE dismissed_at IS NULL) does not block re-insertion.
+        FriendSuggestion.query.filter(
+            FriendSuggestion.suggester_id == current_user.id,
+            FriendSuggestion.recipient_id == friend_id,
+            FriendSuggestion.suggested_user_id == sid,
+            FriendSuggestion.dismissed_at.is_(None),
+            FriendSuggestion.expires_at <= now,
+        ).update({'dismissed_at': now}, synchronize_session='fetch')
+
+        # Skip if an active row already exists (primary idempotency guard)
+        active = FriendSuggestion.query.filter(
+            FriendSuggestion.suggester_id == current_user.id,
+            FriendSuggestion.recipient_id == friend_id,
+            FriendSuggestion.suggested_user_id == sid,
+            FriendSuggestion.dismissed_at.is_(None),
+            FriendSuggestion.expires_at > now,
+        ).first()
+
+        if active is None:
+            # Savepoint per row: a collision on one person does not roll back others.
+            sp = db.session.begin_nested()
+            try:
+                db.session.add(FriendSuggestion(
+                    suggester_id=current_user.id,
+                    recipient_id=friend_id,
+                    suggested_user_id=sid,
+                    expires_at=expires_at,
+                ))
+                db.session.flush()
+                inserted_count += 1
+                sp.commit()
+            except IntegrityError:
+                # Concurrent duplicate active row — absorb silently (idempotent)
+                sp.rollback()
+
+    if inserted_count > 0:
+        db.session.commit()
+
+        # One Activity per batch
+        create_activity(
+            actor_user_id=current_user.id,
+            recipient_user_id=friend_id,
+            activity_type=ActivityType.FRIEND_SUGGESTIONS_RECEIVED,
+            object_type='user',
+            object_id=current_user.id,
+            extra_data={'count': inserted_count},
+        )
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Push cooldown check
+        cooldown_row = SuggestionPushCooldown.query.filter_by(
+            suggester_id=current_user.id,
+            recipient_id=friend_id,
+        ).first()
+        send_push = (
+            cooldown_row is None
+            or cooldown_row.last_sent_at < now - timedelta(hours=_SUGGESTION_PUSH_COOLDOWN_HOURS)
+        )
+        if send_push:
+            try:
+                push_result = send_onesignal_push(
+                    user_ids=[friend_id],
+                    title="New connection suggestions",
+                    body=f"{current_user.first_name} suggested some people you may know. See who.",
+                    data={"url": "/friends?tab=suggested"},
+                )
+                # Update cooldown only on success or skip, not on hard error
+                if push_result and (push_result.get('success') or push_result.get('skipped')):
+                    if cooldown_row is None:
+                        db.session.add(SuggestionPushCooldown(
+                            suggester_id=current_user.id,
+                            recipient_id=friend_id,
+                            last_sent_at=now,
+                        ))
+                    else:
+                        cooldown_row.last_sent_at = now
+                    try:
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+            except Exception:
+                pass  # Push failure must not undo suggestion creation
+
+        n_word = "person" if inserted_count == 1 else "people"
+        flash(f"{inserted_count} {n_word} suggested to {recipient.first_name}.", "success")
+    else:
+        flash("No new suggestions were added.", "info")
+
+    return redirect(url_for('friend_profile', friend_id=friend_id))
+
 
 @app.route("/profile/<int:user_id>")
 @login_required
@@ -10006,6 +10434,7 @@ def home():
     # The sessionStorage + bl_sid gate in home.html suppresses same-session re-display.
     connection_toast_msg = None
     connection_toast_activity_ids = []
+    connection_toast_suggest_url = None
     bl_sid = session.get('_id', '')
     try:
         _hp_t0 = time.perf_counter()
@@ -10057,10 +10486,27 @@ def home():
                     connection_toast_msg = f"You and {_conn_name} are now connected."
                 else:
                     connection_toast_msg = f"You have {_unique_conn_count} new connections."
+
+                # BL-12: compute suggest CTA for single-connection toasts where
+                # current user was the original request sender
+                if _unique_conn_count == 1:
+                    _rep_act_id = list(_conn_pairs.values())[0][0]
+                    _rep_act = next(a for a in _unseen_conn if a.id == _rep_act_id)
+                    _other_uid = _rep_act.actor_user_id
+                    _was_sender = Invitation.query.filter_by(
+                        sender_id=user.id,
+                        receiver_id=_other_uid,
+                        status='accepted',
+                    ).filter(Invitation.trip_id.is_(None)).first() is not None
+                    if _was_sender:
+                        connection_toast_suggest_url = url_for(
+                            'suggest_connections', friend_id=_other_uid
+                        )
     except Exception:
         db.session.rollback()
         connection_toast_msg = None
         connection_toast_activity_ids = []
+        connection_toast_suggest_url = None
 
     # --- Next Trip (created or accepted) ---
     try:
@@ -10446,6 +10892,7 @@ def home():
         friend_count=len(friend_ids),
         connection_toast_msg=connection_toast_msg,
         connection_toast_activity_ids=connection_toast_activity_ids,
+        connection_toast_suggest_url=connection_toast_suggest_url,
         bl_sid=bl_sid,
         is_admin=is_admin,
         show_ideas_diagnostic=show_ideas_diagnostic,

@@ -31,7 +31,51 @@ from app import app, limiter
 from models import (
     db, User, SkiTrip, SkiTripParticipant, Resort,
     GuestStatus, ParticipantRole,
+    Friend, Invitation, Activity,
+    FriendSuggestion, SuggestionPushCooldown,
 )
+
+
+# ── Model-class fixtures (return the class so test signatures can receive them) ─
+
+@pytest.fixture
+def app_fixture():
+    return app
+
+
+@pytest.fixture
+def db_fixture():
+    return db
+
+
+@pytest.fixture
+def User_cls():
+    return User
+
+
+@pytest.fixture
+def Friend_cls():
+    return Friend
+
+
+@pytest.fixture
+def Invitation_cls():
+    return Invitation
+
+
+@pytest.fixture
+def Activity_cls():
+    return Activity
+
+
+@pytest.fixture
+def FriendSuggestion_cls():
+    return FriendSuggestion
+
+
+@pytest.fixture
+def SuggestionPushCooldown_cls():
+    return SuggestionPushCooldown
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 

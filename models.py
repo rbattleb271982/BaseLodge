@@ -1022,6 +1022,58 @@ class FriendCooldown(db.Model):
         return f'<FriendCooldown {self.user_a_id}<->{self.user_b_id} until={self.expires_at}>'
 
 
+class FriendSuggestion(db.Model):
+    """A private suggestion by one BaseLodge user (suggester) to a connected friend (recipient)
+    to connect with a third person (suggested_user).
+
+    Active-row uniqueness is enforced by a partial unique index on
+    (suggester_id, recipient_id, suggested_user_id) WHERE dismissed_at IS NULL
+    (see migration uix_friend_suggestion_active). This allows re-suggestion
+    after the prior row has been dismissed or lazily expired (dismissed_at set).
+
+    Expiry is stored as expires_at = created_at + 30 days so the index can be used
+    for the active-row filter without per-row computation.
+    """
+    __tablename__ = 'friend_suggestion'
+
+    id = db.Column(db.Integer, primary_key=True)
+    suggester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    suggested_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    dismissed_at = db.Column(db.DateTime, nullable=True)
+
+    suggester = db.relationship('User', foreign_keys=[suggester_id])
+    recipient = db.relationship('User', foreign_keys=[recipient_id])
+    suggested_user = db.relationship('User', foreign_keys=[suggested_user_id])
+
+    __table_args__ = (
+        db.Index('idx_friend_suggestion_recipient', 'recipient_id', 'dismissed_at', 'expires_at'),
+        db.Index('idx_friend_suggestion_suggester', 'suggester_id', 'recipient_id'),
+    )
+
+    def __repr__(self):
+        return f'<FriendSuggestion {self.suggester_id}->{self.recipient_id}: {self.suggested_user_id}>'
+
+
+class SuggestionPushCooldown(db.Model):
+    """12-hour per-(suggester, recipient) push notification cooldown for Suggested Friends batches."""
+    __tablename__ = 'suggestion_push_cooldown'
+
+    id = db.Column(db.Integer, primary_key=True)
+    suggester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    last_sent_at = db.Column(db.DateTime, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('suggester_id', 'recipient_id', name='uq_suggestion_push_cooldown'),
+    )
+
+    def __repr__(self):
+        return f'<SuggestionPushCooldown {self.suggester_id}->{self.recipient_id} last={self.last_sent_at}>'
+
+
 class InviteToken(db.Model):
     """Friend invite token. Permanent until used — expires_at is retained for legacy rows only."""
     id = db.Column(db.Integer, primary_key=True)
@@ -1268,6 +1320,7 @@ class ActivityType(PyEnum):
     JOIN_REQUEST_DECLINED = "join_request_declined"
     TRIP_LOCATION_CHANGED = "trip_location_changed"
     TRIP_PASS_CHANGED = "trip_pass_changed"
+    FRIEND_SUGGESTIONS_RECEIVED = "friend_suggestions_received"
 
 
 class Activity(db.Model):

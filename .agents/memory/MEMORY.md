@@ -4,3 +4,5 @@
 - [Activity tracking / last_active_at](activity-tracking.md) — field was never written in app.py; fix stamps it at all login paths + throttled before_request heartbeat (1×/hr via session).
 - [App Store metrics architecture](app-store-metrics.md) — AppStoreMetric model stores daily snapshots; refresh via POST /admin/app-store/refresh only; dashboard reads DB never live APIs; ASC page views/conversion NOT available via public API.
 - [Trip planning board](trip-planning-board.md) — SkiTripPlanningPost model + GET /trips/<id>/planning + 3 API endpoints; messaging event TRIP_PLANNING_POST_CREATED wired in both constants + dispatch; trip_detail shows can_plan + planning_post_count; notes moved to private owner-only field in Edit Trip.
+- [Activity model column name](activity-model.md) — Activity.type is the SQLAlchemy column (not activity_type); filter_by(type=...) not filter_by(activity_type=...).
+- [state_name Jinja filter](state-name-filter.md) — converts USPS/Canada 2-letter abbreviation to full state name; _STATE_ABBREV_TO_NAME dict in app.py; existing state_fullname filter only handles Resort objects.

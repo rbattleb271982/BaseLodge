@@ -1234,12 +1234,20 @@
        Auto-dismisses after 4.5 s. Tapping navigates to url.
        After rendering, fires the seen endpoint so Activity rows are marked
        surfaced only after the toast has actually appeared.                  */
-    function blConnectionToast(msg, url, activityIds) {
+    /* ── blConnectionToast (BL-10 / BL-12) ─────────────────────────────────
+       Top-anchored connection toast. Sits 8px below the fixed top bar.
+       Floats over content (position:fixed), does not push layout.
+       Auto-dismisses after 4.5s (6.5s when suggestUrl is present).
+       Tapping the toast body navigates to url.
+       Optional 4th arg suggestUrl adds a secondary link inside the toast;
+       tapping it navigates to the suggest selector without also navigating to url.
+       After rendering, fires the seen endpoint so Activity rows are marked
+       surfaced only after the toast has actually appeared.               */
+    function blConnectionToast(msg, url, activityIds, suggestUrl) {
         var prev = document.getElementById('bl-conn-toast');
         if (prev) prev.remove();
         var t = document.createElement('div');
         t.id = 'bl-conn-toast';
-        t.textContent = msg;
         t.style.cssText = [
             'position:fixed',
             'top:calc(52px + env(safe-area-inset-top,0px) + 8px)',
@@ -1262,14 +1270,36 @@
             'cursor:pointer',
             'font-family:inherit',
         ].join(';');
+        // Main message paragraph
+        var msgEl = document.createElement('p');
+        msgEl.style.cssText = 'margin:0;padding:0;';
+        msgEl.textContent = msg;
+        t.appendChild(msgEl);
+        // Optional suggest CTA link (secondary)
+        if (suggestUrl) {
+            var link = document.createElement('a');
+            link.href = suggestUrl;
+            link.textContent = 'Suggest people they may know →';
+            link.style.cssText = [
+                'display:block',
+                'margin-top:7px',
+                'color:#E8C87A',
+                'font-size:13px',
+                'font-weight:500',
+                'text-decoration:none',
+            ].join(';');
+            link.onclick = function(e) { e.stopPropagation(); };
+            t.appendChild(link);
+        }
         if (url) {
             t.onclick = function() { window.location.href = url; };
         }
         document.body.appendChild(t);
+        var dismissDelay = suggestUrl ? 6500 : 4500;
         setTimeout(function() {
             t.style.opacity = '0';
             setTimeout(function() { if (t.parentNode) t.remove(); }, 260);
-        }, 4500);
+        }, dismissDelay);
         // Mark represented Activity rows as surfaced (fire-and-forget)
         if (activityIds && activityIds.length) {
             fetch('/api/home/connection-toast-seen', {
@@ -1284,15 +1314,16 @@
     // app/login session. sessionStorage is cleared on cold start (app kill).
     // bl_sid = Flask-Login session["_id"] — stable per session, fresh per login.
     (function() {
-        var blSid    = {{ bl_sid | tojson }};
-        var msg      = {{ connection_toast_msg | tojson }};
-        var actIds   = {{ connection_toast_activity_ids | tojson }};
-        var stored   = sessionStorage.getItem('bl_conn_toast_sid');
-        var sameSess = (stored === blSid);
+        var blSid      = {{ bl_sid | tojson }};
+        var msg        = {{ connection_toast_msg | tojson }};
+        var actIds     = {{ connection_toast_activity_ids | tojson }};
+        var suggestUrl = {{ connection_toast_suggest_url | tojson }};
+        var stored     = sessionStorage.getItem('bl_conn_toast_sid');
+        var sameSess   = (stored === blSid);
         // Always write current sid so future same-session loads suppress correctly
         sessionStorage.setItem('bl_conn_toast_sid', blSid);
         if (!sameSess && msg) {
-            blConnectionToast(msg, '/friends', actIds);
+            blConnectionToast(msg, '/friends', actIds, suggestUrl);
         }
     })();
 

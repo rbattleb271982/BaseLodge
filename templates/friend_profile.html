@@ -42,7 +42,7 @@
             margin: 0 0 12px 0;
         }
         .fp-cta {
-            display: inline-block;
+            display: block;
             font-size: 14px;
             color: var(--bl-color-primary);
             text-decoration: none;
@@ -345,6 +345,9 @@
 
             {% if is_friend and has_user_upcoming_trips %}
             <a href="{{ url_for('my_trips') }}" class="fp-cta">Invite to trip →</a>
+            {% endif %}
+            {% if is_friend %}
+            <a href="{{ url_for('suggest_connections', friend_id=friend.id) }}" class="fp-cta">Suggest connections →</a>
             {% endif %}
 
             <!-- Stat band: Trips / Mountains Visited / Wishlist Mountains -->

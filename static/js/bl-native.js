@@ -1263,7 +1263,11 @@ document.addEventListener('DOMContentLoaded', function() {
     try {
       var parsed = new URL(url);
       var path = parsed.pathname + parsed.search + parsed.hash;
-      if (path.indexOf('/invite/') === 0 || path.indexOf('/trip-invite/') === 0) {
+      var ALLOWED_PREFIXES = ['/invite/', '/trip-invite/', '/friends'];
+      var isAllowed = ALLOWED_PREFIXES.some(function(prefix) {
+        return path.indexOf(prefix) === 0;
+      });
+      if (isAllowed) {
         _lastHandledDeepLinkUrl = url;
         console.log('[DeepLink] navigating to', path);
         window.location.href = path;

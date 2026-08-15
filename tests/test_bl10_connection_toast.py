@@ -183,7 +183,7 @@ class TestHomeConnectionToast:
         # JS msg variable should be null; neither toast message should appear
         assert "are now connected." not in body
         assert "new connections." not in body
-        assert "var msg      = null" in body
+        assert "var msg        = null" in body
 
     def test_home_does_not_create_dismissed_rows(self, client):
         """Home route query alone must leave DismissedInsightCard untouched."""
@@ -415,7 +415,7 @@ class TestCriticalLifecycle:
         body3 = resp3.data.decode()
         assert "are now connected." not in body3
         assert "new connections." not in body3
-        assert "var msg      = null" in body3
+        assert "var msg        = null" in body3
 
     def test_acceptance_during_active_session_surfaces_next_session(self, client):
         """Simulates: active session → acceptance → home visit (no dismiss because

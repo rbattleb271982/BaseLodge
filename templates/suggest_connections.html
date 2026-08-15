@@ -1,0 +1,352 @@
+{% extends "base_app.html" %}
+{% block title %}Suggest connections · BaseLodge{% endblock %}
+{% block topbar_title %}Suggest connections{% endblock %}
+
+{% block head %}
+<style>
+    .sc-recipient-label {
+        font-size: 15px;
+        color: var(--bl-color-text-muted);
+        margin: 0 0 16px;
+        line-height: 1.45;
+    }
+    .sc-recipient-label strong {
+        color: var(--bl-color-text);
+    }
+    .sc-search-wrap {
+        margin-bottom: 8px;
+    }
+    .sc-no-results {
+        font-size: 14px;
+        color: var(--bl-color-text-muted);
+        margin: 8px 0 0;
+    }
+
+    /* Candidate rows */
+    .sc-row {
+        border-bottom: 1px solid #E5DFD0;
+    }
+    .sc-row:first-child { border-top: 1px solid #E5DFD0; }
+    .sc-row:last-child  { border-bottom: none; }
+    .sc-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        width: 100%;
+    }
+    .sc-label:active { opacity: 0.7; }
+    .sc-label--static {
+        cursor: default;
+        opacity: 0.45;
+    }
+
+    /* Custom checkbox appearance */
+    .sc-checkbox {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .sc-cb-custom {
+        flex-shrink: 0;
+        width: 22px;
+        height: 22px;
+        border: 1.5px solid #C4B8B0;
+        border-radius: 6px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.12s, border-color 0.12s;
+    }
+    .sc-checkbox:checked + .sc-cb-custom {
+        background: var(--bl-color-primary, #5C1219);
+        border-color: var(--bl-color-primary, #5C1219);
+    }
+    .sc-checkbox:checked + .sc-cb-custom::after {
+        content: '';
+        display: block;
+        width: 6px;
+        height: 11px;
+        border: 2px solid #fff;
+        border-top: none;
+        border-left: none;
+        transform: rotate(45deg) translate(-1px, -1px);
+    }
+    .sc-cb-custom--off {
+        opacity: 0.4;
+    }
+
+    .sc-name {
+        font-size: 16px;
+        color: var(--bl-color-text);
+        flex: 1;
+        min-width: 0;
+    }
+    .sc-status-badge {
+        font-size: 12px;
+        color: var(--bl-color-text-tertiary);
+        flex-shrink: 0;
+        margin-left: auto;
+    }
+    .sc-empty-state {
+        font-size: 15px;
+        color: var(--bl-color-text-muted);
+        padding: 24px 0;
+    }
+
+    /* Sticky bottom CTA
+       Must sit above .bl-bottom-nav (z-index:100, position:fixed, bottom:0,
+       height: calc(64px + safe-area-inset-bottom)).
+       Raise z-index to 101 and offset bottom by the nav height so the button
+       is visible and tappable above the nav bar. */
+    .sc-cta-bar {
+        position: fixed;
+        bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        left: 0;
+        right: 0;
+        padding: 12px 16px;
+        background: linear-gradient(to bottom, rgba(245,241,232,0) 0%, #F5F1E8 30%);
+        z-index: 101;
+    }
+    .sc-cta-btn {
+        display: block;
+        width: 100%;
+        background: var(--bl-color-primary, #5C1219);
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        padding: 16px;
+        font-size: 17px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
+        transition: opacity 0.15s;
+    }
+    .sc-cta-btn:active { opacity: 0.85; }
+
+    /* Confirmation sheet */
+    .sc-confirm-bg {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        z-index: 500;
+    }
+    .sc-confirm-sheet {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 501;
+        background: #F5F1E8;
+        border-radius: 20px 20px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .sc-confirm-handle {
+        width: 36px;
+        height: 4px;
+        border-radius: 2px;
+        background: #C4B8B0;
+        margin: 12px auto 0;
+    }
+    .sc-confirm-body {
+        padding: 20px 20px 8px;
+    }
+    .sc-confirm-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1A1A1A;
+        margin: 0 0 14px;
+    }
+    .sc-confirm-text {
+        font-size: 15px;
+        color: var(--bl-color-text-muted);
+        line-height: 1.5;
+        margin: 0 0 8px;
+    }
+    .sc-confirm-actions {
+        padding: 8px 20px 20px;
+    }
+    .sc-confirm-submit {
+        display: block;
+        width: 100%;
+        background: var(--bl-color-primary, #5C1219);
+        color: #fff;
+        border: none;
+        border-radius: 14px;
+        padding: 16px;
+        font-size: 17px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        -webkit-tap-highlight-color: transparent;
+    }
+    .sc-confirm-submit:active { opacity: 0.85; }
+    .sc-confirm-cancel {
+        display: block;
+        width: 100%;
+        border: none;
+        background: none;
+        font-size: 16px;
+        color: var(--bl-color-text-muted);
+        padding: 14px;
+        font-family: inherit;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        margin-top: 4px;
+    }
+    .sc-confirm-cancel:active { opacity: 0.6; }
+
+    /* Extra bottom padding so neither the CTA bar nor the bottom nav covers
+       the last row. CTA bar is ~64px tall; bottom nav is 64px + safe area. */
+    #sc-list { padding-bottom: 160px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+    <p class="sc-recipient-label">
+        Select people to suggest to <strong>{{ recipient.first_name | format_name }}</strong>.
+        They'll see your name as the source — the suggested people won't be notified.
+    </p>
+
+    <div class="sc-search-wrap">
+        <input type="search" id="sc-search" class="bl-search-input"
+               placeholder="Search connections"
+               autocomplete="off" autocorrect="off" autocapitalize="off"
+               oninput="scFilter(this.value)">
+    </div>
+
+    <p id="sc-no-results" class="sc-no-results" style="display:none;">No results.</p>
+
+    <div id="sc-list">
+    {% for c in candidates %}
+        <div class="sc-row"
+             data-name="{{ (c.user.first_name or '') | lower }} {{ (c.user.last_name or '') | lower }}">
+        {% if c.state == 'selectable' %}
+            <label class="sc-label" for="sc-cb-{{ c.user.id }}">
+                <input type="checkbox" id="sc-cb-{{ c.user.id }}"
+                       class="sc-checkbox"
+                       value="{{ c.user.id }}"
+                       onchange="scUpdateCta()">
+                <span class="sc-cb-custom" aria-hidden="true"></span>
+                <span class="sc-name">
+                    {{- c.user.first_name | format_name -}}
+                    {%- if c.user.last_name %} {{ c.user.last_name | format_name }}{% endif -%}
+                    {%- if c.user.home_state %} - {{ c.user.home_state | state_name }}{% endif -%}
+                </span>
+            </label>
+        {% else %}
+            <div class="sc-label sc-label--static">
+                <span class="sc-cb-custom sc-cb-custom--off" aria-hidden="true"></span>
+                <span class="sc-name">
+                    {{- c.user.first_name | format_name -}}
+                    {%- if c.user.last_name %} {{ c.user.last_name | format_name }}{% endif -%}
+                    {%- if c.user.home_state %} - {{ c.user.home_state | state_name }}{% endif -%}
+                </span>
+                <span class="sc-status-badge">{{ c.status_label }}</span>
+            </div>
+        {% endif %}
+        </div>
+    {% else %}
+        <p class="sc-empty-state">You have no connections to suggest yet.</p>
+    {% endfor %}
+    </div>
+
+</div>
+
+<!-- Sticky CTA (hidden until selection) -->
+<div class="sc-cta-bar" id="sc-cta-bar" style="display:none;">
+    <button type="button" class="sc-cta-btn" id="sc-cta-btn" onclick="scShowConfirm()">
+        Suggest <span id="sc-sel-count">0</span> <span id="sc-sel-word">connections</span>
+    </button>
+</div>
+
+<!-- Confirmation overlay -->
+<div class="sc-confirm-bg" id="sc-confirm-bg" onclick="scHideConfirm()" style="display:none;"></div>
+<div class="sc-confirm-sheet" id="sc-confirm-sheet" style="display:none;">
+    <div class="sc-confirm-handle"></div>
+    <div class="sc-confirm-body">
+        <p class="sc-confirm-title">Before you suggest</p>
+        <p class="sc-confirm-text">
+            <strong>{{ recipient.first_name | format_name }}</strong> will see that these
+            suggestions came from you.
+        </p>
+        <p class="sc-confirm-text">
+            The suggested people will <strong>not</strong> be notified.
+        </p>
+    </div>
+    <form method="POST" id="sc-form"
+          action="{{ url_for('submit_suggestions', friend_id=recipient.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div id="sc-hidden-inputs"></div>
+        <div class="sc-confirm-actions">
+            <button type="submit" class="sc-confirm-submit" id="sc-confirm-submit-btn">
+                Suggest <span id="sc-confirm-count">0</span> <span id="sc-confirm-word">connections</span>
+            </button>
+            <button type="button" class="sc-confirm-cancel" onclick="scHideConfirm()">Cancel</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    var _scSelectedIds = new Set();
+
+    function scUpdateCta() {
+        var checkboxes = document.querySelectorAll('.sc-checkbox:checked');
+        _scSelectedIds = new Set(Array.from(checkboxes).map(function(cb) { return cb.value; }));
+        var n = _scSelectedIds.size;
+        var bar = document.getElementById('sc-cta-bar');
+        document.getElementById('sc-sel-count').textContent = n;
+        document.getElementById('sc-sel-word').textContent = n === 1 ? 'connection' : 'connections';
+        bar.style.display = n > 0 ? '' : 'none';
+    }
+
+    function scFilter(q) {
+        var term = q.trim().toLowerCase();
+        var rows = document.querySelectorAll('#sc-list .sc-row');
+        var visible = 0;
+        rows.forEach(function(row) {
+            var name = row.getAttribute('data-name') || '';
+            var show = !term || name.indexOf(term) !== -1;
+            row.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        var noRes = document.getElementById('sc-no-results');
+        if (noRes) noRes.style.display = (term && visible === 0) ? '' : 'none';
+    }
+
+    function scShowConfirm() {
+        var n = _scSelectedIds.size;
+        if (n === 0) return;
+        document.getElementById('sc-confirm-count').textContent = n;
+        document.getElementById('sc-confirm-word').textContent = n === 1 ? 'connection' : 'connections';
+
+        // Populate hidden inputs for form submission
+        var hiddenDiv = document.getElementById('sc-hidden-inputs');
+        hiddenDiv.innerHTML = '';
+        _scSelectedIds.forEach(function(id) {
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'suggested_user_ids';
+            inp.value = id;
+            hiddenDiv.appendChild(inp);
+        });
+
+        document.getElementById('sc-confirm-bg').style.display = '';
+        document.getElementById('sc-confirm-sheet').style.display = '';
+    }
+
+    function scHideConfirm() {
+        document.getElementById('sc-confirm-bg').style.display = 'none';
+        document.getElementById('sc-confirm-sheet').style.display = 'none';
+    }
+</script>
+{% endblock %}
