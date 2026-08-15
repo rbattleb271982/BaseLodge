@@ -1,0 +1,756 @@
+# Replit Implementation Prompt — BL-12 Suggested Friends
+
+Implement **BL-12 — Suggested Friends** according to the finalized product spec and the updated implementation plan.
+
+The feature has completed product review and planning. You may now implement it.
+
+Before editing, re-check the current code around every touched area so you do not rely on stale line numbers or assumptions from the planning pass.
+
+## Scope
+
+Build the full BL-12 Suggested Friends feature.
+
+Do **not** broaden scope beyond the finalized plan.
+
+Specifically out of scope:
+
+* Blocking / Block model
+* Algorithmic friend recommendations
+* Contact syncing / address-book matching
+* Home Suggested Friends card
+* Additional dismissal suppression rules
+* Recommendation ranking based on mutuals, pass, resort, state, trip, activity, etc.
+
+## Core behavior
+
+Connected BaseLodge users can privately suggest their own existing connections to another user they are already connected with.
+
+Example:
+
+Richard is connected to Jon.
+
+Richard can privately suggest Jennifer to Jon.
+
+Jon sees Jennifer under **Suggested Friends** with attribution such as:
+
+`Suggested by Richard`
+
+Jennifer receives **no notification** that Richard suggested her.
+
+If Jon chooses Connect, Jennifer receives only the normal BaseLodge connection request.
+
+## Authorization
+
+Suggestions may only be created between users who are currently connected.
+
+For both:
+
+`GET /friends/<friend_id>/suggest`
+
+and
+
+`POST /friends/<friend_id>/suggest`
+
+the friendship authorization check must happen before form parsing or suggestion eligibility logic.
+
+A non-connected user attempting to access or submit directly should receive a non-disclosing response such as 404.
+
+Do not trust client-side eligibility.
+
+Revalidate every submitted suggested user ID on the server.
+
+## Database / Models
+
+Implement the finalized `FriendSuggestion` architecture.
+
+Conceptual fields:
+
+* `id`
+* `suggester_id`
+* `recipient_id`
+* `suggested_user_id`
+* `created_at`
+* `expires_at`
+* `dismissed_at`
+
+Suggestions expire 30 days after creation.
+
+Multiple different recommenders may independently suggest the same person to the same recipient.
+
+### Active uniqueness requirement
+
+Do **not** use a permanent:
+
+`UNIQUE (suggester_id, recipient_id, suggested_user_id)`
+
+constraint.
+
+That would break valid re-suggestion after dismissal or expiration.
+
+Instead use the finalized active-only uniqueness strategy:
+
+* partial unique index on:
+  `(suggester_id, recipient_id, suggested_user_id)`
+* only where:
+  `dismissed_at IS NULL`
+
+This must work in both production PostgreSQL and SQLite tests.
+
+Migration direction:
+
+`op.create_index(
+    'uix_friend_suggestion_active',
+    'friend_suggestion',     ['suggester_id', 'recipient_id', 'suggested_user_id'],
+    unique=True,
+    postgresql_where=sa.text('dismissed_at IS NULL'),
+    sqlite_where=sa.text('dismissed_at IS NULL')
+)`
+
+Before inserting a fresh suggestion for a tuple, lazily close any expired active row for that same tuple by setting:
+
+`dismissed_at = NOW()`
+
+where:
+
+* same suggester
+* same recipient
+* same suggested user
+* `dismissed_at IS NULL`
+* `expires_at <= NOW()`
+
+This allows the new row to get:
+
+* fresh `created_at`
+* fresh `expires_at`
+* fresh 30-day window
+
+### Critical transaction safety requirement
+
+A concurrency collision for **one suggested user must not roll back or prevent the other valid suggestions in the same submitted batch**.
+
+If `flush()` or insert hits `IntegrityError` because another request concurrently inserted the same active tuple, do **not** use a plain rollback pattern that wipes the whole batch transaction.
+
+Use a safe approach such as:
+
+* nested transaction / savepoint per insert
+* conflict-safe insert strategy
+* another SQLAlchemy pattern that isolates the individual collision
+
+The result must be:
+
+Richard submits 20 people.
+
+One person collides because another concurrent request inserted the same active suggestion.
+
+The other 19 valid suggestions must still commit successfully.
+
+The collision should simply behave as an idempotent duplicate for that one person.
+
+## Push cooldown model
+
+Implement durable storage for the **12-hour per-suggester → recipient push cooldown**.
+
+Conceptual model:
+
+`SuggestionPushCooldown`
+
+Fields:
+
+* `id`
+* `suggester_id`
+* `recipient_id`
+* `last_sent_at`
+
+Unique pair:
+
+`(suggester_id, recipient_id)`
+
+Do not reuse `FriendCooldown`; its semantics are unrelated.
+
+## Activity type
+
+Add:
+
+`FRIEND_SUGGESTIONS_RECEIVED = "friend_suggestions_received"`
+
+to the existing `ActivityType` enum and any existing activity validation/string set required by the current architecture.
+
+One Activity record should be created per successful submission batch when at least one new suggestion was actually inserted.
+
+Do not create one Activity per suggested person.
+
+## Selector UX
+
+Add a dedicated full-screen suggestion selector.
+
+Entry points:
+
+1. Permanent **Suggest connections** action on the connected friend's profile
+2. One-time action inside the connection-accepted toast for the original request sender
+
+The selector shows the suggester's own BaseLodge connections.
+
+Requirements:
+
+* searchable
+* alphabetical by first name, then last name
+* multi-select
+* no explicit numerical selection limit
+* no profile photos
+* display format like:
+  `Michael Smith, NY`
+* checkbox-style row interaction
+* sticky CTA:
+  `Suggest 8 people`
+
+## Selector eligibility
+
+Load eligibility in batch. Avoid N+1 queries.
+
+For Richard suggesting to Jon:
+
+### Already connected to Jon
+
+Hide entirely.
+
+### Pending direct Invitation involving Jon
+
+Show but disable:
+
+`Request pending`
+
+### Already actively suggested by Richard
+
+Show but disable:
+
+`Already suggested`
+
+Only active means:
+
+* `dismissed_at IS NULL`
+* `expires_at > NOW()`
+
+Expired prior suggestions should not disable the candidate.
+
+### Suggested by someone else
+
+Still selectable.
+
+Multiple independent recommenders are allowed.
+
+### Other validation
+
+The server must also prevent:
+
+* suggesting Jon to himself
+* suggesting Richard to himself
+* submitting a person who is not actually Richard's connection
+* submitting someone already connected to Jon
+
+Re-check state on POST because it may have changed after the selector loaded.
+
+## Confirmation
+
+Before submission, show a confirmation explaining:
+
+* Jon will see that these suggestions came from Richard
+* the suggested people will **not** be notified
+
+After successful submission:
+
+* return to Jon's profile
+* show a brief success toast such as:
+  `8 people suggested to Jon`
+* no dedicated success screen
+
+## Friends page tabs
+
+Add:
+
+`Friends | Suggested Friends`
+
+Reuse the existing Trips tab pattern rather than creating a new UI paradigm.
+
+When active suggestions exist:
+
+`Suggested Friends (6)`
+
+When none:
+
+`Suggested Friends`
+
+The tab stays visible even when empty.
+
+No search inside Suggested Friends for V1.
+
+Support:
+
+`/friends?tab=suggested`
+
+The Suggested Friends tab must open correctly when the URL param is present.
+
+## Suggested Friends empty state
+
+Use an intentional empty state in the direction of:
+
+**Find your crew**
+
+Your BaseLodge friends can suggest people they think you know. Their suggestions will appear here.
+
+Users can help friends by visiting a connected friend's profile and using **Suggest connections**.
+
+Exact polish can follow existing BaseLodge copy conventions.
+
+## Suggested Friend rows
+
+Organize by **suggested person**, not recommender.
+
+Do not create duplicate person rows.
+
+Conceptual row:
+
+`Jennifer Lee, CA                      Connect`
+
+`Suggested by Richard and Sarah            ×`
+
+Requirements:
+
+* first + last name
+* home-state abbreviation
+* Connect/Accept dominant and right-aligned
+* visible but subdued × dismiss action
+* reuse existing Friends visual treatment as much as possible
+* most recent suggestion activity first
+
+## Multiple recommender attribution
+
+Chronological order by first suggestion timestamp.
+
+1 recommender:
+
+`Suggested by Richard`
+
+2:
+
+`Suggested by Richard and Sarah`
+
+3+:
+
+`Suggested by Richard, Sarah +N`
+
+Show the first two chronological recommenders.
+
+`+N` is not interactive.
+
+A new recommendation for an already-visible person refreshes that person's latest suggestion activity and may move the row to the top.
+
+## Inbound pending request state — finalized behavior
+
+This is now fully decided.
+
+When Jennifer appears in Jon's Suggested Friends but Jennifer has already sent Jon a pending connection request:
+
+show:
+
+**Accept**
+
+not:
+
+**Connect**
+
+Use one batch Invitation query when loading Suggested Friends:
+
+* `receiver_id == current_user.id`
+* `sender_id IN suggested_user_ids`
+* direct invitation only
+* pending status
+
+Add to each display row:
+
+* `has_inbound_request`
+* `inbound_invitation_id`
+
+If true, render **Accept**.
+
+Tapping Accept must call the existing invitation acceptance flow using the invitation ID.
+
+After successful acceptance, Jennifer disappears immediately from Suggested Friends.
+
+If the request state changed between page load and action, handle the non-success response gracefully and refresh/reconcile the tab rather than producing a broken state.
+
+Do not create a reverse outbound request when an inbound request already exists.
+
+## Normal Connect behavior
+
+If there is no inbound pending request:
+
+show:
+
+**Connect**
+
+Tapping Connect uses the existing direct friend invitation flow.
+
+On successful request creation:
+
+* remove the person immediately from Suggested Friends
+* existing BaseLodge pending-request UX owns the state afterward
+
+Handle duplicate/race states gracefully. Do not allow Invitation `IntegrityError` to cause a 500.
+
+## Dismiss behavior
+
+Dismiss endpoint should accept a suggested user ID and operate only where:
+
+`recipient_id == current_user.id`
+
+Set `dismissed_at = NOW()` on all active rows for:
+
+`(recipient=current_user, suggested_user=X)`
+
+regardless of recommender.
+
+Then remove the row client-side.
+
+No one is notified:
+
+* not the suggester
+* not other recommenders
+* not the suggested user
+
+There is no additional suppression rule.
+
+A later valid new suggestion may cause that person to reappear.
+
+## Expiration
+
+Suggestions expire after **30 days**.
+
+No background cleanup job is required for V1.
+
+Active queries should simply exclude:
+
+`expires_at <= NOW()`
+
+Historical expired rows may remain stored.
+
+For multiple recommenders, the person remains visible as long as at least one active recommendation row remains.
+
+## Normal disconnect
+
+If Richard and Jon later disconnect normally:
+
+do not retroactively remove Richard's previously valid suggestions.
+
+They remain until:
+
+* Connect / Accept
+* dismiss
+* expiration
+
+## Blocking
+
+Do not build blocking.
+
+BaseLodge currently has no Block system, and BL-12 must not expand into one.
+
+## Friend search privacy
+
+Do not change the semantics of:
+
+`discoverable_in_friend_search`
+
+or:
+
+**Show me in friend search**
+
+This setting governs global friend-search discovery only.
+
+A user with search discovery disabled may still be privately suggested by an existing connection.
+
+Do not alter the existing global search privacy checks.
+
+## Push notification
+
+When a batch contains at least one newly inserted suggestion and the cooldown allows a push:
+
+use body:
+
+`"{first_name} suggested some people you may know. See who."`
+
+Example:
+
+`Richard suggested some people you may know. See who.`
+
+Use the suggester's first name dynamically.
+
+One push per eligible batch, regardless of whether the batch contains 1 person or 25 people.
+
+Payload:
+
+`data={"url": "/friends?tab=suggested"}`
+
+## Push cooldown
+
+12-hour cooldown per:
+
+`(suggester_id, recipient_id)`
+
+Within the cooldown:
+
+* valid new suggestions still insert immediately
+* Suggested Friends updates normally
+* Activity behavior follows the finalized plan
+* only the push is suppressed
+
+A push failure must not undo suggestion creation.
+
+Do not let a transient push-provider error consume the cooldown unless that matches the existing push helper's defined success/skip semantics.
+
+## In-app Activity
+
+Create one Activity record per successful submission batch when new suggestions are created.
+
+Jon should be able to discover the event even if the push is dismissed.
+
+Use the existing Activity architecture and rendering patterns.
+
+Do not create notifications for the people being suggested.
+
+## Connection-accepted toast CTA
+
+The one-time post-acceptance prompt applies only to the **original request sender**.
+
+Example:
+
+Richard sends Jon a request.
+
+Jon accepts.
+
+Richard receives the existing connection-accepted toast and can see the Suggest Friends action.
+
+Jon does not simultaneously receive the reverse prompt.
+
+If Jon sent the request and Richard accepted, Jon gets the prompt.
+
+Keep the CTA **inside the existing connection-accepted toast**.
+
+Do not create a separate Home card.
+
+Extend toast timing only when a Suggest Friends action is present.
+
+Current planned behavior:
+
+* ordinary toast remains 4.5 seconds
+* toast with suggest CTA may use ~6.5 seconds
+
+Keep this visually lightweight.
+
+For multi-connection aggregate toasts where there is no unambiguous recipient, omit the suggestion CTA.
+
+Do not add another persistent prompt elsewhere.
+
+## Friend profile placement
+
+Confirmed:
+
+**Suggest connections** belongs in the existing connected-user action area near **Invite to trip**.
+
+Do not create a separate profile section.
+
+## Deep linking
+
+Push must open:
+
+`/friends?tab=suggested`
+
+Support on:
+
+* web
+* Capacitor iOS warm start
+* Capacitor iOS cold start
+* Capacitor Android warm start
+* Capacitor Android cold start
+
+Extend the current native deep-link allowlist to include `/friends`.
+
+Preserve query parameters.
+
+Do not unnecessarily broaden native routing beyond known internal paths unless current architecture clearly favors a safe general internal-app-path handler.
+
+## Performance
+
+Avoid N+1 queries throughout.
+
+In particular:
+
+* selector eligibility should use batch queries
+* Suggested Friends should batch-load suggested users
+* recommender users should be batch-loaded
+* inbound pending Invitation states should be one batch query
+* attribution should be assembled without per-row DB lookups
+
+For PostgreSQL/SQLite compatibility, prefer a clean Python-level grouping approach if that avoids dialect-specific SQL such as `array_agg`.
+
+Do not add dialect complexity unless it materially improves the implementation.
+
+## Migration requirements
+
+Single additive Alembic migration for:
+
+* `friend_suggestion`
+* `suggestion_push_cooldown`
+* indexes
+* partial active unique index
+
+No existing table should be destructively altered.
+
+Verify upgrade and downgrade behavior.
+
+## Tests
+
+Create feature-specific automated tests, preferably:
+
+`tests/test_bl12_suggested_friends.py`
+
+Cover at minimum:
+
+### Authorization
+
+* non-friend cannot access selector
+* non-friend cannot submit suggestions
+* direct crafted IDs cannot bypass authorization
+
+### Selector
+
+* eligible connections selectable
+* already-connected-to-recipient hidden
+* pending request disabled
+* already active suggestion disabled
+* expired prior suggestion selectable again
+* self/recipient excluded
+* alphabetical ordering
+
+### Submission
+
+* valid batch inserts correctly
+* empty submission handled
+* non-suggester-connection rejected
+* stale already-connected candidate skipped
+* duplicate IDs within one form are idempotent
+* concurrent duplicate active insert does not create duplicate
+* concurrency collision for one user does **not** roll back other valid users in the same batch
+
+### Re-suggestion
+
+* same suggester may re-suggest after dismissal
+* same suggester may re-suggest after expiration
+* fresh timestamps and 30-day window created
+
+### Aggregation
+
+* one row per suggested person
+* multiple recommenders aggregate correctly
+* chronological attribution
+* correct `+N`
+* latest activity ordering
+
+### Accept / Connect
+
+* inbound pending request renders Accept
+* Accept uses existing acceptance flow
+* no reverse request is created
+* normal Connect creates ordinary outgoing request
+* race / stale state handled without 500
+
+### Dismiss
+
+* all active recommender rows for that suggested person dismissed
+* only recipient can dismiss
+* row disappears
+* later new suggestion can resurface
+
+### Expiration
+
+* expired rows excluded
+* active rows included
+* multiple-recommender mixed expiration behaves correctly
+
+### Push cooldown
+
+* first eligible batch sends push
+* repeat inside 12h suppresses push only
+* suggestions still insert
+* batch after cooldown can push again
+* correct final copy
+* deep-link payload correct
+
+### Activity
+
+* one Activity per successful batch
+* not one Activity per person
+* no Activity when nothing new inserted
+
+### Privacy regression
+
+* `discoverable_in_friend_search=False` does not prevent private suggestion
+* existing global friend-search filtering remains intact
+
+### Frontend
+
+* Suggested Friends tab count
+* zero-count empty state
+* Connect/Accept row removal
+* dismiss row removal
+* tab remains visible at zero
+
+### Native deep links
+
+Manually verify iOS and Android:
+
+* warm start
+* cold start
+* correct Suggested Friends tab selected
+
+## Validation before reporting completion
+
+Run the new BL-12 tests.
+
+Run relevant Friends / Invitation / Activity / notification regressions.
+
+Run the broader test suite if practical in the current environment.
+
+Inspect the migration.
+
+Inspect `git diff`.
+
+Confirm no unrelated files or behaviors changed.
+
+## Stop before Git operations
+
+After implementation and validation:
+
+**Do not commit.**
+
+**Do not push.**
+
+**Do not publish/deploy.**
+
+Return a complete verification report containing:
+
+1. What was implemented
+2. Files changed
+3. Database/migration changes
+4. Authorization/privacy behavior
+5. Selector behavior
+6. Suggested Friends behavior
+7. Accept vs. Connect handling
+8. Expiration/dismiss/re-suggestion behavior
+9. Push and Activity behavior
+10. Deep-link behavior
+11. Automated test results
+12. Manual validation performed
+13. Any remaining risks or deviations from BL-12
+14. `git diff --stat`
+15. Confirmation that nothing has been committed, pushed, or published
+
+If you discover a genuine conflict between the finalized BL-12 requirements and the current codebase that requires a product decision, **stop and report the conflict rather than inventing a new product rule.**

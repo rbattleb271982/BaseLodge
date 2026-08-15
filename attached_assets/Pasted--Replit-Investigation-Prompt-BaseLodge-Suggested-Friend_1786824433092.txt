@@ -1,0 +1,363 @@
+# Replit Investigation Prompt — BaseLodge Suggested Friends Feature
+
+Please **investigate only**. Do **not** make any code changes, commits, pushes, migrations, or UI edits yet.
+
+We are considering a new BaseLodge feature that lets one connected user privately suggest other BaseLodge users to a friend they are already connected with.
+
+The goal of this investigation is to understand how the current BaseLodge codebase, Friends experience, connection flow, notifications, and privacy controls would support this feature before we write the final implementation spec.
+
+## Feature concept so far
+
+Example:
+
+Richard sends Jon a BaseLodge connection request.
+
+Jon accepts.
+
+Richard gets a **one-time lightweight prompt inside the existing connection-accepted confirmation/toast** offering to suggest people Jon may know.
+
+Richard can also access the same functionality later from Jon's profile via a permanent **Suggest connections** action.
+
+Richard opens a dedicated full-screen selector that contains Richard's existing BaseLodge connections.
+
+The list should be:
+
+* searchable
+* alphabetical by first name
+* multi-select
+* no explicit selection limit
+* displayed compactly as `Michael Smith, NY`
+* no profile photos, since BaseLodge does not currently use profile photos
+* selected via checkbox-style row interaction
+* finished with a sticky CTA such as `Suggest 8 people`
+
+Richard confirms before submitting.
+
+The confirmation should explain that:
+
+* Jon will see that the suggestions came from Richard
+* the people Richard is suggesting will **not** be notified
+
+After successful submission:
+
+* return Richard to Jon's profile
+* show a brief success toast such as `8 people suggested to Jon`
+* do not show a separate success screen
+
+## Who can suggest
+
+Suggestions are only allowed between users who are **already connected** on BaseLodge.
+
+A stranger must not be able to find another user and curate a suggestion list for them.
+
+The feature is generally bidirectional through the permanent profile action, but the **one-time post-acceptance prompt** follows this rule:
+
+> When a connection request is accepted, the user who originally **sent** the request receives the one-time opportunity to suggest people to the user who **accepted** it.
+
+Example:
+
+Richard sends Jon a request → Jon accepts → Richard gets the one-time prompt.
+
+If Jon sends Richard a request → Richard accepts → Jon gets the one-time prompt.
+
+The accepting user does not simultaneously receive the reverse prompt.
+
+## Recipient experience
+
+The existing Friends page should gain a second tab using the same general tab pattern already used elsewhere in BaseLodge, especially the Trips screen.
+
+Tabs:
+
+`Friends | Suggested Friends`
+
+When active suggestions exist, the second tab should show a count:
+
+`Suggested Friends (6)`
+
+When there are none, it should simply say:
+
+`Suggested Friends`
+
+The Suggested Friends tab should remain visible even when empty.
+
+Empty-state concept:
+
+**Find your crew**
+
+Your BaseLodge friends can suggest people they think you know. Their suggestions will appear here.
+
+You can help your friends too by visiting a connected friend's profile and using **Suggest connections**.
+
+Exact wording is not locked yet.
+
+## Suggested Friend rows
+
+Suggested Friends should be organized **by person**, not by recommender.
+
+Example:
+
+`Jennifer Lee, CA`                 `Connect`
+
+`Suggested by Richard and Sarah`     `×`
+
+Requirements:
+
+* Connect is the dominant action and right-aligned
+* dismissal uses a visible but visually subdued `×`
+* exact spacing/layout should reuse existing Friends UI conventions where possible
+* no search within Suggested Friends for V1
+* suggestions ordered by **most recent suggestion activity first**
+
+Multiple friends may independently suggest the same person.
+
+Do not create duplicate person rows.
+
+Recommender attribution should be:
+
+* 1 recommender → `Suggested by Richard`
+* 2 recommenders → `Suggested by Richard and Sarah`
+* 3+ recommenders → show the **first two chronological recommenders**, then `+N`
+* example: `Suggested by Richard, Sarah +3`
+
+The `+N` does not need to be interactive.
+
+If someone receives a new suggestion for a person already present, that person's suggestion activity becomes fresh and may move the row back to the top.
+
+## Connect behavior
+
+If Jon taps **Connect** on Jennifer:
+
+* create the normal existing BaseLodge connection request
+* Jennifer should receive the ordinary connection-request experience only
+* Jennifer should **not** be told Richard suggested her
+* Jennifer should disappear immediately from Jon's Suggested Friends tab once Jon sends the request
+* existing pending-request UI should handle everything afterward
+
+## Dismiss behavior
+
+If Jon taps `×` on Jennifer:
+
+* Jennifer disappears from Suggested Friends
+* Richard is not notified
+* any other recommenders are not notified
+* Jennifer is not notified
+
+For V1, we are **not defining a special 30-day or 90-day dismissal suppression rule**. Please identify what would happen technically if another friend later suggests Jennifer again, but do not invent product behavior beyond the current decisions.
+
+## Expiration
+
+Untouched suggestions should expire after **30 days**.
+
+If multiple users suggested the same person, expiration should conceptually be tied to the most recent active suggestion activity for that person.
+
+Please investigate what data model would best support that.
+
+## Disconnect behavior
+
+If Richard and Jon later disconnect normally:
+
+* Richard's previously valid suggestions remain
+* they continue until Jon connects, dismisses them, or they expire
+* ordinary disconnect does not retroactively remove them
+
+## Block behavior
+
+Blocking is different.
+
+If Jon blocks Richard:
+
+* Richard's attribution should be removed from Jon's active suggestions
+* if Richard was the only recommender for Jennifer, Jennifer should disappear
+* if Sarah also suggested Jennifer, Jennifer should remain with Sarah's attribution
+* blocked users must not be able to suggest people to one another
+
+Please investigate how current BaseLodge blocking works and where this cleanup would belong.
+
+## Eligibility rules inside Richard's selector
+
+When Richard is choosing people to suggest to Jon:
+
+* users already connected to Jon should be hidden entirely
+* users with an active pending connection request involving Jon should remain visible but disabled with a status such as `Request pending`
+* users Richard has already actively suggested to Jon should remain visible but disabled with a status such as `Already suggested`
+* users suggested to Jon by someone else should **remain selectable**, because multiple independent recommendations are allowed
+
+Please determine how current friendship/request states are represented and whether these checks can be performed efficiently.
+
+## Existing friend-search privacy setting
+
+BaseLodge currently has a privacy control similar to:
+
+`Show me in friend search`
+
+For this feature, that setting should continue to govern **global friend-search discoverability only**.
+
+A user who has friend search turned off may still be privately suggested by one of their existing BaseLodge connections.
+
+The suggested user can then receive a normal connection request if the recipient chooses Connect.
+
+Please inspect the current privacy implementation and identify whether any existing code assumes that this setting governs all forms of discovery, because this feature must not accidentally break or bypass unrelated privacy protections.
+
+## Push notification
+
+When Richard submits one batch of suggestions, Jon should receive **one push notification**, regardless of how many people were selected.
+
+Conceptual copy:
+
+`Richard suggested some people you may know.`
+
+The push should deep-link into:
+
+`Friends → Suggested Friends`
+
+The people being suggested should receive **no push or in-app notification** merely because they were suggested.
+
+We also want an in-app notification/activity record for Jon so the event is still discoverable if the push is dismissed.
+
+Repeated pushes need anti-spam behavior:
+
+* new suggestions should appear in Suggested Friends immediately
+* if Richard submits another batch shortly afterward, another push from Richard should be suppressed for some cooldown period
+* the exact cooldown duration is **not locked yet**
+
+Please inspect the existing push/notification architecture and recommend the cleanest way to implement that without creating a separate notification system.
+
+## Home screen
+
+No new Home module for V1.
+
+Do not propose or implement a Suggested Friends Home card unless the existing architecture strongly requires one.
+
+## No recommendation algorithm in V1
+
+This is intentionally human-curated.
+
+Do not propose algorithmic ranking or recommendation based on:
+
+* mutual friends
+* ski pass
+* resort
+* home state
+* shared trips
+* activity
+* contacts
+* uploaded address books
+
+Those may be future ideas but are out of scope for this investigation.
+
+## What I want you to investigate
+
+Please inspect the current codebase and report back on:
+
+1. **Friends page architecture**
+
+   * current route(s)
+   * templates/components
+   * current search/filter logic
+   * best way to add `Friends | Suggested Friends` tabs while preserving existing behavior
+   * whether there is already a reusable tab pattern from Trips we should use
+
+2. **Friend profile / connection detail**
+
+   * where a permanent `Suggest connections` action should live
+   * whether there is already an appropriate connected-user action area
+
+3. **Connection accepted UX**
+
+   * current connection-accepted toast/confirmation implementation
+   * how to add a one-time `Suggest people` action without making the confirmation cluttered
+   * how the system knows which user sent vs accepted the original request
+
+4. **Friendship and pending-request models**
+
+   * current database models/fields/statuses
+   * how to determine:
+
+     * already connected
+     * request pending
+     * blocked
+     * disconnected
+   * any edge cases that would affect selector eligibility
+
+5. **Privacy**
+
+   * exact implementation of `Show me in friend search`
+   * whether suggested users can safely be surfaced by name + home-state abbreviation without changing current search privacy semantics
+   * any existing privacy rule that conflicts with the proposed behavior
+
+6. **Notifications and OneSignal/push**
+
+   * existing event architecture
+   * existing connection notification events
+   * how deep links are handled
+   * how an in-app notification and push currently relate
+   * best place to add a `friend.suggestions.created`-type event or equivalent
+   * how push cooldown/batching could fit the existing system
+
+7. **Suggested Friends data model**
+
+   * recommend the smallest clean schema needed to support:
+
+     * suggester
+     * recipient
+     * suggested user
+     * timestamps
+     * multiple recommenders for one suggested user
+     * 30-day expiration
+     * dismissal
+     * block cleanup
+     * duplicate prevention per suggester
+   * identify whether a new table is necessary or whether an existing activity/connection model can safely support it
+   * do not create a migration yet
+
+8. **Performance**
+
+   * likely query shape for Richard's selector
+   * likely query shape for Jon's Suggested Friends tab
+   * whether indexes would be needed
+   * any N+1 risks
+
+9. **Deep linking**
+
+   * exact route/state needed for a push to open `Friends → Suggested Friends`
+   * whether this works consistently in web, Capacitor iOS, and Capacitor Android
+
+10. **Tests**
+
+    * what tests should exist before implementation
+    * unit/integration/browser coverage needed
+    * especially privacy, duplicates, expiration, block behavior, and push-event behavior
+
+## Required report format
+
+Please return:
+
+### 1. Current Architecture
+
+Relevant files, models, routes, templates, JS, notification code, and existing reusable patterns.
+
+### 2. Compatibility Assessment
+
+What fits cleanly with the current system and what does not.
+
+### 3. Recommended Technical Approach
+
+Your proposed architecture, but **no code changes**.
+
+### 4. Risks / Edge Cases
+
+Anything we have not accounted for that could create privacy, UX, data, notification, or native-app issues.
+
+### 5. Decisions That Need Product Input
+
+Only list genuine unresolved questions. Do not reopen decisions already stated above.
+
+### 6. Likely Files That Would Change
+
+List files only. Do not edit them.
+
+### 7. Testing Plan
+
+What should be tested before this feature is considered complete.
+
+Again: **investigation only. Do not modify any files, database schema, tests, Git state, or Replit deployment.**

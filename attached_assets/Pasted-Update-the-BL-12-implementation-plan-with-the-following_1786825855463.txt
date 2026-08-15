@@ -1,0 +1,30 @@
+Update the BL-12 implementation plan with the following final decisions and technical correction. Do not implement yet.
+1. Suggested Friends inbound-request state
+If a suggested person has already sent the recipient a pending connection request, the Suggested Friends row should show Accept instead of Connect.
+Example: Jennifer is suggested to Jon, but Jennifer has already sent Jon a pending request → Jon sees Accept.
+Tapping Accept should use the existing connection-request acceptance flow. After acceptance, Jennifer should disappear from Suggested Friends.
+Determine this state using a batched Invitation query when loading Suggested Friends. Do not introduce per-row/N+1 queries.
+2. Push notification copy
+Use:
+Richard suggested some people you may know. See who.
+Dynamically substitute the suggester's first name.
+Tapping the notification continues to deep-link to /friends?tab=suggested.
+3. Profile placement
+Confirmed as already planned: Suggest connections belongs in the existing connected-user action area near Invite to trip.
+4. IMPORTANT — fix the FriendSuggestion uniqueness/re-suggestion conflict
+The current plan proposes a permanent:
+UNIQUE (suggester_id, recipient_id, suggested_user_id)
+while also specifying that the same suggester may suggest the same person again after the prior suggestion has been dismissed or expired.
+Those two behaviors conflict. A permanent three-column unique constraint would prevent insertion of a fresh suggestion row.
+Revise the data model and insertion strategy so all of these are true:
+An active Richard → Jon → Jennifer suggestion cannot be duplicated.
+Duplicate/double-tap submissions remain idempotent.
+After Richard's prior suggestion expires, Richard can suggest Jennifer to Jon again.
+After Jon dismisses Jennifer, Richard can later suggest Jennifer again.
+A new valid re-suggestion gets a fresh created_at and fresh 30-day expiration window.
+Multiple different recommenders can independently suggest Jennifer to Jon.
+Concurrency must not result in duplicate active suggestions.
+Choose the cleanest PostgreSQL + SQLite-test-compatible approach and explain the revised constraint/index strategy.
+Then return the updated portions of the implementation plan, including any migration/test changes caused by this correction.
+Also update the BL-12 plan in Notion if your Notion connection is available. If it is not available, just return the corrected plan and I will handle the Notion update separately.
+Stop after updating the plan. Do not implement, migrate, commit, push, or publish.

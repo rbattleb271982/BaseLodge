@@ -1,0 +1,35 @@
+Review BL-12 — Suggested Friends in the BaseLodge Notion Tasks database.
+This task is now product-defined and includes the findings from our earlier technical investigation.
+Do not implement anything yet.
+Build a detailed implementation plan for BL-12 based on the Notion spec and the current codebase as it exists right now.
+Before proposing the plan, re-inspect the relevant code so you do not rely on stale assumptions from the earlier investigation.
+The plan should cover:
+database/model changes and migration strategy
+routes/endpoints and server-side authorization
+suggestion creation and aggregation logic
+selector eligibility logic
+Friends / Suggested Friends tab implementation
+friend-profile Suggest connections entry point
+connection-accepted toast CTA and one-time behavior
+Connect and dismiss flows
+30-day expiration behavior
+multiple-recommender attribution
+12-hour push cooldown
+Activity/in-app notification behavior
+OneSignal push behavior
+/friends?tab=suggested deep linking
+Capacitor iOS and Android deep-link handling
+privacy and existing friend-search behavior
+tests and regression coverage
+For each implementation step, identify the specific files/functions/models likely to change and explain why.
+Pay particular attention to race conditions, duplicate submissions, existing pending friend requests, expiration/re-suggestion semantics, N+1 queries, database constraints, and ensuring that a user cannot manipulate a request to suggest people to someone they are not connected with.
+Do not broaden scope. In particular, BL-12 does not include blocking, algorithmic friend recommendations, contact syncing, a Home Suggested Friends module, or dismissal suppression.
+At the end, provide:
+Implementation sequence
+Files expected to change
+Database/migration plan
+Test plan
+Risks or conflicts discovered in the current code
+Any decisions you genuinely need from me before implementation
+If the current code contradicts something in BL-12, flag it rather than making a product decision yourself.
+Stop after the plan. Do not edit files, create migrations, run destructive commands, commit, push, or publish.
