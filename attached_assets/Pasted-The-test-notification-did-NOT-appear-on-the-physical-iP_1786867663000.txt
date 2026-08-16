@@ -1,0 +1,28 @@
+The test notification did NOT appear on the physical iPhone.
+This is important: do not interpret OneSignal successful: 2 as proof of physical-device delivery.
+We have now proven:
+physical device is running OneSignal native SDK 5.5.5 (sdk=050505)
+subscription f10dcf69-d988-4870-9cdf-138873e36cf2 is enabled=true
+notification_types=31
+APNs token prefix is 4DDC89DF
+subscription is linked to external_id="2"
+OneSignal accepted the test notification 9929ee52-ad66-4e1c-a978-b75f7330d789
+OneSignal reports successful=2, failed=1
+nothing appeared on the physical iPhone while BaseLodge was backgrounded
+Do not modify code yet. Do not send another notification yet.
+Investigate this specific notification and determine exactly what happened after OneSignal accepted it.
+I want you to inspect whatever delivery/outcome information OneSignal exposes for notification ID:
+9929ee52-ad66-4e1c-a978-b75f7330d789
+Determine:
+Which exact subscription IDs account for the successful=2 result.
+Whether f10dcf69-d988-4870-9cdf-138873e36cf2 was actually one of those successful deliveries. Do not infer this from the aggregate count.
+What the failed=1 subscription was and why it failed.
+Whether OneSignal reports the notification as sent to APNs specifically for f10dcf69.
+Whether APNs returned an acceptance, rejection, invalid-token response, or any other status for that subscription.
+Inspect the exact payload that was sent, including contents, headings, data, iOS/APNs fields, content_available, mutable_content, sound, badge, interruption level, and any presentation-related settings.
+Determine whether anything in BaseLodge's current iOS configuration could cause a successfully received notification to be suppressed while the app is backgrounded, including OneSignal notification handlers, Capacitor PushNotifications configuration, UNUserNotificationCenter delegate behavior, entitlements, capabilities, or notification service-extension configuration.
+Check whether the two successful deliveries may actually be the two active Android subscriptions under external_id=2, rather than the iPhone. We previously saw two enabled Android subscriptions on this account, so this must be proven rather than assumed.
+The central question is:
+Did OneSignal/APNs actually deliver notification 9929ee52-ad66-4e1c-a978-b75f7330d789 to subscription f10dcf69, or are the aggregate successful=2 results coming from other subscriptions?
+Return the evidence and your conclusion.
+No code changes. No OneSignal mutations. No new test notification. Stop after the investigation.

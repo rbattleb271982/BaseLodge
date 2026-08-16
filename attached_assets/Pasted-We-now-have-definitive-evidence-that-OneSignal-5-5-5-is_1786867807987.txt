@@ -1,0 +1,77 @@
+We now have definitive evidence that OneSignal 5.5.5 is installed and that the iOS subscription transitions from healthy (enabled=true, notification_types=31) back to enabled=false, notification_types=-30.
+Do not implement anything yet.
+I want you to determine the exact cause of that transition before we make another change.
+The current architecture has:
+onesignal-cordova-plugin@5.5.2 / native OneSignal SDK 5.5.5
+@capacitor/push-notifications@8.0.3
+BaseLodge AppDelegate.swift assigning UNUserNotificationCenter.current().delegate = self
+Capacitor handleApplicationNotifications: false
+BaseLodge separately calling Capacitor PushNotifications.requestPermissions() and register()
+OneSignal separately initializing/login/subscription-managing the same iOS app
+The last test proved:
+sdk=050505
+subscription f10dcf69 became enabled=true / notification_types=31
+without the user disabling notifications, it later reverted to enabled=false / notification_types=-30
+the test notification therefore never reached APNs for that iPhone
+Investigate the transition itself
+I want a source-level trace of every possible path in the current BaseLodge app and installed OneSignal 5.5.5 code that can cause optOut() or otherwise set the push subscription to disabled.
+Search the entire repo, generated iOS project, installed OneSignal Cordova plugin source, and relevant native integration for:
+optOut
+optIn
+pushSubscription
+requestPermissions
+register
+unregister
+logout
+login
+notification permission observers
+subscription observers
+UNUserNotificationCenter.delegate
+APNs registration callbacks
+Then answer:
+1. Does BaseLodge application code explicitly call optOut() anywhere?
+List every call site and the exact condition that invokes it.
+2. What does notification_types=-30 specifically mean in OneSignal iOS SDK 5.5.5?
+Do not infer this from previous debugging. Determine it from the installed SDK/plugin source or authoritative OneSignal documentation/source. Identify the exact internal state/error corresponding to -30.
+3. Is there evidence that OneSignal itself is actually calling optOut() asynchronously?
+We have repeatedly assumed this. I now want proof. Identify the exact OneSignal 5.5.5 source path that would produce this transition, if one exists.
+If you cannot prove that OneSignal calls optOut(), explicitly say so.
+4. Could Capacitor PushNotifications.register() or its permission lifecycle cause OneSignal to interpret the subscription as unsubscribed?
+Trace what Capacitor does natively when register() is called while OneSignal is also managing APNs registration.
+5. Could BaseLodge's UNUserNotificationCenter.current().delegate = self assignments interfere with OneSignal's permission/subscription observer state?
+Determine whether OneSignal expects to own/proxy that delegate and whether BaseLodge overwrites it after OneSignal initializes.
+6. Determine the exact runtime ordering.
+Build a timeline from app launch through:
+AppDelegate launch
+→ Capacitor startup
+→ BaseLodge delegate assignment
+→ Capacitor permission request
+→ OneSignal initialize
+→ OneSignal login
+→ Capacitor register
+→ APNs token callback
+→ OneSignal subscription synchronization
+→ transition to -30
+Identify any ownership/race conflicts.
+7. Assess the architecture simplification we discussed.
+Would the correct production architecture be to make OneSignal the sole push-notification owner on iOS, remove @capacitor/push-notifications, and use OneSignal for:
+permission management
+APNs registration/subscription
+notification receipt
+click handling
+badge clearing
+while retaining Capacitor only as the app shell?
+If yes, identify exactly what existing BaseLodge functionality currently depends on @capacitor/push-notifications and how each piece would map to the OneSignal 5.5.2 API.
+Most important requirement
+Do not give me another workaround that repeatedly calls optIn() to fight the state change.
+We need one system to own push notifications and a deterministic lifecycle suitable for production.
+At the end, give me:
+A. Proven cause of the 31 → -30 transition
+B. Evidence
+C. Whether the dual Capacitor + OneSignal architecture contributes to it
+D. Your recommended final production architecture
+E. Exact files/components that would change
+F. Regression risks
+G. Device-validation plan
+NO CODE CHANGES. NO COMMITS. NO PUSHES. NO ONESIGNAL MUTATIONS. NO TEST NOTIFICATIONS.
+Stop after reporting your findings.

@@ -1,0 +1,88 @@
+Proceed with the architectural fix, but do NOT delete or mutate the existing OneSignal subscription yet.
+We are going to make OneSignal the sole owner of iOS push notifications and eliminate the competing Capacitor PushNotifications lifecycle.
+The objective is not merely to make user_id=2 work. Build the push architecture we would be comfortable shipping to the entire BaseLodge iOS user base.
+Requirements
+Remove @capacitor/push-notifications from the iOS push lifecycle.
+OneSignal must exclusively own:
+notification permission handling
+APNs registration
+push subscription state
+notification receipt
+notification click/tap handling
+Preserve every existing BaseLodge behavior currently supplied by Capacitor:
+foreground notification behavior
+notification tap/deep-link routing using data.url
+/friends routing
+cold-start routing
+background routing
+badge clearing
+logout/login identity handling
+BaseLodge push preference ON/OFF behavior
+Remove the competing Capacitor calls:
+PushNotifications.requestPermissions()
+PushNotifications.register()
+pushNotificationReceived
+pushNotificationActionPerformed
+Capacitor APNs registration lifecycle
+Replace them with the actual supported APIs in onesignal-cordova-plugin@5.5.2. Verify every API against the installed index.d.ts before using it. Do not invent API names.
+Audit AppDelegate.swift and remove BaseLodge delegate ownership that conflicts with OneSignal. OneSignal should have deterministic ownership of the notification lifecycle. Preserve any BaseLodge behavior that AppDelegate currently provides through an appropriate non-conflicting implementation.
+Remove @capacitor/push-notifications from package.json and regenerate the native iOS project/dependencies correctly.
+Do not remove /api/push/register-token or the PushDeviceToken model/server infrastructure yet. It may become legacy/dead code, but leave it intact until the new production architecture has been validated. We can clean that up separately.
+Add diagnostic logging sufficient to establish the OneSignal subscription state at:
+initialization
+after login
+after permission handling
+subscription change
+app foreground/resume
+The diagnostics must be observational only. Do not automatically fight an opt-out by repeatedly calling optIn().
+Add/modify automated tests covering:
+OneSignal initialization
+no Capacitor PushNotifications registration
+foreground handling
+tap routing
+/friends routing
+cold-start routing where testable
+push preference OFF
+push preference ON
+login/logout
+duplicate-handler prevention
+Critical experimental constraint
+DO NOT delete f10dcf69-d988-4870-9cdf-138873e36cf2.
+DO NOT mutate its OneSignal state manually.
+DO NOT tell me to delete/reinstall the app for the first validation.
+We want the first device test to be an upgrade-in-place test against the existing broken subscription.
+That gives us a controlled experiment:
+Current state:
+f10dcf69
+sdk=050505
+enabled=false
+notification_types=-30
+Install the new OneSignal-only build over the existing app, launch it, and observe whether that same subscription recovers and remains healthy.
+If it becomes:
+enabled=true
+notification_types=31
+and remains there after background synchronization and app lifecycle changes, then we have strong evidence that removing the competing lifecycle fixed the problem.
+If it still returns to -30, stop there. Do not add another workaround. We will then perform the second controlled experiment: fresh app install/new OneSignal subscription.
+Validation gates
+Do not declare this fixed merely because enabled=true appears once.
+We need:
+same subscription remains enabled after initial launch
+remains enabled after at least several minutes
+remains enabled after background → foreground
+remains enabled after force quit → cold launch
+OneSignal iOS delivery reports successful
+physical iPhone actually receives the notification
+notification tap routes correctly
+Only after the upgrade-in-place experiment fails may we consider deleting/recreating the OneSignal subscription or doing a clean install.
+Run the full automated test suite.
+Return:
+exact architecture before/after
+exact files changed
+every Capacitor PushNotifications dependency/call removed
+OneSignal APIs replacing each removed behavior
+AppDelegate changes
+tests added/changed
+full test result
+exact Mac sync/build commands
+exact upgrade-in-place device-validation procedure
+Do not commit, push, publish, mutate OneSignal data, or send a test notification. Stop after implementation, tests, and the validation instructions.
