@@ -1,0 +1,61 @@
+Execute #276 — Fix the iPhone subscription being silently disabled on cold launch.
+This is the only task to work on.
+Do not touch:
+Suggested Friends routing
+/friends
+/friends?tab=suggested
+push copy
+other notification types
+friend.pass.changed
+founder alerts
+backend notification targeting
+any unrelated code
+Proven current state
+The full push audit established:
+BaseLodge push delivery is healthy overall: 116 successful production deliveries across 11 event types.
+The current iPhone is the problem.
+OneSignal subscription f10dcf69 / APNs token prefix 4DDC89DF is stuck at notification_types=-30.
+iOS permission itself is granted.
+external_id="2" exists.
+invalid_aliases occurs because there is no deliverable iOS subscription for that external ID.
+The issue appears during OneSignal cold-launch initialization.
+Your job
+Fix only the cold-launch OneSignal subscription disablement for an already-authorized iPhone.
+Before writing code:
+Inspect the installed onesignal-cordova-plugin v5.3.8 source/types.
+Verify whether the audit’s proposed method:
+OS.Notifications.setPushNotificationsEnabled(true)
+actually exists in this installed version.
+If it does not exist, do not invent or approximate it. Determine the correct supported v5.3.8 API for ensuring an already-authorized subscription remains opted in after initialize()/login().
+Use the smallest supported fix.
+Strict requirements
+Do not reintroduce the failed pre-init permission gate.
+Do not add REST force-enable endpoints.
+Do not mutate OneSignal server data as a workaround.
+Do not change production push targeting.
+Do not change notification routing.
+Do not create duplicate initialization paths.
+Preserve the user’s explicit Push Notifications toggle: if BaseLodge says push is disabled, do not auto-opt them back in.
+Validation
+Run the full test suite.
+Then verify from code/plugin behavior that the fix is safe for:
+existing enabled users
+users who intentionally disabled push
+cold launch
+login/logout
+token refresh
+If you can perform read-only OneSignal verification, report the expected subscription state after the fix, but do not force-change server state.
+STOP CONDITIONS
+Do not commit.
+Do not push.
+Do not publish.
+Do not send a test push.
+Return only:
+Exact root cause as implemented against v5.3.8
+Exact supported API used
+Why the previously proposed setPushNotificationsEnabled(true) is valid or invalid
+Exact code change
+Files changed
+Full test result
+Exact device-validation sequence
+If the installed SDK does not provide a safe supported way to solve this from the current architecture, STOP and say that clearly. Do not add another workaround.

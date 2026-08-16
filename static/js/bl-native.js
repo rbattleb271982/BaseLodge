@@ -746,6 +746,43 @@ document.addEventListener('DOMContentLoaded', function() {
               await OS.login({ externalId: String(userId) });
             }
             console.log('[OneSignal] login() complete');
+
+            // ── Post-login opt-in: counteract initialize() optOut() race ──
+            // OS.initialize() calls [OneSignal initialize:appId withLaunchOptions:nil]
+            // in the native framework (OneSignalPush.m line 355). The iOS SDK
+            // internally fires [OneSignal.User.pushSubscription optOut] when its
+            // persisted opt-in state is not_determined — setting notification_types=-30
+            // on the server before initialize() returns to JS.
+            //
+            // Fix: call optIn() after login() settles to restore the subscription
+            // for users whose BaseLodge push preference is enabled.
+            //
+            // Guard: window.__USER__.push_enabled (server-rendered at page load).
+            // If the user explicitly disabled push in BaseLodge, we leave them
+            // opted out — optIn() is NOT called.
+            //
+            // optIn() returns void on the Cordova bridge. Promise.resolve() wraps it
+            // so the same code works if a future Capacitor build returns a Promise.
+            var _blPushPref = !!(window.__USER__ && window.__USER__.push_enabled);
+            if (_blPushPref) {
+              try {
+                var _postLoginSub = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
+                if (_postLoginSub && typeof _postLoginSub.optIn === 'function') {
+                  console.log('[OneSignal] post-login optIn() — counteracting initialize() optOut() race');
+                  Promise.resolve(_postLoginSub.optIn()).then(function() {
+                    console.log('[OneSignal] post-login optIn() complete');
+                  }).catch(function(_oie) {
+                    console.warn('[OneSignal] post-login optIn() error:', _oie);
+                  });
+                } else {
+                  console.log('[OneSignal] post-login optIn() skipped — pushSubscription.optIn not available');
+                }
+              } catch (_postOptErr) {
+                console.warn('[OneSignal] post-login optIn() guard error:', _postOptErr);
+              }
+            } else {
+              console.log('[OneSignal] post-login optIn() skipped — push_enabled=false');
+            }
           } else if (typeof OS.setExternalUserId === 'function') {
             if (_isCordovaBridge) {
               console.log('[OneSignal] calling setExternalUserId() — Cordova string, id=' + userId);
