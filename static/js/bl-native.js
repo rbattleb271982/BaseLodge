@@ -1,3 +1,376 @@
+/* ── BaseLodge native shell JS ─────────────────────────────────────────────
+   Extracted from analytics_head.html so WKWebView can cache this file.
+   All server values are read from window.__* globals set by the inline
+   config block in analytics_head.html, which runs synchronously before
+   this defer script executes.
+
+   Execution order guaranteed by the browser/WKWebView spec:
+     1. Inline <script> blocks run during HTML head parsing
+        (sets window.__USER__, window.__POSTHOG_KEY__, etc.)
+     2. <script defer> files execute after full HTML parsing, in document order
+        (analytics.js first, then this file)
+     3. DOMContentLoaded fires after all defer scripts have executed
+
+   No Jinja2 syntax in this file — plain static JS, fully cacheable.        */
+
+/* ── Splash screen hide — native Capacitor shell only ───────────────────────
+   @capacitor/splash-screen is configured with launchAutoHide:true and
+   launchShowDuration:8000, which provides a guaranteed 8-second native
+   fallback at the platform level. This fires even if bl-native.js never
+   executes (e.g. the remote page at app.baselodgeapp.com fails to load).
+
+   This block provides the early hide path. The key design choice is
+   triggering on window.load rather than DOMContentLoaded:
+
+     DOMContentLoaded — HTML is parsed but images/fonts are still loading.
+       Hiding here reveals the page before the wordmark image has loaded,
+       causing the blank-screen flash (user sees cream background, then
+       logo pops in a moment later).
+
+     window.load — ALL resources (images, stylesheets) have finished loading.
+       The login-screen wordmark is already painted when the splash fades out,
+       creating the seamless "splash → login screen appears immediately" feel.
+
+   After window.load:
+     1. Confirm Capacitor bridge is ready (should already be at window.load,
+        but a short retry loop handles any edge case).
+     2. Two requestAnimationFrame cycles — browser has committed the frame.
+     3. SplashScreen.hide({ fadeOutDuration: 300 }).
+
+   The native 8-second auto-hide (launchAutoHide:true) ensures the splash
+   never stays up indefinitely if window.load is delayed or never fires.
+
+   Fully isolated from push-notification / OneSignal logic. No-op in
+   browsers — gated on window.Capacitor.isNativePlatform().                   */
+(function() {
+  try {
+    // Synchronous native-platform check — exits immediately in browsers.
+    // webkit.messageHandlers.capacitor is the WKWebView bridge injection
+    // point and is present even before Capacitor fully initializes.
+    var _capSp = window.Capacitor;
+    var _wkSp  = window.webkit;
+    var _isNativeSp = !!(_capSp
+      && typeof _capSp.isNativePlatform === 'function'
+      && _capSp.isNativePlatform());
+    var _hasWkSp = !!(_wkSp
+      && _wkSp.messageHandlers
+      && _wkSp.messageHandlers.capacitor);
+    if (!_isNativeSp && !_hasWkSp) return;
+  } catch (_outerE) { return; }
+
+  // _blDoHide: called once window.load has fired (all page resources loaded).
+  // Uses an async IIFE so we can await the bridge-ready check and rAF cycles.
+  function _blDoHide() {
+    (async function() {
+      try {
+        // Wait for Capacitor bridge (up to 2 s in 100 ms steps).
+        // At window.load time the bridge is almost always already ready, but
+        // this loop handles any race on slow devices.
+        var _spDeadline = Date.now() + 2000;
+        while (Date.now() < _spDeadline) {
+          if (window.Capacitor
+              && typeof window.Capacitor.isNativePlatform === 'function'
+              && window.Capacitor.isNativePlatform()) {
+            break;
+          }
+          await new Promise(function(r) { setTimeout(r, 100); });
+        }
+
+        var Cap = window.Capacitor;
+        if (!Cap || !Cap.isNativePlatform()) return; // not native, bail
+
+        // Two rAF cycles — browser paints the fully-loaded frame before we fade.
+        await new Promise(function(r) {
+          requestAnimationFrame(function() { requestAnimationFrame(r); });
+        });
+
+        // Resolve the SplashScreen plugin.
+        var SplashScreen = null;
+        if (Cap.Plugins && Cap.Plugins.SplashScreen) {
+          SplashScreen = Cap.Plugins.SplashScreen;
+        } else if (typeof Cap.registerPlugin === 'function') {
+          try { SplashScreen = Cap.registerPlugin('SplashScreen'); } catch (_rpe) {}
+        }
+        if (!SplashScreen || typeof SplashScreen.hide !== 'function') {
+          console.warn('[Splash] plugin unavailable — relying on native auto-hide');
+          return;
+        }
+
+        SplashScreen.hide({ fadeOutDuration: 300 });
+        console.log('[Splash] hide() called after window.load + 2rAF');
+
+      } catch (_innerE) {
+        // Swallow all errors — splash logic must never block the app
+        console.warn('[Splash] hide error (non-fatal):', _innerE);
+      }
+    })();
+  }
+
+  // Attach to window.load. If the page has somehow already finished loading
+  // (readyState === 'complete') before this script runs, fire immediately.
+  if (document.readyState === 'complete') {
+    _blDoHide();
+  } else {
+    window.addEventListener('load', _blDoHide, { once: true });
+  }
+})();
+
+/* ── Form submit loader ──────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (form.tagName !== 'FORM') return;
+    var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+    if (!btn || btn.dataset.noLoader === 'true') return;
+    btn.disabled = true;
+    if (!btn.dataset.loadingText) return;
+    btn._origText = btn.textContent;
+    btn.textContent = btn.dataset.loadingText;
+  });
+});
+
+/* ── Keyboard-safe scroll ────────────────────────────────────────────────── */
+/* When an input is focused on mobile, scroll it into view after a short
+   delay so the iOS keyboard doesn't cover it. */
+document.addEventListener('focusin', function(e) {
+  var el = e.target;
+  if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+    setTimeout(function() {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 320);
+  }
+});
+
+/* ── Push notification token capture ── native Capacitor shell (iOS + Android) ──
+   DEBUG BEACONS ACTIVE: every step POSTs to /api/push/beacon so the
+   server log shows exactly how far the script reaches inside TestFlight's
+   WKWebView (where console.log is invisible without a tethered Mac).
+
+   Dedup strategy: window.__pushSetupDone only.
+     - Cleared on every full page navigation (server-side rendered app → each
+       page is a fresh window context, so the flag resets automatically).
+     - NO sessionStorage: WKWebView can keep the OS process alive across app
+       relaunches, causing sessionStorage keys to persist and block future
+       registration attempts.
+
+   Plugin retry: if PushNotifications is absent at DOMContentLoaded, we
+   wait 500 ms and try once more (Capacitor v8 + remote server URL can be
+   slightly late populating window.Capacitor.Plugins).
+
+   NOTE: The _pushBeacon IIFE below previously fired at HTML-parse time
+   (inline script). It now fires when this defer file executes — after HTML
+   parsing, before DOMContentLoaded. Timing is functionally equivalent for
+   TestFlight push debugging. */
+
+// ── Beacon helper ─────────────────────────────────────────────────────────
+// Available when this defer script runs: the CSRF fetch-wrapper inline
+// <script> has already patched window.fetch during head parsing.
+function _pushBeacon(step, data) {
+  // Beacons are debug-only diagnostics. In production (BL_NAV_DEBUG not set)
+  // this is a no-op so native users don't generate unnecessary network traffic.
+  if (!window.__BL_NAV_DEBUG__) return;
+  try {
+    window.fetch('/api/push/beacon', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step: step, data: data || {} })
+    });
+  } catch(e) { /* never let beacon errors disrupt the main flow */ }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function _capSnapshot() {
+  /* Capture every native-detection signal in one object for beacon payloads. */
+  var cap = window.Capacitor;
+  var wk  = window.webkit;
+  return {
+    has_capacitor:      !!(cap),
+    cap_type:           typeof cap,
+    is_native_fn:       !!(cap && typeof cap.isNativePlatform === 'function'),
+    is_native:          !!(cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()),
+    cap_platform:       (cap && typeof cap.getPlatform === 'function') ? cap.getPlatform() : 'n/a',
+    cap_keys:           cap ? Object.keys(cap).join(',').slice(0, 200) : 'none',
+    has_webkit_handler: !!(wk && wk.messageHandlers && wk.messageHandlers.capacitor),
+    has_webkit:         !!(wk),
+    ua:                 navigator.userAgent.slice(0, 180)
+  };
+}
+
+// ── Pre-check: fires when defer script executes (before DOMContentLoaded) ─
+// Confirms this static file was loaded and executed. Native-only guard so
+// mobile-web and desktop users don't fire unnecessary beacon POSTs.
+(function() {
+  var userId = window.__USER__ && window.__USER__.id;
+  if (!userId) return;
+  var _cap0sp = window.Capacitor;
+  var _wk0sp  = window.webkit;
+  var _isNativeSP = !!(_cap0sp && typeof _cap0sp.isNativePlatform === 'function' && _cap0sp.isNativePlatform());
+  var _hasWkSP    = !!(_wk0sp && _wk0sp.messageHandlers && _wk0sp.messageHandlers.capacitor);
+  if (!_isNativeSP && !_hasWkSP) return;
+  var capExists = !!_cap0sp;
+  _pushBeacon('script_parsed', {
+    user_id: userId,
+    capacitor_exists: capExists,
+    is_native: _isNativeSP,
+    ua: navigator.userAgent.slice(0, 120)
+  });
+})();
+
+// ── DOMContentLoaded: full registration flow ──────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+
+  // Native pre-check — same guard pattern as OneSignal and BadgeClear blocks.
+  // On non-native platforms (mobile web, desktop browser) exit immediately:
+  // no beacon POSTs, no _waitForCapacitor timers, no diagnostic overhead.
+  // Diagnostics are preserved for native builds (iOS TestFlight, Android APK).
+  var _cap0ps = window.Capacitor;
+  var _wk0ps  = window.webkit;
+  var _isNativePS = !!(_cap0ps && typeof _cap0ps.isNativePlatform === 'function' && _cap0ps.isNativePlatform());
+  var _hasWkPS    = !!(_wk0ps && _wk0ps.messageHandlers && _wk0ps.messageHandlers.capacitor);
+  if (!_isNativePS && !_hasWkPS) return;
+
+  // Environment snapshot — native builds only from this point forward.
+  var userId = window.__USER__ && window.__USER__.id;
+  if (userId) {
+    _pushBeacon('dcl_environment', Object.assign({ user_id: userId }, _capSnapshot()));
+  }
+
+  (async function() {
+
+    // Gate 1: must be an authenticated user
+    if (!userId) {
+      console.log('[Push] No authenticated user — push setup skipped');
+      return;
+    }
+
+    // Gate 2: window-level dedup (reset every full page navigation)
+    if (window.__pushSetupDone) {
+      console.log('[Push] Already ran on this page load — skipping');
+      return;
+    }
+    window.__pushSetupDone = true;
+
+    // Wait for window.Capacitor to appear (up to 2 s in 100 ms steps).
+    // Capacitor v8 + remote server URL can inject the bridge slightly
+    // after DOMContentLoaded in some build configurations.
+    async function _waitForCapacitor(maxMs) {
+      var deadline = Date.now() + maxMs;
+      while (Date.now() < deadline) {
+        if (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function') {
+          return window.Capacitor;
+        }
+        await new Promise(function(r) { setTimeout(r, 100); });
+      }
+      return null;
+    }
+
+    var Cap = await _waitForCapacitor(2000);
+    var snap = _capSnapshot();
+    console.log('[Push] after wait — is_native:', snap.is_native,
+                'has_webkit_handler:', snap.has_webkit_handler);
+
+    _pushBeacon('cap_wait_result', Object.assign({ user_id: userId, waited_ms: 2000 }, snap));
+
+    // Not native AND no webkit bridge message handler → definitely not a
+    // native Capacitor WKWebView (could be Safari or a regular browser).
+    if (!snap.is_native && !snap.has_webkit_handler) {
+      console.log('[Push] Not native WKWebView — push setup skipped');
+      _pushBeacon('not_native', { user_id: userId, ua: snap.ua });
+      return;
+    }
+
+    // If window.Capacitor is missing but webkit handler exists, we ARE in a
+    // native WKWebView — the bridge JS injection failed or is still pending.
+    // Report it so we know exactly what happened.
+    if (!Cap) {
+      _pushBeacon('capacitor_missing_in_native', {
+        user_id: userId,
+        has_webkit_handler: snap.has_webkit_handler,
+        ua: snap.ua
+      });
+      console.warn('[Push] In native WKWebView but window.Capacitor never appeared — cannot register');
+      return;
+    }
+
+    _pushBeacon('capacitor_ready', { user_id: userId, cap_keys: snap.cap_keys });
+
+    // Plugin resolution: try window.Capacitor.Plugins first,
+    // then Capacitor v8 registerPlugin() as fallback.
+    async function _getPlugin() {
+      var p = Cap.Plugins && Cap.Plugins.PushNotifications;
+      if (p) return { push: p, via: 'Plugins' };
+
+      // Capacitor v6+ alternative: registerPlugin()
+      if (typeof Cap.registerPlugin === 'function') {
+        try {
+          var rp = Cap.registerPlugin('PushNotifications');
+          if (rp) return { push: rp, via: 'registerPlugin' };
+        } catch(e) {}
+      }
+
+      // Wait 500 ms then retry both paths
+      await new Promise(function(r) { setTimeout(r, 500); });
+      p = Cap.Plugins && Cap.Plugins.PushNotifications;
+      if (p) return { push: p, via: 'Plugins-retry' };
+      if (typeof Cap.registerPlugin === 'function') {
+        try {
+          var rp2 = Cap.registerPlugin('PushNotifications');
+          if (rp2) return { push: rp2, via: 'registerPlugin-retry' };
+        } catch(e) {}
+      }
+      return { push: null, via: 'none' };
+    }
+
+    var pluginKeys = Cap.Plugins ? Object.keys(Cap.Plugins).join(',') : '(Plugins missing)';
+    var pluginResult = await _getPlugin();
+    var Push = pluginResult.push;
+    console.log('[Push] PushNotifications:', !!Push, 'via:', pluginResult.via);
+
+    _pushBeacon('plugin_check', {
+      user_id: userId,
+      plugin_found: !!Push,
+      plugin_via: pluginResult.via,
+      plugin_keys: pluginKeys,
+      cap_platform: snap.cap_platform
+    });
+
+    if (!Push) {
+      console.warn('[Push] PushNotifications plugin not found — aborting');
+      return;
+    }
+
+    // Determine native platform so the correct token type is sent to the server.
+    // iOS tokens go to APNs; Android tokens go to FCM.
+    var nativePlatform = (snap.cap_platform === 'android') ? 'android' : 'ios';
+    console.log('[Push] nativePlatform:', nativePlatform);
+
+    // Android only: create a high-importance notification channel so that
+    // incoming FCM notifications display as heads-up banners rather than
+    // silently landing in the shade. Must be called before register().
+    if (nativePlatform === 'android' && typeof Push.createChannel === 'function') {
+      try {
+        await Push.createChannel({
+          id:          'baselodge_default',
+          name:        'BaseLodge notifications',
+          description: 'Trip updates and BaseLodge notifications',
+          importance:  5,
+          visibility:  1,
+          sound:       'default',
+          vibration:   true,
+        });
+        console.log('[Push] Android channel created: baselodge_default');
+        _pushBeacon('android_channel_created', { channel_id: 'baselodge_default' });
+      } catch (_chanErr) {
+        console.warn('[Push] createChannel error:', _chanErr);
+        _pushBeacon('android_channel_error', { error: String(_chanErr).slice(0, 128) });
+      }
+    }
+
+    // Attach listeners BEFORE calling requestPermissions / register
+    await Push.addListener('registration', function(evt) {
+      var tokVal = evt && evt.value ? evt.value : '';
+      var tokLen = tokVal.length;
+      var tokPreview = tokLen > 14
         ? tokVal.slice(0, 8) + '\u2026' + tokVal.slice(-6)
         : tokVal.slice(0, 8) + '\u2026';
       console.log('[Push] registration event — len:', tokLen, 'preview:', tokPreview);
