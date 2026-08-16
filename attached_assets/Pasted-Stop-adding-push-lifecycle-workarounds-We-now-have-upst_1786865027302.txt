@@ -1,0 +1,68 @@
+Stop adding push lifecycle workarounds.
+We now have upstream OneSignal evidence that changes the remediation path.
+BaseLodge currently uses:
+onesignal-cordova-plugin 5.3.8
+OneSignal has since released 5.5.2.
+Official OneSignal 5.5.2 release notes show the bundled iOS SDK was upgraded to 5.5.5 with fixes including:
+single-flight UpdateSubscription to stop in-flight PATCH races
+prevent stale UpdateSubscription leaving users Never Subscribed
+Our physical-device failure is:
+valid APNs token
+current subscription identified correctly
+login("2") runs
+supported pushSubscription.optIn() runs
+server remains enabled=false / notification_types=-30
+no observer transition explains the failure
+This is now strongly consistent with an SDK subscription-state/update bug rather than something we should keep compensating for in BaseLodge JavaScript.
+Do this
+Investigate and, if compatible, upgrade BaseLodge from:
+onesignal-cordova-plugin 5.3.8
+to:
+5.5.2
+This is the only remediation path to evaluate.
+Before changing anything:
+Inspect package.json, lockfile, Capacitor version, iOS deployment target, Android setup, Podfile/Pods, and current OneSignal configuration.
+Review OneSignal Cordova release notes from 5.3.8 → 5.5.2 for breaking changes relevant to our code.
+Confirm whether our current APIs remain valid:
+initialize
+login
+User.pushSubscription.optIn/optOut
+notification click listeners
+foreground listeners
+Identify the exact iOS SDK version currently bundled by 5.3.8 and the version bundled by 5.5.2.
+Confirm there are no required migration changes to our notification service extension or Capacitor integration.
+If compatible, implement the SDK upgrade only.
+Cleanup requirement
+Remove the experimental #276 diagnostic/workaround logic that is no longer needed for the upgrade test:
+subscription observer beacon if it exists solely for diagnosis
+repeated post-login optIn workaround if it was added solely to fight -30
+any other temporary OneSignal tracing added during this investigation
+Preserve the last known-working BaseLodge initialization and user preference behavior unless the new SDK explicitly requires a change.
+Do NOT change:
+Suggested Friends routing
+push payloads
+backend targeting
+push copy
+messaging events
+other notification types
+Validation
+Run the entire automated suite.
+Confirm native dependency resolution succeeds for:
+iOS
+Android
+Report any Pod/package changes.
+STOP before commit/push/publish.
+Return:
+Current OneSignal Cordova version and bundled native iOS version
+Target version and bundled native iOS version
+Relevant upstream fixes between them
+Compatibility assessment
+Exact files changed
+Experimental workaround code removed
+Test results
+Exact final physical-device validation:
+cold launch
+identify current subscription
+confirm OneSignal server shows enabled=true
+send one test push
+If 5.5.2 is not compatible with the current BaseLodge stack, STOP and report the exact incompatibility. Do not invent another workaround.
