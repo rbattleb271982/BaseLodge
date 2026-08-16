@@ -638,6 +638,10 @@ function _extractPushUrl(payload) {
  * silently ignored, preventing any two listeners from racing.
  */
 function _doNavFromPush(payload, source) {
+  // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────────────
+  console.log('[PushTrace] push navigate ENTRY t=' + new Date().toISOString() +
+    ' source=' + source + ' _pushNavDone=' + _pushNavDone);
+  // ─────────────────────────────────────────────────────────────────────────
   if (_pushNavDone) {
     console.log('[PushRoute] duplicate nav suppressed from ' + source);
     return;
@@ -645,8 +649,17 @@ function _doNavFromPush(payload, source) {
   var url = _extractPushUrl(payload);
   if (url) {
     _pushNavDone = true;
+    // ── TEMP DIAGNOSTIC ────────────────────────────────────────────────────
+    console.log('[PushTrace] push navigate WILL SET href t=' + new Date().toISOString() +
+      ' url=' + url + ' source=' + source + ' _pushNavDone=' + _pushNavDone);
+    // ───────────────────────────────────────────────────────────────────────
     console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
     window.location.href = url;
+  } else {
+    // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────────
+    console.log('[PushTrace] push navigate NO URL extracted t=' + new Date().toISOString() +
+      ' source=' + source);
+    // ─────────────────────────────────────────────────────────────────────
   }
 }
 
@@ -1131,6 +1144,14 @@ function _blShowFgBanner(title, body, url) {
           OS.Notifications.addEventListener('click', function(clickEvent) {
             console.log('[OneSignal] Notifications click event received');
             var notif = (clickEvent && clickEvent.notification) ? clickEvent.notification : clickEvent;
+            // ── TEMP DIAGNOSTIC ────────────────────────────────────────────
+            var _traceAD  = notif && notif.additionalData;
+            var _traceURL = _extractPushUrl(notif);
+            console.log('[PushTrace] OneSignal click t=' + new Date().toISOString() +
+              ' _pushNavDone=' + _pushNavDone +
+              ' additionalData=' + JSON.stringify(_traceAD) +
+              ' extractedUrl=' + _traceURL);
+            // ───────────────────────────────────────────────────────────────
             _doNavFromPush(notif, 'OS.Notifications.click');
           });
           console.log('[OneSignal] Notifications click listener registered (bridge=' + _osVia + ')');
@@ -1402,6 +1423,10 @@ function _blShowFgBanner(title, body, url) {
 
   /* Shared handler: parse the URL and navigate if it is an invite path. */
   function _handleDeepLinkUrl(url) {
+    // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────────
+    console.log('[PushTrace] deep-link navigate ENTRY t=' + new Date().toISOString() +
+      ' incomingUrl=' + (url || '(empty)') + ' _pushNavDone=' + _pushNavDone);
+    // ─────────────────────────────────────────────────────────────────────
     if (!url) return;
     if (_lastHandledDeepLinkUrl === url) return; /* duplicate — already handled */
     try {
@@ -1413,8 +1438,16 @@ function _blShowFgBanner(title, body, url) {
       });
       if (isAllowed) {
         _lastHandledDeepLinkUrl = url;
+        // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────
+        console.log('[PushTrace] deep-link navigate WILL SET href t=' + new Date().toISOString() +
+          ' path=' + path + ' _pushNavDone=' + _pushNavDone);
+        // ─────────────────────────────────────────────────────────────────
         console.log('[DeepLink] navigating to', path);
         window.location.href = path;
+      } else {
+        // ── TEMP DIAGNOSTIC ────────────────────────────────────────────
+        console.log('[PushTrace] deep-link navigate REJECTED (no prefix match) path=' + path);
+        // ───────────────────────────────────────────────────────────────
       }
     } catch (e) {
       console.warn('[DeepLink] URL handling error:', e);
@@ -1425,6 +1458,10 @@ function _blShowFgBanner(title, body, url) {
      this event until the bridge is ready, so it never fires before JS is live. */
   _App.addListener('appUrlOpen', function (event) {
     var url = event && (event.url || event.URL || '');
+    // ── TEMP DIAGNOSTIC ────────────────────────────────────────────────
+    console.log('[PushTrace] appUrlOpen RECEIVED t=' + new Date().toISOString() +
+      ' url=' + (url || '(empty)') + ' _pushNavDone=' + _pushNavDone);
+    // ───────────────────────────────────────────────────────────────────
     _handleDeepLinkUrl(url);
   });
 
