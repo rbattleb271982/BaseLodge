@@ -1,0 +1,45 @@
+Roll back the BaseLodge push notification system to the last known-working state immediately before the Suggested Friends deep-link change.
+This is a targeted rollback, not a full application rollback.
+Preserve all unrelated BaseLodge product work added since then.
+Restore only the push-related code, native configuration, dependencies, and routing behavior to the exact known-working checkpoint where:
+iOS push notifications were delivering successfully
+tapping the notification opened the main /friends screen
+OneSignal/Capacitor/native push behavior was functioning as it did before this investigation
+Use Git history to identify the exact checkpoint immediately before the change from:
+/friends
+to:
+/friends?tab=suggested
+Do not guess which files to revert. Determine the actual push-related diff from Git history.
+Revert as needed:
+static/js/bl-native.js
+ios/App/App/AppDelegate.swift
+capacitor.config.json
+package.json
+package-lock.json
+OneSignal plugin version
+@capacitor/push-notifications
+push-related entitlements/config
+generated native dependency configuration
+any other push-related file changed after that known-working checkpoint
+Also restore the Suggested Friends push destination to:
+data={"url": "/friends"}
+Do NOT:
+keep the OneSignal-only architecture if it did not exist at the known-working checkpoint
+keep the OneSignal 5.5.2 upgrade if it did not exist at the known-working checkpoint
+keep temporary diagnostics, observers, beacons, optIn workarounds, or APNs experiments
+delete or mutate OneSignal subscriptions
+change credentials
+change unrelated features
+After rollback:
+run the full test suite
+compare every push-related file against the identified known-working checkpoint
+confirm unrelated post-checkpoint product work remains intact
+Return:
+exact checkpoint/commit used
+exact files reverted
+exact push dependency versions restored
+confirmation Suggested Friends now targets /friends
+confirmation unrelated product changes were preserved
+test results
+exact remaining diff between current HEAD and the known-working push checkpoint for push-related files
+Do not commit, push, publish, or send a notification yet. Stop after the rollback verification report.
