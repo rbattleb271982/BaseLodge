@@ -1017,6 +1017,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (!AppPlugin  && typeof Cap.registerPlugin === 'function') AppPlugin  = Cap.registerPlugin('App');
         if (!PushPlugin && typeof Cap.registerPlugin === 'function') PushPlugin = Cap.registerPlugin('PushNotifications');
+        if (!OSPlugin   && window.plugins && window.plugins.OneSignal) OSPlugin = window.plugins.OneSignal;
         if (!OSPlugin   && typeof Cap.registerPlugin === 'function') OSPlugin   = Cap.registerPlugin('OneSignal');
       } catch (_pe) {
         console.warn('[BadgeClear] plugin lookup error:', _pe);
@@ -1116,6 +1117,24 @@ document.addEventListener('DOMContentLoaded', function() {
           _pushNavDone = true;
           console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
           window.location.href = url;
+        }
+      }
+
+      // ── Cordova bridge tap handler (onesignal-cordova-plugin v5) ─────────────
+      // The Cordova SDK fires taps via Notifications.addClickListener(), NOT the
+      // Capacitor SDK's addListener('notificationOpened'). This single callback
+      // covers both background tap and cold-start tap. _pushNavDone prevents
+      // double-navigation if another path also fires for the same tap.
+      if (OSPlugin && OSPlugin.Notifications
+          && typeof OSPlugin.Notifications.addClickListener === 'function') {
+        try {
+          OSPlugin.Notifications.addClickListener(async function(event) {
+            await _clearBadgeAndNotifs('notification_click');
+            _doNavFromPush(event, 'cordova_click_listener');
+          });
+          console.log('[PushRoute] OneSignal Cordova addClickListener registered');
+        } catch (_cc) {
+          console.warn('[PushRoute] Cordova addClickListener error:', _cc);
         }
       }
 
