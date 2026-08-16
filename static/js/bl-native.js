@@ -999,6 +999,36 @@ function _blShowFgBanner(title, body, url) {
 
       console.log('[OneSignal] init sequence complete');
 
+      // ── Sync subscription with BaseLodge push preference ─────────────────
+      // OS.Notifications.requestPermission() advances OneSignal's internal
+      // permission state but the Cordova bridge does not always push a
+      // server-side optIn automatically after that. Calling optIn() explicitly
+      // here guarantees the server-side subscription stays enabled=True whenever
+      // the user's BaseLodge preference says push is on.
+      // If the user intentionally disabled push in BaseLodge
+      // (push_notifications_enabled=false), we do NOT call optIn() — their
+      // optOut() from blSetPushEnabled is preserved and not overridden.
+      try {
+        var _blPrefEnabled = !!(window.__USER__ && window.__USER__.push_notifications_enabled);
+        var _pushSubSync = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
+        if (_pushSubSync && typeof _pushSubSync.optIn === 'function') {
+          if (_blPrefEnabled) {
+            console.log('[OneSignal] pref=enabled — calling optIn() to sync server-side subscription');
+            Promise.resolve(_pushSubSync.optIn()).then(function() {
+              console.log('[OneSignal] subscription sync: optIn() complete');
+            }).catch(function(e) {
+              console.warn('[OneSignal] subscription sync: optIn() error:', e);
+            });
+          } else {
+            console.log('[OneSignal] pref=disabled — preserving optOut(), sync skipped');
+          }
+        } else {
+          console.log('[OneSignal] pushSubscription.optIn not available — sync skipped');
+        }
+      } catch (_syncErr) {
+        console.warn('[OneSignal] subscription sync error:', _syncErr);
+      }
+
       // ── OS permission state — check once after init ───────────────────────
       // Resolves to 'granted', 'denied', 'not_determined', or null (unknown).
       // Stored in closure-scoped var; blOnOSPermReady / blGetOSPermStatus exposed.
