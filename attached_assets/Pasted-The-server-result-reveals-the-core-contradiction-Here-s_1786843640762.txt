@@ -1,0 +1,62 @@
+The server result reveals the core contradiction. Here's the complete analysis.
+
+---
+
+## Log Analysis — New Build (3 sessions)
+
+### `[OSTrace]` is now working — and surfaces the contradiction
+
+Line 80, 146, 215 — every session:
+```
+[OSTrace] post-login subscription_id=(use getOptedInAsync path) token_prefix=(GETTOKEN NOT FO  optedIn=true  onesignal_id=19af6c81-0bfe-4819-a258-21906a4d6361
+```
+
+Reading each field:
+
+| Field | Value | Meaning |
+|---|---|---|
+| `subscription_id` | `(use getOptedInAsync path)` | `getId()` doesn't exist on the Cordova `pushSubscription` object — not accessible from JS in v5.3.8 |
+| `token_prefix` | `(GETTOKEN NOT FO…` | `getToken()` also doesn't exist — truncated from `(getToken not found)` |
+| `optedIn` | **`true`** | `getOptedInAsync()` returned `true` — SDK's local cache says opted in |
+| `onesignal_id` | `19af6c81-0bfe-4819-a258-21906a4d6361` | `getOnesignalId()` works — identity confirmed |
+
+---
+
+### The critical contradiction — device says `optedIn=true`, server says `enabled=False`
+
+The OneSignal API right now shows subscription `f10dcf69` is **back to `enabled=False, notification_types=-30`**. The server-side state reverted between the previous log session (where `optIn()` flipped it to `enabled=True, notification_types=31`) and these sessions.
+
+**What's happening on every launch, in order:**
+
+1. `initialize()` + `login()` complete
+2. `getOptedInAsync()` (from `[OSTrace]`) fires and reads the SDK's **local cache** → returns `true` (the `optIn()` from the previous session is still cached locally)
+3. Simultaneously, `getPermissionInternal` fires → returns `not_determined` (because OneSignal's permission state machine never saw a grant through its own flow)
+4. The SDK, seeing `not_determined`, **asynchronously pushes an opt-out to the server** → `f10dcf69` reverts to `enabled=False, notification_types=-30`
+5. `[OSTrace]` logs `optedIn=true` because step 2 reads the local cache **before step 4's server sync completes**
+
+So `optedIn=true` from `getOptedInAsync()` is not a reliable signal of server-side state — it's a local snapshot that gets overwritten by the permission-check cycle seconds later.
+
+---
+
+### Why `getPushSubscriptionOptedIn` appears at line 43 (before the SDK-internal group)
+
+In the previous logs that call appeared only in the group of 6 at lines 54–59. Now it appears at **line 43**, immediately after `login() complete`. That's the `[OSTrace]` block's `getOptedInAsync()` call firing. The SDK-internal group at lines 62–68 now also includes `getOnesignalId` (line 68) — that's from `[OSTrace]`'s `getOnesignalId()` call. Both are confirmed working.
+
+---
+
+### Push `03892787` — no receipt in these logs
+
+There are no `[OneSignal] Notifications click event received` or `[PushTrace]` lines anywhere in these 222 lines. Two possibilities:
+
+1. **Not received**: The subscription reverted to `enabled=False` between the `optIn()` in the previous session and OneSignal processing the delivery. OneSignal may have attempted delivery to a subscription that was already opted-out by the time its queue processed it.
+2. **Received but not tapped**: The notification sat in the tray unread across these sessions.
+
+To check: go to iOS Notification Center — is "Suggested Friends test" sitting there unread?
+
+---
+
+### Root cause is now fully confirmed
+
+`OS permission status=not_determined` → SDK opts out the subscription on every launch. The fix is `OS.Notifications.requestPermission()` — the method exists (`Notifications=true` every session), but the init code never calls it because it checks `OS.requestPermission` (top-level, absent) instead of `OS.Notifications.requestPermission` (correct location).
+
+Until that fix lands, the subscription will revert to opted-out within seconds of every cold launch, and pushes sent while it appears opted-in will race against the reversion. The `optedIn=true` local-cache read is not a reliable delivery guarantee.
