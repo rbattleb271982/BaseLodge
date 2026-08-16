@@ -922,20 +922,32 @@ function _blShowFgBanner(title, body, url) {
             }
             console.log('[OneSignal] login() complete');
             // ── TEMP DIAGNOSTIC: subscription state after login ───────────
-            try {
-              var _diagSub = OS.User && OS.User.pushSubscription;
-              var _diagId    = _diagSub && (_diagSub.id   || _diagSub.subscriptionId || '(none)');
-              var _diagTok   = _diagSub && (_diagSub.token || _diagSub.pushToken     || '(none)');
-              var _diagOpted = _diagSub && (typeof _diagSub.optedIn !== 'undefined'
-                                            ? _diagSub.optedIn : '(unavailable)');
-              var _diagOSId  = OS.User && (OS.User.onesignalId || OS.User.pushSubscription && OS.User.pushSubscription.id || '(none)');
-              console.log('[OSTrace] post-login subscription_id=' + _diagId
-                + ' token_prefix=' + (typeof _diagTok === 'string' ? _diagTok.slice(0,16) : _diagTok)
-                + ' optedIn='  + _diagOpted
-                + ' onesignal_id=' + _diagOSId);
-            } catch (_diagErr) {
-              console.warn('[OSTrace] post-login introspection error:', _diagErr);
-            }
+            // Uses the async Cordova bridge methods; property access returns Promises.
+            (async function() {
+              try {
+                var _diagSub = OS.User && OS.User.pushSubscription;
+                if (!_diagSub) { console.log('[OSTrace] pushSubscription object not available'); return; }
+                var _diagId    = typeof _diagSub.getId    === 'function' ? await _diagSub.getId()
+                               : typeof _diagSub.getOptedInAsync === 'function' ? '(use getOptedInAsync path)'
+                               : '(getId not found)';
+                var _diagTok   = typeof _diagSub.getToken === 'function' ? await _diagSub.getToken() : '(getToken not found)';
+                var _diagOpted = typeof _diagSub.getOptedInAsync === 'function' ? await _diagSub.getOptedInAsync()
+                               : typeof _diagSub.optedIn !== 'undefined' ? _diagSub.optedIn : '(unavailable)';
+                // onesignalId lives on OS.User in v5
+                var _diagOSId = (OS.User && typeof OS.User.getOnesignalId === 'function')
+                                ? await OS.User.getOnesignalId()
+                                : '(getOnesignalId not found)';
+                var _tokPfx = (typeof _diagTok === 'string' && _diagTok.length > 8)
+                              ? _diagTok.slice(0,16).toUpperCase() : String(_diagTok);
+                console.log('[OSTrace] post-login'
+                  + ' subscription_id=' + _diagId
+                  + ' token_prefix=' + _tokPfx
+                  + ' optedIn=' + _diagOpted
+                  + ' onesignal_id=' + _diagOSId);
+              } catch (_diagErr) {
+                console.warn('[OSTrace] post-login introspection error:', _diagErr);
+              }
+            })();
             // ─────────────────────────────────────────────────────────────
           } else if (typeof OS.setExternalUserId === 'function') {
             if (_isCordovaBridge) {
