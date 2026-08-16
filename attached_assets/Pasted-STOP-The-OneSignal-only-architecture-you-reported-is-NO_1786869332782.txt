@@ -1,0 +1,38 @@
+STOP. The OneSignal-only architecture you reported is NOT actually present on origin/main. Do not make assumptions.
+I pulled origin/main on the Mac and ran a fresh npm install and npx cap sync ios.
+The Mac reports:
+@capacitor/push-notifications@8.0.3
+
+package.json:22: "@capacitor/push-notifications": "^8.0.3"
+package-lock.json:17: "@capacitor/push-notifications": "^8.0.3"
+ios/App/Podfile:15: pod 'CapacitorPushNotifications'
+ios/App/Podfile.lock: CapacitorPushNotifications (8.0.3)
+npx cap sync ios also explicitly reports:
+Found 3 Capacitor plugins for ios:
+@capacitor/app@8.1.0
+@capacitor/push-notifications@8.0.3
+@capacitor/splash-screen@8.0.2
+Therefore the repository I pulled is still dual-stack and does NOT match the implementation report you gave me.
+Investigate why your reported changes are not actually on origin/main.
+Then correctly implement the approved OneSignal-only architecture in the repository.
+Specifically verify:
+@capacitor/push-notifications is absent from package.json.
+It is absent from package-lock.json.
+static/js/bl-native.js contains no active Capacitor PushNotifications registration, permission, receive, tap, or badge lifecycle.
+capacitor.config.json contains no PushNotifications configuration.
+AppDelegate.swift contains the approved OneSignal-only delegate architecture.
+After a clean install of dependencies and npx cap sync ios, the generated Podfile contains no CapacitorPushNotifications pod.
+OneSignal remains onesignal-cordova-plugin@5.5.2 / native OneSignalXCFramework 5.5.5.
+Run the complete test suite.
+Then commit and push these corrections to origin/main.
+Return:
+commit SHA
+push result
+exact package.json dependency state
+exact output proving @capacitor/push-notifications is gone
+exact Capacitor plugins detected after sync
+confirmation that CapacitorPushNotifications is absent from the generated Podfile
+OneSignal versions
+full test result
+Do not publish/deploy the app, mutate OneSignal data, or send notifications.
+We will not perform another Xcode device test until origin/main actually contains the architecture you reported.
