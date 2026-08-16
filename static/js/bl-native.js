@@ -644,7 +644,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // expects objects ({ appId, externalId, … }).
       var OS = null;
       var _osVia = null;
-      var _osOptInCount = 0; // rate-limits re-optIn calls per session (max 2)
       try {
         if (Cap.Plugins && Cap.Plugins.OneSignal) {
           OS = Cap.Plugins.OneSignal;
@@ -732,60 +731,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
 
-      // ── optIn() helper — rate-limited, guarded by BaseLodge preference ──
-      // Called from two sites:
-      //   1. post_login: queued in Cordova bridge after login, runs after
-      //      the sync init-time optOut().
-      //   2. subscription_observer: fires when the SDK's async background
-      //      login work fires a subsequent optOut() outside the bridge queue.
+      // ── Push subscription change observer (diagnostic / read-only) ───────
+      // Registered AFTER initialize() so the native addPushSubscriptionObserver
+      // command is queued after 'init' in the Cordova bridge. This ensures
+      // [OneSignal.User.pushSubscription addObserver:self] runs on a valid
+      // post-init subscription object. Registered BEFORE login() so the observer
+      // is active when the SDK's async post-login subscription sync fires.
       //
-      // Rate limit: max 2 calls per session to prevent infinite loops if
-      // the SDK continues cycling. Guard: window.__USER__.push_enabled must
-      // be true — users who disabled push are never auto-opted back in.
-      function _blDoOptInIfNeeded(source) {
-        if (!window.__USER__ || !window.__USER__.push_enabled) {
-          console.log('[OneSignal] optIn skip (' + source + ') — push_enabled=false');
-          return;
-        }
-        if (_osOptInCount >= 2) {
-          console.warn('[OneSignal] optIn skip (' + source + ') — rate limit (count=' + _osOptInCount + ')');
-          return;
-        }
-        _osOptInCount++;
-        var _sub = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
-        if (_sub && typeof _sub.optIn === 'function') {
-          console.log('[OneSignal] optIn() via ' + source + ' (attempt #' + _osOptInCount + ')');
-          Promise.resolve(_sub.optIn()).then(function() {
-            console.log('[OneSignal] optIn() complete via ' + source);
-          }).catch(function(_oie) {
-            console.warn('[OneSignal] optIn() error via ' + source + ':', _oie);
-          });
-        } else {
-          console.log('[OneSignal] optIn() skipped via ' + source + ' — pushSubscription.optIn not available');
-        }
-      }
-
-      // ── Push subscription change observer ─────────────────────────────
-      // Registered AFTER initialize() (so the Cordova command is queued
-      // after 'init', ensuring [OneSignal.User.pushSubscription addObserver:self]
-      // runs on a valid post-init subscription) and BEFORE login() (so the
-      // observer is active when the SDK's async post-login subscription sync
-      // fires its background optOut()).
-      //
-      // Native command queue when this code runs (all void/fire-and-forget):
-      //   1. init  (from initialize())
-      //   2. addPushSubscriptionObserver  ← this block
-      //   3. login  (from OS.login())
-      //   4. optInPushSubscription  (from _blDoOptInIfNeeded('post_login'))
-      //
-      // Processing: init runs, success callback queues _setPropertiesAndObserver
-      // sub-commands; then our observer is registered (subscription valid post-init,
-      // handlerNotSet=true → [addObserver:self] called once); then login runs;
-      // then post-login optIn fires. Any SUBSEQUENT optOut from the SDK's async
-      // background login work is caught here and countered.
-      //
-      // The beacon reports the actual subscription ID back to the server so
-      // the physical subscription can be confirmed against OneSignal's API.
+      // This observer is DIAGNOSTIC ONLY. It logs and beacons every subscription
+      // state change — sub_id, token_prefix, opted_in, prev_opted_in — but does
+      // NOT call optIn() or modify any state. The post-login optIn() block below
+      // is the only place that calls optIn().
       try {
         var _pushSubObs = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
         if (_pushSubObs && typeof _pushSubObs.addEventListener === 'function') {
@@ -795,9 +751,10 @@ document.addEventListener('DOMContentLoaded', function() {
             var _curOptedIn = _subEvt && _subEvt.current  && _subEvt.current.optedIn;
             var _prevOptIn  = _subEvt && _subEvt.previous && _subEvt.previous.optedIn;
             console.log('[OneSignal] subscription change: id=' + _curId
-              + ' token_prefix=' + (_curToken ? _curToken.slice(0,8).toUpperCase() : 'none')
+              + ' token_prefix=' + (_curToken ? _curToken.slice(0, 8).toUpperCase() : 'none')
               + ' optedIn=' + _curOptedIn + ' prev=' + _prevOptIn);
-            // Beacon: delivers actual device subscription ID to server logs.
+            // Beacon to server: records actual device subscription ID, opted_in
+            // state, and the previous opted_in so each transition is captured.
             try {
               fetch('/api/push/beacon', {
                 method: 'POST',
@@ -805,22 +762,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                   step: 'subscription_change',
                   data: {
-                    sub_id:       _curId      || 'unknown',
-                    token_prefix: _curToken   ? _curToken.slice(0,8).toUpperCase() : 'none',
-                    opted_in:     _curOptedIn,
+                    sub_id:        _curId     || 'unknown',
+                    token_prefix:  _curToken  ? _curToken.slice(0, 8).toUpperCase() : 'none',
+                    opted_in:      _curOptedIn,
                     prev_opted_in: _prevOptIn
                   }
                 })
               });
             } catch (_be) {}
-            // If SDK fired a background optOut (opted_in flipped true → false),
-            // counter it. Guards: push_enabled, rate limit.
-            if (_curOptedIn === false && _prevOptIn === true) {
-              console.log('[OneSignal] subscription went opted-out — re-applying optIn if push enabled');
-              _blDoOptInIfNeeded('subscription_observer');
-            }
+            // Read-only: no optIn() call here. Transitions (e.g. true → false) are
+            // visible in the beacon log for diagnosis only.
           });
-          console.log('[OneSignal] push subscription observer registered');
+          console.log('[OneSignal] push subscription observer registered (diagnostic only)');
         } else {
           console.log('[OneSignal] push subscription observer skipped — addEventListener not available');
         }
@@ -844,13 +797,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             console.log('[OneSignal] login() complete');
 
-            // Counteract the init-time optOut() that the SDK fires synchronously
-            // during [OneSignal initialize:]. The Cordova command queue guarantees
-            // this optInPushSubscription command runs after both 'init' and 'login'
-            // have been processed natively. The subscription observer (registered
-            // above) handles any subsequent async optOut from the SDK's background
-            // login network work.
-            _blDoOptInIfNeeded('post_login');
+            // ── Post-login optIn: guarded by BaseLodge push preference ────
+            // Counteracts the optOut() the iOS SDK fires synchronously during
+            // [OneSignal initialize:] when the persisted opt-in state is
+            // not_determined. The Cordova bridge queues this optInPushSubscription
+            // command after both 'init' and 'login', so it runs after those native
+            // calls complete.
+            //
+            // Guard: window.__USER__.push_enabled (server-rendered at page load).
+            // Users who disabled push in BaseLodge are left opted out.
+            var _blPushPref = !!(window.__USER__ && window.__USER__.push_enabled);
+            if (_blPushPref) {
+              try {
+                var _postLoginSub = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
+                if (_postLoginSub && typeof _postLoginSub.optIn === 'function') {
+                  console.log('[OneSignal] post-login optIn() — push_enabled=true');
+                  Promise.resolve(_postLoginSub.optIn()).then(function() {
+                    console.log('[OneSignal] post-login optIn() complete');
+                  }).catch(function(_oie) {
+                    console.warn('[OneSignal] post-login optIn() error:', _oie);
+                  });
+                } else {
+                  console.log('[OneSignal] post-login optIn() skipped — pushSubscription.optIn not available');
+                }
+              } catch (_postOptErr) {
+                console.warn('[OneSignal] post-login optIn() guard error:', _postOptErr);
+              }
+            } else {
+              console.log('[OneSignal] post-login optIn() skipped — push_enabled=false');
+            }
           } else if (typeof OS.setExternalUserId === 'function') {
             if (_isCordovaBridge) {
               console.log('[OneSignal] calling setExternalUserId() — Cordova string, id=' + userId);
