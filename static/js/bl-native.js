@@ -921,6 +921,22 @@ function _blShowFgBanner(title, body, url) {
               await OS.login({ externalId: String(userId) });
             }
             console.log('[OneSignal] login() complete');
+            // ── TEMP DIAGNOSTIC: subscription state after login ───────────
+            try {
+              var _diagSub = OS.User && OS.User.pushSubscription;
+              var _diagId    = _diagSub && (_diagSub.id   || _diagSub.subscriptionId || '(none)');
+              var _diagTok   = _diagSub && (_diagSub.token || _diagSub.pushToken     || '(none)');
+              var _diagOpted = _diagSub && (typeof _diagSub.optedIn !== 'undefined'
+                                            ? _diagSub.optedIn : '(unavailable)');
+              var _diagOSId  = OS.User && (OS.User.onesignalId || OS.User.pushSubscription && OS.User.pushSubscription.id || '(none)');
+              console.log('[OSTrace] post-login subscription_id=' + _diagId
+                + ' token_prefix=' + (typeof _diagTok === 'string' ? _diagTok.slice(0,16) : _diagTok)
+                + ' optedIn='  + _diagOpted
+                + ' onesignal_id=' + _diagOSId);
+            } catch (_diagErr) {
+              console.warn('[OSTrace] post-login introspection error:', _diagErr);
+            }
+            // ─────────────────────────────────────────────────────────────
           } else if (typeof OS.setExternalUserId === 'function') {
             if (_isCordovaBridge) {
               console.log('[OneSignal] calling setExternalUserId() — Cordova string, id=' + userId);

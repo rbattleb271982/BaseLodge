@@ -1,0 +1,38 @@
+Re-investigate the OneSignal identity-binding issue using the actual physical-device logs.
+The prior conclusion that OneSignal.login("2") never completed is incorrect.
+Xcode logs from the physical iPhone show:
+OneSignal plugin found via window.plugins
+calling initialize()
+initialize() complete
+calling login() — Cordova string, externalId=2
+login() complete
+The same session also successfully registers an APNs token.
+However, immediately afterward, sending via:
+external_id: ["2"]
+still returns:
+invalid_aliases
+channel_unavailable
+So investigate the gap between SDK login completion and OneSignal-side subscription/external_id association.
+Do not change push routing logic.
+Do not commit, push, or publish.
+Please determine:
+What login() completion actually means in onesignal-cordova-plugin v5.3.8. Does the JS callback resolve before the identity sync reaches OneSignal servers?
+How to inspect the current OneSignal subscription ID after login.
+Whether the current device has a OneSignal subscription ID at all.
+Whether that subscription ID is associated with external ID 2.
+Whether the current push helper is using the correct OneSignal targeting field/API for v5 external IDs.
+Whether we should target the known OneSignal subscription ID directly for this diagnostic push instead of external_id.
+Whether the APNs token in our local PushDeviceToken table is unrelated to the OneSignal subscription identity being used by the REST API.
+Whether there is a delay after login() before the external ID becomes queryable/targetable, and how to verify that.
+Add temporary diagnostic logging if needed for:
+OneSignal subscription ID
+OneSignal push subscription token
+opted-in state
+external ID / alias state if accessible
+Return:
+actual OneSignal subscription ID from the physical device
+whether that subscription is active
+whether it is bound to external ID 2
+whether the REST send code is targeting correctly
+the smallest way to send one successful diagnostic push to this exact physical device
+Stop after investigation. Do not modify production behavior.
