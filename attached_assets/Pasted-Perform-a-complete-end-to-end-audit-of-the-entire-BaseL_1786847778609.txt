@@ -1,0 +1,178 @@
+Perform a complete, end-to-end audit of the entire BaseLodge push notification system.
+This is an INVESTIGATION ONLY.
+DO NOT MODIFY ANY CODE.
+DO NOT FIX ANYTHING.
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
+DO NOT CHANGE ONESIGNAL DATA OR SUBSCRIPTIONS.
+DO NOT SEND TEST PUSHES unless a read-only audit is genuinely impossible without one, and if so STOP and ask first.
+I want one authoritative report explaining how push notifications work across BaseLodge today, every push notification we currently have, which ones are correctly implemented, which ones are actually deliverable, and every defect or inconsistency you can prove.
+Do not focus only on today's Suggested Friends issue. Audit the entire push architecture.
+1. MAP THE COMPLETE PUSH ARCHITECTURE
+Trace push notifications end-to-end:
+application event → event dispatch → recipient selection → user push preference → provider selection → OneSignal/APNs → device subscription → notification delivery → tap/click handler → destination/deep link
+Identify every relevant file, service, model, route, helper, constant, template, JS/native bridge component, Capacitor plugin, OneSignal plugin, configuration file, and environment variable involved.
+Explain the roles of:
+Capacitor PushNotifications
+OneSignal
+direct APNs registration, if applicable
+PushDeviceToken
+BaseLodge user notification preferences
+OneSignal external IDs
+OneSignal subscription IDs
+services/push_providers.py
+messaging constants/event specs
+message dispatch
+bl-native.js
+notification click/deep-link routing
+badge handling
+foreground/background/cold-start handling
+I specifically want to know whether BaseLodge currently has two overlapping push systems (Capacitor/APNs and OneSignal), what each is responsible for, and whether that architecture is intentional or causing state conflicts.
+2. INVENTORY EVERY PUSH NOTIFICATION
+Search the entire repository. Do not rely on memory or a manually maintained list.
+Build a complete inventory of every event capable of generating a push notification.
+Include things such as, where they exist:
+connection/friend request
+connection accepted
+trip join request
+trip invitation
+trip updates
+Suggested Friends
+social/activity notifications
+reminders
+lifecycle notifications
+system notifications
+any other push-capable event
+For EVERY push type report:
+| Push/Event | Trigger | Recipient | Delivery strategy | Title/body source | Payload URL | Preference/eligibility checks | Provider | Tap destination | Tests | Status |
+Status must be one of:
+WORKING / LIKELY WORKING / BROKEN / PARTIALLY IMPLEMENTED / NOT ACTIVE / CANNOT VERIFY
+Do not call something WORKING merely because code exists. Explain the evidence.
+3. AUDIT THE EVENT/MESSAGING REGISTRY
+Enumerate every messaging event constant and every registered EventSpec.
+Identify:
+events configured for immediate push
+events configured for email only
+events configured for multiple channels
+registered events that are never emitted
+emitted events that aren't registered correctly
+duplicate/legacy event paths
+events bypassing the centralized messaging system
+Cross-reference the registry against actual call sites.
+4. AUDIT EVERY PUSH CALL SITE
+Search the repository for every place that can initiate a push, including direct calls that bypass the messaging/event system.
+For each one determine:
+Who triggers it? → who receives it? → what exact payload is constructed? → what provider function receives it? → what happens when delivery isn't available?
+Flag duplicate implementations or inconsistent behavior.
+5. AUDIT ONESIGNAL SERVER STATE
+Perform read-only queries against OneSignal using the existing configured credentials.
+Do NOT alter anything.
+Determine:
+all OneSignal users/subscriptions associated with BaseLodge user ID 2
+external ID mappings
+OneSignal IDs
+subscription IDs
+device/platform
+enabled/disabled state
+notification types/status
+APNs token association where available
+last-active information
+duplicate/stale subscriptions
+Explain precisely why external_id="2" currently produces invalid_aliases.
+Do not equate invalid_aliases with "external ID does not exist" unless the API actually proves that.
+Distinguish:
+alias doesn't exist
+alias exists but has no push subscription
+subscription exists but is disabled
+subscription is in an SDK error state
+subscription belongs to a different identity
+Tell me which is actually true.
+6. AUDIT THE CURRENT IPHONE
+Cross-reference the BaseLodge database against OneSignal.
+Current known APNs token begins:
+4DDC89DF
+Previously observed OneSignal subscription:
+f10dcf69-d988-4870-9cdf-138873e36cf2
+Previously observed OneSignal ID:
+19af6c81-0bfe-4819-a258-21906a4d6361
+Determine the CURRENT state rather than assuming those identifiers remain authoritative.
+Explain whether BaseLodge's DB believes this device is push-enabled and whether OneSignal agrees.
+7. AUDIT USER PUSH PREFERENCES
+Trace the entire push enable/disable lifecycle:
+UI toggle → backend preference → database → native bridge → OneSignal → relaunch
+Determine whether a user's BaseLodge preference can disagree with OneSignal subscription state.
+Identify exactly how that can happen.
+Determine whether logout/login, reinstall, token refresh, app upgrade, cold launch, or toggling notifications can create stale or duplicate subscriptions.
+8. AUDIT INITIALIZATION
+Document the CURRENT restored implementation, not experimental code that has been reverted.
+Trace the exact runtime order of:
+Capacitor permission handling
+APNs registration
+OneSignal initialize
+OneSignal login
+subscription state
+listeners
+badge handling
+token persistence
+Compare it to the installed OneSignal Cordova plugin's expected initialization model.
+Identify anything suspicious, but do not change it.
+9. AUDIT TAP ROUTING
+Inventory every supported notification destination.
+For each payload URL, determine how it is extracted and navigated on:
+app already open
+app backgrounded
+cold start
+Identify whether OneSignal click handling, Capacitor pushNotificationActionPerformed, and appUrlOpen overlap or compete.
+Confirm that the restored /friends destination uses the known-working routing architecture.
+10. AUDIT TEST COVERAGE
+Map existing tests to the push architecture.
+Tell me what the 440 passing tests actually prove about push notifications and, equally importantly, what they do NOT prove.
+Identify missing tests for:
+provider payload construction
+recipient eligibility
+preferences
+event dispatch
+duplicate prevention
+routing/deep links
+OneSignal identity mapping
+subscription state
+foreground/background/cold start
+Do not add tests yet.
+11. USE GIT HISTORY
+Use Git history to distinguish:
+the last known-working push architecture
+BL-12/Suggested Friends changes
+today's experimental OneSignal changes
+what was subsequently reverted
+what remains different today
+Confirm whether the current push infrastructure truly matches known-working commit 29195fd, aside from the intentional Suggested Friends destination being /friends.
+12. FINAL HEALTH MATRIX
+End with a single table covering every push notification/event:
+| Notification | Trigger works? | Recipient logic works? | Provider path works? | Current deliverability | Tap routing | Tests | Overall status |
+Then give me four sections:
+A. CONFIRMED WORKING
+Only things you can substantiate.
+B. CONFIRMED BROKEN
+Proven defects only.
+C. RISKS / INCONSISTENCIES
+Things that may cause failures but aren't yet proven failures.
+D. UNKNOWN / REQUIRES DEVICE VALIDATION
+Things repository/server inspection cannot prove.
+Finally give me a prioritized remediation plan, but DO NOT IMPLEMENT IT:
+P0 — anything threatening all push notifications
+P1 — broken individual push types
+P2 — architectural inconsistencies/technical debt
+P3 — enhancements such as Suggested Friends direct-tab routing
+For each proposed remediation state:
+exact problem
+evidence
+likely files involved
+regression risk
+how we would prove the fix worked
+CRITICAL RULE
+Do not make a single code or configuration change during this audit.
+I want facts first.
+If you encounter conflicting evidence, report the conflict instead of choosing an explanation.
+If something cannot be proven without a physical-device test, label it REQUIRES DEVICE VALIDATION rather than guessing.
+When finished, return the complete audit report and STOP.
