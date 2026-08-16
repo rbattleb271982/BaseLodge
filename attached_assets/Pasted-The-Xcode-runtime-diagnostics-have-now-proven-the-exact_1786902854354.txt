@@ -1,0 +1,99 @@
+The Xcode runtime diagnostics have now proven the exact issue.
+
+DO NOT GUESS THE ONESIGNAL API AGAIN.
+
+Runtime evidence from the physical iPhone:
+
+[PushDiag] OSPlugin resolved to: window.plugins.OneSignal (Cordova bridge)
+[PushDiag] OSPlugin truthy: true
+[PushDiag] OSPlugin.Notifications: true
+[PushDiag] addClickListener type: undefined
+[PushDiag] addListener type: undefined
+[PushDiag] addClickListener NOT registered
+
+Therefore the tap-routing fix cannot work because
+OSPlugin.Notifications.addClickListener does NOT exist on the actual installed
+onesignal-cordova-plugin@5.3.8 JavaScript bridge.
+
+We also know from earlier working-device logs that this plugin has successfully
+called the native bridge method:
+
+OneSignalPush addNotificationClickListener
+
+So determine the EXACT JavaScript API in onesignal-cordova-plugin@5.3.8 that maps to that native method.
+
+Inspect the INSTALLED package directly, especially:
+
+- node_modules/onesignal-cordova-plugin/dist/index.js
+- node_modules/onesignal-cordova-plugin/dist/index.d.ts
+- node_modules/onesignal-cordova-plugin/src/
+- the iOS OneSignalPush.m bridge
+
+Search for:
+
+- addNotificationClickListener
+- addClickListener
+- addEventListener
+- notification click
+- Notifications
+- foregroundWillDisplay
+
+I want the actual supported 5.3.8 JavaScript call signature, not current OneSignal documentation and not an inferred API.
+
+Then implement the smallest routing-only correction in static/js/bl-native.js:
+
+1. Register the notification click callback using the EXACT API exposed by
+   onesignal-cordova-plugin@5.3.8.
+
+2. Feed the callback payload into the existing:
+   _doNavFromPush(...)
+
+3. Preserve:
+   - _extractPushUrl
+   - _pushNavDone
+   - badge clearing
+   - existing fallback paths
+
+4. Remove/replace the nonfunctional addClickListener implementation added in
+   the previous attempt.
+
+5. Keep diagnostic logs proving:
+   - exact API used
+   - click listener successfully registered
+   - callback fired
+   - payload received
+   - extracted URL
+   - navigation destination
+
+DO NOT change:
+- push delivery
+- OneSignal initialization/login
+- subscriptions
+- APNs
+- permissions
+- entitlements
+- dependencies
+- AppDelegate
+- backend
+- payload format
+
+Run:
+- node --check static/js/bl-native.js
+- relevant tests
+- full Python suite
+
+Before committing, report:
+
+A. Exact 5.3.8 API found in installed source
+B. Exact source lines proving it
+C. Exact code change
+D. Test results
+
+Then, if everything passes:
+- commit message:
+  BL-12: Use supported OneSignal click listener API
+- push to origin/main
+
+Do NOT publish.
+Do NOT send another notification.
+Stop after the report.
