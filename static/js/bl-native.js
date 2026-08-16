@@ -1038,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('[PushDiag] OSPlugin resolved to:', _osDiag);
         console.log('[PushDiag] OSPlugin truthy:', !!OSPlugin);
         console.log('[PushDiag] OSPlugin.Notifications:', !!(OSPlugin && OSPlugin.Notifications));
-        console.log('[PushDiag] addClickListener type:', OSPlugin && OSPlugin.Notifications ? typeof OSPlugin.Notifications.addClickListener : 'N/A');
+        console.log('[PushDiag] addEventListener type:', OSPlugin && OSPlugin.Notifications ? typeof OSPlugin.Notifications.addEventListener : 'N/A');
         console.log('[PushDiag] addListener type:', OSPlugin ? typeof OSPlugin.addListener : 'N/A');
       } catch (_od) {
         console.warn('[PushDiag] OSPlugin diag error:', _od);
@@ -1169,11 +1169,11 @@ document.addEventListener('DOMContentLoaded', function() {
       // covers both background tap and cold-start tap. _pushNavDone prevents
       // double-navigation if another path also fires for the same tap.
       if (OSPlugin && OSPlugin.Notifications
-          && typeof OSPlugin.Notifications.addClickListener === 'function') {
+          && typeof OSPlugin.Notifications.addEventListener === 'function') {
         try {
-          OSPlugin.Notifications.addClickListener(async function(event) {
+          OSPlugin.Notifications.addEventListener('click', async function(event) {
             // ── DIAG: callback fired ──────────────────────────────────
-            console.log('[PushDiag] Cordova addClickListener FIRED');
+            console.log('[PushDiag] Cordova addEventListener(click) FIRED');
             try {
               var _topKeys = event ? Object.keys(event).join(',') : 'null';
               console.log('[PushDiag] event top-keys:', _topKeys);
@@ -1193,14 +1193,14 @@ document.addEventListener('DOMContentLoaded', function() {
             await _clearBadgeAndNotifs('notification_click');
             _doNavFromPush(event, 'cordova_click_listener');
           });
-          console.log('[PushRoute] OneSignal Cordova addClickListener registered');
+          console.log('[PushRoute] OneSignal Cordova Notifications.addEventListener("click") registered');
         } catch (_cc) {
-          console.warn('[PushRoute] Cordova addClickListener error:', _cc);
+          console.warn('[PushRoute] Cordova addEventListener("click") error:', _cc);
         }
       } else {
-        console.log('[PushDiag] addClickListener NOT registered — OSPlugin=' + !!OSPlugin
+        console.log('[PushDiag] addEventListener("click") NOT registered — OSPlugin=' + !!OSPlugin
           + ' Notifications=' + !!(OSPlugin && OSPlugin.Notifications)
-          + ' addClickListener type=' + (OSPlugin && OSPlugin.Notifications ? typeof OSPlugin.Notifications.addClickListener : 'N/A'));
+          + ' addEventListener type=' + (OSPlugin && OSPlugin.Notifications ? typeof OSPlugin.Notifications.addEventListener : 'N/A'));
       }
 
       if (OSPlugin && typeof OSPlugin.addListener === 'function') {
