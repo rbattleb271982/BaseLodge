@@ -1023,27 +1023,6 @@ document.addEventListener('DOMContentLoaded', function() {
         console.warn('[BadgeClear] plugin lookup error:', _pe);
       }
 
-      // ── DIAG: Report exactly which object OSPlugin resolved to ────────
-      try {
-        var _osDiag = 'null';
-        if (OSPlugin) {
-          if (window.plugins && window.plugins.OneSignal && OSPlugin === window.plugins.OneSignal) {
-            _osDiag = 'window.plugins.OneSignal (Cordova bridge)';
-          } else if (window.Capacitor && window.Capacitor.Plugins && OSPlugin === window.Capacitor.Plugins.OneSignal) {
-            _osDiag = 'Cap.Plugins.OneSignal (native Capacitor)';
-          } else {
-            _osDiag = 'registerPlugin stub or unknown';
-          }
-        }
-        console.log('[PushDiag] OSPlugin resolved to:', _osDiag);
-        console.log('[PushDiag] OSPlugin truthy:', !!OSPlugin);
-        console.log('[PushDiag] OSPlugin.Notifications:', !!(OSPlugin && OSPlugin.Notifications));
-        console.log('[PushDiag] addEventListener type:', OSPlugin && OSPlugin.Notifications ? typeof OSPlugin.Notifications.addEventListener : 'N/A');
-        console.log('[PushDiag] addListener type:', OSPlugin ? typeof OSPlugin.addListener : 'N/A');
-      } catch (_od) {
-        console.warn('[PushDiag] OSPlugin diag error:', _od);
-      }
-
       // ── Core clear function ───────────────────────────────────────────
       async function _clearBadgeAndNotifs(reason) {
         console.log('[BadgeClear] clearing badge, reason=' + reason);
@@ -1093,20 +1072,9 @@ document.addEventListener('DOMContentLoaded', function() {
       // validated same-origin relative path, or null if absent/invalid.
       function _extractPushUrl(payload) {
         try {
-          if (!payload) { console.log('[PushDiag] _extractPushUrl: null payload'); return null; }
+          if (!payload) return null;
           var raw = null;
           var n = payload.notification || payload;
-          // ── DIAG: log payload shape ───────────────────────────────────
-          try {
-            console.log('[PushDiag] extractPushUrl payload top-keys:', Object.keys(payload).join(','));
-            console.log('[PushDiag] extractPushUrl n keys:', Object.keys(n).join(','));
-            console.log('[PushDiag] n.additionalData:', JSON.stringify(n.additionalData).slice(0,200));
-            console.log('[PushDiag] n.data:', JSON.stringify(n.data).slice(0,200));
-            console.log('[PushDiag] payload.additionalData:', JSON.stringify(payload.additionalData).slice(0,200));
-            console.log('[PushDiag] payload.data:', JSON.stringify(payload.data).slice(0,200));
-            if (n.launchURL !== undefined) console.log('[PushDiag] n.launchURL:', n.launchURL);
-            if (n.rawPayload !== undefined) console.log('[PushDiag] n.rawPayload:', JSON.stringify(n.rawPayload).slice(0,200));
-          } catch (_sd) { console.warn('[PushDiag] shape diag error:', _sd); }
           // OneSignal SDK 5: openedResult.notification.additionalData.url
           // OneSignal SDK 4: openedResult.notification.additionalData.url
           // Capacitor PushNotifications: action.notification.data.url
@@ -1114,12 +1082,7 @@ document.addEventListener('DOMContentLoaded', function() {
           var _c2 = n.data && n.data.url;
           var _c3 = payload.additionalData && payload.additionalData.url;
           var _c4 = payload.data && payload.data.url;
-          console.log('[PushDiag] url candidates: c1(n.additionalData.url)=' + _c1
-            + ' c2(n.data.url)=' + _c2
-            + ' c3(payload.additionalData.url)=' + _c3
-            + ' c4(payload.data.url)=' + _c4);
           raw = _c1 || _c2 || _c3 || _c4 || null;
-          console.log('[PushDiag] raw url selected:', raw);
           if (!raw || typeof raw !== 'string') return null;
           raw = raw.trim();
           // Safety: must be a relative path starting with a single "/"
@@ -1132,7 +1095,6 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('[PushRoute] invalid url ignored (dangerous scheme): ' + raw);
             return null;
           }
-          console.log('[PushDiag] _extractPushUrl returning:', raw);
           return raw;
         } catch (_ue) {
           console.warn('[PushRoute] url extraction error:', _ue);
@@ -1146,20 +1108,15 @@ document.addEventListener('DOMContentLoaded', function() {
       var _pushNavDone = false;
 
       function _doNavFromPush(payload, source) {
-        console.log('[PushDiag] _doNavFromPush called source=' + source + ' _pushNavDone=' + _pushNavDone + ' location=' + window.location.href);
         if (_pushNavDone) {
           console.log('[PushRoute] duplicate nav suppressed from ' + source);
           return;
         }
         var url = _extractPushUrl(payload);
-        console.log('[PushDiag] _doNavFromPush extracted url=' + url);
         if (url) {
           _pushNavDone = true;
           console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
           window.location.href = url;
-          console.log('[PushDiag] location.href assigned to ' + url);
-        } else {
-          console.log('[PushDiag] _doNavFromPush: no url extracted — navigation skipped');
         }
       }
 
@@ -1172,24 +1129,6 @@ document.addEventListener('DOMContentLoaded', function() {
           && typeof OSPlugin.Notifications.addEventListener === 'function') {
         try {
           OSPlugin.Notifications.addEventListener('click', async function(event) {
-            // ── DIAG: callback fired ──────────────────────────────────
-            console.log('[PushDiag] Cordova addEventListener(click) FIRED');
-            try {
-              var _topKeys = event ? Object.keys(event).join(',') : 'null';
-              console.log('[PushDiag] event top-keys:', _topKeys);
-              var _notif = event && event.notification;
-              if (_notif) {
-                console.log('[PushDiag] event.notification keys:', Object.keys(_notif).join(','));
-                console.log('[PushDiag] event.notification.additionalData:', JSON.stringify(_notif.additionalData).slice(0,300));
-                if (_notif.rawPayload !== undefined) console.log('[PushDiag] event.notification.rawPayload:', JSON.stringify(_notif.rawPayload).slice(0,300));
-                if (_notif.launchURL  !== undefined) console.log('[PushDiag] event.notification.launchURL:', _notif.launchURL);
-                if (_notif.data       !== undefined) console.log('[PushDiag] event.notification.data:', JSON.stringify(_notif.data).slice(0,300));
-              } else {
-                console.log('[PushDiag] event.notification is null/undefined');
-              }
-              if (event && event.result !== undefined) console.log('[PushDiag] event.result:', JSON.stringify(event.result).slice(0,200));
-            } catch (_evd) { console.warn('[PushDiag] event diag error:', _evd); }
-            // ──────────────────────────────────────────────────────────
             await _clearBadgeAndNotifs('notification_click');
             _doNavFromPush(event, 'cordova_click_listener');
           });
@@ -1197,10 +1136,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (_cc) {
           console.warn('[PushRoute] Cordova addEventListener("click") error:', _cc);
         }
-      } else {
-        console.log('[PushDiag] addEventListener("click") NOT registered — OSPlugin=' + !!OSPlugin
-          + ' Notifications=' + !!(OSPlugin && OSPlugin.Notifications)
-          + ' addEventListener type=' + (OSPlugin && OSPlugin.Notifications ? typeof OSPlugin.Notifications.addEventListener : 'N/A'));
       }
 
       if (OSPlugin && typeof OSPlugin.addListener === 'function') {
