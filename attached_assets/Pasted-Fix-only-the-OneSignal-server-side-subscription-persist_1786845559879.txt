@@ -1,0 +1,49 @@
+Fix only the OneSignal server-side subscription persistence issue for the current iPhone.
+Do not touch Suggested Friends routing, deep links, push payloads, push copy, or any Friends UI.
+Current confirmed facts:
+BaseLodge user: user_id = 2
+Email: richardbattlebaxter@gmail.com
+Current iPhone OneSignal subscription: f10dcf69-d988-4870-9cdf-138873e36cf2
+Current APNs token starts with 4DDC89DF
+OneSignal.login("2") completes
+OS.Notifications.requestPermission() returns true
+BaseLodge preference is enabled
+pushSubscription.optIn() is called on launch
+Xcode logs show subscription sync: optIn() complete
+local getOptedInAsync() reports true
+but OneSignal server still reports the current iPhone subscription as unsubscribed, so pushes do not arrive
+Your task is to determine why the server-side OneSignal subscription remains disabled after optIn() reports success, and fix exactly that.
+Be strict:
+Query the current OneSignal user/subscription state before changing anything.
+Verify the exact installed onesignal-cordova-plugin v5.3.8 behavior for pushSubscription.optIn().
+Verify whether the current subscription ID changes after login/init/relaunch.
+Verify whether we are opting in the same subscription that OneSignal is targeting.
+Verify whether login("2") is causing identity/subscription reassignment that leaves the old subscription disabled.
+Verify whether the subscription needs to be explicitly re-associated or recreated.
+Verify whether OneSignal's server API shows a different active iOS subscription for the same APNs token or external ID.
+Verify whether the app is creating duplicate iOS subscriptions across launches.
+Then implement the smallest robust fix that makes the current iPhone subscription remain server-side:
+enabled = true
+targetable by external user ID 2
+stable across app relaunch
+Do not paper over this by switching production pushes to another targeting method unless the root cause proves the current production targeting is wrong.
+After the fix:
+run the full test suite
+query OneSignal server-side state again
+confirm the exact current iPhone subscription is enabled
+send exactly ONE test push with:
+Title: Suggested Friends test
+Body: Tap to test Suggested Friends.
+Data: {"url":"/friends?tab=suggested"}
+Do not make any routing changes.
+Do not create new tasks.
+Do not modify unrelated code.
+Do not publish until the server-side subscription is confirmed enabled.
+Return only:
+root cause
+exact fix
+files changed
+test result
+current server-side subscription ID/state
+test notification ID and whether OneSignal reports it deliverable
+If you cannot prove why the subscription stays disabled, stop and say exactly what is still unknown. Do not guess.

@@ -873,6 +873,27 @@ function _blShowFgBanner(title, body, url) {
         console.warn('[OneSignal] introspection error:', _ie);
       }
 
+      // ── Pre-init permission request ───────────────────────────────────
+      // MUST run before OS.initialize(). During initialize() the OneSignal SDK
+      // checks its internal permission state. If it finds not_determined it fires
+      // an async optOut() to the server, setting notification_types=-30 — a locked
+      // state that neither the v5 PATCH API (HTTP 409) nor our later optIn() can
+      // durably override (OneSignal's server reconciles against the last
+      // SDK-reported state and reverts any server-side fix within minutes).
+      // Calling requestPermission() first ensures the SDK starts with authorized
+      // state so initialize() does not trigger the background optOut at all.
+      // Safe when iOS permission is already granted: iOS never shows a second
+      // prompt; requestPermission() returns the current state immediately.
+      if (OS.Notifications && typeof OS.Notifications.requestPermission === 'function') {
+        try {
+          console.log('[OneSignal] pre-init: calling OS.Notifications.requestPermission()');
+          var _prePermResult = await OS.Notifications.requestPermission(true);
+          console.log('[OneSignal] pre-init: requestPermission result:', _prePermResult);
+        } catch (_prePermErr) {
+          console.warn('[OneSignal] pre-init: requestPermission error:', _prePermErr);
+        }
+      }
+
       // ── Initialize ────────────────────────────────────────────────────
       // Argument shape differs by bridge:
       //   Cordova (window.plugins): initialize(appId) — plain string
@@ -1027,6 +1048,28 @@ function _blShowFgBanner(title, body, url) {
         }
       } catch (_syncErr) {
         console.warn('[OneSignal] subscription sync error:', _syncErr);
+      }
+
+      // ── Delayed server-side subscription force-enable ─────────────────────
+      // The OneSignal SDK fires a background optOut() during initialize() when
+      // its internal permission state is not_determined. That network call can
+      // arrive at OneSignal's server AFTER our optIn() above, reverting the
+      // subscription to enabled=false with a locked notification_types=-30 that
+      // the v5 API cannot override (HTTP 409). /api/push/sync-subscription uses
+      // the v1 player PUT API which bypasses that lock. The 5 s delay ensures
+      // it fires after the SDK's background work has settled on the server.
+      // Only runs when the user's BaseLodge push preference is enabled.
+      if (_blPrefEnabled && window.__USER__ && window.__USER__.id) {
+        setTimeout(function() {
+          window.fetch('/api/push/sync-subscription', { method: 'POST' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              console.log('[OneSignal] server-side sync result:', JSON.stringify(d));
+            })
+            .catch(function(e) {
+              console.warn('[OneSignal] server-side sync error:', e);
+            });
+        }, 5000);
       }
 
       // ── OS permission state — check once after init ───────────────────────

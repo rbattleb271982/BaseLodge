@@ -6848,6 +6848,52 @@ def push_register_token():
     }), 200
 
 
+@app.route("/api/push/sync-subscription", methods=["POST"])
+@login_required
+def push_sync_subscription():
+    """Server-side force-enable of the user's OneSignal push subscription.
+
+    Called from bl-native.js ~5 s after OneSignal init completes, after the
+    SDK's background optOut() has finished its server sync. Uses the v1 player
+    PUT API to override notification_types=-30 (the locked state the SDK sets
+    when its internal permission state is not_determined) — a state the v5
+    PATCH API refuses to touch (HTTP 409).
+
+    No-ops silently when:
+      - The user's BaseLodge push preference is disabled (their optOut is kept).
+      - No active iOS token exists in PushDeviceToken for this user.
+    """
+    if not current_user.push_notifications_enabled:
+        return jsonify({'success': True, 'skipped': True, 'reason': 'push_disabled'}), 200
+
+    token_row = PushDeviceToken.query.filter_by(
+        user_id=current_user.id, platform='ios', active=True
+    ).order_by(PushDeviceToken.updated_at.desc()).first()
+
+    if not token_row:
+        return jsonify({'success': True, 'skipped': True, 'reason': 'no_token'}), 200
+
+    from services.push_providers import force_enable_onesignal_subscription
+    result = force_enable_onesignal_subscription(current_user.id, token_row.token)
+
+    if result['success']:
+        current_app.logger.info(
+            '[PushSync] force-enabled user_id=%s sub_id=%s',
+            current_user.id, result['subscription_id'],
+        )
+    else:
+        current_app.logger.warning(
+            '[PushSync] failed user_id=%s message=%s',
+            current_user.id, result['message'],
+        )
+
+    return jsonify({
+        'success': result['success'],
+        'subscription_id': result['subscription_id'],
+        'message': result['message'],
+    }), 200
+
+
 @app.route("/api/push/beacon", methods=["POST"])
 @login_required
 def push_debug_beacon():

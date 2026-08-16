@@ -48,6 +48,62 @@ from flask import current_app
 from models import db, User, PushDeviceToken
 
 
+def force_enable_onesignal_subscription(user_id, apns_token):
+    """Force-enable a user's OneSignal iOSPush subscription via the v1 player PUT API.
+
+    Background: The OneSignal SDK v5 Cordova bridge fires an async optOut() during
+    initialize() whenever its internal permission state is not_determined. This sets
+    notification_types=-30 on the server — a locked state that the v5 PATCH API
+    refuses to override (HTTP 409). The v1 player PUT API bypasses this lock.
+
+    Strategy:
+      1. GET /api/v1/apps/{app_id}/users/by/external_id/{user_id}
+         → find the iOSPush subscription whose token matches apns_token
+      2. PUT /api/v1/players/{sub_id}  body: {app_id, notification_types: 1}
+
+    Returns dict: {success: bool, subscription_id: str|None, message: str}
+    """
+    app_id  = os.environ.get('ONESIGNAL_APP_ID', '')
+    api_key = os.environ.get('ONESIGNAL_REST_API_KEY', '')
+    if not app_id or not api_key:
+        return {'success': False, 'subscription_id': None, 'message': 'missing credentials'}
+
+    headers = {'Authorization': f'Basic {api_key}', 'Content-Type': 'application/json'}
+    token_lower = (apns_token or '').lower()
+
+    try:
+        lookup = httpx.get(
+            f'https://onesignal.com/api/v1/apps/{app_id}/users/by/external_id/{user_id}',
+            headers=headers, timeout=10,
+        )
+        if lookup.status_code != 200:
+            return {'success': False, 'subscription_id': None,
+                    'message': f'lookup failed: {lookup.status_code}'}
+
+        sub_id = None
+        for s in lookup.json().get('subscriptions', []):
+            if s.get('type') == 'iOSPush' and s.get('token', '').lower() == token_lower:
+                sub_id = s.get('id')
+                break
+
+        if not sub_id:
+            return {'success': False, 'subscription_id': None,
+                    'message': 'no matching iOSPush subscription found'}
+
+        enable = httpx.put(
+            f'https://onesignal.com/api/v1/players/{sub_id}',
+            json={'app_id': app_id, 'notification_types': 1},
+            headers=headers, timeout=10,
+        )
+        if enable.status_code == 200 and enable.json().get('success'):
+            return {'success': True, 'subscription_id': sub_id, 'message': 'enabled'}
+        return {'success': False, 'subscription_id': sub_id,
+                'message': f'enable failed: {enable.status_code} {enable.text[:120]}'}
+
+    except Exception as exc:
+        return {'success': False, 'subscription_id': None, 'message': f'error: {exc}'}
+
+
 def send_onesignal_push(user_ids, title, body, data=None):
     """Send a push notification via the OneSignal REST API.
 
