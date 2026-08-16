@@ -1,0 +1,57 @@
+Do not make any changes yet. I want your engineering recommendation.
+We have spent significant time debugging the BaseLodge iOS push issue, and I want you to step back and assess the situation holistically rather than continue iterating on individual symptoms.
+Current proven state
+BaseLodge's overall push pipeline works in production. The audit found 116 successful deliveries across 11 event types.
+The problem is specifically the current physical iPhone for external_id="2".
+Current subscription:
+Subscription ID: f10dcf69-d988-4870-9cdf-138873e36cf2
+APNs token prefix: 4DDC89DF
+enabled=false
+notification_types=-30
+correctly linked to external_id="2"
+iOS itself reports notification permission as granted.
+APNs registration succeeds and returns a valid token.
+OneSignal initializes successfully.
+login("2") succeeds.
+Previous attempts to call the supported pushSubscription.optIn() did not recover the subscription.
+We removed those experimental workarounds.
+We attempted to upgrade:
+onesignal-cordova-plugin 5.3.8 → 5.5.2
+expected native OneSignal iOS SDK 5.5.1 → 5.5.5
+npm install, npx cap sync ios, pod install, Xcode Clean Build Folder, rebuild and physical-device install have been attempted.
+However, after the latest physical-device launch, OneSignal's server STILL reports:
+sdk = 050501
+Therefore the physical app is apparently still running native OneSignal iOS SDK 5.5.1, not the expected 5.5.5.
+Question
+If you were the senior engineer responsible for getting BaseLodge push notifications production-ready, what would you recommend we do next to actually fix this?
+I do NOT want another speculative code patch.
+Investigate the current repository/native iOS project as needed and tell me what you think the correct path is.
+Specifically determine:
+Why the physical iOS binary still appears to contain OneSignal native SDK 5.5.1 after the project was supposedly upgraded to 5.5.5.
+Whether Podfile.lock, Pods, CordovaPluginsStatic, Xcode workspace/project linkage, DerivedData, Capacitor-generated files, or some other native dependency source is pinning/loading 5.5.1.
+Whether we are building the correct .xcworkspace / target / configuration.
+Whether the installed app could contain multiple OneSignal frameworks and be loading the wrong one.
+Whether sdk=050501 in OneSignal is definitely reliable proof that the running binary contains 5.5.1, or whether that field could remain stale for another reason.
+Whether the existing f10dcf69 subscription itself may be irrecoverably/stale-corrupted and should ultimately be recreated after we prove the SDK version.
+Whether the broader architecture of using both Capacitor PushNotifications and the OneSignal Cordova SDK is correct or whether that dual setup is contributing to the problem.
+I want a recommendation, not implementation
+Give me your recommended path from where we are now to a production-grade push system, ordered step-by-step.
+Separate it into:
+A. What you believe is actually wrong
+B. What evidence supports that conclusion
+C. What you recommend we do next
+D. What should be removed/simplified from the current push architecture, if anything
+E. How we will prove the entire system is fixed
+Include how you would validate:
+fresh install
+existing install upgrade
+login/logout
+push preference ON/OFF
+APNs token refresh
+foreground notification
+background notification
+killed-app notification
+notification tap routing
+existing production notification types
+Do not modify code. Do not modify OneSignal. Do not commit, push, publish, or send test notifications.
+I want your best engineering recommendation based on the entire current BaseLodge push implementation and all of the evidence above, not another incremental workaround.
