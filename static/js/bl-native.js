@@ -980,6 +980,13 @@ function _blShowFgBanner(title, body, url) {
         } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
           console.log('[OneSignal] calling promptForPushNotificationsWithUserResponse() (SDK 4.x)');
           _permResult = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
+        } else if (OS.Notifications && typeof OS.Notifications.requestPermission === 'function') {
+          // v5 Cordova bridge: permission API lives on OS.Notifications, not the top-level object.
+          // Safe to call when iOS permission is already granted — iOS never shows a second dialog;
+          // it returns the current state immediately and lets OneSignal's SDK update its internal
+          // permission state from not_determined → granted, which keeps the subscription opted-in.
+          console.log('[OneSignal] calling OS.Notifications.requestPermission() — v5 Cordova path');
+          _permResult = await OS.Notifications.requestPermission(true);
         } else {
           console.log('[OneSignal] no permission-request method found on plugin — skipping');
         }
@@ -1049,6 +1056,10 @@ function _blShowFgBanner(title, body, url) {
           var _rr;
           if (typeof OS.requestPermission === 'function') {
             _rr = await OS.requestPermission({ fallbackToSettings: true });
+          } else if (OS.Notifications && typeof OS.Notifications.requestPermission === 'function') {
+            // v5 Cordova bridge: same correct API location as the init block above.
+            console.log('[OneSignal] _blRequestPermIfNeeded: calling OS.Notifications.requestPermission()');
+            _rr = await OS.Notifications.requestPermission(true);
           } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
             _rr = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
           } else {
