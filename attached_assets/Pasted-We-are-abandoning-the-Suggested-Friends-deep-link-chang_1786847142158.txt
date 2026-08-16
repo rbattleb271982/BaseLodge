@@ -1,0 +1,36 @@
+We are abandoning the Suggested Friends deep-link change for now.
+Goal: restore the BaseLodge push notification system to the last known-working state where this notification successfully opened the Friends screen at /friends.
+We do NOT need this notification to open the Suggested Friends tab anymore.
+Required behavior
+Suggested Friends notification:
+Tap → /friends → normal Friends tab
+That behavior was previously working and is acceptable.
+Restore the push foundation
+Revert the OneSignal permission/subscription experimentation introduced while trying to make /friends?tab=suggested work, including the pre-init permission gate that physical-device testing proved prevents OS.initialize() from running.
+Restore the last known-working OneSignal initialization, login, subscription, and click-listener behavior from before this investigation.
+Specifically, do NOT retain experimental changes whose purpose was fixing the Suggested Friends deep link or OneSignal subscription state unless they existed in the last known-working version.
+Do NOT:
+redesign OneSignal initialization
+add permission workarounds
+add REST force-enable logic
+change push targeting architecture
+add subscription synchronization workarounds
+change other push notification types
+Change the Suggested Friends notification destination back to:
+"/friends"
+instead of:
+"/friends?tab=suggested"
+Critical requirement
+Existing BaseLodge push notifications must remain exactly as they worked before this investigation.
+Use git history/diffs to identify the last known-working push implementation rather than guessing what to remove.
+Run the full test suite after restoration.
+Then report:
+What was reverted
+Confirmation Suggested Friends now targets /friends
+Confirmation OneSignal initialization/login/click-listener flow matches the last known-working implementation
+Any push-related differences that still remain versus that known-working version
+Exact files changed
+Test results
+Do not add any new solution or workaround.
+Do not commit, push, or publish yet.
+Stop after the restoration and verification report.

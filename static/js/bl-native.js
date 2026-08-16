@@ -574,181 +574,6 @@ document.addEventListener('DOMContentLoaded', function() {
   })();
 });
 
-/* ── Push-routing shared module scope ──────────────────────────────────────
-   Declared OUTSIDE all IIFEs so both the OneSignal init block and the
-   BadgeClear block can share the same dedup flag and URL helpers without
-   duplicating logic.
-
-   _pushNavDone  — set to true after the first successful navigation from a
-                   push tap; prevents any second listener from navigating again.
-
-   _extractPushUrl  — returns a safe relative path from a notification payload
-                      regardless of which bridge delivered it.
-
-   _doNavFromPush   — guard + navigate; calls _extractPushUrl internally.
-
-   _blShowFgBanner  — slide-down in-app notification banner shown when a push
-                      arrives while the app is open. Mirrors _showFgBanner in
-                      the APNs block above (same visual style, same BANNER_ID
-                      so the two dedup each other naturally).                  */
-
-/** Shared cross-IIFE dedup flag for push-tap navigation. */
-var _pushNavDone = false;
-
-/**
- * Extract a validated same-origin relative URL from a push notification payload.
- *
- * Handles:
- *   onesignal-cordova-plugin v5  click event  → notification.additionalData.url
- *   Capacitor PushNotifications  action event → notification.data.url
- *   Raw notification object (either bridge)   → additionalData.url / data.url
- *
- * Returns the path string, or null if absent or unsafe.
- */
-function _extractPushUrl(payload) {
-  try {
-    if (!payload) return null;
-    var raw = null;
-    var n = payload.notification || payload;
-    raw = (n.additionalData && n.additionalData.url)
-       || (n.data        && n.data.url)
-       || (payload.additionalData && payload.additionalData.url)
-       || (payload.data        && payload.data.url)
-       || null;
-    if (!raw || typeof raw !== 'string') return null;
-    raw = raw.trim();
-    if (!raw.startsWith('/') || raw.startsWith('//')) {
-      console.log('[PushRoute] invalid url ignored (not relative): ' + raw);
-      return null;
-    }
-    if (/javascript:/i.test(raw) || /data:/i.test(raw)) {
-      console.log('[PushRoute] invalid url ignored (dangerous scheme): ' + raw);
-      return null;
-    }
-    return raw;
-  } catch (_ue) {
-    console.warn('[PushRoute] url extraction error:', _ue);
-    return null;
-  }
-}
-
-/**
- * Navigate to the URL embedded in a push notification payload.
- * Idempotent via _pushNavDone — a second call for the same page lifetime is
- * silently ignored, preventing any two listeners from racing.
- */
-function _doNavFromPush(payload, source) {
-  // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────────────
-  console.log('[PushTrace] push navigate ENTRY t=' + new Date().toISOString() +
-    ' source=' + source + ' _pushNavDone=' + _pushNavDone);
-  // ─────────────────────────────────────────────────────────────────────────
-  if (_pushNavDone) {
-    console.log('[PushRoute] duplicate nav suppressed from ' + source);
-    return;
-  }
-  var url = _extractPushUrl(payload);
-  if (url) {
-    _pushNavDone = true;
-    // ── TEMP DIAGNOSTIC ────────────────────────────────────────────────────
-    console.log('[PushTrace] push navigate WILL SET href t=' + new Date().toISOString() +
-      ' url=' + url + ' source=' + source + ' _pushNavDone=' + _pushNavDone);
-    // ───────────────────────────────────────────────────────────────────────
-    console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
-    window.location.href = url;
-  } else {
-    // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────────
-    console.log('[PushTrace] push navigate NO URL extracted t=' + new Date().toISOString() +
-      ' source=' + source);
-    // ─────────────────────────────────────────────────────────────────────
-  }
-}
-
-/**
- * Slide-down in-app notification banner. Shown when a push arrives in the
- * foreground via OneSignal's foregroundWillDisplay event.
- *
- * Uses BANNER_ID = 'bl-fg-banner' — the same ID as _showFgBanner in the APNs
- * block above — so the two implementations naturally dedup each other.
- */
-function _blShowFgBanner(title, body, url) {
-  try {
-    var BANNER_ID = 'bl-fg-banner';
-    if (document.getElementById(BANNER_ID)) return; // dedup
-
-    var banner = document.createElement('div');
-    banner.id = BANNER_ID;
-    banner.setAttribute('role', 'alert');
-    banner.style.cssText = [
-      'position:fixed',
-      'top:env(safe-area-inset-top,0px)',
-      'left:12px',
-      'right:12px',
-      'z-index:99999',
-      'background:#fff',
-      'border:1px solid #E5DFD0',
-      'border-radius:12px',
-      'padding:12px 14px',
-      'box-shadow:0 4px 20px rgba(0,0,0,0.13)',
-      'display:flex',
-      'align-items:center',
-      'gap:12px',
-      'cursor:pointer',
-      'transform:translateY(-120%)',
-      'transition:transform 0.3s cubic-bezier(0.34,1.26,0.64,1)',
-      'font-family:system-ui,-apple-system,sans-serif',
-    ].join(';');
-
-    var icon = document.createElement('div');
-    icon.style.cssText = 'width:36px;height:36px;background:#5C1219;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;';
-    icon.innerHTML = '<svg width="18" height="18" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11 2L4 7V18C4 18.55 4.45 19 5 19H9V14H13V19H17C17.55 19 18 18.55 18 18V7L11 2Z" fill="#F5F1E8"/></svg>';
-
-    var text = document.createElement('div');
-    text.style.cssText = 'flex:1;min-width:0;';
-
-    var titleEl = document.createElement('div');
-    titleEl.style.cssText = 'font-size:14px;font-weight:600;color:#1A1A1A;margin:0 0 1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    titleEl.textContent = title;
-
-    var bodyEl = document.createElement('div');
-    bodyEl.style.cssText = 'font-size:12px;color:#888;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
-    bodyEl.textContent = body;
-
-    var viewEl = document.createElement('div');
-    viewEl.style.cssText = 'font-size:13px;font-weight:600;color:#5C1219;flex-shrink:0;';
-    viewEl.textContent = 'View';
-
-    text.appendChild(titleEl);
-    text.appendChild(bodyEl);
-    banner.appendChild(icon);
-    banner.appendChild(text);
-    banner.appendChild(viewEl);
-
-    function _dismiss() {
-      banner.style.transform = 'translateY(-120%)';
-      setTimeout(function() {
-        if (banner.parentNode) banner.parentNode.removeChild(banner);
-      }, 350);
-    }
-
-    banner.addEventListener('click', function() {
-      _dismiss();
-      if (url) window.location.href = url;
-    });
-
-    document.body.appendChild(banner);
-    requestAnimationFrame(function() {
-      requestAnimationFrame(function() {
-        banner.style.transform = 'translateY(12px)';
-      });
-    });
-    setTimeout(_dismiss, 5000);
-
-    console.log('[PushRoute] foreground banner shown url=' + url);
-  } catch (_be) {
-    console.warn('[PushRoute] _blShowFgBanner error:', _be);
-  }
-}
-
 /* ── OneSignal Capacitor SDK init ── native shell only ─────────────────────
    Runs ONLY inside the native Capacitor app (same guard pattern as the APNs
    push registration block above). The App ID is read from window.__ONESIGNAL_APP_ID__
@@ -873,27 +698,6 @@ function _blShowFgBanner(title, body, url) {
         console.warn('[OneSignal] introspection error:', _ie);
       }
 
-      // ── Pre-init permission request ───────────────────────────────────
-      // MUST run before OS.initialize(). During initialize() the OneSignal SDK
-      // checks its internal permission state. If it finds not_determined it fires
-      // an async optOut() to the server, setting notification_types=-30 — a locked
-      // state that neither the v5 PATCH API (HTTP 409) nor our later optIn() can
-      // durably override (OneSignal's server reconciles against the last
-      // SDK-reported state and reverts any server-side fix within minutes).
-      // Calling requestPermission() first ensures the SDK starts with authorized
-      // state so initialize() does not trigger the background optOut at all.
-      // Safe when iOS permission is already granted: iOS never shows a second
-      // prompt; requestPermission() returns the current state immediately.
-      if (OS.Notifications && typeof OS.Notifications.requestPermission === 'function') {
-        try {
-          console.log('[OneSignal] pre-init: calling OS.Notifications.requestPermission()');
-          var _prePermResult = await OS.Notifications.requestPermission(true);
-          console.log('[OneSignal] pre-init: requestPermission result:', _prePermResult);
-        } catch (_prePermErr) {
-          console.warn('[OneSignal] pre-init: requestPermission error:', _prePermErr);
-        }
-      }
-
       // ── Initialize ────────────────────────────────────────────────────
       // Argument shape differs by bridge:
       //   Cordova (window.plugins): initialize(appId) — plain string
@@ -942,34 +746,6 @@ function _blShowFgBanner(title, body, url) {
               await OS.login({ externalId: String(userId) });
             }
             console.log('[OneSignal] login() complete');
-            // ── TEMP DIAGNOSTIC: subscription state after login ───────────
-            // Uses the async Cordova bridge methods; property access returns Promises.
-            (async function() {
-              try {
-                var _diagSub = OS.User && OS.User.pushSubscription;
-                if (!_diagSub) { console.log('[OSTrace] pushSubscription object not available'); return; }
-                var _diagId    = typeof _diagSub.getId    === 'function' ? await _diagSub.getId()
-                               : typeof _diagSub.getOptedInAsync === 'function' ? '(use getOptedInAsync path)'
-                               : '(getId not found)';
-                var _diagTok   = typeof _diagSub.getToken === 'function' ? await _diagSub.getToken() : '(getToken not found)';
-                var _diagOpted = typeof _diagSub.getOptedInAsync === 'function' ? await _diagSub.getOptedInAsync()
-                               : typeof _diagSub.optedIn !== 'undefined' ? _diagSub.optedIn : '(unavailable)';
-                // onesignalId lives on OS.User in v5
-                var _diagOSId = (OS.User && typeof OS.User.getOnesignalId === 'function')
-                                ? await OS.User.getOnesignalId()
-                                : '(getOnesignalId not found)';
-                var _tokPfx = (typeof _diagTok === 'string' && _diagTok.length > 8)
-                              ? _diagTok.slice(0,16).toUpperCase() : String(_diagTok);
-                console.log('[OSTrace] post-login'
-                  + ' subscription_id=' + _diagId
-                  + ' token_prefix=' + _tokPfx
-                  + ' optedIn=' + _diagOpted
-                  + ' onesignal_id=' + _diagOSId);
-              } catch (_diagErr) {
-                console.warn('[OSTrace] post-login introspection error:', _diagErr);
-              }
-            })();
-            // ─────────────────────────────────────────────────────────────
           } else if (typeof OS.setExternalUserId === 'function') {
             if (_isCordovaBridge) {
               console.log('[OneSignal] calling setExternalUserId() — Cordova string, id=' + userId);
@@ -1001,13 +777,6 @@ function _blShowFgBanner(title, body, url) {
         } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
           console.log('[OneSignal] calling promptForPushNotificationsWithUserResponse() (SDK 4.x)');
           _permResult = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
-        } else if (OS.Notifications && typeof OS.Notifications.requestPermission === 'function') {
-          // v5 Cordova bridge: permission API lives on OS.Notifications, not the top-level object.
-          // Safe to call when iOS permission is already granted — iOS never shows a second dialog;
-          // it returns the current state immediately and lets OneSignal's SDK update its internal
-          // permission state from not_determined → granted, which keeps the subscription opted-in.
-          console.log('[OneSignal] calling OS.Notifications.requestPermission() — v5 Cordova path');
-          _permResult = await OS.Notifications.requestPermission(true);
         } else {
           console.log('[OneSignal] no permission-request method found on plugin — skipping');
         }
@@ -1019,36 +788,6 @@ function _blShowFgBanner(title, body, url) {
       }
 
       console.log('[OneSignal] init sequence complete');
-
-      // ── Sync subscription with BaseLodge push preference ─────────────────
-      // OS.Notifications.requestPermission() advances OneSignal's internal
-      // permission state but the Cordova bridge does not always push a
-      // server-side optIn automatically after that. Calling optIn() explicitly
-      // here guarantees the server-side subscription stays enabled=True whenever
-      // the user's BaseLodge preference says push is on.
-      // If the user intentionally disabled push in BaseLodge
-      // (push_notifications_enabled=false), we do NOT call optIn() — their
-      // optOut() from blSetPushEnabled is preserved and not overridden.
-      try {
-        var _blPrefEnabled = !!(window.__USER__ && window.__USER__.push_notifications_enabled);
-        var _pushSubSync = (OS.User && (OS.User.pushSubscription || OS.User.PushSubscription)) || null;
-        if (_pushSubSync && typeof _pushSubSync.optIn === 'function') {
-          if (_blPrefEnabled) {
-            console.log('[OneSignal] pref=enabled — calling optIn() to sync server-side subscription');
-            Promise.resolve(_pushSubSync.optIn()).then(function() {
-              console.log('[OneSignal] subscription sync: optIn() complete');
-            }).catch(function(e) {
-              console.warn('[OneSignal] subscription sync: optIn() error:', e);
-            });
-          } else {
-            console.log('[OneSignal] pref=disabled — preserving optOut(), sync skipped');
-          }
-        } else {
-          console.log('[OneSignal] pushSubscription.optIn not available — sync skipped');
-        }
-      } catch (_syncErr) {
-        console.warn('[OneSignal] subscription sync error:', _syncErr);
-      }
 
       // ── OS permission state — check once after init ───────────────────────
       // Resolves to 'granted', 'denied', 'not_determined', or null (unknown).
@@ -1107,10 +846,6 @@ function _blShowFgBanner(title, body, url) {
           var _rr;
           if (typeof OS.requestPermission === 'function') {
             _rr = await OS.requestPermission({ fallbackToSettings: true });
-          } else if (OS.Notifications && typeof OS.Notifications.requestPermission === 'function') {
-            // v5 Cordova bridge: same correct API location as the init block above.
-            console.log('[OneSignal] _blRequestPermIfNeeded: calling OS.Notifications.requestPermission()');
-            _rr = await OS.Notifications.requestPermission(true);
           } else if (typeof OS.promptForPushNotificationsWithUserResponse === 'function') {
             _rr = await OS.promptForPushNotificationsWithUserResponse({ fallbackToSettings: true });
           } else {
@@ -1218,74 +953,6 @@ function _blShowFgBanner(title, body, url) {
         });
       };
       console.log('[OneSignal] blOSLogout helper registered');
-
-      // ── Notification-click deep-link handler ──────────────────────────
-      // onesignal-cordova-plugin v5 API: OS.Notifications.addEventListener('click').
-      // The SDK queues cold-launch click events internally and delivers them
-      // once this listener is added — so cold start, warm start, and foreground
-      // tap all route through this single handler.
-      //
-      // _doNavFromPush and _pushNavDone are MODULE-SCOPE (declared above both
-      // IIFEs). The BadgeClear IIFE's PushPlugin fallback also calls
-      // _doNavFromPush; _pushNavDone prevents any double-navigation between
-      // the two paths.
-      try {
-        if (OS.Notifications && typeof OS.Notifications.addEventListener === 'function') {
-          OS.Notifications.addEventListener('click', function(clickEvent) {
-            console.log('[OneSignal] Notifications click event received');
-            var notif = (clickEvent && clickEvent.notification) ? clickEvent.notification : clickEvent;
-            // ── TEMP DIAGNOSTIC ────────────────────────────────────────────
-            var _traceAD  = notif && notif.additionalData;
-            var _traceURL = _extractPushUrl(notif);
-            console.log('[PushTrace] OneSignal click t=' + new Date().toISOString() +
-              ' _pushNavDone=' + _pushNavDone +
-              ' additionalData=' + JSON.stringify(_traceAD) +
-              ' extractedUrl=' + _traceURL);
-            // ───────────────────────────────────────────────────────────────
-            _doNavFromPush(notif, 'OS.Notifications.click');
-          });
-          console.log('[OneSignal] Notifications click listener registered (bridge=' + _osVia + ')');
-        } else {
-          console.warn('[OneSignal] OS.Notifications.addEventListener not available — click routing skipped');
-        }
-      } catch (_nce) {
-        console.warn('[OneSignal] Notifications click listener error:', _nce);
-      }
-
-      // ── Foreground notification handler ───────────────────────────────
-      // When a push arrives while the app is open, suppress the OS system
-      // banner for routed pushes (those with additionalData.url) and show
-      // our in-app banner instead. Pushes without a URL are displayed
-      // normally by the OS.
-      //
-      // _blShowFgBanner is MODULE-SCOPE (declared above both IIFEs) and
-      // shares BANNER_ID='bl-fg-banner' with _showFgBanner in the APNs
-      // block, so the two implementations dedup each other by ID.
-      try {
-        if (OS.Notifications && typeof OS.Notifications.addEventListener === 'function') {
-          OS.Notifications.addEventListener('foregroundWillDisplay', function(notifEvent) {
-            try {
-              var notif = typeof notifEvent.getNotification === 'function'
-                  ? notifEvent.getNotification()
-                  : (notifEvent.notification || notifEvent);
-              var _fgUrl   = _extractPushUrl(notif);
-              var _fgTitle = (notif && notif.title) || 'BaseLodge';
-              var _fgBody  = (notif && notif.body)  || '';
-              if (_fgUrl) {
-                // Suppress OS banner; show in-app toast instead
-                if (typeof notifEvent.preventDefault === 'function') notifEvent.preventDefault();
-                _blShowFgBanner(_fgTitle, _fgBody, _fgUrl);
-              }
-              // No URL — let the OS display the notification banner normally
-            } catch (_fge) {
-              console.warn('[OneSignal] foregroundWillDisplay handler error:', _fge);
-            }
-          });
-          console.log('[OneSignal] Notifications foregroundWillDisplay listener registered');
-        }
-      } catch (_fwde) {
-        console.warn('[OneSignal] foregroundWillDisplay listener error:', _fwde);
-      }
 
     })();
   });
@@ -1398,24 +1065,102 @@ function _blShowFgBanner(title, body, url) {
         }
       }
 
-      // ── Push-tap fallback: Capacitor PushNotifications ───────────────
-      // The PRIMARY notification-open handler is registered in the OneSignal
-      // init IIFE above using OS.Notifications.addEventListener('click').
-      // That handler uses the real OneSignal plugin object (OS) which is
-      // resolved via the full bridge lookup including window.plugins.OneSignal.
-      //
-      // This fallback catches any APNs/FCM push that bypasses OneSignal's
-      // click routing (e.g. a direct APNs push not managed by OneSignal).
-      // _doNavFromPush and _pushNavDone are MODULE-SCOPE — the shared
-      // _pushNavDone flag guarantees at most one navigation per page lifetime
-      // even if both the OneSignal click handler and this fallback fire.
-      if (PushPlugin && typeof PushPlugin.addListener === 'function') {
+      // ── Push-tap URL extractor ────────────────────────────────────────
+      // Reads the push payload from either OneSignal notificationOpened
+      // or Capacitor pushNotificationActionPerformed events and returns a
+      // validated same-origin relative path, or null if absent/invalid.
+      function _extractPushUrl(payload) {
+        try {
+          if (!payload) return null;
+          var raw = null;
+          var n = payload.notification || payload;
+          // OneSignal SDK 5: openedResult.notification.additionalData.url
+          // OneSignal SDK 4: openedResult.notification.additionalData.url
+          // Capacitor PushNotifications: action.notification.data.url
+          raw = (n.additionalData && n.additionalData.url)
+             || (n.data        && n.data.url)
+             || (payload.additionalData && payload.additionalData.url)
+             || (payload.data        && payload.data.url)
+             || null;
+          if (!raw || typeof raw !== 'string') return null;
+          raw = raw.trim();
+          // Safety: must be a relative path starting with a single "/"
+          if (!raw.startsWith('/') || raw.startsWith('//')) {
+            console.log('[PushRoute] invalid url ignored (not relative): ' + raw);
+            return null;
+          }
+          // Block embedded dangerous content
+          if (/javascript:/i.test(raw) || /data:/i.test(raw)) {
+            console.log('[PushRoute] invalid url ignored (dangerous scheme): ' + raw);
+            return null;
+          }
+          return raw;
+        } catch (_ue) {
+          console.warn('[PushRoute] url extraction error:', _ue);
+          return null;
+        }
+      }
+
+      // ── Listen for notification opened (tap to open) ──────────────────
+      // _pushNavDone prevents a double-navigate if both the live listener
+      // and the cold-launch replay fire for the same tap.
+      var _pushNavDone = false;
+
+      function _doNavFromPush(payload, source) {
+        if (_pushNavDone) {
+          console.log('[PushRoute] duplicate nav suppressed from ' + source);
+          return;
+        }
+        var url = _extractPushUrl(payload);
+        if (url) {
+          _pushNavDone = true;
+          console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
+          window.location.href = url;
+        }
+      }
+
+      if (OSPlugin && typeof OSPlugin.addListener === 'function') {
+        try {
+          await OSPlugin.addListener('notificationOpened', async function(openedResult) {
+            await _clearBadgeAndNotifs('notification_opened');
+            _doNavFromPush(openedResult, 'notificationOpened');
+          });
+          console.log('[BadgeClear] OneSignal notificationOpened listener registered');
+        } catch (_oe) {
+          console.warn('[BadgeClear] notificationOpened listener error:', _oe);
+        }
+
+        // ── Cold-launch replay ─────────────────────────────────────────
+        // When the app is opened from a terminated state by tapping a
+        // notification, the notificationOpened event fires before the
+        // WebView finishes loading — the listener above misses it.
+        // getLaunchNotification / getInitialNotification return the
+        // notification that triggered the cold launch (null otherwise).
+        try {
+          var _launchNotif = null;
+          if (typeof OSPlugin.getLaunchNotification === 'function') {
+            _launchNotif = await OSPlugin.getLaunchNotification();
+            console.log('[PushRoute] getLaunchNotification:', _launchNotif ? 'found' : 'null');
+          }
+          if (!_launchNotif && typeof OSPlugin.getInitialNotification === 'function') {
+            _launchNotif = await OSPlugin.getInitialNotification();
+            console.log('[PushRoute] getInitialNotification:', _launchNotif ? 'found' : 'null');
+          }
+          if (_launchNotif) {
+            await _clearBadgeAndNotifs('cold_launch_replay');
+            _doNavFromPush(_launchNotif, 'cold_launch_replay');
+          }
+        } catch (_cl) {
+          console.warn('[PushRoute] cold-launch check error:', _cl);
+        }
+
+      } else if (PushPlugin && typeof PushPlugin.addListener === 'function') {
         try {
           await PushPlugin.addListener('pushNotificationActionPerformed', async function(action) {
             await _clearBadgeAndNotifs('push_action');
             _doNavFromPush(action, 'pushNotificationActionPerformed');
           });
-          console.log('[BadgeClear] PushNotifications pushNotificationActionPerformed listener registered (fallback)');
+          console.log('[BadgeClear] PushNotifications pushNotificationActionPerformed listener registered');
         } catch (_pae) {
           console.warn('[BadgeClear] pushNotificationActionPerformed listener error:', _pae);
         }
@@ -1513,10 +1258,6 @@ function _blShowFgBanner(title, body, url) {
 
   /* Shared handler: parse the URL and navigate if it is an invite path. */
   function _handleDeepLinkUrl(url) {
-    // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────────
-    console.log('[PushTrace] deep-link navigate ENTRY t=' + new Date().toISOString() +
-      ' incomingUrl=' + (url || '(empty)') + ' _pushNavDone=' + _pushNavDone);
-    // ─────────────────────────────────────────────────────────────────────
     if (!url) return;
     if (_lastHandledDeepLinkUrl === url) return; /* duplicate — already handled */
     try {
@@ -1528,16 +1269,8 @@ function _blShowFgBanner(title, body, url) {
       });
       if (isAllowed) {
         _lastHandledDeepLinkUrl = url;
-        // ── TEMP DIAGNOSTIC ──────────────────────────────────────────────
-        console.log('[PushTrace] deep-link navigate WILL SET href t=' + new Date().toISOString() +
-          ' path=' + path + ' _pushNavDone=' + _pushNavDone);
-        // ─────────────────────────────────────────────────────────────────
         console.log('[DeepLink] navigating to', path);
         window.location.href = path;
-      } else {
-        // ── TEMP DIAGNOSTIC ────────────────────────────────────────────
-        console.log('[PushTrace] deep-link navigate REJECTED (no prefix match) path=' + path);
-        // ───────────────────────────────────────────────────────────────
       }
     } catch (e) {
       console.warn('[DeepLink] URL handling error:', e);
@@ -1548,10 +1281,6 @@ function _blShowFgBanner(title, body, url) {
      this event until the bridge is ready, so it never fires before JS is live. */
   _App.addListener('appUrlOpen', function (event) {
     var url = event && (event.url || event.URL || '');
-    // ── TEMP DIAGNOSTIC ────────────────────────────────────────────────
-    console.log('[PushTrace] appUrlOpen RECEIVED t=' + new Date().toISOString() +
-      ' url=' + (url || '(empty)') + ' _pushNavDone=' + _pushNavDone);
-    // ───────────────────────────────────────────────────────────────────
     _handleDeepLinkUrl(url);
   });
 

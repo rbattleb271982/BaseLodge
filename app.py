@@ -9632,7 +9632,7 @@ def submit_suggestions(friend_id):
                     user_ids=[friend_id],
                     title="New connection suggestions",
                     body=f"{current_user.first_name} suggested some people you may know. See who.",
-                    data={"url": "/friends?tab=suggested"},
+                    data={"url": "/friends"},
                 )
                 # Update cooldown only on success or skip, not on hard error
                 if push_result and (push_result.get('success') or push_result.get('skipped')):

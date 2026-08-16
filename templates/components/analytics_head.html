@@ -25,8 +25,7 @@
      bl-native.js reads these window.__* globals at defer-execution time. */
   window.__USER__ = {
     id: {% if current_user.is_authenticated %}{{ current_user.id | tojson }}{% else %}null{% endif %},
-    is_internal: {% if current_user.is_authenticated %}{{ is_internal_user(current_user.email) | tojson }}{% else %}false{% endif %},
-    push_notifications_enabled: {% if current_user.is_authenticated %}{{ current_user.push_notifications_enabled | tojson }}{% else %}false{% endif %}
+    is_internal: {% if current_user.is_authenticated %}{{ is_internal_user(current_user.email) | tojson }}{% else %}false{% endif %}
   };
   window.__POSTHOG_RESET__ = {{ posthog_reset | default(false) | tojson }};
   window.__POSTHOG_KEY__ = {{ POSTHOG_KEY | tojson }};
