@@ -1,0 +1,55 @@
+Fix #276 now. Do not make another speculative timing workaround.
+We have verified against OneSignal’s official SDK contract:
+login(external_id) links the current mobile subscription to that user.
+User.pushSubscription.optIn() is the supported API for setting a valid current push subscription back to subscribed.
+Our physical iPhone has a valid APNs token.
+login("2") executes.
+OS.User.pushSubscription.optIn() executes.
+Yet OneSignal still shows subscription f10dcf69-d988-4870-9cdf-138873e36cf2 as enabled=false / notification_types=-30.
+Therefore, do NOT add another pre-init/post-init permission workaround.
+Your job
+Determine and fix why the SDK is not applying optIn() to the actual current iPhone subscription.
+Work end-to-end from the current device identity, not from assumptions.
+Required proof before changing code
+Using the installed OneSignal v5.3.8 SDK and read-only OneSignal APIs, establish:
+The current device-level subscription ID used by the SDK after initialize() and login("2").
+The current APNs token for that subscription.
+Whether that subscription ID is actually f10dcf69-d988-4870-9cdf-138873e36cf2.
+Whether login("2") is switching the SDK to another OneSignal user/subscription.
+Whether there are multiple iOS subscriptions sharing or replacing the same APNs token.
+Whether f10dcf69 is stale and we have been repeatedly querying the wrong subscription.
+Use the SDK’s supported Push Subscription observer/state APIs if necessary. OneSignal’s documented model is that subscription ID/token/state may not be reliable until initialization completes, and observers are the supported way to detect changes.
+Fix requirement
+Once the actual current subscription is identified:
+make sure login("2") links that subscription to external ID 2
+make sure BaseLodge calls optIn() on that current subscription when the BaseLodge push preference is enabled
+preserve explicit user opt-out
+eliminate any stale-device/subscription assumption in our code
+Do NOT:
+change Suggested Friends routing
+change push payloads
+change provider targeting
+add REST force-enable endpoints
+add pre-init permission blocking
+add another permission workaround
+touch other push notification types
+Critical success condition
+Do not call this fixed merely because a JS log says optIn() complete.
+The fix is successful only if, after the physical iPhone runs the updated code:
+the SDK-reported current subscription ID is known,
+that same subscription appears in OneSignal server state,
+it is linked to external ID 2,
+it is enabled=true,
+it remains enabled after a cold relaunch,
+a normal test push is accepted as deliverable to that subscription.
+Run all automated tests.
+Stop before commit/push/publish.
+Return:
+actual current subscription ID and APNs token
+whether f10dcf69 was current or stale
+proven root cause
+exact fix
+files changed
+test results
+exact physical-device validation needed
+Do not return another theory. If you cannot identify the actual current subscription being modified by optIn(), say so and stop.
