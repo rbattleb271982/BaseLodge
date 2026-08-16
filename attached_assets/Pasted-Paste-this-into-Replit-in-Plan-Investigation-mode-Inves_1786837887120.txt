@@ -1,0 +1,123 @@
+Paste this into Replit in **Plan/Investigation mode**:
+
+> Investigate the **Suggested Friends push-notification navigation bug** in the current BaseLodge production/native flow.
+>
+> **Do not implement anything yet. Do not edit files, commit, push, publish, or run destructive commands.**
+>
+> ## Observed behavior
+>
+> Richard suggested several people to Jon using the new Suggested Friends feature.
+>
+> Jon received the push notification correctly.
+>
+> However, when Jon tapped the push notification, the app opened to the **Home screen** instead of:
+>
+> `Friends → Suggested Friends`
+>
+> Jon then had to manually tap **Friends** and then **Suggested Friends**.
+>
+> The intended behavior is:
+>
+> **Tap Suggested Friends push → open `/friends?tab=suggested` directly.**
+>
+> ## What to investigate
+>
+> Trace the complete notification-open path from OneSignal through Capacitor into the web app and determine exactly why the app is landing on Home.
+>
+> Please inspect:
+>
+> * the BL-11/BL-12 Suggested Friends push creation code
+> * the exact OneSignal payload being sent
+> * whether `data={"url": "/friends?tab=suggested"}` is actually present in the delivered notification
+> * the notification-click / notification-open listener
+> * any OneSignal foreground/background/cold-start handlers
+> * `static/js/bl-native.js`
+> * `_handleDeepLinkUrl`
+> * `appUrlOpen`
+> * native app startup behavior
+> * Capacitor cold-start vs warm-start routing
+> * whether Home is loaded before the notification URL is processed
+> * whether a startup redirect or default route overwrites the intended `/friends?tab=suggested` navigation
+> * whether query parameters are preserved
+> * iOS-specific notification handling
+> * Android-specific notification handling
+> * any difference between tapping:
+>
+>   * a push while the app is fully closed
+>   * a push while the app is backgrounded
+>   * a push while the app is already open
+>
+> ## Questions to answer
+>
+> 1. Is the correct `/friends?tab=suggested` URL actually being sent in the push payload?
+> 2. Does OneSignal expose that URL in the notification-open callback in the structure our JS expects?
+> 3. Does `_handleDeepLinkUrl` receive the URL when the push is tapped?
+> 4. If it receives it, why does navigation still end at Home?
+> 5. Is the current `/friends` allowlist logic correct?
+> 6. Is this a cold-start timing/race issue?
+> 7. Is another startup redirect overwriting the navigation?
+> 8. Does the current implementation work on warm start but fail on cold start, or fail in both?
+> 9. Can this be fixed cleanly so the push reliably opens **Suggested Friends** directly?
+>
+> ## Fallback investigation
+>
+> If direct push deep-linking cannot be made reliable with the current OneSignal + Capacitor architecture, investigate a fallback:
+>
+> When a user taps a **Suggested Friends push** and the app still lands on Home, BaseLodge could show a one-time lightweight Home prompt such as:
+>
+> **Richard suggested people you may know**
+> See your suggested friends.
+> **View suggestions**
+>
+> Tapping **View suggestions** should open:
+>
+> `/friends?tab=suggested`
+>
+> Important:
+>
+> * This should **only** appear when the app knows the user arrived from a Suggested Friends push.
+> * It should **not** become a persistent Home card.
+> * It should disappear after the user taps it or dismisses it.
+> * Do not implement this fallback yet.
+>
+> ## Required report
+>
+> Return:
+>
+> ### 1. Current notification-open architecture
+>
+> Relevant files, handlers, OneSignal callbacks, Capacitor listeners, and routing flow.
+>
+> ### 2. Root cause
+>
+> Explain exactly why tapping the Suggested Friends push currently lands on Home.
+>
+> ### 3. Cold-start vs warm-start findings
+>
+> Explain whether behavior differs by app state and platform.
+>
+> ### 4. Recommended fix
+>
+> The smallest clean fix that makes the push open:
+>
+> `Friends → Suggested Friends`
+>
+> directly.
+>
+> ### 5. Fallback feasibility
+>
+> Only if direct deep linking is unreliable, explain how the one-time Home prompt could be implemented safely.
+>
+> ### 6. Likely files that would change
+>
+> List only. Do not edit them.
+>
+> ### 7. Tests / manual validation
+>
+> Include exact scenarios to validate on iOS and Android for closed, backgrounded, and foreground app states.
+>
+> ### 8. Any product decisions genuinely needed
+>
+> Do not invent new product rules.
+>
+> **Stop after the investigation report. Do not implement anything.**

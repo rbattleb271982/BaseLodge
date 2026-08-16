@@ -1,0 +1,240 @@
+Paste this into Replit:
+
+> Implement **#268 — Fix Suggested Friends Push Deep-Link Navigation** according to the finalized investigation findings and Notion task.
+>
+> This is a **bug fix**, not a new feature. The push payload is already correct. The issue is in native notification-open routing inside `static/js/bl-native.js`.
+>
+> Do not broaden scope.
+>
+> ## Goal
+>
+> Tapping the Suggested Friends push must open:
+>
+> `/friends?tab=suggested`
+>
+> directly on both iOS and Android.
+>
+> Required states:
+>
+> * app terminated / cold start
+> * app backgrounded / warm start
+> * app already open / foreground
+>
+> Do not add the Home-screen fallback prompt in this implementation. That remains deferred unless direct deep-linking still proves unreliable after this fix is deployed and tested.
+>
+> ## Root cause to fix
+>
+> The OneSignal init IIFE correctly finds the real plugin using:
+>
+> `Cap.Plugins.OneSignal → Cap.registerPlugin → window.plugins.OneSignal`
+>
+> But the BadgeClear / notification-routing IIFE only uses:
+>
+> `Cap.Plugins.OneSignal → Cap.registerPlugin`
+>
+> and never falls back to:
+>
+> `window.plugins.OneSignal`
+>
+> As a result, notification-open routing can bind to a Capacitor stub rather than the real Cordova OneSignal plugin.
+>
+> Fix the routing so it is registered using the **same real OneSignal plugin object that successfully initializes OneSignal**.
+>
+> ## Implementation requirements
+>
+> ### 1. Share the push-routing helpers
+>
+> Lift the existing push-routing helpers out of the BadgeClear IIFE so the OneSignal init code and any fallback path use the same implementation:
+>
+> * `_extractPushUrl`
+> * `_pushNavDone`
+> * `_doNavFromPush`
+>
+> Keep behavior consistent and avoid duplicating routing logic.
+>
+> ### 2. Register notification-open routing in the OneSignal init path
+>
+> After OneSignal is successfully initialized, wire the notification-open callback using the API appropriate to the actual bridge.
+>
+> For the **Cordova bridge** / `window.plugins.OneSignal`:
+>
+> use the actual Cordova SDK opened-handler API available in the installed plugin version, expected to be equivalent to:
+>
+> `OS.setNotificationOpenedHandler(callback)`
+>
+> Verify the exact installed API before coding rather than assuming method names.
+>
+> For the **Capacitor OneSignal SDK path**:
+>
+> use the actual installed API supported by that version, such as:
+>
+> `OS.Notifications.addClickListener(callback)`
+>
+> or the currently supported equivalent.
+>
+> Again, inspect the installed package/plugin before choosing the method.
+>
+> ### 3. Cold-start handling
+>
+> Make sure a push tap that launches the app from a terminated state is not lost.
+>
+> For Cordova, use the plugin's actual cold-launch/queued opened-event behavior if supported.
+>
+> For Capacitor, preserve or adapt the existing:
+>
+> * `getLaunchNotification`
+> * `getInitialNotification`
+>
+> fallback only where the installed SDK actually supports it.
+>
+> Do not leave dead method calls against a stub.
+>
+> ### 4. Prevent duplicate routing
+>
+> This is important.
+>
+> There may temporarily be more than one possible notification-open path while maintaining compatibility.
+>
+> One push tap must cause **at most one navigation**.
+>
+> Reuse or strengthen the existing dedupe mechanism so the same push cannot:
+>
+> * navigate twice
+> * briefly route Home → Suggested Friends
+> * trigger two `window.location.href` assignments
+>
+> Verify the dedupe key/guard works across both the primary OneSignal handler and any retained fallback listener.
+>
+> If the old BadgeClear notification routing becomes redundant after the correct handler is wired, remove or narrow it rather than leaving two competing active paths.
+>
+> ### 5. Preserve payload parsing
+>
+> Continue supporting the Suggested Friends payload:
+>
+> `data={"url": "/friends?tab=suggested"}`
+>
+> OneSignal may expose it under `additionalData`, depending on SDK version.
+>
+> `_extractPushUrl` should correctly handle the actual payload shapes for:
+>
+> * Cordova OneSignal opened callback
+> * Capacitor OneSignal click callback
+> * existing friend-request notifications
+>
+> Do not regress:
+>
+> `/friends?requests=1`
+>
+> or other currently routed pushes.
+>
+> ### 6. Foreground Suggested Friends notification
+>
+> Extend the existing foreground in-app notification handling so:
+>
+> `friend_suggestions_received`
+>
+> is not silently ignored.
+>
+> When the app is already open and a Suggested Friends push arrives:
+>
+> * show the existing BaseLodge-style lightweight in-app banner/toast pattern
+> * banner should indicate that new suggestions are available
+> * tapping it navigates to `/friends?tab=suggested`
+> * auto-dismiss using the existing foreground-banner timing convention
+>
+> Do not create a persistent Home card.
+>
+> ### 7. Do not touch unrelated deep-link architecture
+>
+> `_handleDeepLinkUrl` / `appUrlOpen` are for Universal Links and are not the root cause here.
+>
+> Do not redesign that system.
+>
+> The existing `/friends` allowlist support should remain intact.
+>
+> ## Files
+>
+> Expected primary file:
+>
+> * `static/js/bl-native.js`
+>
+> Only touch other files if genuinely required for tests.
+>
+> Do not modify:
+>
+> * push copy
+> * 12-hour cooldown logic
+> * Suggested Friends server routes
+> * Home UI
+> * notification data model
+>
+> ## Testing
+>
+> Add or update automated tests where practical for the JS routing logic and payload extraction.
+>
+> At minimum validate these payload shapes:
+>
+> * Cordova OneSignal opened callback with `additionalData.url`
+> * Capacitor OneSignal click callback with the equivalent `additionalData`
+> * push with no URL
+> * friend-request URL
+> * Suggested Friends URL
+>
+> Also validate dedupe behavior:
+>
+> * same push observed by two compatible listeners → only one navigation
+>
+> Run the full automated test suite afterward.
+>
+> ## Manual native validation
+>
+> After implementation, report whether each of these was actually tested and how:
+>
+> 1. iOS cold start → Suggested Friends
+> 2. Android cold start → Suggested Friends
+> 3. iOS warm/background start → Suggested Friends
+> 4. Android warm/background start → Suggested Friends
+> 5. Foreground Suggested Friends push → in-app banner → tap opens Suggested Friends
+> 6. Friend-request push regression
+> 7. Push with no routed URL → normal app open, no forced navigation
+>
+> If emulator/simulator/device validation is not possible in the current environment, say so explicitly. Do not claim native validation that was not performed.
+>
+> ## Before finishing
+>
+> Inspect the final diff carefully.
+>
+> Confirm:
+>
+> * only intended files changed
+> * no duplicate notification-open handlers can race
+> * no dead OneSignal method calls remain on a stub
+> * existing OneSignal initialization still works
+> * friend-request notification routing still works
+>
+> ## Stop before Git operations
+>
+> Do **not** commit.
+>
+> Do **not** push.
+>
+> Do **not** publish.
+>
+> Return a verification report with:
+>
+> 1. Root cause confirmed
+> 2. Exact implementation approach
+> 3. OneSignal API/version actually detected
+> 4. Files changed
+> 5. Cold-start handling
+> 6. Warm-start handling
+> 7. Foreground behavior
+> 8. Dedupe strategy
+> 9. Regression behavior
+> 10. Automated test results
+> 11. Manual native validation performed
+> 12. Remaining risks
+> 13. `git diff --stat`
+> 14. Confirmation nothing was committed, pushed, or published
+>
+> If the installed OneSignal API differs materially from the investigation assumptions, stop and report the discrepancy before inventing a compatibility layer.
