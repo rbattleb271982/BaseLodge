@@ -1,0 +1,34 @@
+STOP. Do not make any additional changes yet.
+I want to simplify the implementation before we publish.
+Your investigation concluded that the durable root-cause fix is:
+OS.Notifications.requestPermission() must complete before OS.initialize() so OneSignal initializes while iOS permission is already authorized and therefore does not report the subscription as -30.
+That is the fix we want to test.
+However, you also added two server-side workaround changes:
+force_enable_onesignal_subscription() in services/push_providers.py
+POST /api/push/sync-subscription in app.py, plus the delayed JS call to it
+Your own investigation says the REST force-enable is not durable and OneSignal subsequently reverts it. Therefore I do not want that workaround included in the production test.
+Do exactly this
+Keep the pre-initialize permission sequencing fix in static/js/bl-native.js.
+Verify from the installed onesignal-cordova-plugin v5.3.8 implementation/source that OS.Notifications.requestPermission() is actually supported before OS.initialize(). Do not infer this merely because the JS function exists.
+If supported, remove:
+force_enable_onesignal_subscription() from services/push_providers.py
+/api/push/sync-subscription from app.py
+the delayed JS call to that endpoint
+Keep the existing BaseLodge push preference synchronization/optIn() behavior as a secondary safeguard.
+Do not change any Suggested Friends routing, payloads, targeting, Friends UI, or other notification behavior.
+The desired sequence should be:
+OneSignal permission request completes → OneSignal initialize → login → BaseLodge preference/optIn sync → notification listeners
+Run all tests.
+STOP CONDITIONS
+Do NOT commit.
+Do NOT push.
+Do NOT publish.
+Do NOT send another test notification.
+Do NOT add another workaround.
+Return only:
+Evidence from v5.3.8 that pre-init requestPermission() is supported
+Exact final initialization sequence
+Confirmation the REST force-enable workaround and endpoint were removed
+Exact files remaining changed
+Test results
+If v5.3.8 does not support requesting permission before initialization, STOP and tell me that. Do not invent another fix.

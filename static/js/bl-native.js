@@ -1050,28 +1050,6 @@ function _blShowFgBanner(title, body, url) {
         console.warn('[OneSignal] subscription sync error:', _syncErr);
       }
 
-      // ── Delayed server-side subscription force-enable ─────────────────────
-      // The OneSignal SDK fires a background optOut() during initialize() when
-      // its internal permission state is not_determined. That network call can
-      // arrive at OneSignal's server AFTER our optIn() above, reverting the
-      // subscription to enabled=false with a locked notification_types=-30 that
-      // the v5 API cannot override (HTTP 409). /api/push/sync-subscription uses
-      // the v1 player PUT API which bypasses that lock. The 5 s delay ensures
-      // it fires after the SDK's background work has settled on the server.
-      // Only runs when the user's BaseLodge push preference is enabled.
-      if (_blPrefEnabled && window.__USER__ && window.__USER__.id) {
-        setTimeout(function() {
-          window.fetch('/api/push/sync-subscription', { method: 'POST' })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-              console.log('[OneSignal] server-side sync result:', JSON.stringify(d));
-            })
-            .catch(function(e) {
-              console.warn('[OneSignal] server-side sync error:', e);
-            });
-        }, 5000);
-      }
-
       // ── OS permission state — check once after init ───────────────────────
       // Resolves to 'granted', 'denied', 'not_determined', or null (unknown).
       // Stored in closure-scoped var; blOnOSPermReady / blGetOSPermStatus exposed.
