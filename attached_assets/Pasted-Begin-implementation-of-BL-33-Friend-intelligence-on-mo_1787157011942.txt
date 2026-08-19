@@ -1,0 +1,117 @@
+Begin implementation of BL-33: Friend intelligence on mountain pages using the finalized Task #289 plan exactly as approved.
+You are approved to modify the application.
+Keep scope strictly limited to BL-33. Do not add expert/newcomer intelligence, first-time claims, visit counts, new tables, migrations, caching, or unrelated mountain-page redesign.
+Implement the approved hierarchy:
+Friends Going
+Friends Interested
+Friends who have recorded this mountain as visited
+Friends who have this mountain on their wishlist
+Preserve the approved behavior:
+Going and Interested must be visually and logically separate.
+Going is the stronger intent and should receive primary treatment.
+Interested is secondary/muted.
+Use each friend’s own BL-34 RSVP, never SkiTrip.trip_status, as their personal status.
+Pending, Declined, and Removed must never appear.
+Confirmed direct friends only.
+Public current/future trips only.
+Exclude the viewing user from all friend counts and rows.
+Multiple qualifying trips for the same friend collapse to the earliest relevant trip.
+If a friend has both Going and Interested trips at this mountain, show/count them only in Going.
+Each friend appears at most once per current-intent group.
+Reuse SkiTripParticipant.active_status_filter() and other canonical BL-34 helpers rather than duplicating RSVP logic.
+Recorded history
+Use only normalized visited_resort_ids.
+Historical copy must remain conservative, e.g.:
+Alex has recorded this mountain as visited.
+Do not display or infer:
+visit counts
+frequency
+last visit
+completed-trip history
+experience/expertise
+rankings
+first-time status
+History counts may include friends who are also Going/Interested, but suppress their names from the compact history preview when they are already shown above so the page does not feel repetitive.
+Wishlist
+Use the existing normalized wishlist data.
+Show exact count plus up to three linked names.
+Suppress already-visible current-intent names from the compact wishlist preview when practical, while preserving the correct total count.
+Do not describe wishlist membership as planning, Interested, or Going.
+Layout
+Use one concise existing-style social section beneath the Plan a Trip / personal wishlist actions.
+Do not create four unrelated cards.
+Empty groups should be omitted.
+If every social group is empty, omit the entire social module.
+For compact name previews:
+show up to three names;
+retain the exact total count;
+use +N more for additional friends;
+do not add a new expand/detail screen.
+Tap-throughs
+Reuse existing destinations:
+Going/Interested friend rows → existing friend profile destination.
+Recorded-visit names → existing friend visited-mountains/profile path.
+Wishlist names → existing friend profile behavior.
+Preserve existing Plan a Trip, personal wishlist toggle, trip/profile navigation, pass coverage, and mountain page-view tracking.
+Privacy
+Enforce all privacy rules server-side:
+confirmed direct friends only;
+public trips only;
+current/future trips only;
+Going/Interested only;
+no Pending/Declined/Removed leakage;
+no friend-of-friend information;
+no private-trip names, counts, dates, or existence signals;
+viewer excluded.
+Performance
+Preserve the existing bulk-loading strategy.
+Consolidate friend user data so the same preload can serve:
+current-intent rows
+recorded-visit membership
+wishlist membership
+Do not introduce per-friend queries in rendering loops.
+No new cache, schema, table, migration, or denormalized counter.
+Expected implementation files
+Primary expected changes:
+app.py
+templates/mountain_detail.html
+new tests/test_mountain_detail.py
+Only modify additional files if the current code proves it is genuinely required for compatibility.
+Tests
+Add focused coverage for:
+Going and Interested shown separately;
+person-level RSVP taking precedence over trip-level status;
+Pending excluded;
+Declined excluded;
+Removed excluded;
+private trips excluded;
+non-friends excluded;
+friend-of-friend excluded;
+viewing user excluded;
+multiple trips do not double-count;
+Going wins over Interested for a friend with both;
+recorded-history wording remains conservative;
+no first-time/expert/completed-visit/visit-count language;
+wishlist totals and placement;
+empty-group behavior;
+three-name truncation / +N more;
+existing tap-through behavior.
+Run focused BL-33 tests during implementation, then run the entire Python test suite.
+Fix any BL-33-caused regression before reporting completion.
+Git requirement
+The eventual commit message must include the exact Notion Task ID BL-33.
+Do not commit or push yet.
+When implementation is finished, report:
+exact files changed
+final mountain-page hierarchy
+RSVP aggregation/deduplication behavior
+history implementation
+wishlist implementation
+privacy enforcement
+performance/query changes
+tests added/updated
+focused test results
+full-suite test results
+any deviation from Task #289 and why
+any remaining manual checks or risks
+Stop after the completion summary and wait for approval before committing.
