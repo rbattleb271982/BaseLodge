@@ -1,0 +1,143 @@
+Investigate BL-13: Improve Home empty states for Happening and Ideas and BL-30: Add quick profile preview for Suggested Friends in the current BaseLodge codebase.
+Investigation and planning only. Do not implement either task yet. Do not modify application code, templates, JavaScript, CSS, tests, schema, seed data, or Git history.
+These are two separate Notion tasks that we want to potentially implement in one Replit session later, but they must remain:
+separate in scope;
+separately testable;
+separately reviewable;
+and eventually committed as two separate commits, one containing BL-13 and one containing BL-30.
+Do not merge the tasks into one product feature.
+First: verify the current task specs
+Find the existing Notion/task definitions or any local task handoff material for:
+BL-13 — Improve Home empty states for Happening and Ideas
+BL-30 — Add quick profile preview for Suggested Friends
+Treat those existing task definitions as the product source of truth, but verify all implementation assumptions against the actual current codebase because Home and Friends/Suggested Friends may have changed since the tasks were drafted.
+BL-13 investigation
+Investigate the current Home implementation for:
+Happening;
+Ideas;
+dismissal / X behavior;
+section headings;
+empty-state rendering;
+fallback content;
+persistence of dismissed items;
+any current Home personalization logic that determines whether these sections render.
+Determine:
+What exactly happens today when the user dismisses the last visible Happening item?
+Does the Happening heading remain?
+What happens when the final Ideas item is dismissed?
+Does the Ideas heading remain?
+Are Happening and Ideas rendered by separate partials/components or combined logic?
+Is visibility determined server-side, client-side, or both?
+Are dismissed items removed from the DOM, hidden with JavaScript, or persisted and then excluded on reload?
+What current empty-state/fallback content already exists on Home?
+Is there already a suitable fallback such as friend/trip discovery content that can be reused?
+What happens if:
+Happening is empty but Ideas still has content;
+Ideas is empty but Happening still has content;
+both are empty;
+the user dismisses the last item without reloading;
+the user reloads after all items are dismissed?
+The desired behavior is that empty section headings and unnecessary vertical space disappear. If both relevant sections are empty, Home should show an intentional fallback rather than looking broken or unfinished.
+Investigate the existing task wording around the fallback message and determine whether it still makes sense in the current Home design.
+Recommend the smallest implementation that keeps the DOM/UI state correct immediately after dismissal, not only after a page reload.
+Also inspect tests around Home dismissal, Happening, Ideas, and empty states.
+BL-13 deliverable
+Report:
+current architecture;
+exact files/functions/templates/JS involved;
+current bug/behavior;
+recommended rendering/dismissal approach;
+fallback treatment;
+edge cases;
+exact tests to add/update;
+exact files expected to change;
+any product decision still needed.
+BL-30 investigation
+Investigate the current Friends → Suggested Friends experience.
+The goal is a quick profile preview for a Suggested Friend so the user can inspect useful information before deciding whether to connect, without navigating away from Suggested Friends and without exposing friend-only/private information.
+Inspect:
+Suggested Friends page/tab structure;
+current suggested-friend row/card;
+what happens when the person’s name is tapped;
+current Add Friend / Requested / Connected behavior;
+existing mutual-friend display;
+any current profile preview/modal/bottom-sheet patterns elsewhere in BaseLodge;
+existing user/profile fields available for non-friends;
+privacy/authorization logic for user profiles;
+Suggested Friends search behavior;
+any already-friend Connected treatment;
+mobile behavior in Capacitor.
+Verify the approved product behavior from the existing BL-30 task. In particular, investigate whether the intended interaction still aligns with the current code:
+tapping a Suggested Friend's name opens a small profile preview, not a full navigation;
+the preview can be dismissed with an X;
+closing the preview returns the user exactly to Suggested Friends;
+friend-request actions should work immediately from the existing flow;
+if a request has already been sent, the state should show Requested / requested-by-name behavior as currently designed;
+no profile pictures should be invented if BaseLodge still does not support them;
+mutual-friend information should remain limited to the approved amount;
+the preview must not expose information that is only available after becoming friends.
+Determine exactly which fields are safe and useful to show in the preview today.
+Possible information may include things already public/visible in Suggested Friends, such as:
+name;
+rider type;
+skill level;
+pass;
+mutual friends;
+other profile attributes already exposed publicly.
+Do not assume any field is allowed. Verify current privacy behavior and classify each candidate field as:
+safe/public for preview;
+friend-only and must not appear;
+unavailable/not stored;
+available but not useful enough for BL-30.
+Investigate whether an existing modal, bottom sheet, popover, or card-overlay component should be reused rather than creating a one-off interaction.
+Also determine:
+Whether opening the preview requires a new backend route/API or can use already-rendered data.
+Whether rendering all safe preview fields into the page upfront creates any privacy or performance concern.
+Whether the preview needs asynchronous fetching.
+How Add Friend / Requested state behaves while the preview is open.
+What happens if the suggested person becomes Connected while the preview is open.
+What happens for an already-connected person returned by global search.
+Whether the preview should be available for Connected people or only Suggested Friends.
+How keyboard/back-button/mobile dismissal should behave.
+Inspect existing tests around Suggested Friends, requests, mutual friends, global member search, and profile authorization.
+BL-30 deliverable
+Report:
+current architecture;
+exact files/routes/templates/JS involved;
+safest preview data set;
+recommended UI pattern;
+whether backend changes are required;
+request-state behavior;
+privacy and authorization rules;
+mobile/dismissal behavior;
+exact tests to add/update;
+exact files expected to change;
+any product decision still needed.
+Combined implementation-session assessment
+After investigating both tasks, tell me whether they are still safe to build in one implementation session.
+If yes, propose this order:
+Implement BL-13
+Run focused BL-13 tests
+Review BL-13 diff
+Commit BL-13 separately with a message containing BL-13
+Then implement BL-30
+Run focused BL-30 tests
+Run the full suite
+Review BL-30 diff
+Commit BL-30 separately with a message containing BL-30
+Do not actually commit during this investigation.
+Explicitly identify any files that both tasks are likely to touch. If they overlap, explain whether that creates a meaningful risk of mixing the commits.
+Final output
+Return:
+BL-13 investigation
+BL-13 recommended implementation plan
+BL-30 investigation
+BL-30 recommended implementation plan
+Shared-file / sequencing risks
+Combined implementation-session recommendation
+Exact files expected to change for each task
+Test plan for each task
+Any remaining product decisions
+If there are no blockers, end with:
+“BL-13 and BL-30 are ready for implementation as two separate commits in one session.”
+Again: do not implement anything yet. Investigation and planning only.
