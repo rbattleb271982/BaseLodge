@@ -1,4 +1,4 @@
-"""Tests for GET /friends — BL-9: filter bar, data attributes, pass options.
+"""Tests for GET /friends — filters, data attributes, and friend UI controls.
 
 Covers:
   - Page renders for an authenticated user (empty and populated states)
@@ -19,6 +19,7 @@ matching rules are executable and CI-verifiable without a browser.  Both the
 Python mirror and the JS function must be kept in sync if the algorithm changes.
 """
 import pytest
+from pathlib import Path
 
 from app import app
 from models import db, User, Friend
@@ -112,6 +113,23 @@ def _set_attrs(user, **kwargs):
     """Set model attributes post-creation to avoid conftest duplicate-kwarg conflict."""
     for k, v in kwargs.items():
         setattr(user, k, v)
+
+
+def test_suggested_preview_client_controls_are_scoped_to_the_friends_page():
+    html = Path("templates/friends.html").read_text()
+
+    assert 'class="fr-sugg-preview-overlay"' in html
+    assert 'onclick="if (event.target === this) frSuggClosePreview()"' in html
+    assert 'aria-label="Close suggested friend preview"' in html
+    assert "function frSuggOpenPreview(trigger)" in html
+    assert "function frSuggRunAction(btn)" in html
+    assert "function frSuggClosePreview(fromPopState, restoreFocus)" in html
+    assert "frSuggSetActionState(suggestedUserId, 'connected'" in html
+    assert "function _frSuggTrapPreviewFocus(event)" in html
+    assert "_frSuggSetPreviewBackgroundInert(true)" in html
+    assert "pageContent.inert = isInert;" in html
+    assert "function _frSuggFocusAfterRemoval(row)" in html
+    assert "frSuggClosePreview(false, false)" in html
 
 
 # ── Auth guard ────────────────────────────────────────────────────────────────

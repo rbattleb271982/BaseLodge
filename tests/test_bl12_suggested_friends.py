@@ -17,6 +17,7 @@ Covers:
 """
 import pytest
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import patch
 
 from app import app as _app
@@ -439,6 +440,57 @@ class TestAcceptVsConnect:
         resp = client.get('/friends?tab=suggested')
         assert resp.status_code == 200
         assert b'Connect' in resp.data
+
+
+# ---------------------------------------------------------------------------
+# 7b. Suggested Friend preview — safe client-side data contract
+# ---------------------------------------------------------------------------
+
+class TestSuggestedFriendPreview:
+
+    def test_preview_markup_uses_only_suggested_friend_fields(self, client):
+        with _app.app_context():
+            richard = _make_user('Richard')
+            jon = _make_user('Jon')
+            alice = _make_user('AlicePreview')
+            alice.rider_types = ['private-preview-rider']
+            alice.pass_type = 'private_preview_pass'
+            alice.skill_level = 'private_preview_skill'
+            _make_friend(richard.id, jon.id)
+            _make_friend(richard.id, alice.id)
+            _make_suggestion(
+                suggester_id=richard.id,
+                recipient_id=jon.id,
+                suggested_user_id=alice.id,
+            )
+            _db.session.commit()
+            jid, aid = jon.id, alice.id
+
+        _login(client, jid)
+        body = client.get('/friends?tab=suggested').get_data(as_text=True)
+
+        assert f'id="fr-sugg-row-{aid}"' in body
+        assert 'data-suggested-name=' in body
+        assert 'data-suggested-state="Colorado"' in body
+        assert 'data-suggested-attribution=' in body
+        assert 'frSuggOpenPreview(this)' in body
+        assert f'href="/friends/{aid}"' not in body
+        assert 'private-preview-rider' not in body
+        assert 'private_preview_pass' not in body
+        assert 'private_preview_skill' not in body
+
+    def test_preview_template_has_required_dismissal_and_action_hooks(self):
+        html = Path('templates/friends.html').read_text()
+
+        assert 'id="fr-sugg-preview-overlay"' in html
+        assert 'frSuggClosePreview()' in html
+        assert "event.key === 'Escape'" in html
+        assert "window.addEventListener('popstate'" in html
+        assert 'window.history.pushState' in html
+        assert 'frSuggSetActionState(userId, ' in html
+        assert 'data-sugg-action-for=' in html
+        assert "data.code === 'OUTGOING_PENDING'" in html
+        assert "frSuggSetActionState(userId, 'requested')" in html
 
 
 # ---------------------------------------------------------------------------

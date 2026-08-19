@@ -591,6 +591,22 @@
             color: #1A1A1A;
             margin: 0 0 2px;
         }
+        button.fr-sugg-name {
+            display: block;
+            width: 100%;
+            padding: 0;
+            border: none;
+            background: none;
+            text-align: left;
+            font-family: inherit;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button.fr-sugg-name:focus-visible {
+            outline: 2px solid var(--bl-color-primary, #5C1219);
+            outline-offset: 3px;
+            border-radius: 3px;
+        }
         .fr-sugg-by {
             font-size: 13px;
             color: var(--bl-color-text-muted);
@@ -629,6 +645,81 @@
             font-family: inherit;
         }
         .fr-sugg-dismiss:active { color: #B04040; }
+        .fr-sugg-requested { background: #888; }
+
+        /* ── Suggested friend preview ─────────────────────────────────── */
+        .fr-sugg-preview-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 410;
+            display: flex;
+            align-items: flex-end;
+            background: rgba(0, 0, 0, 0.35);
+        }
+        .fr-sugg-preview-overlay[hidden] { display: none; }
+        .fr-sugg-preview-sheet {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+            background: #F5F1E8;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.16);
+        }
+        .fr-sugg-preview-handle {
+            width: 36px;
+            height: 4px;
+            margin: 0 auto 16px;
+            border-radius: 2px;
+            background: #C4B8B0;
+        }
+        .fr-sugg-preview-close {
+            position: absolute;
+            top: 16px;
+            right: 14px;
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--bl-color-text-muted);
+            font: inherit;
+            font-size: 25px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .fr-sugg-preview-eyebrow {
+            margin: 0 44px 6px 0;
+            color: var(--bl-color-text-tertiary);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.7px;
+            text-transform: uppercase;
+        }
+        .fr-sugg-preview-name {
+            margin: 0;
+            color: #1A1A1A;
+            font-family: var(--bl-font-serif);
+            font-size: 25px;
+            font-weight: 400;
+            line-height: 1.2;
+        }
+        .fr-sugg-preview-state,
+        .fr-sugg-preview-attribution {
+            margin: 8px 0 0;
+            color: var(--bl-color-text-muted);
+            font-size: 15px;
+            line-height: 1.45;
+        }
+        .fr-sugg-preview-attribution { margin-top: 14px; }
+        .fr-sugg-preview-action {
+            width: 100%;
+            margin-top: 22px;
+            padding: 13px 16px;
+            border-radius: 10px;
+            font-size: 16px;
+        }
         /* Suggested Friends empty state */
         .fr-sugg-empty { padding: 24px 0 8px; }
         .fr-sugg-empty-headline {
@@ -827,25 +918,36 @@
             {% if suggested_friends %}
             <div id="fr-sugg-list">
             {% for s in suggested_friends %}
-            <div class="fr-sugg-row" id="fr-sugg-row-{{ s.user.id }}" data-suggested-id="{{ s.user.id }}">
+            {% set _preview_name = s.user.first_name | format_name %}
+            {% if s.user.last_name %}
+            {% set _preview_name = _preview_name ~ ' ' ~ (s.user.last_name | format_name) %}
+            {% endif %}
+            {% set _preview_state = s.user.home_state | state_name if s.user.home_state else '' %}
+            <div class="fr-sugg-row" id="fr-sugg-row-{{ s.user.id }}" data-suggested-id="{{ s.user.id }}"
+                 data-suggested-name="{{ _preview_name }}"
+                 data-suggested-state="{{ _preview_state }}"
+                 data-suggested-attribution="{{ s.attribution }}">
                 <div class="fr-sugg-info">
-                    <p class="fr-sugg-name">
-                        {{- s.user.first_name | format_name -}}
-                        {%- if s.user.last_name %} {{ s.user.last_name | format_name }}{% endif -%}
-                        {%- if s.user.home_state %} - {{ s.user.home_state | state_name }}{% endif -%}
-                    </p>
+                    <button type="button" class="fr-sugg-name" onclick="frSuggOpenPreview(this)"
+                            aria-label="Preview {{ _preview_name }}">
+                        {{- _preview_name -}}
+                        {%- if _preview_state %} - {{ _preview_state }}{% endif -%}
+                    </button>
                     <p class="fr-sugg-by">{{ s.attribution }}</p>
                 </div>
                 <div class="fr-sugg-actions">
                     {% if s.has_inbound_request %}
                     <button class="fr-sugg-accept"
-                            onclick="frSuggAccept({{ s.inbound_invitation_id }}, {{ s.user.id }}, this)"
+                            data-sugg-action-for="{{ s.user.id }}" data-sugg-action="accept"
+                            data-sugg-invitation-id="{{ s.inbound_invitation_id }}"
+                            onclick="frSuggRunAction(this)"
                             aria-label="Accept connection request from {{ s.user.first_name | format_name }}">
                         Accept
                     </button>
                     {% else %}
                     <button class="fr-sugg-connect"
-                            onclick="frSuggConnect({{ s.user.id }}, this)"
+                            data-sugg-action-for="{{ s.user.id }}" data-sugg-action="connect"
+                            onclick="frSuggRunAction(this)"
                             aria-label="Connect with {{ s.user.first_name | format_name }}">
                         Connect
                     </button>
@@ -877,6 +979,22 @@
 
         </div>{# /segment-suggested #}
 
+    </div>{# /page-container #}
+
+    <div class="fr-sugg-preview-overlay" id="fr-sugg-preview-overlay" hidden
+             onclick="if (event.target === this) frSuggClosePreview()">
+        <section class="fr-sugg-preview-sheet" role="dialog" aria-modal="true"
+                 aria-labelledby="fr-sugg-preview-name" tabindex="-1">
+            <div class="fr-sugg-preview-handle" aria-hidden="true"></div>
+            <button type="button" class="fr-sugg-preview-close" onclick="frSuggClosePreview()"
+                    aria-label="Close suggested friend preview">×</button>
+            <p class="fr-sugg-preview-eyebrow">Suggested friend</p>
+            <h2 class="fr-sugg-preview-name" id="fr-sugg-preview-name"></h2>
+            <p class="fr-sugg-preview-state" id="fr-sugg-preview-state" hidden></p>
+            <p class="fr-sugg-preview-attribution" id="fr-sugg-preview-attribution"></p>
+            <button type="button" class="fr-sugg-preview-action fr-sugg-connect"
+                    id="fr-sugg-preview-action" onclick="frSuggRunAction(this)"></button>
+        </section>
     </div>
 
     <!-- ══ Friends filter bottom sheet ══════════════════════════════════════ -->
@@ -1751,9 +1869,177 @@
     })();
 
     // ── BL-12: Suggestion row actions ────────────────────────────────────────
+    var _frSuggPreviewOpen = false;
+    var _frSuggPreviewHistoryPushed = false;
+    var _frSuggPreviewTrigger = null;
+    var _frSuggPreviewUserId = null;
+
+    function _frSuggSetPreviewBackgroundInert(isInert) {
+        var pageContent = document.querySelector('.page-container');
+        if (!pageContent) return;
+        pageContent.inert = isInert;
+        if (isInert) {
+            pageContent.setAttribute('aria-hidden', 'true');
+        } else {
+            pageContent.removeAttribute('aria-hidden');
+        }
+    }
+
+    function _frSuggTrapPreviewFocus(event) {
+        if (!_frSuggPreviewOpen || event.key !== 'Tab') return;
+        var sheet = document.querySelector('.fr-sugg-preview-sheet');
+        if (!sheet) return;
+        var focusable = Array.from(sheet.querySelectorAll('button:not([disabled])'));
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function _frSuggConfigureActionButton(btn, action, invitationId) {
+        if (!btn) return;
+        btn.classList.remove('fr-sugg-connect', 'fr-sugg-accept', 'fr-sugg-requested');
+        btn.dataset.suggAction = action;
+        if (invitationId) {
+            btn.dataset.suggInvitationId = invitationId;
+        } else {
+            delete btn.dataset.suggInvitationId;
+        }
+
+        if (action === 'accept') {
+            btn.textContent = 'Accept';
+            btn.classList.add('fr-sugg-accept');
+            btn.disabled = false;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        } else if (action === 'requested') {
+            btn.textContent = 'Requested';
+            btn.classList.add('fr-sugg-requested');
+            btn.disabled = true;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        } else if (action === 'sending') {
+            btn.textContent = 'Sending…';
+            btn.classList.add('fr-sugg-connect');
+            btn.disabled = true;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        } else if (action === 'accepting') {
+            btn.textContent = 'Accepting…';
+            btn.classList.add('fr-sugg-accept');
+            btn.disabled = true;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        } else if (action === 'connected') {
+            btn.textContent = 'Connected ✓';
+            btn.classList.add('fr-sugg-connect');
+            btn.disabled = true;
+            btn.style.background = '#4A7C59';
+            btn.style.opacity = '1';
+        } else {
+            btn.textContent = 'Connect';
+            btn.classList.add('fr-sugg-connect');
+            btn.disabled = false;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        }
+    }
+
+    function frSuggSetActionState(userId, action, invitationId) {
+        document.querySelectorAll('[data-sugg-action-for="' + userId + '"]')
+            .forEach(function(button) {
+                _frSuggConfigureActionButton(button, action, invitationId);
+            });
+    }
+
+    function frSuggOpenPreview(trigger) {
+        var row = trigger.closest('.fr-sugg-row');
+        var sourceAction = row && row.querySelector('[data-sugg-action-for]');
+        var overlay = document.getElementById('fr-sugg-preview-overlay');
+        var action = document.getElementById('fr-sugg-preview-action');
+        if (!row || !sourceAction || !overlay || !action || _frCurrentTab !== 'suggested') return;
+
+        _frSuggPreviewTrigger = trigger;
+        _frSuggPreviewUserId = row.dataset.suggestedId;
+        document.getElementById('fr-sugg-preview-name').textContent = row.dataset.suggestedName || '';
+        var state = document.getElementById('fr-sugg-preview-state');
+        state.textContent = row.dataset.suggestedState || '';
+        state.hidden = !state.textContent;
+        document.getElementById('fr-sugg-preview-attribution').textContent =
+            row.dataset.suggestedAttribution || '';
+        action.dataset.suggActionFor = _frSuggPreviewUserId;
+        _frSuggConfigureActionButton(
+            action,
+            sourceAction.dataset.suggAction || 'connect',
+            sourceAction.dataset.suggInvitationId
+        );
+
+        overlay.hidden = false;
+        _frSuggPreviewOpen = true;
+        _frSuggSetPreviewBackgroundInert(true);
+        if (!_frSuggPreviewHistoryPushed && window.history && window.history.pushState) {
+            window.history.pushState({ frSuggPreview: true }, '', window.location.href);
+            _frSuggPreviewHistoryPushed = true;
+        }
+        document.querySelector('.fr-sugg-preview-close').focus();
+    }
+
+    function frSuggClosePreview(fromPopState, restoreFocus) {
+        if (!_frSuggPreviewOpen) return;
+        var overlay = document.getElementById('fr-sugg-preview-overlay');
+        var shouldRestoreHistory = _frSuggPreviewHistoryPushed && !fromPopState;
+        _frSuggPreviewOpen = false;
+        _frSuggPreviewHistoryPushed = false;
+        _frSuggPreviewUserId = null;
+        if (overlay) overlay.hidden = true;
+        _frSuggSetPreviewBackgroundInert(false);
+        if (restoreFocus !== false && _frSuggPreviewTrigger) _frSuggPreviewTrigger.focus();
+        _frSuggPreviewTrigger = null;
+        if (shouldRestoreHistory) window.history.back();
+    }
+
+    function frSuggRunAction(btn) {
+        var userId = parseInt(btn.dataset.suggActionFor, 10);
+        if (!userId || btn.disabled) return;
+        if (btn.dataset.suggAction === 'accept') {
+            frSuggAccept(btn.dataset.suggInvitationId, userId, btn);
+        } else {
+            frSuggConnect(userId, btn);
+        }
+    }
+
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && _frSuggPreviewOpen) frSuggClosePreview();
+        _frSuggTrapPreviewFocus(event);
+    });
+    window.addEventListener('popstate', function() {
+        if (_frSuggPreviewOpen) frSuggClosePreview(true);
+    });
+
+    function _frSuggFocusAfterRemoval(row) {
+        var sibling = row && (row.nextElementSibling || row.previousElementSibling);
+        var nextName = sibling && sibling.querySelector('.fr-sugg-name');
+        if (nextName) {
+            nextName.focus();
+            return;
+        }
+        var suggestedTab = document.querySelector('.tab-btn[data-tab="suggested"]');
+        if (suggestedTab) suggestedTab.focus();
+    }
+
     function _frSuggRemoveRow(suggestedUserId) {
         var row = document.getElementById('fr-sugg-row-' + suggestedUserId);
+        if (_frSuggPreviewOpen && String(_frSuggPreviewUserId) === String(suggestedUserId)) {
+            frSuggClosePreview(false, false);
+        }
         if (row) {
+            _frSuggFocusAfterRemoval(row);
             row.style.transition = 'opacity 0.25s ease';
             row.style.opacity = '0';
             setTimeout(function() { if (row.parentNode) row.remove(); }, 280);
@@ -1792,8 +2078,7 @@
     }
 
     function frSuggConnect(userId, btn) {
-        btn.disabled = true;
-        btn.textContent = 'Sending…';
+        frSuggSetActionState(userId, 'sending');
         fetch('/api/friends/suggestions/connect', {
             method: 'POST',
             headers: {
@@ -1807,33 +2092,25 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                btn.textContent = 'Requested';
-                btn.style.background = '#888';
-                btn.style.opacity = '1';
+                frSuggSetActionState(userId, 'requested');
+            } else if (data.code === 'OUTGOING_PENDING') {
+                frSuggSetActionState(userId, 'requested');
             } else if (data.code === 'INCOMING_PENDING') {
                 // They already sent us a request — show Accept
-                btn.textContent = 'Accept';
-                btn.style.opacity = '1';
-                btn.disabled = false;
-                btn.onclick = function() {
-                    frSuggAccept(data.invitation_id, userId, btn);
-                };
+                frSuggSetActionState(userId, 'accept', data.invitation_id);
             } else if (data.code === 'ALREADY_FRIENDS') {
                 _frSuggRemoveRow(userId);
             } else {
-                btn.textContent = 'Connect';
-                btn.disabled = false;
+                frSuggSetActionState(userId, 'connect');
             }
         })
         .catch(function() {
-            btn.textContent = 'Connect';
-            btn.disabled = false;
+            frSuggSetActionState(userId, 'connect');
         });
     }
 
     function frSuggAccept(invitationId, suggestedUserId, btn) {
-        btn.disabled = true;
-        btn.textContent = 'Accepting…';
+        frSuggSetActionState(suggestedUserId, 'accepting', invitationId);
         fetch('/api/friends/invite/' + invitationId + '/accept', {
             method: 'POST',
             headers: {
@@ -1846,19 +2123,22 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                btn.textContent = 'Connected ✓';
-                btn.style.background = '#4A7C59';
-                btn.style.opacity = '1';
+                frSuggSetActionState(suggestedUserId, 'connected', invitationId);
+                if (_frSuggPreviewOpen &&
+                    String(_frSuggPreviewUserId) === String(suggestedUserId)) {
+                    frSuggClosePreview(false, false);
+                    _frSuggFocusAfterRemoval(
+                        document.getElementById('fr-sugg-row-' + suggestedUserId)
+                    );
+                }
                 // Remove the row after a brief pause
                 setTimeout(function() { _frSuggRemoveRow(suggestedUserId); }, 900);
             } else {
-                btn.textContent = 'Accept';
-                btn.disabled = false;
+                frSuggSetActionState(suggestedUserId, 'accept', invitationId);
             }
         })
         .catch(function() {
-            btn.textContent = 'Accept';
-            btn.disabled = false;
+            frSuggSetActionState(suggestedUserId, 'accept', invitationId);
         });
     }
 
