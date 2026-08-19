@@ -13,83 +13,356 @@
 
    No Jinja2 syntax in this file — plain static JS, fully cacheable.        */
 
-/* ── Splash screen hide — native Capacitor shell only ───────────────────────
-   @capacitor/splash-screen is configured with launchAutoHide:true and
-   launchShowDuration:8000, which provides a guaranteed 8-second native
-   fallback at the platform level. This fires even if bl-native.js never
-   executes (e.g. the remote page at app.baselodgeapp.com fails to load).
+/* ── Native startup checklist + splash handoff ──────────────────────────────
+   The OS/Capacitor splash remains the bounded first layer. Once the first
+   native document has parsed, this native-only web overlay takes over so it
+   can communicate real, observable readiness without pretending to load
+   friends, trips, passes, preferences, or notifications.
 
-   This block provides the early hide path. The key design choice is
-   triggering on window.load rather than DOMContentLoaded:
-
-     DOMContentLoaded — HTML is parsed but images/fonts are still loading.
-       Hiding here reveals the page before the wordmark image has loaded,
-       causing the blank-screen flash (user sees cream background, then
-       logo pops in a moment later).
-
-     window.load — ALL resources (images, stylesheets) have finished loading.
-       The login-screen wordmark is already painted when the splash fades out,
-       creating the seamless "splash → login screen appears immediately" feel.
-
-   After window.load:
-     1. Confirm Capacitor bridge is ready (should already be at window.load,
-        but a short retry loop handles any edge case).
-     2. Two requestAnimationFrame cycles — browser has committed the frame.
-     3. SplashScreen.hide({ fadeOutDuration: 300 }).
-
-   The native 8-second auto-hide (launchAutoHide:true) ensures the splash
-   never stays up indefinitely if window.load is delayed or never fires.
-
-   Fully isolated from push-notification / OneSignal logic. No-op in
-   browsers — gated on window.Capacitor.isNativePlatform().                   */
+   The 8-second native auto-hide remains the last-resort fallback when no web
+   document arrives. This controller intentionally does not wait for push,
+   messaging setup, or post-load data requests.                                */
 (function() {
+  'use strict';
+
+  var _capSp;
+  var _wkSp;
+  var _isNativeSp;
+  var _hasWkSp;
   try {
-    // Synchronous native-platform check — exits immediately in browsers.
-    // webkit.messageHandlers.capacitor is the WKWebView bridge injection
-    // point and is present even before Capacitor fully initializes.
-    var _capSp = window.Capacitor;
-    var _wkSp  = window.webkit;
-    var _isNativeSp = !!(_capSp
+    _capSp = window.Capacitor;
+    _wkSp = window.webkit;
+    _isNativeSp = !!(_capSp
       && typeof _capSp.isNativePlatform === 'function'
       && _capSp.isNativePlatform());
-    var _hasWkSp = !!(_wkSp
+    _hasWkSp = !!(_wkSp
       && _wkSp.messageHandlers
       && _wkSp.messageHandlers.capacitor);
-    if (!_isNativeSp && !_hasWkSp) return;
-  } catch (_outerE) { return; }
+  } catch (_outerE) {
+    return;
+  }
+  if (!_isNativeSp && !_hasWkSp) return;
 
-  // _blDoHide: called once window.load has fired (all page resources loaded).
-  // Uses an async IIFE so we can await the bridge-ready check and rAF cycles.
-  function _blDoHide() {
+  var _startupOverlay = null;
+  var _startupContext = null;
+  var _startupPhase = 'starting';
+  var _startupTimeout = null;
+  var _startupVisualReady = false;
+  var _startupDismissScheduled = false;
+  var _startupFocusBeforeStall = null;
+  var _startupFocusTrap = null;
+  var _nativeHideRequested = false;
+  var _startupSeenKey = 'bl_native_startup_handoff_seen';
+
+  function _isInitialNativeDocument() {
+    /* A Capacitor app is a server-rendered MPA. sessionStorage prevents this
+       launch-only treatment from appearing on ordinary in-app navigations,
+       without adding history entries or changing navigation behavior. */
+    try {
+      if (window.sessionStorage.getItem(_startupSeenKey)) return false;
+      window.sessionStorage.setItem(_startupSeenKey, '1');
+    } catch (_storageError) {
+      /* Storage can be unavailable in restricted WebViews. Showing the
+         handoff is still safer than blocking startup in that case. */
+    }
+    return true;
+  }
+
+  function _contextForPath(path) {
+    path = String(path || '/');
+    if (path.indexOf('/trip-invite/') === 0) {
+      return {
+        heading: 'Opening your BaseLodge link',
+        steps: ['Opening BaseLodge', 'Taking you to your trip invite']
+      };
+    }
+    if (path.indexOf('/invite/') === 0) {
+      return {
+        heading: 'Opening your BaseLodge link',
+        steps: ['Opening BaseLodge', 'Taking you to your invite']
+      };
+    }
+    if (window.__USER__ && window.__USER__.id) {
+      return {
+        heading: 'Hang tight while we\u2026',
+        steps: ['Opening BaseLodge', 'Restoring your session', 'Preparing your screen']
+      };
+    }
+    return {
+      heading: 'Hang tight while we\u2026',
+      steps: ['Opening BaseLodge', 'Loading sign in']
+    };
+  }
+
+  function _installStartupStyles() {
+    if (document.getElementById('bl-native-startup-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'bl-native-startup-styles';
+    style.textContent = [
+      '#bl-native-startup{position:fixed;inset:0;z-index:100000;display:flex;justify-content:center;min-height:100dvh;overflow:auto;background:#F5F1E8;color:#1A1A1A;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;opacity:1;transition:opacity 180ms ease;cursor:default;}',
+      '#bl-native-startup.bl-native-startup--exiting{opacity:0;pointer-events:none;}',
+      '.bl-native-startup__content{width:min(280px,72vw);margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 29vh) 0 calc(env(safe-area-inset-bottom,0px) + 28px);}',
+      '.bl-native-startup__brand{position:relative;height:75px;}',
+      '.bl-native-startup__wordmark{position:relative;z-index:1;display:block;width:100%;height:75px;object-fit:contain;}',
+      '.bl-native-startup__wordmark-fallback{position:absolute;inset:0;color:#5C1219;font-family:Georgia,"Times New Roman",serif;font-size:52px;line-height:75px;letter-spacing:-2.2px;text-align:center;}',
+      '.bl-native-startup__tagline{margin:12px -4px 0;color:rgba(0,0,0,.55);font-size:15px;line-height:1.42;text-align:center;}',
+      '.bl-native-startup__heading{margin:20px 0 10px;color:rgba(0,0,0,.56);font-size:13px;line-height:1.35;text-align:left;}',
+      '.bl-native-startup__steps{display:grid;gap:8px;width:min(238px,100%);margin:0 auto;}',
+      '.bl-native-startup__step{display:flex;align-items:center;gap:9px;min-height:20px;color:rgba(26,26,26,.56);font-size:14px;line-height:1.35;opacity:.68;transform:translateY(4px);transition:opacity 180ms ease,transform 180ms ease,color 180ms ease;}',
+      '.bl-native-startup__step--active{color:#1A1A1A;opacity:1;transform:translateY(0);}',
+      '.bl-native-startup__step--complete{color:rgba(26,26,26,.78);opacity:1;transform:translateY(0);}',
+      '.bl-native-startup__indicator{display:inline-flex;align-items:center;justify-content:center;width:13px;height:13px;flex:0 0 13px;color:#5C1219;font-size:14px;font-weight:700;line-height:1;}',
+      '.bl-native-startup__step--active .bl-native-startup__indicator{font-size:18px;font-weight:400;animation:bl-native-startup-pulse 1.2s ease-in-out infinite;}',
+      '.bl-native-startup__message{margin:16px 0 0;color:#5C1219;font-size:13px;line-height:1.45;text-align:left;}',
+      '.bl-native-startup__actions{display:none;gap:16px;margin:12px 0 0;}',
+      '.bl-native-startup__action{padding:0;border:0;border-bottom:1px solid currentColor;background:transparent;color:#5C1219;font:600 14px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;cursor:pointer;}',
+      '.bl-native-startup--stalled .bl-native-startup__actions{display:flex;}',
+      '@keyframes bl-native-startup-pulse{0%,100%{opacity:.42;transform:scale(.78)}50%{opacity:1;transform:scale(1)}}',
+      '@media (prefers-reduced-motion:reduce){#bl-native-startup,.bl-native-startup__step{transition:none;}.bl-native-startup__step--active .bl-native-startup__indicator{animation:none;}}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  function _renderStartupSteps() {
+    if (!_startupOverlay || !_startupContext) return;
+    var heading = _startupOverlay.querySelector('[data-bl-startup-heading]');
+    var steps = _startupOverlay.querySelector('[data-bl-startup-steps]');
+    if (!heading || !steps) return;
+
+    heading.textContent = _startupContext.heading;
+    steps.textContent = '';
+    _startupContext.steps.forEach(function(label, index) {
+      var row = document.createElement('div');
+      var indicator = document.createElement('span');
+      var text = document.createElement('span');
+      var isComplete = _startupPhase === 'complete'
+        || (_startupPhase === 'document-ready' && index < _startupContext.steps.length - 1);
+      var isActive = _startupPhase !== 'complete'
+        && _startupPhase !== 'stalled'
+        && index === _startupContext.steps.length - 1;
+
+      row.className = 'bl-native-startup__step'
+        + (isComplete ? ' bl-native-startup__step--complete' : '')
+        + (isActive ? ' bl-native-startup__step--active' : '');
+      indicator.className = 'bl-native-startup__indicator';
+      indicator.setAttribute('aria-hidden', 'true');
+      indicator.textContent = isComplete ? '\u2713' : (isActive ? '\u2022' : '');
+      text.textContent = label;
+      row.appendChild(indicator);
+      row.appendChild(text);
+      steps.appendChild(row);
+    });
+  }
+
+  function _createStartupOverlay() {
+    if (!document.body || _startupOverlay) return;
+    _installStartupStyles();
+    _startupContext = _contextForPath(window.location.pathname);
+
+    var overlay = document.createElement('div');
+    overlay.id = 'bl-native-startup';
+    overlay.setAttribute('role', 'status');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.setAttribute('aria-atomic', 'true');
+    overlay.setAttribute('aria-busy', 'true');
+    overlay.innerHTML =
+      '<div class="bl-native-startup__content">' +
+        '<div class="bl-native-startup__brand">' +
+          '<div class="bl-native-startup__wordmark-fallback" data-bl-startup-wordmark-fallback aria-hidden="true">BaseLodge</div>' +
+          '<img class="bl-native-startup__wordmark" src="/static/images/baselodge-wordmark.png" alt="BaseLodge" fetchpriority="high">' +
+        '</div>' +
+        '<p class="bl-native-startup__tagline">The best days on the mountain<br>don\u2019t just happen. They\u2019re made.</p>' +
+        '<p class="bl-native-startup__heading" id="bl-native-startup-heading" data-bl-startup-heading></p>' +
+        '<div class="bl-native-startup__steps" data-bl-startup-steps></div>' +
+        '<p class="bl-native-startup__message" id="bl-native-startup-message" data-bl-startup-message hidden></p>' +
+        '<div class="bl-native-startup__actions">' +
+          '<button class="bl-native-startup__action" type="button" data-bl-startup-retry>Try again</button>' +
+          '<button class="bl-native-startup__action" type="button" data-bl-startup-continue>Continue</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    _startupOverlay = overlay;
+    _renderStartupSteps();
+
+    overlay.querySelector('[data-bl-startup-retry]').addEventListener('click', function() {
+      window.location.reload();
+    });
+    overlay.querySelector('[data-bl-startup-continue]').addEventListener('click', function() {
+      _dismissStartupOverlay(true);
+    });
+
+    var wordmark = overlay.querySelector('.bl-native-startup__wordmark');
+    var fallback = overlay.querySelector('[data-bl-startup-wordmark-fallback]');
+    function _markStartupVisualReady() {
+      if (_startupVisualReady) return;
+      _startupVisualReady = true;
+      if (_startupPhase !== 'starting') _hideNativeSplash();
+      _maybeDismissStartupOverlay();
+    }
+    /* The native splash must not fade before the matching web wordmark has
+       loaded and had a frame to paint. This is the continuity guarantee for
+       the native-to-web handoff, not an artificial display duration. */
+    function _markAfterWordmarkPaint() {
+      requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+          if (fallback) {
+            fallback.hidden = true;
+            fallback.setAttribute('aria-hidden', 'true');
+          }
+          requestAnimationFrame(_markStartupVisualReady);
+        });
+      });
+    }
+    function _showWordmarkFallback() {
+      wordmark.hidden = true;
+      if (fallback) {
+        fallback.hidden = false;
+        fallback.removeAttribute('aria-hidden');
+      }
+      requestAnimationFrame(function() {
+        requestAnimationFrame(_markStartupVisualReady);
+      });
+    }
+    if (wordmark.complete && wordmark.naturalWidth > 0) {
+      if (typeof wordmark.decode === 'function') {
+        wordmark.decode().then(_markAfterWordmarkPaint, _showWordmarkFallback);
+      } else {
+        _markAfterWordmarkPaint();
+      }
+    } else if (wordmark.complete) {
+      _showWordmarkFallback();
+    } else {
+      wordmark.addEventListener('load', _markAfterWordmarkPaint, { once: true });
+      wordmark.addEventListener('error', _showWordmarkFallback, { once: true });
+    }
+
+    /* If the first web document exists but never reaches its ready event,
+       stop presenting an active checklist and offer the smallest useful retry. */
+    _startupTimeout = window.setTimeout(function() {
+      if (!_startupOverlay || _startupPhase === 'complete') return;
+      _startupPhase = 'stalled';
+      _renderStartupSteps();
+      _startupOverlay.classList.add('bl-native-startup--stalled');
+      _startupOverlay.setAttribute('aria-busy', 'false');
+      _startupOverlay.setAttribute('role', 'dialog');
+      _startupOverlay.setAttribute('aria-modal', 'true');
+      _startupOverlay.setAttribute('aria-labelledby', 'bl-native-startup-heading');
+      _startupOverlay.setAttribute('aria-describedby', 'bl-native-startup-message');
+      _startupOverlay.removeAttribute('aria-live');
+      var message = _startupOverlay.querySelector('[data-bl-startup-message]');
+      message.hidden = false;
+      message.textContent = 'We\u2019re having trouble loading BaseLodge. Check your connection and try again.';
+      _startupFocusBeforeStall = document.activeElement;
+      _startupFocusTrap = function(event) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          _dismissStartupOverlay(true);
+          return;
+        }
+        if (event.key !== 'Tab') return;
+        var actions = Array.prototype.slice.call(
+          _startupOverlay.querySelectorAll('[data-bl-startup-retry], [data-bl-startup-continue]')
+        );
+        if (!actions.length) return;
+        var activeIndex = actions.indexOf(document.activeElement);
+        if (event.shiftKey) {
+          if (activeIndex <= 0) {
+            event.preventDefault();
+            actions[actions.length - 1].focus();
+          }
+        } else if (activeIndex === actions.length - 1 || activeIndex === -1) {
+          event.preventDefault();
+          actions[0].focus();
+        }
+      };
+      document.addEventListener('keydown', _startupFocusTrap);
+      requestAnimationFrame(function() {
+        var continueButton = _startupOverlay
+          && _startupOverlay.querySelector('[data-bl-startup-continue]');
+        if (continueButton) continueButton.focus();
+      });
+    }, 7000);
+  }
+
+  function _setStartupDestination(path) {
+    if (!_startupOverlay) return;
+    var normalizedPath = String(path || '');
+    if (normalizedPath.indexOf('/invite/') === 0
+        || normalizedPath.indexOf('/trip-invite/') === 0) {
+      _startupContext = _contextForPath(normalizedPath);
+    } else {
+      _startupContext = {
+        heading: 'Opening your BaseLodge link',
+        steps: ['Opening BaseLodge', 'Taking you to your link']
+      };
+    }
+    _renderStartupSteps();
+  }
+
+  /* Deep-link and push handlers call this only to update visible wording.
+     It never defers or changes their navigation. */
+  window.blNativeStartupSetDestination = _setStartupDestination;
+
+  function _dismissStartupOverlay(restoreFocus) {
+    if (!_startupOverlay) return;
+    window.clearTimeout(_startupTimeout);
+    if (_startupFocusTrap) {
+      document.removeEventListener('keydown', _startupFocusTrap);
+      _startupFocusTrap = null;
+    }
+    _startupOverlay.setAttribute('aria-busy', 'false');
+    _startupOverlay.classList.add('bl-native-startup--exiting');
+    window.setTimeout(function() {
+      if (_startupOverlay && _startupOverlay.parentNode) {
+        _startupOverlay.parentNode.removeChild(_startupOverlay);
+      }
+      _startupOverlay = null;
+      if (restoreFocus && _startupFocusBeforeStall
+          && typeof _startupFocusBeforeStall.focus === 'function'
+          && document.contains(_startupFocusBeforeStall)) {
+        _startupFocusBeforeStall.focus();
+      }
+      _startupFocusBeforeStall = null;
+    }, 190);
+  }
+
+  function _maybeDismissStartupOverlay() {
+    if (!_startupOverlay || _startupPhase !== 'complete'
+        || !_startupVisualReady || _startupDismissScheduled) {
+      return;
+    }
+    _startupDismissScheduled = true;
+    requestAnimationFrame(function() {
+      _dismissStartupOverlay(false);
+    });
+  }
+
+  function _hideNativeSplash() {
+    if (_nativeHideRequested || (_startupOverlay && !_startupVisualReady)) return;
+    _nativeHideRequested = true;
     (async function() {
       try {
-        // Wait for Capacitor bridge (up to 2 s in 100 ms steps).
-        // At window.load time the bridge is almost always already ready, but
-        // this loop handles any race on slow devices.
-        var _spDeadline = Date.now() + 2000;
-        while (Date.now() < _spDeadline) {
+        var deadline = Date.now() + 2000;
+        while (Date.now() < deadline) {
           if (window.Capacitor
               && typeof window.Capacitor.isNativePlatform === 'function'
               && window.Capacitor.isNativePlatform()) {
             break;
           }
-          await new Promise(function(r) { setTimeout(r, 100); });
+          await new Promise(function(resolve) { setTimeout(resolve, 100); });
         }
 
         var Cap = window.Capacitor;
-        if (!Cap || !Cap.isNativePlatform()) return; // not native, bail
-
-        // Two rAF cycles — browser paints the fully-loaded frame before we fade.
-        await new Promise(function(r) {
-          requestAnimationFrame(function() { requestAnimationFrame(r); });
+        if (!Cap || !Cap.isNativePlatform()) return;
+        await new Promise(function(resolve) {
+          requestAnimationFrame(function() { requestAnimationFrame(resolve); });
         });
 
-        // Resolve the SplashScreen plugin.
         var SplashScreen = null;
         if (Cap.Plugins && Cap.Plugins.SplashScreen) {
           SplashScreen = Cap.Plugins.SplashScreen;
         } else if (typeof Cap.registerPlugin === 'function') {
-          try { SplashScreen = Cap.registerPlugin('SplashScreen'); } catch (_rpe) {}
+          try { SplashScreen = Cap.registerPlugin('SplashScreen'); } catch (_pluginError) {}
         }
         if (!SplashScreen || typeof SplashScreen.hide !== 'function') {
           console.warn('[Splash] plugin unavailable — relying on native auto-hide');
@@ -97,21 +370,46 @@
         }
 
         SplashScreen.hide({ fadeOutDuration: 300 });
-        console.log('[Splash] hide() called after window.load + 2rAF');
-
-      } catch (_innerE) {
-        // Swallow all errors — splash logic must never block the app
-        console.warn('[Splash] hide error (non-fatal):', _innerE);
+      } catch (_hideError) {
+        console.warn('[Splash] hide error (non-fatal):', _hideError);
       }
     })();
   }
 
-  // Attach to window.load. If the page has somehow already finished loading
-  // (readyState === 'complete') before this script runs, fire immediately.
-  if (document.readyState === 'complete') {
-    _blDoHide();
+  var _shouldShowStartupOverlay = _isInitialNativeDocument();
+  if (_shouldShowStartupOverlay) {
+    _createStartupOverlay();
+  }
+
+  function _onDocumentReady() {
+    if (!_startupOverlay) return;
+    _startupPhase = 'document-ready';
+    _renderStartupSteps();
+    _hideNativeSplash();
+  }
+
+  function _onWindowReady() {
+    if (_startupOverlay) {
+      _startupPhase = 'complete';
+      _renderStartupSteps();
+      _hideNativeSplash();
+      _maybeDismissStartupOverlay();
+    } else {
+      /* Preserve the existing seamless loaded-page hide behavior for ordinary
+         native page navigations, which do not receive a startup overlay. */
+      _hideNativeSplash();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _onDocumentReady, { once: true });
   } else {
-    window.addEventListener('load', _blDoHide, { once: true });
+    _onDocumentReady();
+  }
+  if (document.readyState === 'complete') {
+    _onWindowReady();
+  } else {
+    window.addEventListener('load', _onWindowReady, { once: true });
   }
 })();
 
@@ -1116,6 +1414,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (url) {
           _pushNavDone = true;
           console.log('[PushRoute] navigating to ' + url + ' (source=' + source + ')');
+          if (typeof window.blNativeStartupSetDestination === 'function') {
+            window.blNativeStartupSetDestination(url);
+          }
           window.location.href = url;
         }
       }
@@ -1289,6 +1590,9 @@ document.addEventListener('DOMContentLoaded', function() {
       if (isAllowed) {
         _lastHandledDeepLinkUrl = url;
         console.log('[DeepLink] navigating to', path);
+          if (typeof window.blNativeStartupSetDestination === 'function') {
+            window.blNativeStartupSetDestination(path);
+          }
         window.location.href = path;
       }
     } catch (e) {
