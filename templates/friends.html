@@ -1609,6 +1609,26 @@
         return true;
     }
 
+    // ── Home deep link: temporarily pre-activate existing pass filters ────
+    (function() {
+        var params = new URLSearchParams(window.location.search);
+        var rawPasses = params.get('pass');
+        if (!rawPasses) return;
+
+        rawPasses.split(',').forEach(function(slug) {
+            slug = slug.trim();
+            if (Object.prototype.hasOwnProperty.call(_frPassLabels, slug)) {
+                _frActiveFilters.pass.add(slug);
+            }
+        });
+        if (_frActiveFilters.pass.size === 0) return;
+
+        _frUpdateChips();
+        _frUpdateFilterBtn();
+        var inp = document.getElementById('fr-search');
+        searchFriends(inp ? inp.value : '');
+    })();
+
     // ── ?requests=1 — scroll to and highlight the requests section ────────
     (function() {
         var params = new URLSearchParams(window.location.search);

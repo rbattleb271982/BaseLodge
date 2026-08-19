@@ -85,6 +85,10 @@ CANONICAL_PASS_ORDER = [
     "no_pass_yet",
 ]
 _VALID_PASS_SLUGS = frozenset(CANONICAL_PASS_ORDER)
+_OTHER_PASS_SLUGS = _VALID_PASS_SLUGS - {"epic", "ikon"} - _NON_REAL_PASSES
+OTHER_PASS_SLUGS_URL = ",".join(
+    slug for slug in CANONICAL_PASS_ORDER if slug in _OTHER_PASS_SLUGS
+)
 
 
 def normalize_pass(raw):
@@ -228,6 +232,28 @@ def count_real_passes(normalized_str):
         1 for p in normalized_str.split(",")
         if p.strip() and p.strip() not in _NON_REAL_PASSES
     )
+
+
+def count_friends_by_pass_group(friends):
+    """Count unique friends in the Home Epic, Ikon, and Other pass groups."""
+    counts = {"epic": 0, "ikon": 0, "other": 0}
+
+    for friend in friends or []:
+        slugs = {
+            normalize_pass(part.strip())
+            for part in str(getattr(friend, "pass_type", "") or "").split(",")
+            if part.strip()
+        }
+        slugs = (slugs & _VALID_PASS_SLUGS) - _NON_REAL_PASSES
+
+        if "epic" in slugs:
+            counts["epic"] += 1
+        if "ikon" in slugs:
+            counts["ikon"] += 1
+        if slugs & _OTHER_PASS_SLUGS:
+            counts["other"] += 1
+
+    return counts
 
 
 def is_real_pass(pass_value):

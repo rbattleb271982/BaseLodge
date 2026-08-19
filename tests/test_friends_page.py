@@ -84,6 +84,16 @@ def _matches(
     return True
 
 
+def _valid_preselected_passes(raw: str) -> set[str]:
+    """Python mirror of the Home pass-query initialization in friends.html."""
+    valid = set(CANONICAL_PASS_ORDER)
+    return {
+        slug.strip()
+        for slug in (raw or "").split(",")
+        if slug.strip() in valid
+    }
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _add_friend(user_a, user_b):
@@ -654,3 +664,22 @@ class TestFilterJsPresence:
 
     def test_frMatchesFilters_checks_level(self):
         assert "_frActiveFilters.level" in self._html()
+
+    @pytest.mark.parametrize(
+        ("query", "expected"),
+        [
+            ("epic", {"epic"}),
+            ("ikon", {"ikon"}),
+            ("indy,mountain_collective", {"indy", "mountain_collective"}),
+            ("epic,unknown", {"epic"}),
+            ("", set()),
+        ],
+    )
+    def test_pass_query_preselection_rules(self, query, expected):
+        assert _valid_preselected_passes(query) == expected
+
+    def test_pass_query_initialization_is_rendered(self):
+        html = self._html()
+        assert "params.get('pass')" in html
+        assert "_frActiveFilters.pass.add(slug)" in html
+        assert "Object.prototype.hasOwnProperty.call(_frPassLabels, slug)" in html

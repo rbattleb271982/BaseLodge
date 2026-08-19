@@ -1,0 +1,31 @@
+<!--
+Component: Friends' Passes Card
+Purpose: Always-visible Epic, Ikon, and Other friend counts with deep links
+         to the existing Friends pass filters.
+Used on: Home screen
+
+Inputs:
+  friend_pass_counts   dict with epic, ikon, and other integer counts
+  other_pass_slugs_url comma-separated canonical non-Epic/non-Ikon pass slugs
+-->
+
+<section class="fp-card" aria-labelledby="fp-card-title">
+    <h2 class="fp-card-title" id="fp-card-title">Friends' Passes</h2>
+    <div class="fp-card-grid">
+        <a class="fp-card-link" href="{{ url_for('friends') }}?pass=epic"
+           aria-label="Show {{ friend_pass_counts.epic or 0 }} Epic pass friends">
+            <span class="fp-card-count">{{ friend_pass_counts.epic or 0 }}</span>
+            <span class="fp-card-label">Epic</span>
+        </a>
+        <a class="fp-card-link" href="{{ url_for('friends') }}?pass=ikon"
+           aria-label="Show {{ friend_pass_counts.ikon or 0 }} Ikon pass friends">
+            <span class="fp-card-count">{{ friend_pass_counts.ikon or 0 }}</span>
+            <span class="fp-card-label">Ikon</span>
+        </a>
+        <a class="fp-card-link" href="{{ url_for('friends') }}?pass={{ other_pass_slugs_url | urlencode }}"
+           aria-label="Show {{ friend_pass_counts.other or 0 }} friends with other passes">
+            <span class="fp-card-count">{{ friend_pass_counts.other or 0 }}</span>
+            <span class="fp-card-label">Other</span>
+        </a>
+    </div>
+</section>

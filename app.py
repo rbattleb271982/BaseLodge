@@ -29,8 +29,9 @@ from sqlalchemy.exc import IntegrityError
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
-    normalize_pass_selection, count_real_passes,
+    normalize_pass_selection, count_real_passes, count_friends_by_pass_group,
     PASS_NORM_MAP, PASS_DISPLAY_MAP, CANONICAL_PASS_ORDER,
+    OTHER_PASS_SLUGS_URL,
 )
 from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDING_TYPES, BINDING_BRANDS_BY_TYPE
 
@@ -10563,6 +10564,7 @@ def home():
         db.session.rollback()
         friend_ids = []
         all_friends = []
+    friend_pass_counts = count_friends_by_pass_group(all_friends)
 
     # --- Trip Invite Banner (soonest active pending trip invite) ---
     banner_invite = None
@@ -10890,6 +10892,8 @@ def home():
         stat_wishlist_url=url_for('settings_wish_list'),
         home_eq=home_eq,
         friend_count=len(friend_ids),
+        friend_pass_counts=friend_pass_counts,
+        other_pass_slugs_url=OTHER_PASS_SLUGS_URL,
         connection_toast_msg=connection_toast_msg,
         connection_toast_activity_ids=connection_toast_activity_ids,
         connection_toast_suggest_url=connection_toast_suggest_url,
