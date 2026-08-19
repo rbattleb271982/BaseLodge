@@ -1,0 +1,239 @@
+The next task is **BL-33 — Add friend intelligence and social stats to mountain pages**. Because BL-34 just changed the RSVP foundation BL-33 depends on, we should have Replit investigate the **current post-BL-34 codebase**, not rely on the older assumptions we discussed.
+
+Use **Plan mode** for this investigation.
+
+Give Replit:
+
+> Investigate **BL-33: Add friend intelligence and social stats to mountain pages**.
+>
+> **Investigation and planning only. Do not implement anything yet. Do not modify application code, templates, database schema, tests, or seed data.**
+>
+> BL-34 has just been implemented and establishes the canonical trip RSVP model:
+>
+> * `pending`
+> * `interested`
+> * `going`
+> * `declined`
+> * hidden `removed`
+>
+> `interested` and `going` are active participants, but BL-33 must preserve the distinction between them when presenting social intelligence.
+>
+> Investigate the **actual current codebase after BL-34** rather than relying on assumptions or stale task notes.
+>
+> ### Product goal
+>
+> We want mountain pages to become meaningfully social by showing useful information about the user's friends and their relationship to that mountain.
+>
+> The broader product concepts we've discussed include signals such as:
+>
+> * friends who have historically visited the mountain;
+> * how many times each friend has visited;
+> * friends currently planning a trip there;
+> * distinguishing friends who are **Going** from those who are **Interested**;
+> * identifying first-time visitors;
+> * identifying experienced friends who may be useful sources of advice;
+> * surfacing useful connections between those groups.
+>
+> One specifically approved intelligence concept is:
+>
+> **When the user has never visited a mountain, another friend is going there for the first time, and a different friend has substantial historical experience there, BaseLodge can surface a one-time insight connecting them — e.g. “John has been 10 times. Mark is going for the first time. Ask John for tips for Mark.”**
+>
+> This type of insight should only appear when there is an actual planned trip, not merely because somebody historically visited the mountain.
+>
+> Do **not** assume every concept above belongs in the first BL-33 implementation. The purpose of this investigation is to determine what data already exists, what can be reliably calculated today, what the current mountain page supports, and how to consolidate the information into something useful rather than overwhelming.
+>
+> ### 1. Investigate the current mountain page
+>
+> Identify:
+>
+> * route(s);
+> * template(s);
+> * services/helpers;
+> * data currently passed to the template;
+> * existing social/friend information;
+> * existing trip information;
+> * current page sections and layout;
+> * any existing tap-through behavior;
+> * relevant JavaScript/CSS;
+> * relevant tests.
+>
+> Explain what the mountain page actually looks like structurally today and where a social-intelligence section could fit without redesigning the entire page.
+>
+> ### 2. Audit the available friend/mountain data
+>
+> Determine exactly what BaseLodge currently knows that could power BL-33.
+>
+> Investigate whether we can reliably determine:
+>
+> * whether a friend has visited a mountain historically;
+> * number of historical visits;
+> * most recent visit;
+> * whether a visit was planned versus actually completed;
+> * whether a friend currently has a trip planned there;
+> * their BL-34 RSVP status for that trip;
+> * whether that trip would be their first visit;
+> * whether the current user has ever visited;
+> * whether the current user's upcoming trip would be their first visit;
+> * which friends have the most experience at the mountain;
+> * whether multiple friends are attached to the same planned trip;
+> * whether friend-of-friend data is available or whether BL-33 should remain confirmed-friends only.
+>
+> For each signal, identify the authoritative model/table/field and any reliability limitations.
+>
+> **Do not infer historical visits from data that only proves a trip was planned.**
+>
+> ### 3. Audit BL-34 integration
+>
+> Inspect the newly implemented BL-34 code.
+>
+> Determine exactly how mountain intelligence should consume:
+>
+> * Going;
+> * Interested;
+> * Pending;
+> * Declined;
+> * Removed.
+>
+> Confirm which statuses should appear on mountain pages and which should not.
+>
+> Do not recreate RSVP logic locally if BL-34 provides canonical helpers or predicates that should be reused.
+>
+> Identify any BL-33 assumptions in the existing Notion task that are now obsolete because of BL-34.
+>
+> ### 4. Investigate historical visit counting
+>
+> This is especially important.
+>
+> Determine how a statement such as:
+>
+> **“John has been here 10 times”**
+>
+> could be calculated today.
+>
+> Identify:
+>
+> * what constitutes one visit;
+> * whether multiple ski days on the same trip count once or multiple times;
+> * whether duplicate/historical records can inflate counts;
+> * whether future trips are excluded;
+> * whether cancelled/declined/removed participation is excluded;
+> * whether the current schema can distinguish a completed visit from an abandoned plan.
+>
+> Recommend the safest canonical definition based on existing data.
+>
+> If BaseLodge cannot reliably support an exact visit count today, say so rather than inventing one.
+>
+> ### 5. Investigate “first time” intelligence
+>
+> Determine whether we can reliably say:
+>
+> * “Mark is going here for the first time.”
+>
+> Define exactly what evidence would make that statement true.
+>
+> Consider whether:
+>
+> * zero historical visits + an upcoming Going RSVP is sufficient;
+> * Interested should generate the same statement or different copy;
+> * multiple upcoming trips affect the calculation;
+> * the current user's own history changes whether the insight should be shown.
+>
+> ### 6. Investigate expert → newcomer matching
+>
+> Determine how the approved concept could work:
+>
+> * current user has never visited the mountain;
+> * Friend A has substantial historical experience there;
+> * Friend B has a planned first visit;
+> * BaseLodge surfaces Friend A as someone who could provide useful advice.
+>
+> Recommend:
+>
+> * what threshold should qualify someone as “experienced”;
+> * whether we need a hard threshold at all or should simply use the most-experienced friend;
+> * how to handle multiple experienced friends;
+> * how to handle multiple first-timers;
+> * whether Going and Interested should be treated differently;
+> * how to ensure the insight appears only once rather than becoming repetitive;
+> * whether existing dismissal/signal infrastructure can support that one-time behavior.
+>
+> Do not implement it.
+>
+> ### 7. Look for redundancy and consolidation opportunities
+>
+> We explicitly do **not** want a mountain page full of separate cards for every statistic.
+>
+> Review the potential signals together and recommend how they could be condensed into a digestible hierarchy.
+>
+> For example, determine whether information belongs in:
+>
+> * one compact social summary;
+> * expandable friend rows;
+> * a small number of contextual insights;
+> * existing sections rather than a brand-new section;
+> * tap-through lists.
+>
+> Identify which potential metrics would be redundant and should **not** be displayed simultaneously.
+>
+> ### 8. Tap-through behavior
+>
+> For every recommended social element, determine what should happen when it is tapped.
+>
+> Investigate whether existing Friends filters, Trip Details, friend profiles, or other routes can be reused.
+>
+> Avoid inventing unnecessary new destination screens.
+>
+> ### 9. Privacy and authorization
+>
+> Confirm that BL-33 only exposes information the current user is authorized to see.
+>
+> Investigate whether any historical visit/trip data could accidentally expose:
+>
+> * non-friends;
+> * Declined/Removed participants;
+> * private trips;
+> * information unavailable through existing friend relationships.
+>
+> Recommend server-side safeguards.
+>
+> ### 10. Performance
+>
+> Determine whether calculating this intelligence on every mountain-page request would introduce N+1 queries or expensive aggregation.
+>
+> Recommend the smallest reasonable implementation using the current architecture.
+>
+> Do not introduce caching, denormalization, or new tables unless the investigation demonstrates they are actually necessary.
+>
+> ### 11. Tests
+>
+> Identify the tests that already cover mountain details, trips, friend relationships, visit history, and BL-34 RSVP behavior.
+>
+> Propose a focused BL-33 test matrix covering the recommended implementation.
+>
+> ### 12. Final recommendation
+>
+> After investigating, give me:
+>
+> * what BL-33 should actually include in its **first implementation**;
+> * what should explicitly be left for later;
+> * the proposed mountain-page information hierarchy;
+> * exact data sources for every displayed signal;
+> * BL-34 integration rules;
+> * proposed tap-through behavior;
+> * privacy/authorization requirements;
+> * performance approach;
+> * exact files expected to change;
+> * test plan;
+> * any product questions that genuinely require my decision before implementation.
+>
+> **Do not implement BL-33 yet.**
+>
+> Do not create a new duplicate task if BL-33 already exists in Notion. Update/refine the existing BL-33 task only if appropriate.
+>
+> End with either:
+>
+> **“BL-33 is ready for implementation.”**
+>
+> or a short numbered list of the remaining product decisions you need from me.
+
+Then send me Replit’s investigation results. We’ll vet the social hierarchy carefully before letting it build this one.
