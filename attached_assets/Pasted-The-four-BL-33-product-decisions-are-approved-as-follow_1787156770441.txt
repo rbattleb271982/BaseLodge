@@ -1,0 +1,124 @@
+The four BL-33 product decisions are approved as follows:
+Yes — use cautious recorded-visit wording.
+Historical copy may say a friend has recorded this mountain as visited.
+Do not claim exact visit counts, completed visits, expertise, or first-time status from this data.
+Interested friends should be visible, but lower-emphasis than Going.
+Going is the primary current-intent group.
+Interested is a clearly separate secondary group.
+Do not merge them into one active-participant presentation.
+Keep the social module friend-focused.
+Exclude the viewing user from visible friend rows and friend counts.
+Defer the expert/newcomer insight.
+Do not implement “first time,” “expert,” “ask X for tips,” or experience-ranking logic until BaseLodge has more authoritative completed-visit history.
+Now finalize Task #289 / BL-33 into an executable implementation plan based on these approved decisions.
+Do not implement yet. Do not modify application code, templates, tests, schema, or data.
+The first implementation should remain intentionally compact:
+Friends Going
+Friends Interested
+Friends with a recorded visit
+Friends who have the mountain on their wishlist
+Finalize the hierarchy
+Define exactly how those four signals should appear on the existing mountain page without creating a cluttered set of unrelated cards.
+Prefer one concise social section/hierarchy that reuses the existing mountain-page visual language.
+Specify:
+ordering;
+headings/labels;
+relative visual emphasis;
+when a group is omitted because it is empty;
+whether counts and friend names appear together;
+whether long friend lists should truncate or expand;
+how duplicates across signals are handled.
+A friend may legitimately appear in more than one semantic category where useful, but avoid redundant copy that makes the page feel repetitive.
+Finalize RSVP aggregation
+Use the actual post-BL-34 canonical RSVP implementation.
+Confirm:
+Going rows/counts use the friend’s own going RSVP.
+Interested rows/counts use the friend’s own interested RSVP.
+Pending, Declined, and Removed never appear.
+Trip-level SkiTrip.trip_status is not used as the friend’s personal RSVP.
+Only public current/future trips are eligible.
+Confirmed direct friends only.
+Viewer excluded.
+Identify the exact existing BL-34 helpers/predicates to reuse.
+Finalize deduplication rules
+Define how a friend is counted if they have:
+multiple upcoming public trips to the same mountain;
+multiple qualifying participant rows through legacy edge cases;
+both Going and Interested trips to the same mountain;
+a current trip plus a recorded visit;
+a current trip plus wishlist membership.
+For current-intent groups, each friend should appear at most once per group.
+If a friend has both Going and Interested future trips at the same mountain, recommend the safest presentation rule so the same person is not misleadingly counted twice in current intent.
+Finalize recorded-history semantics
+Use only the authoritative normalized visited-resort signal already identified.
+Define exact copy rules that remain conservative, for example:
+Alex has recorded this mountain as visited.
+Do not derive:
+visit count;
+visit frequency;
+last visit;
+experience level;
+completed-trip history;
+first-time status.
+Explain whether this signal should be shown as individual friend rows, a count with expandable names, or another compact treatment.
+Finalize wishlist semantics
+Confirm how existing friend wishlist data should be shown and whether existing tap-through behavior can be reused without adding a new route.
+Tap-through behavior
+For each visible friend/social element, define what tapping it does.
+Reuse existing destinations where possible:
+friend profile;
+Trip Details;
+existing wishlist/profile behavior.
+Avoid creating a new social-detail screen for BL-33.
+Privacy and authorization
+Specify the exact server-side filters required to guarantee:
+confirmed direct friends only;
+public trip data only;
+no Pending/Declined/Removed leakage;
+no friend-of-friend data;
+no private-trip counts or dates;
+no viewer inclusion in friend totals.
+Performance
+Preserve the existing bulk-loading approach.
+Confirm the implementation can be done without:
+N+1 friend queries;
+a new cache;
+new denormalized counters;
+schema changes.
+Call out any query that should be consolidated or preloaded.
+Tests
+Finalize the BL-33 test matrix.
+At minimum cover:
+Going and Interested shown separately;
+person-level RSVP overrides trip-level planning status;
+Pending excluded;
+Declined excluded;
+Removed excluded;
+private trips excluded;
+non-friends excluded;
+viewer excluded;
+duplicate current trips do not double-count a friend;
+Going/Interested conflict for same friend resolves consistently;
+recorded-visit copy remains conservative;
+no exact visit-count or first-time language appears;
+wishlist behavior remains correct;
+existing tap-throughs remain functional.
+Implementation sequence
+Give me the exact build order and exact files expected to change.
+Keep the implementation limited to BL-33. Do not add expert/newcomer intelligence, completed-visit tracking, new tables, migrations, or unrelated mountain-page redesign.
+Final output
+Update/refine the existing Task #289 / BL-33 plan if appropriate.
+Then report:
+final information hierarchy;
+RSVP aggregation/deduplication rules;
+recorded-history treatment;
+wishlist treatment;
+tap-through behavior;
+privacy rules;
+performance approach;
+exact files expected to change;
+test matrix;
+any remaining blocker.
+If there are no remaining product blockers, end with:
+“BL-33 is ready for implementation.”
+Do not begin implementation until I explicitly approve it.
