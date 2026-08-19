@@ -1,0 +1,122 @@
+Implement BL-13 and BL-30 using the finalized investigation plans.
+These are two independent tasks being implemented in one working session. They must remain completely separate for scope, testing, review, staging, and Git commits.
+Phase 1 — BL-13
+Implement BL-13: Improve Home empty states for Happening and Ideas.
+Approved behavior:
+Happening renders only when it has visible signals.
+Ideas renders only when it has visible opportunities.
+Do not leave an empty Happening or Ideas heading or reserved vertical space.
+When Happening is empty but Ideas has content, show Ideas normally.
+When Ideas is empty but Happening has content, show Happening normally with no empty Ideas section.
+When both are empty, show one quiet availability-oriented fallback using the existing guidance.
+The combined fallback should not have an empty Ideas heading.
+Dismissing the final visible Happening or Ideas item must immediately remove that section's heading/space without requiring reload.
+If that dismissal makes both sections empty, reveal the combined fallback immediately.
+If one section still has content, do not show the combined fallback.
+Existing dismissal persistence must remain unchanged and produce the same state after reload.
+Do not change Ideas ranking, signal generation, availability data, dismissal storage, schema, migrations, caching, or unrelated Home design.
+Expected files:
+app.py
+templates/home.html
+templates/partials/home/_section_happening.html
+templates/partials/home/_section_opportunities.html
+tests/test_regression_guards.py
+focused Home test module only if useful
+BL-13 verification
+Test:
+Happening empty / Ideas populated
+Happening populated / Ideas empty
+both populated
+both empty
+correct fallback behavior
+final Happening dismissal
+final Ideas dismissal
+both becoming empty through dismissal
+persisted state after reload
+Run focused BL-13 tests.
+Then inspect the BL-13 diff and ensure it contains only BL-13 changes.
+Create a local commit with this exact message:
+BL-13: Improve Home activity empty states
+Do not push.
+Confirm the BL-13 commit is complete before beginning BL-30.
+Phase 2 — BL-30
+Only after BL-13 is locally committed, implement BL-30: Add quick profile preview for Suggested Friends.
+Approved behavior:
+Tapping a person's name in Suggested Friends opens a compact in-place preview.
+Do not navigate to the protected full friend profile.
+Preserve the Suggested Friends tab and list position.
+Reuse the existing mobile-safe overlay/bottom-sheet conventions.
+Preview may show only:
+name
+home state, when present
+existing suggestion attribution
+Do not show:
+profile image
+trips
+trip overlap
+availability
+equipment
+visited mountains
+wishlist
+rider type
+skill level
+pass
+any other friend-only information
+Reuse the existing Suggested Friends connection actions rather than creating a second request flow.
+While the preview is open:
+Connect success → preview and row become Requested
+existing incoming request → Accept
+Accept success / confirmed connection → close preview and remove that person from Suggested Friends as the existing flow requires
+Preview must dismiss through:
+X
+backdrop
+Escape
+browser/mobile Back
+Dismissal must leave the user on Suggested Friends with their context/list position intact.
+Do not change global member search, full friend profiles, suggestion ranking, schema, migrations, or privacy contracts.
+No new backend route should be added unless the actual implementation proves the approved frontend-only approach impossible. If that occurs, stop and report the blocker rather than expanding scope automatically.
+Expected files:
+templates/friends.html
+tests/test_bl12_suggested_friends.py
+tests/test_friends_page.py
+BL-30 verification
+Test:
+name opens preview
+no navigation to protected profile
+approved fields appear
+prohibited/private fields do not appear
+Connect → Requested synchronization
+incoming Accept behavior
+successful connection/removal behavior
+X dismissal
+backdrop dismissal
+Escape dismissal
+Back dismissal
+Suggested Friends tab/context preserved
+existing suggestion dismissal still works
+existing expiration/non-discoverable behavior remains intact
+Run focused BL-30 tests.
+Then run the entire Python test suite.
+Fix any BL-30-caused regression before proceeding.
+Review the BL-30 diff and confirm it contains only BL-30 work made after the BL-13 commit.
+Create a second local commit with this exact message:
+BL-30: Add Suggested Friend profile preview
+Do not push.
+Final verification
+At completion, there must be two separate new local commits, in this order:
+BL-13: Improve Home activity empty states
+BL-30: Add Suggested Friend profile preview
+Do not squash, amend together, or combine them.
+Remember that the GitHub authentication issue remains unresolved, so do not attempt to push either commit.
+Report:
+BL-13 exact files changed
+BL-13 focused test results
+BL-13 local commit SHA
+BL-30 exact files changed
+BL-30 focused test results
+BL-30 local commit SHA
+final full-suite test result
+confirmation the two commits are separate
+confirmation neither commit contains unrelated/user-provided files
+confirmation nothing was pushed
+any deviation from either approved plan and why
