@@ -1387,12 +1387,43 @@
         }
     })();
 
+    function syncHomeActivityEmptyState() {
+        var activitySections = [
+            { id: 'section-happening', rowSelector: '.bl-happening-card' },
+            { id: 'section-opportunities', rowSelector: '.bl-opp-row' }
+        ];
+        var hasVisibleActivity = false;
+
+        activitySections.forEach(function(config) {
+            var section = document.getElementById(config.id);
+            if (!section) return;
+
+            var visibleRows = Array.from(section.querySelectorAll(config.rowSelector))
+                .filter(function(row) {
+                    return row.style.display !== 'none' && !row.hidden;
+                });
+            if (visibleRows.length === 0) {
+                section.remove();
+            } else {
+                hasVisibleActivity = true;
+            }
+        });
+
+        var fallback = document.getElementById('home-activity-fallback');
+        if (fallback) {
+            fallback.hidden = hasVisibleActivity;
+        }
+    }
+
     function dismissInsightCard(cardType, cardKey, cardElementId) {
         var card = document.getElementById(cardElementId || 'friend-at-mountain-card');
         if (card) {
             card.style.transition = 'opacity 0.2s';
             card.style.opacity = '0';
-            setTimeout(function() { card.style.display = 'none'; }, 200);
+            setTimeout(function() {
+                if (card.parentNode) card.remove();
+                syncHomeActivityEmptyState();
+            }, 200);
         }
         var fd = new FormData();
         fd.append('card_type', cardType);

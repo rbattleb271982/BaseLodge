@@ -274,16 +274,18 @@ def test_pass_display_override_does_not_mutate_normalize_pass(client):
     )
 
 
-# ─── Test 4 — home empty-state card only when dest_feed is empty ──────────────
+# ─── Test 4 — Home combined fallback visibility ───────────────────────────────
 
-def test_empty_opportunity_card_only_when_feed_empty(client):
+def test_home_combined_fallback_is_visible_only_without_activity(client):
     """
-    GET /home renders bl-opp-empty-card iff the destination feed is empty.
+    GET /home always includes the combined Home activity fallback so a final
+    client-side dismissal can reveal it without a reload. It is visible only
+    when there are no activity rows and hidden when opportunities are present.
 
     Part A: user has no friends → feed builder is never called → dest_feed=[]
-            → empty-state card must appear in HTML.
+            → fallback is visible.
     Part B: user has one friend, feed builder mocked to return one row
-            → dest_feed has one item → empty-state card must NOT appear.
+            → dest_feed has one item → fallback is present but hidden.
 
     Implementation note — shared `g` between requests
     --------------------------------------------------
@@ -325,9 +327,11 @@ def test_empty_opportunity_card_only_when_feed_empty(client):
     assert resp_empty.status_code == 200, (
         f"Expected 200 from /home, got {resp_empty.status_code}"
     )
-    assert b'class="bl-opp-empty-card"' in resp_empty.data, (
-        "Empty-state card element must appear in /home HTML when user has no friends "
-        "(dest_feed is empty)"
+    html_empty = resp_empty.data.decode()
+    fallback_start = html_empty.index('id="home-activity-fallback"')
+    fallback_tag = html_empty[fallback_start:html_empty.index('>', fallback_start) + 1]
+    assert "hidden" not in fallback_tag, (
+        "Combined fallback must be visible when Home has no activity"
     )
 
     # ── Purge shared-g caches before Part B ──────────────────────────────────
@@ -372,8 +376,11 @@ def test_empty_opportunity_card_only_when_feed_empty(client):
     assert resp_has_items.status_code == 200, (
         f"Expected 200 from /home with mocked feed, got {resp_has_items.status_code}"
     )
-    assert b'class="bl-opp-empty-card"' not in resp_has_items.data, (
-        "Empty-state card element must NOT appear in /home HTML when dest_feed has items"
+    html_has_items = resp_has_items.data.decode()
+    fallback_start = html_has_items.index('id="home-activity-fallback"')
+    fallback_tag = html_has_items[fallback_start:html_has_items.index('>', fallback_start) + 1]
+    assert "hidden" in fallback_tag, (
+        "Combined fallback must be hidden when Home has activity"
     )
     assert b'class="bl-opp-row"' in resp_has_items.data, (
         "Opportunity row element must be rendered in /home HTML when dest_feed has items"

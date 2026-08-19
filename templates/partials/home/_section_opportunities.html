@@ -3,7 +3,8 @@ Component: Opportunities Section
 Purpose: Ranked coordination opportunities from the Ideas engine. Up to 5 rows,
          each tappable to the mountain detail page (or /add_trip for no-resort cards),
          with a dismiss control.
-Used on: Home screen (always rendered; shows empty nudge when dest_feed is empty)
+Used on: Home screen (renders only when dest_feed has items; the combined
+empty fallback is available without an Ideas heading)
 
 Inputs:
   dest_feed      list of dicts (pre-filtered, pre-capped at 5)
@@ -23,15 +24,14 @@ Inputs:
   user_avail_overflow int — number of ranges beyond the 3 shown
 -->
 
+{% if dest_feed %}
 <div class="bl-section" id="section-opportunities">
 
     <div class="bl-section-header">
         <span class="bl-section-title">Ideas</span>
     </div>
 
-    {% if dest_feed %}
-
-        {% for row in dest_feed %}
+    {% for row in dest_feed %}
         {#
             For resort-pinned cards: link to mountain detail page.
             For availability_overlap cards with no resort (resort=None): link to /add_trip.
@@ -78,51 +78,48 @@ Inputs:
                     onclick="dismissInsightCard('opportunity','{{ _card_key }}','{{ _elem_id }}')">×</button>
         </div>
 
+    {% endfor %}
+
+</div>
+{% endif %}
+
+{# This has no section heading and does not reserve space while hidden. It is
+   rendered on every Home load so the final card dismissal can reveal it
+   immediately without a reload. #}
+<div id="home-activity-fallback" class="bl-opp-empty-card"
+     {% if not home_activity_empty %}hidden{% endif %}>
+    {% if has_availability %}
+
+    <p class="bl-opp-empty-title" style="margin-bottom: 4px;">You're free:</p>
+    <p class="bl-opp-empty-body" style="margin-bottom: 14px;">These dates help us find trips and overlaps with your friends.</p>
+
+    <div class="bl-avail-range-list">
+        {% for range in user_avail_ranges %}
+        <div class="bl-avail-range-row">
+            <span class="bl-avail-range-icon" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="3"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+            </span>
+            <span class="bl-avail-range-text">{{ range.display }}</span>
+        </div>
         {% endfor %}
+        {% if user_avail_overflow > 0 %}
+        <p class="bl-avail-overflow">+ {{ user_avail_overflow }} more date{{ 's' if user_avail_overflow != 1 else '' }}</p>
+        {% endif %}
+    </div>
+
+    <a href="{{ url_for('add_open_dates') }}" class="bl-opp-empty-cta" style="margin-top: 14px; display: inline-block;">Edit availability</a>
 
     {% else %}
 
-        {% if has_availability %}
-
-        {# ── User has dates saved but no ideas to surface yet ── #}
-        <div class="bl-opp-empty-card bl-avail-summary-card">
-            <p class="bl-opp-empty-title" style="margin-bottom: 4px;">You're free:</p>
-            <p class="bl-opp-empty-body" style="margin-bottom: 14px;">These dates help us find trips and overlaps with your friends.</p>
-
-            <div class="bl-avail-range-list">
-                {% for range in user_avail_ranges %}
-                <div class="bl-avail-range-row">
-                    <span class="bl-avail-range-icon" aria-hidden="true">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="3"/>
-                            <line x1="16" y1="2" x2="16" y2="6"/>
-                            <line x1="8" y1="2" x2="8" y2="6"/>
-                            <line x1="3" y1="10" x2="21" y2="10"/>
-                        </svg>
-                    </span>
-                    <span class="bl-avail-range-text">{{ range.display }}</span>
-                </div>
-                {% endfor %}
-                {% if user_avail_overflow > 0 %}
-                <p class="bl-avail-overflow">+ {{ user_avail_overflow }} more date{{ 's' if user_avail_overflow != 1 else '' }}</p>
-                {% endif %}
-            </div>
-
-            <a href="{{ url_for('add_open_dates') }}" class="bl-opp-empty-cta" style="margin-top: 14px; display: inline-block;">Edit availability</a>
-        </div>
-
-        {% else %}
-
-        {# ── User has no dates saved ── #}
-        <div class="bl-opp-empty-card">
-            <p class="bl-opp-empty-title">Add dates to unlock trip ideas</p>
-            <p class="bl-opp-empty-body">Enter dates so BaseLodge can surface better mountain suggestions and friend overlaps.</p>
-            <a href="{{ url_for('add_open_dates') }}" class="bl-opp-empty-cta">Add availability</a>
-        </div>
-
-        {% endif %}
+    <p class="bl-opp-empty-title">Add dates to unlock trip ideas</p>
+    <p class="bl-opp-empty-body">Enter dates so BaseLodge can surface better mountain suggestions and friend overlaps.</p>
+    <a href="{{ url_for('add_open_dates') }}" class="bl-opp-empty-cta">Add availability</a>
 
     {% endif %}
-
 </div>
