@@ -57,18 +57,6 @@
         .md-pass-check { color: #5C1219; font-weight: 600; }
         .md-pass-name  { color: #5C1219; font-weight: 500; }
 
-        /* ── Social density ── */
-        .md-social {
-            display: flex;
-            gap: 14px;
-            margin: 7px 0 0;
-        }
-        .md-social-line {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
-            margin: 0;
-        }
-
         /* ── CTAs ── */
         .md-cta-primary {
             display: block;
@@ -112,14 +100,48 @@
             border-color: rgba(92, 18, 25, 0.4);
         }
 
-        /* ── Trips section label ── */
-        .md-trips-label {
-            margin: 26px 0 8px;
+        /* ── Friend intelligence ── */
+        .md-social-section {
+            margin-top: 26px;
+        }
+        .md-social-group + .md-social-group {
+            margin-top: 24px;
+        }
+        .md-social-group-label {
+            margin: 0 0 8px;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.8px;
             text-transform: uppercase;
             color: #9A8F82;
+        }
+        .md-social-group-label--going { color: #5C1219; }
+        .md-social-group-label--interested { color: var(--bl-color-text-muted); }
+        .md-social-summary {
+            padding: 12px 0;
+            border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
+        }
+        .md-social-summary:last-child { border-bottom: none; }
+        .md-social-summary-copy {
+            margin: 0;
+            font-size: 14px;
+            color: #1A1A1A;
+            line-height: 1.45;
+        }
+        .md-social-summary-names {
+            margin: 4px 0 0;
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            line-height: 1.45;
+        }
+        .md-social-summary-link {
+            color: inherit;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .md-social-more {
+            color: var(--bl-color-text-tertiary);
+            white-space: nowrap;
         }
 
         /* ── Inline trip rows ── */
@@ -191,20 +213,8 @@
             color: #5C1219;
             font-weight: 500;
         }
-
-        /* ── Empty state ── */
-        .md-empty {
-            padding: 36px 0 24px;
-        }
-        .md-empty-line1 {
-            font-size: 16px;
-            color: #1A1A1A;
-            margin: 0 0 6px 0;
-        }
-        .md-empty-line2 {
-            font-size: 14px;
+        .md-row--interested .md-row-status {
             color: var(--bl-color-text-muted);
-            margin: 0;
         }
     </style>
 {% endblock %}
@@ -226,12 +236,6 @@
                 <span>Not on your pass</span>
                 {%- endif -%}
             </div>
-            {% if social_going > 0 or social_considering > 0 %}
-            <div class="md-social">
-                {% if social_going > 0 %}<p class="md-social-line">{{ social_going }} {{ 'friend' if social_going == 1 else 'friends' }} going</p>{% endif %}
-                {% if social_considering > 0 %}<p class="md-social-line">{{ social_considering }} {{ 'friend' if social_considering == 1 else 'friends' }} planning</p>{% endif %}
-            </div>
-            {% endif %}
         </div>
 
         <!-- Primary CTA -->
@@ -246,78 +250,91 @@
             {%- if is_on_wishlist -%}✓ On your wishlist{%- else -%}♡ Add to wishlist{%- endif -%}
         </button>
 
-        <!-- Trips section label -->
-        {% if flat_rows %}
-        <p class="md-trips-label">Friends going</p>
-        {% endif %}
-
-        <!-- Flat trip rows: each row is one person + their date inline -->
-        {% if flat_rows %}
-        <div style="padding-top: 4px;">
-            {% for row in flat_rows %}
-                {%- set s = row.start_date -%}
-                {%- set e = row.end_date -%}
-                {%- if s == e -%}
-                    {%- set date_str = s.strftime('%b %-d') -%}
-                {%- elif s.month == e.month and s.year == e.year -%}
-                    {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%-d') -%}
-                {%- elif s.year == e.year -%}
-                    {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d') -%}
-                {%- else -%}
-                    {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d, %Y') -%}
-                {%- endif -%}
-
-                {% if row.is_me %}
-                <div class="md-row" style="cursor: default;">
-                {% else %}
-                <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-row">
-                {% endif %}
-                    <div class="md-row-left">
-                        <div class="md-row-line1">
-                            <span class="md-row-date">{{ date_str }}</span>
-                            <span class="md-row-sep">&nbsp;—&nbsp;</span>
-                            <span class="md-row-name">
-                                {%- if row.is_me -%}You{%- else -%}{{ row.full_name }}{%- endif -%}
-                            </span>
-                        </div>
-                        <p class="md-row-line2">{{ row.identity_line }}</p>
-                    </div>
-                    <span class="md-row-status{% if row.status_label == 'Going' %} md-row-status--going{% endif %}">
-                        {{ row.status_label }}
-                    </span>
-                {% if row.is_me %}
-                </div>
-                {% else %}
-                </a>
-                {% endif %}
-            {% endfor %}
-        </div>
-        {% else %}
-        <div class="md-empty">
-            <p class="md-empty-line1">No friends are going yet.</p>
-            <p class="md-empty-line2">When someone plans a trip here, it will show up.</p>
-        </div>
-        {% endif %}
-
-        <!-- Wishlist friends section -->
-        {% if wishlist_friends %}
-        {%- set _wl_count = wishlist_friends|length -%}
-        <p class="md-trips-label" style="margin-top: 26px;">
-            {%- if _wl_count == 1 -%}
-            1 friend has this on their wishlist
+        {% macro social_trip_row(row, status, secondary=false) %}
+            {%- set s = row.start_date -%}
+            {%- set e = row.end_date -%}
+            {%- if s == e -%}
+                {%- set date_str = s.strftime('%b %-d') -%}
+            {%- elif s.month == e.month and s.year == e.year -%}
+                {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%-d') -%}
+            {%- elif s.year == e.year -%}
+                {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d') -%}
             {%- else -%}
-            {{ _wl_count }} friends have this on their wishlist
+                {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d, %Y') -%}
             {%- endif -%}
-        </p>
-        <div style="padding-top: 4px;">
-            {% for u in wishlist_friends %}
-            <a href="{{ url_for('friend_profile', friend_id=u.id) }}" class="md-row">
+            <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-row{% if secondary %} md-row--interested{% endif %}">
                 <div class="md-row-left">
-                    <span class="md-row-name">{{ u.first_name }}{% if u.last_name %} {{ u.last_name }}{% endif %}</span>
+                    <div class="md-row-line1">
+                        <span class="md-row-date">{{ date_str }}</span>
+                        <span class="md-row-sep">&nbsp;—&nbsp;</span>
+                        <span class="md-row-name">{{ row.full_name }}</span>
+                    </div>
+                    <p class="md-row-line2">{{ row.identity_line }}</p>
                 </div>
+                <span class="md-row-status{% if status == 'Going' %} md-row-status--going{% endif %}">{{ status }}</span>
             </a>
-            {% endfor %}
-        </div>
+        {% endmacro %}
+
+        {% macro social_summary(summary, kind) %}
+            <div class="md-social-summary">
+                <p class="md-social-summary-copy">
+                    {% if kind == 'visited' %}
+                        {{ summary.count }} {{ 'friend has' if summary.count == 1 else 'friends have' }} recorded this mountain as visited
+                    {% else %}
+                        {{ summary.count }} {{ 'friend has' if summary.count == 1 else 'friends have' }} this mountain on their wishlist
+                    {% endif %}
+                </p>
+                {% if summary.preview or summary.remaining_count %}
+                <p class="md-social-summary-names">
+                    {% for friend in summary.preview %}
+                        <a class="md-social-summary-link" href="{% if kind == 'visited' %}{{ url_for('friend_mountains_visited', user_id=friend.id) }}{% else %}{{ url_for('friend_profile', friend_id=friend.id) }}{% endif %}">{{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}</a>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    {% if summary.remaining_count %}
+                        {% if summary.preview %} {% endif %}<span class="md-social-more">+{{ summary.remaining_count }} more</span>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        {% endmacro %}
+
+        {% if going_friends or interested_friends or recorded_visit_friends.count or wishlist_friends.count %}
+        <section class="md-social-section" aria-label="Friends at this mountain">
+            {% if going_friends %}
+            <div class="md-social-group">
+                <p class="md-social-group-label md-social-group-label--going">Friends Going · {{ going_friends|length }} {{ 'friend' if going_friends|length == 1 else 'friends' }}</p>
+                {% for row in going_friends[:3] %}
+                    {{ social_trip_row(row, 'Going') }}
+                {% endfor %}
+                {% if going_friends|length > 3 %}
+                <p class="md-social-summary-names md-social-more">+{{ going_friends|length - 3 }} more</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if interested_friends %}
+            <div class="md-social-group">
+                <p class="md-social-group-label md-social-group-label--interested">Friends Interested · {{ interested_friends|length }} {{ 'friend' if interested_friends|length == 1 else 'friends' }}</p>
+                {% for row in interested_friends[:3] %}
+                    {{ social_trip_row(row, 'Interested', true) }}
+                {% endfor %}
+                {% if interested_friends|length > 3 %}
+                <p class="md-social-summary-names md-social-more">+{{ interested_friends|length - 3 }} more</p>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if recorded_visit_friends.count %}
+            <div class="md-social-group">
+                {{ social_summary(recorded_visit_friends, 'visited') }}
+            </div>
+            {% endif %}
+
+            {% if wishlist_friends.count %}
+            <div class="md-social-group">
+                {{ social_summary(wishlist_friends, 'wishlist') }}
+            </div>
+            {% endif %}
+        </section>
         {% endif %}
 
     </div>
