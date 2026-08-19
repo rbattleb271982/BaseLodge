@@ -23,8 +23,8 @@ def planning_setup(client):
         invited  = _make_user("invited")
         outsider = _make_user("outsider")
         trip = _make_trip(owner, resort=resort)
-        _add_participant(trip, member,  GuestStatus.ACCEPTED)
-        _add_participant(trip, invited, GuestStatus.INVITED)
+        _add_participant(trip, member,  GuestStatus.INTERESTED)
+        _add_participant(trip, invited, GuestStatus.PENDING)
         db.session.commit()
         data = {
             "trip_id":    trip.id,

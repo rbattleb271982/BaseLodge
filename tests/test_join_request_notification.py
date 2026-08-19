@@ -157,7 +157,7 @@ class TestJoinRequestNotification:
             owner     = _make_user("owner")
             member    = _make_user("member")
             trip      = _make_trip(owner)
-            _add_participant(trip, member, GuestStatus.ACCEPTED)
+            _add_participant(trip, member, GuestStatus.INTERESTED)
             member_id = member.id
             trip_id   = trip.id
             db.session.commit()

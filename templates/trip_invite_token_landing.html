@@ -210,16 +210,31 @@
     </div>
 
     <div class="ti-actions">
-        {% if participant and participant.status.value == 'invited' %}
+        {% if participant and participant.status.value == 'pending' %}
         <p class="ti-status-note">You have a pending invite for this trip.</p>
         {% elif participant and participant.status.value == 'declined' %}
-        <p class="ti-status-note">You previously declined — you can still accept.</p>
+        <p class="ti-status-note">You previously declined. Ask the organizer to reinvite you.</p>
+        {% elif participant and participant.status.value == 'removed' %}
+        <p class="ti-status-note">This trip invite is no longer active. Ask the organizer to reinvite you.</p>
         {% endif %}
 
+        {% if can_respond %}
         <form method="POST" action="{{ url_for('trip_invite_token_accept', token=token) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="ti-accept-btn">Accept as {{ current_user.first_name }}</button>
+            <input type="hidden" name="response" value="going">
+            <button type="submit" class="ti-accept-btn">Going</button>
         </form>
+        <form method="POST" action="{{ url_for('trip_invite_token_accept', token=token) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="response" value="interested">
+            <button type="submit" class="ti-accept-btn" style="background:#6B665A;">Interested</button>
+        </form>
+        <form method="POST" action="{{ url_for('trip_invite_token_accept', token=token) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="response" value="decline">
+            <button type="submit" class="ti-back" style="width:100%;border:0;background:transparent;cursor:pointer;">Not going</button>
+        </form>
+        {% endif %}
         <a href="{{ url_for('home') }}" class="ti-back">Not now</a>
     </div>
 

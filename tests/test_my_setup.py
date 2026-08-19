@@ -23,7 +23,7 @@ def setup(client):
         owner  = _make_user("owner")
         part   = _make_user("participant")
         trip   = _make_trip(owner, resort=resort)
-        _add_participant(trip, part, GuestStatus.ACCEPTED)
+        _add_participant(trip, part, GuestStatus.INTERESTED)
         db.session.commit()
         data = {
             "owner_id": owner.id,
@@ -116,7 +116,7 @@ def test_only_accepted_participant_can_update_pass(client, setup):
         invited = _make_user("invited")
         db.session.add(SkiTripParticipant(
             trip_id=trip_id, user_id=invited.id,
-            status=GuestStatus.INVITED, role=ParticipantRole.GUEST,
+            status=GuestStatus.PENDING, role=ParticipantRole.GUEST,
         ))
         db.session.commit()
         invited_id = invited.id

@@ -381,7 +381,7 @@ class TestSeasonSnapshotRoute:
             t = _make_trip(owner, mountain="GuestMtn",
                            start_date=_in_season(1, offset_years=1),
                            end_date=_in_season(1, 20, offset_years=1))
-            _add_participant(t, guest, status=GuestStatus.ACCEPTED)
+            _add_participant(t, guest, status=GuestStatus.INTERESTED)
             db.session.commit()
             gid = guest.id
         _login(client, gid)

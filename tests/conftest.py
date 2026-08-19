@@ -217,14 +217,14 @@ def _make_trip(owner, resort=None, **kwargs):
     db.session.add(SkiTripParticipant(
         trip_id=t.id,
         user_id=owner.id,
-        status=GuestStatus.ACCEPTED,
+        status=GuestStatus.INTERESTED,
         role=ParticipantRole.OWNER,
     ))
     db.session.flush()
     return t
 
 
-def _add_participant(trip, user, status=GuestStatus.ACCEPTED):
+def _add_participant(trip, user, status=GuestStatus.INTERESTED):
     p = SkiTripParticipant(
         trip_id=trip.id,
         user_id=user.id,

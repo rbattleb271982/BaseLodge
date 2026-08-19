@@ -188,8 +188,8 @@ def test_same_user_accepts_token_twice_creates_one_participant_row(client, token
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
-        form_post(client, f"/trip-invite/{token_str}/accept")
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
 
     with app.app_context():
         count = SkiTripParticipant.query.filter_by(
@@ -208,9 +208,9 @@ def test_same_user_second_acceptance_sends_no_new_notification(client, token_set
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
         first_count = mock_emit.call_count
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
         second_count = mock_emit.call_count
 
     assert second_count == first_count, (
@@ -231,17 +231,17 @@ def test_two_users_can_both_accept_same_token(client, token_setup):
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, j1)
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
         _login(client, j2)
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
 
     with app.app_context():
         rows = SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip_id,
             SkiTripParticipant.user_id.in_([j1, j2]),
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.status == GuestStatus.GOING,
         ).all()
-    assert len(rows) == 2, f"Both users should be ACCEPTED; got {len(rows)}"
+    assert len(rows) == 2, f"Both users should be Going; got {len(rows)}"
 
 
 def test_pending_invitation_reconciled_on_token_accept(client, token_setup):
@@ -262,7 +262,7 @@ def test_pending_invitation_reconciled_on_token_accept(client, token_setup):
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
 
     with app.app_context():
         updated = Invitation.query.get(inv_id)
@@ -284,7 +284,7 @@ def test_trip_invite_accepted_notifies_owner(client, token_setup):
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, joiner_id)
-        form_post(client, f"/trip-invite/{token_str}/accept")
+        form_post(client, f"/trip-invite/{token_str}/accept", {"response": "going"})
 
     accepted_calls = [
         c for c in mock_emit.call_args_list
@@ -302,8 +302,8 @@ def test_trip_planning_post_created_notifies_other_members(client):
         member1 = _make_user("member1")
         member2 = _make_user("member2")
         trip    = _make_trip(owner, resort=resort)
-        _add_participant(trip, member1, GuestStatus.ACCEPTED)
-        _add_participant(trip, member2, GuestStatus.ACCEPTED)
+        _add_participant(trip, member1, GuestStatus.INTERESTED)
+        _add_participant(trip, member2, GuestStatus.INTERESTED)
         db.session.commit()
         trip_id  = trip.id
         owner_id = owner.id

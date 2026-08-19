@@ -97,7 +97,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -386,10 +386,10 @@ def health_check():
 def get_upcoming_trip_count(user):
     """
     Returns the count of unique upcoming trips a user is committed to.
-    'Committed' means being the owner or an ACCEPTED participant.
+    'Committed' means being the owner or an active RSVP participant.
     Filters:
     - Deduplicate by trip.id
-    - Includes owner or ACCEPTED participant role
+    - Includes owner or Interested / Going participant role
     - Filters for end_date >= today (includes in-progress trips, consistent with all route queries)
     - Excludes past, canceled, archived, or pending states
     """
@@ -406,13 +406,13 @@ def get_upcoming_trip_count(user):
         ).all()
     }
 
-    # 2. IDs of trips where the user is an ACCEPTED participant
+    # 2. IDs of trips where the user is an active RSVP participant.
     participant_ids = {
         row[0] for row in db.session.query(SkiTrip.id)
         .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
         .filter(
             SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTrip.end_date >= today
         )
         .all()
@@ -1008,10 +1008,10 @@ def emit_trip_updated_activities(trip, actor_user_id, dates_changed=False):
 
 
 def emit_trip_location_changed_activities(trip, actor_user_id, resort_name):
-    """Notify accepted participants when the trip resort is changed."""
-    participants = SkiTripParticipant.query.filter_by(
-        trip_id=trip.id,
-        status=GuestStatus.ACCEPTED
+    """Notify active RSVP participants when the trip resort is changed."""
+    participants = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip.id,
+        SkiTripParticipant.active_status_filter(),
     ).all()
     for participant in participants:
         if participant.user_id == actor_user_id:
@@ -1029,10 +1029,10 @@ def emit_trip_location_changed_activities(trip, actor_user_id, resort_name):
 
 
 def emit_trip_pass_changed_activities(trip, actor_user_id, pass_display):
-    """Notify accepted participants when the trip pass is changed."""
-    participants = SkiTripParticipant.query.filter_by(
-        trip_id=trip.id,
-        status=GuestStatus.ACCEPTED
+    """Notify active RSVP participants when the trip pass is changed."""
+    participants = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip.id,
+        SkiTripParticipant.active_status_filter(),
     ).all()
     for participant in participants:
         if participant.user_id == actor_user_id:
@@ -1137,7 +1137,7 @@ def emit_friend_joined_trip_activities(trip, joiner_user_id):
     participants = SkiTripParticipant.query.filter(
         SkiTripParticipant.trip_id == trip.id,
         SkiTripParticipant.user_id != joiner_user_id,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED
+        SkiTripParticipant.active_status_filter(),
     ).all()
     
     joiner_friend_ids = set(get_friend_ids(joiner_user_id))
@@ -1949,6 +1949,104 @@ def run_pass_system_expansion_migration():
 
 if not _SKIP_STARTUP_MIGRATIONS:
     run_pass_system_expansion_migration()
+
+
+def run_trip_rsvp_migration():
+    """Migrate SkiTripParticipant from legacy invitation values to RSVP values.
+
+    PostgreSQL enum labels are committed before the data transaction that uses
+    them. This migration is deliberately idempotent: only legacy source values
+    are converted, owner rows are repaired/upserted, and indexes use
+    ``IF NOT EXISTS``.
+    """
+    try:
+        with app.app_context():
+            engine = db.engine
+
+            # PostgreSQL does not allow a newly-added enum label to be used
+            # until its ALTER TYPE transaction has committed.
+            if engine.dialect.name == "postgresql":
+                with engine.connect() as enum_conn:
+                    enum_trans = enum_conn.begin()
+                    try:
+                        for label in ("pending", "interested", "going", "removed"):
+                            enum_conn.execute(db.text(
+                                "ALTER TYPE ski_trip_participant_status_enum "
+                                f"ADD VALUE IF NOT EXISTS '{label}'"
+                            ))
+                        enum_trans.commit()
+                    except Exception as enum_error:
+                        enum_trans.rollback()
+                        print(f"trip_rsvp_migration enum error (rolled back): {enum_error}")
+                        return
+
+            conn = engine.connect()
+            trans = conn.begin()
+            try:
+                interested_result = conn.execute(db.text("""
+                    UPDATE ski_trip_participant
+                    SET status = 'interested'
+                    WHERE status = 'accepted'
+                """))
+                pending_result = conn.execute(db.text("""
+                    UPDATE ski_trip_participant
+                    SET status = 'pending'
+                    WHERE status = 'invited'
+                """))
+
+                # Repair owner rows without resetting a canonical organizer RSVP.
+                owner_repair_result = conn.execute(db.text("""
+                    UPDATE ski_trip_participant
+                    SET role = 'owner',
+                        status = CASE
+                            WHEN status IN ('interested', 'going') THEN status
+                            ELSE 'interested'
+                        END
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM ski_trip st
+                        WHERE st.id = ski_trip_participant.trip_id
+                          AND st.user_id = ski_trip_participant.user_id
+                    )
+                      AND (role <> 'owner' OR status NOT IN ('interested', 'going'))
+                """))
+                owner_insert_result = conn.execute(db.text("""
+                    INSERT INTO ski_trip_participant (
+                        trip_id, user_id, status, role, created_at
+                    )
+                    SELECT st.id, st.user_id, 'interested', 'owner', CURRENT_TIMESTAMP
+                    FROM ski_trip st
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM ski_trip_participant stp
+                        WHERE stp.trip_id = st.id
+                          AND stp.user_id = st.user_id
+                    )
+                """))
+                conn.execute(db.text("""
+                    CREATE INDEX IF NOT EXISTS idx_ski_trip_participant_trip_status
+                    ON ski_trip_participant (trip_id, status)
+                """))
+
+                trans.commit()
+                print(
+                    "trip_rsvp_migration: "
+                    f"accepted_to_interested={interested_result.rowcount}, "
+                    f"invited_to_pending={pending_result.rowcount}, "
+                    f"owner_rows_repaired={owner_repair_result.rowcount}, "
+                    f"owner_rows_inserted={owner_insert_result.rowcount}."
+                )
+            except Exception as inner_error:
+                trans.rollback()
+                print(f"trip_rsvp_migration inner error (rolled back): {inner_error}")
+            finally:
+                conn.close()
+    except Exception as error:
+        print(f"trip_rsvp_migration: skipped ({error})")
+
+
+if not _SKIP_STARTUP_MIGRATIONS:
+    run_trip_rsvp_migration()
 
 
 # ============================================================================
@@ -4726,13 +4824,13 @@ def my_trips():
     if app.debug:
         print(f"[ROUTE_PERF] my_trips.past={time.perf_counter()-_t:.4f}s count={len(past_trips)}")
 
-    # Get trips where user is INVITED (pending invites)
+    # Get trips where the user has a Pending RSVP.
     invited_trips = []
     invite_inviters = {}
     try:
         invited_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == current_user.id,
-            SkiTripParticipant.status == GuestStatus.INVITED
+            SkiTripParticipant.status == GuestStatus.PENDING
         ).all()
         invited_trip_ids = [p.trip_id for p in invited_participations]
         if invited_trip_ids:
@@ -4752,12 +4850,12 @@ def my_trips():
         invited_trips = []
         invite_inviters = {}
 
-    # Get trips where user is ACCEPTED as guest (not owner)
+    # Get trips where the user is an active guest (not owner).
     accepted_guest_trips = []
     try:
         accepted_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == current_user.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED
+            SkiTripParticipant.active_status_filter()
         ).all()
         accepted_trip_ids = [p.trip_id for p in accepted_participations]
         if accepted_trip_ids:
@@ -4946,7 +5044,7 @@ def season_snapshot():
     try:
         accepted_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == current_user.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED
+            SkiTripParticipant.active_status_filter()
         ).all()
         accepted_trip_ids = [p.trip_id for p in accepted_participations]
         if accepted_trip_ids:
@@ -5536,7 +5634,7 @@ def idea_detail_trip(trip_id):
     else:
         why_line = f"{anchor_name} is considering this trip."
 
-    # Build participant list: host first, then accepted guests, then "You, if you join"
+    # Build participant list: host first, then active RSVP guests, then "You, if you join"
     participants = []
     if trip_owner:
         participants.append({
@@ -5546,10 +5644,11 @@ def idea_detail_trip(trip_id):
             "friend_id": trip_owner.id,
         })
 
-    accepted_rows = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, status=GuestStatus.ACCEPTED
+    active_rows = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip_id,
+        SkiTripParticipant.active_status_filter(),
     ).all()
-    for row in accepted_rows:
+    for row in active_rows:
         if row.user_id == trip_owner.id if trip_owner else False:
             continue
         if row.user_id == user.id:
@@ -5657,7 +5756,7 @@ def create_trip():
     
     # Add participant if friend_id is provided
     if friend_id:
-        trip.add_participant(friend_id, GuestStatus.INVITED)
+        trip.add_participant(friend_id, GuestStatus.PENDING)
     
     # Track first trip created if not already set
     if not user.first_trip_created_at:
@@ -5762,7 +5861,7 @@ def update_trip_dates(trip_id):
     _dates_notify_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip_id,
-            SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
     ]
@@ -5821,7 +5920,7 @@ def update_trip_resort(trip_id):
             _resort_notify_ids = [
                 p.user_id for p in SkiTripParticipant.query.filter(
                     SkiTripParticipant.trip_id == trip_id,
-                    SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                    SkiTripParticipant.active_status_filter(),
                     SkiTripParticipant.user_id != trip.user_id,
                 ).all()
             ]
@@ -5865,8 +5964,8 @@ def update_trip_pass(trip_id):
     if not participant:
         return jsonify({"success": False, "error": "You are not a participant of this trip."}), 403
     is_trip_owner = trip.user_id == current_user.id
-    if not is_trip_owner and participant.status != GuestStatus.ACCEPTED:
-        return jsonify({"success": False, "error": "Only accepted participants can update their pass."}), 403
+    if not is_trip_owner and not participant.is_active:
+        return jsonify({"success": False, "error": "Only active participants can update their pass."}), 403
     data = request.get_json(silent=True) or {}
     raw_pass = (data.get("pass_type") or "").strip()
     normalized = normalize_pass_selection(raw_pass)
@@ -5948,7 +6047,7 @@ def update_trip_status(trip_id):
         notify_ids = [
             p.user_id for p in SkiTripParticipant.query.filter(
                 SkiTripParticipant.trip_id == trip_id,
-                SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                SkiTripParticipant.active_status_filter(),
                 SkiTripParticipant.user_id != trip.user_id,
             ).all()
         ]
@@ -6020,7 +6119,7 @@ def delete_trip(trip_id):
     _del_notify_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
     ]
@@ -8009,7 +8108,7 @@ def admin_backfill_posthog():
     }
     trip_guest_ids = {
         r[0] for r in db.session.execute(
-            db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status = 'accepted'")
+            db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status IN ('interested', 'going')")
         )
     }
     friend_ids = {
@@ -8786,7 +8885,7 @@ def friends():
         _user_accepted_ids = [
             p.trip_id for p in SkiTripParticipant.query.filter(
                 SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.status == GuestStatus.ACCEPTED
+                SkiTripParticipant.active_status_filter()
             ).all()
         ]
         if _user_accepted_ids:
@@ -8872,7 +8971,7 @@ def friends():
     if app.debug:
         print(f"[FRIENDS_PERF] batch_owner_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_owner_trips)}")
 
-    # ── [FRIENDS_PERF] Block 8c: batch accepted participant trips for all friends
+    # ── [FRIENDS_PERF] Block 8c: batch active participant trips for all friends
     _t = time.perf_counter()
     _batch_part_trips: list = []
     if friend_ids:
@@ -8882,7 +8981,7 @@ def friends():
             .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
             .filter(
                 SkiTripParticipant.user_id.in_(friend_ids),
-                SkiTripParticipant.status == GuestStatus.ACCEPTED,
+                SkiTripParticipant.active_status_filter(),
                 SkiTrip.end_date >= today,
             )
             .all()
@@ -8895,7 +8994,7 @@ def friends():
         _part_rows = SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id.in_(_part_trip_ids),
             SkiTripParticipant.user_id.in_(friend_ids),
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
         ).all()
         _trip_id_to_obj = {t.id: t for t in _batch_part_trips}
         for _pr in _part_rows:
@@ -9233,7 +9332,7 @@ def friend_profile(friend_id):
         .all()
     )
 
-    # Get current user's trips for overlap detection: owned + accepted guest
+    # Get current user's trips for overlap detection: owned + active guest.
     user_trips = (
         SkiTrip.query
         .filter_by(user_id=user.id)
@@ -9244,7 +9343,7 @@ def friend_profile(friend_id):
         _fp_accepted_ids = [
             p.trip_id for p in SkiTripParticipant.query.filter(
                 SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.status == GuestStatus.ACCEPTED
+                SkiTripParticipant.active_status_filter()
             ).all()
         ]
         if _fp_accepted_ids:
@@ -10509,7 +10608,7 @@ def home():
         connection_toast_activity_ids = []
         connection_toast_suggest_url = None
 
-    # --- Next Trip (created or accepted) ---
+    # --- Next Trip (created or actively joined) ---
     try:
         _hp_t0 = time.perf_counter()
         my_trips = SkiTrip.query.filter(
@@ -10526,7 +10625,7 @@ def home():
         _hp_t0 = time.perf_counter()
         accepted_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED
+            SkiTripParticipant.active_status_filter()
         ).all()
         if app.debug:
             print(f"[HOME_PERF] accepted_participations={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_participations)}")
@@ -10577,7 +10676,7 @@ def home():
             .options(db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort))
             .filter(
                 SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.status == GuestStatus.INVITED
+                SkiTripParticipant.status == GuestStatus.PENDING
             )
             .all()
         )
@@ -11165,11 +11264,11 @@ def friend_trip_details(trip_id):
     pending_request = None
     
     if trip.user_id != current_user.id:
-        # 1. Check if viewer is already an accepted participant (CRITICAL: status=ACCEPTED only)
-        is_accepted = SkiTripParticipant.query.filter_by(
-            trip_id=trip_id, 
-            user_id=current_user.id,
-            status=GuestStatus.ACCEPTED
+        # 1. Active RSVP participants can view a friend's trip without requesting again.
+        is_accepted = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip_id,
+            SkiTripParticipant.user_id == current_user.id,
+            SkiTripParticipant.active_status_filter(),
         ).first() is not None
         
         # 2. Check for pending join request (status=pending)
@@ -11759,14 +11858,14 @@ def mountain_detail(slug):
     _t = time.perf_counter()
     rows_by_window = {}
 
-    # Bulk-load all accepted participants for raw_trips — one query replaces N×2
-    # calls to trip.get_accepted_participants() across Pass 1 and Pass 2.
+    # Bulk-load all active RSVP participants for raw_trips — one query replaces
+    # N×2 calls across Pass 1 and Pass 2.
     _raw_trip_ids = [t.id for t in raw_trips]
     _bulk_accepted_uids: dict = {}  # trip_id -> [user_ids]
     if _raw_trip_ids:
         _part_rows = SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id.in_(_raw_trip_ids),
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
         ).all()
         for _pr in _part_rows:
             _bulk_accepted_uids.setdefault(_pr.trip_id, []).append(_pr.user_id)
@@ -12618,7 +12717,7 @@ def add_trip():
             db.session.flush()
             trip.add_owner_as_participant()
             if friend_id:
-                trip.add_participant(friend_id, GuestStatus.INVITED)
+                trip.add_participant(friend_id, GuestStatus.PENDING)
             emit_trip_created_activities(trip, current_user.id)
             db.session.commit()
 
@@ -12679,19 +12778,53 @@ def add_trip():
         is_group=is_group,
     )
 
-def is_accepted_trip_member(trip, user):
-    """Return True if user is the trip owner OR an accepted participant."""
+def is_active_trip_member(trip, user):
+    """Return True if user is the organizer or has an active RSVP."""
     if trip.user_id == user.id:
         return True
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip.id, user_id=user.id
     ).first()
-    return participant is not None and participant.status == GuestStatus.ACCEPTED
+    return participant is not None and participant.is_active
+
+
+def is_accepted_trip_member(trip, user):
+    """Backward-compatible name for the active trip-member predicate."""
+    return is_active_trip_member(trip, user)
 
 
 def can_access_trip_planning(trip, user):
-    """Gate for the collaborative planning board: owner or accepted participant only."""
-    return is_accepted_trip_member(trip, user)
+    """Gate for the collaborative planning board: organizer or active RSVP."""
+    return is_active_trip_member(trip, user)
+
+
+_RSVP_ACTION_TO_STATUS = {
+    "going": GuestStatus.GOING,
+    "interested": GuestStatus.INTERESTED,
+    "decline": GuestStatus.DECLINED,
+    "declined": GuestStatus.DECLINED,
+    # Backward compatibility for already-rendered legacy invite forms. It is
+    # intentionally Interested, never Going, because no route may infer Going.
+    "accept": GuestStatus.INTERESTED,
+}
+
+
+def _requested_rsvp_status():
+    """Parse the explicit RSVP choice from form or JSON input."""
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        action = payload.get("response") or payload.get("action") or payload.get("status")
+    else:
+        action = request.form.get("response") or request.form.get("action") or request.form.get("status")
+    return _RSVP_ACTION_TO_STATUS.get((action or "").strip().lower())
+
+
+def _rsvp_confirmation_message(status):
+    if status == GuestStatus.GOING:
+        return "You're going!"
+    if status == GuestStatus.INTERESTED:
+        return "You're interested in this trip."
+    return "Invite declined."
 
 
 @app.route("/trips/<int:trip_id>/edit", methods=["GET", "POST"])
@@ -12715,25 +12848,42 @@ def trip_detail(trip_id):
         .first_or_404()
     )
 
-    # Check if user is owner or a participant
+    # Check whether the current user may view this detail screen. Active
+    # participants can use the full trip experience; Pending users can view
+    # only to make their RSVP choice.
     is_owner = trip.user_id == current_user.id
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
     ).first()
-    is_guest = not is_owner and participant and participant.status == GuestStatus.ACCEPTED
-    is_invited = not is_owner and participant and participant.status == GuestStatus.INVITED
+    is_guest = bool(not is_owner and participant and participant.is_active)
+    is_invited = bool(
+        not is_owner and participant and participant.status == GuestStatus.PENDING
+    )
     
-    # Owner, accepted guests, and invited users can view the trip detail
+    # Organizers, active guests, and pending invitees can view the trip detail.
+    # Declined and Removed relationships remain private until an organizer
+    # explicitly reinvites them.
     if not is_owner and not is_guest and not is_invited:
         abort(404)
     
-    # Get participants grouped by status
-    invited_participants = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, status=GuestStatus.INVITED
-    ).all()
-    accepted_participants = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, status=GuestStatus.ACCEPTED
-    ).all()
+    # Load all RSVP rows once, then provide explicit UI groups. Removed is
+    # intentionally excluded from every visible group.
+    participant_rows = SkiTripParticipant.query.filter_by(trip_id=trip_id).all()
+    going_participants = [
+        p for p in participant_rows if p.status == GuestStatus.GOING
+    ]
+    interested_participants = [
+        p for p in participant_rows if p.status == GuestStatus.INTERESTED
+    ]
+    pending_participants = [
+        p for p in participant_rows if p.status == GuestStatus.PENDING
+    ]
+    declined_participants = [
+        p for p in participant_rows if p.status == GuestStatus.DECLINED
+    ]
+    active_participants = [
+        p for p in participant_rows if p.is_active
+    ]
     
     # Get connected friends for invite modal (owner only)
     friends_for_invite = []
@@ -12750,17 +12900,24 @@ def trip_detail(trip_id):
                 (u.last_name  or '').strip().lower(),
             ))
 
-            # Check which friends are already invited or accepted.
-            # Use already-loaded lists to avoid a redundant lazy-load of trip.participants.
-            existing_participants = {p.user_id: p.status for p in invited_participants + accepted_participants}
+            # Use already-loaded RSVP records to avoid a redundant lazy load.
+            existing_participants = {p.user_id: p.status for p in participant_rows}
             
             for friend in friends:
                 status = existing_participants.get(friend.id)
+                is_active = status in ACTIVE_RSVP_STATUSES
+                is_pending = status == GuestStatus.PENDING
                 friends_for_invite.append({
                     'user': friend,
                     'status': status.value if status else None,
-                    'disabled': status is not None,
-                    'label': 'Already on trip' if status == GuestStatus.ACCEPTED else ('Invite sent' if status == GuestStatus.INVITED else None)
+                    'disabled': is_active or is_pending,
+                    'label': (
+                        'Already on trip' if is_active
+                        else 'Invite sent' if is_pending
+                        else 'Declined — reinvite' if status == GuestStatus.DECLINED
+                        else 'Removed — reinvite' if status == GuestStatus.REMOVED
+                        else None
+                    ),
                 })
     
     # External trip invite URL intentionally disabled.
@@ -12775,9 +12932,11 @@ def trip_detail(trip_id):
     # Get group signals for aggregated view
     group_signals = trip.get_group_signals()
     
-    # Get all participants (owner + accepted guests) for display
-    # EXCLUDE organizer from all_participants list for the "Who's Going" section
-    all_participants = [p for p in trip.get_all_participants() if p.user_id != trip.user_id]
+    # Active guests are retained as the legacy display list used by existing
+    # setup/overlap widgets. The RSVP groups above drive the people section.
+    all_participants = [
+        p for p in active_participants if p.user_id != trip.user_id
+    ]
     
     # Get pending join requests (owner only)
     pending_requests = []
@@ -12900,7 +13059,7 @@ def trip_detail(trip_id):
         if can_plan else 0
     )
 
-    # My Setup: current user is an editable member if owner or accepted participant
+    # My Setup: current user is editable only while actively participating.
     is_member = is_owner or is_guest
 
     # My Setup: effective pass display for current user.
@@ -12920,10 +13079,14 @@ def trip_detail(trip_id):
         is_guest=is_guest,
         is_invited=is_invited,
         is_member=is_member,
-        invited_participants=invited_participants,
-        accepted_participants=accepted_participants,
+        invited_participants=pending_participants,
+        accepted_participants=active_participants,
+        going_participants=going_participants,
+        interested_participants=interested_participants,
+        pending_participants=pending_participants,
+        declined_participants=declined_participants,
         friends_for_invite=friends_for_invite,
-        invite_count=len(invited_participants),
+        invite_count=len(pending_participants),
         trip_invite_url=trip_invite_url,
         group_signals=group_signals,
         all_participants=all_participants,
@@ -13056,11 +13219,11 @@ def planning_posts_create(trip_id):
     db.session.add(post)
     db.session.commit()
 
-    # Notify all other accepted members (including owner if not author)
+    # Notify all other active members (including owner if not author).
     recipient_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip_id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != current_user.id,
         ).all()
     ]
@@ -13160,8 +13323,8 @@ def trip_invite_detail(trip_id):
         flash("You don't have an invite for this trip.", "error")
         return redirect(url_for("my_trips"))
     
-    # Check if user has accepted (unlocked state)
-    is_accepted = participant.status == GuestStatus.ACCEPTED
+    # Either active RSVP unlocks the trip experience.
+    is_accepted = participant.is_active
     
     # Check if we should show the nudge (just accepted via query param)
     show_nudge = request.args.get("just_accepted") == "1" and is_accepted
@@ -13173,11 +13336,13 @@ def trip_invite_detail(trip_id):
     all_participants = SkiTripParticipant.query.filter_by(trip_id=trip_id).all()
     
     # Sort participants by status
-    accepted_participants = [p for p in all_participants if p.status == GuestStatus.ACCEPTED]
-    other_participants = [p for p in all_participants if p.status != GuestStatus.ACCEPTED]
+    accepted_participants = [p for p in all_participants if p.is_active]
+    other_participants = [p for p in all_participants if not p.is_active]
     
-    # Calculate going count: owner (always) + accepted invitees
-    going_count = 1 + len(accepted_participants)  # 1 for owner
+    # Count explicit personal Going RSVPs only.
+    going_count = len([
+        p for p in all_participants if p.status == GuestStatus.GOING
+    ])
     
     # Check if user owns equipment (has EquipmentSetup with brand or model)
     user_owns_equipment = EquipmentSetup.query.filter(
@@ -13243,7 +13408,7 @@ def update_trip_accommodation(trip_id):
         _accom_notify_ids = [
             p.user_id for p in SkiTripParticipant.query.filter(
                 SkiTripParticipant.trip_id == trip_id,
-                SkiTripParticipant.status.in_([GuestStatus.ACCEPTED, GuestStatus.INVITED]),
+                SkiTripParticipant.active_status_filter(),
                 SkiTripParticipant.user_id != trip.user_id,
             ).all()
         ]
@@ -13325,11 +13490,13 @@ def trip_invite_token_landing(token):
         flash("That's your own trip invite link.", "trip")
         return redirect(url_for("trip_detail", trip_id=trip.id))
 
-    # Already accepted — skip the landing and go straight to the trip
+    # Active participants can skip the response screen. Declined and Removed
+    # records remain visible only as a non-actionable explanation; a link can
+    # never silently revive them.
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip.id, user_id=current_user.id
     ).first()
-    if participant and participant.status == GuestStatus.ACCEPTED:
+    if participant and participant.is_active:
         return redirect(url_for("trip_detail", trip_id=trip.id))
 
     mountain_name = (trip.resort.name if trip.resort else None) or trip.mountain or "the mountain"
@@ -13339,6 +13506,7 @@ def trip_invite_token_landing(token):
         inviter=inviter,
         token=token,
         participant=participant,
+        can_respond=participant is None or participant.status == GuestStatus.PENDING,
         mountain_name=mountain_name,
     )
 
@@ -13346,7 +13514,7 @@ def trip_invite_token_landing(token):
 @app.route("/trip-invite/<token>/accept", methods=["POST"])
 @login_required
 def trip_invite_token_accept(token):
-    """Accept a trip invite via external token."""
+    """Apply an explicit RSVP response from an external trip-invite link."""
     validate_csrf_request()
     _xff_tia = (request.headers.get("X-Forwarded-For") or "")[:80]
     app.logger.info(
@@ -13381,85 +13549,106 @@ def trip_invite_token_accept(token):
         trip_id=trip.id, user_id=current_user.id
     ).first()
 
+    target_status = _requested_rsvp_status()
+    if not target_status:
+        flash("Choose Going, Interested, or Not going.", "error")
+        return redirect(url_for("trip_invite_token_landing", token=token))
+
+    if participant and participant.is_active:
+        flash("You've already responded to this trip.", "trip")
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+    if participant and participant.status in (GuestStatus.DECLINED, GuestStatus.REMOVED):
+        flash("Only the organizer can reinvite you to this trip.", "error")
+        return redirect(url_for("trip_invite_token_landing", token=token))
+
+    was_pending = participant is not None and participant.status == GuestStatus.PENDING
     if participant:
-        if participant.status == GuestStatus.ACCEPTED:
-            flash("You're already on this trip.", "trip")
-            return redirect(url_for("trip_detail", trip_id=trip.id))
-        # INVITED or DECLINED — upgrade to ACCEPTED
-        participant.status = GuestStatus.ACCEPTED
+        participant.status = target_status
     else:
         participant = SkiTripParticipant(
             trip_id=trip.id,
             user_id=current_user.id,
-            status=GuestStatus.ACCEPTED,
+            status=target_status,
             role=ParticipantRole.GUEST,
         )
         db.session.add(participant)
 
-    if not trip.is_group_trip:
+    if target_status in ACTIVE_RSVP_STATUSES and not trip.is_group_trip:
         trip.is_group_trip = True
 
     # Stamp first-use timestamp (informational only — token remains reusable)
     if tit.used_at is None:
         tit.used_at = datetime.utcnow()
 
-    # Reconcile any matching pending Invitation row (same trip, same recipient).
-    # TripInviteToken and Invitation are parallel systems; if the user already had
-    # a direct pending invite for this trip, accepting via token should leave no
-    # stale pending Invitation row.  Updated inside the same transaction so the two
-    # systems stay consistent even on rollback.
+    # Reconcile a parallel direct trip invite only after an active RSVP. The
+    # Invitation table remains a delivery/request record, not RSVP truth.
     _pending_trip_inv = Invitation.query.filter_by(
         receiver_id=current_user.id,
         trip_id=trip.id,
         status='pending',
     ).first()
-    if _pending_trip_inv:
+    if _pending_trip_inv and target_status in ACTIVE_RSVP_STATUSES:
         _pending_trip_inv.status = 'accepted'
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except sa.exc.IntegrityError:
+        # A concurrent first response may have inserted the same participant
+        # after our initial lookup. Treat that duplicate tap as idempotent.
+        db.session.rollback()
+        existing = SkiTripParticipant.query.filter_by(
+            trip_id=trip.id, user_id=current_user.id
+        ).first()
+        if existing:
+            flash("You've already responded to this trip.", "trip")
+            return redirect(url_for("trip_detail", trip_id=trip.id))
+        raise
 
-    emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
-    emit_friend_joined_trip_activities(trip, current_user.id)
-    emit_messaging_event(
-        event_name=EventName.TRIP_INVITE_ACCEPTED,
-        actor_user_id=current_user.id,
-        recipient_user_id=trip.user_id,
-        entity_type="trip",
-        entity_id=trip.id,
-        metadata={
-            "actor_name": current_user.first_name or current_user.username,
-            "resort":     trip.mountain or "your trip",
-            "trip_id":    trip.id,
-        },
-        source_route="trip_invite_token_accept",
-    )
-
-    # Notify other accepted participants (excluding accepter and owner)
-    _tit_other_accepted = SkiTripParticipant.query.filter(
-        SkiTripParticipant.trip_id == trip.id,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED,
-        SkiTripParticipant.user_id != current_user.id,
-        SkiTripParticipant.user_id != trip.user_id,
-    ).all()
-    for _op in _tit_other_accepted:
+    if target_status in ACTIVE_RSVP_STATUSES:
+        emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
+        emit_friend_joined_trip_activities(trip, current_user.id)
         emit_messaging_event(
-            event_name=EventName.TRIP_PARTICIPANT_ADDED,
+            event_name=EventName.TRIP_INVITE_ACCEPTED,
             actor_user_id=current_user.id,
-            recipient_user_id=_op.user_id,
+            recipient_user_id=trip.user_id,
             entity_type="trip",
             entity_id=trip.id,
             metadata={
-                "resort":  trip.mountain or "your trip",
+                "actor_name": current_user.first_name or current_user.username,
+                "resort": trip.mountain or "your trip",
                 "trip_id": trip.id,
+                "rsvp": target_status.value,
             },
             source_route="trip_invite_token_accept",
         )
+        other_active = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip.id,
+            SkiTripParticipant.active_status_filter(),
+            SkiTripParticipant.user_id != current_user.id,
+            SkiTripParticipant.user_id != trip.user_id,
+        ).all()
+        for other_participant in other_active:
+            emit_messaging_event(
+                event_name=EventName.TRIP_PARTICIPANT_ADDED,
+                actor_user_id=current_user.id,
+                recipient_user_id=other_participant.user_id,
+                entity_type="trip",
+                entity_id=trip.id,
+                metadata={
+                    "resort": trip.mountain or "your trip",
+                    "trip_id": trip.id,
+                },
+                source_route="trip_invite_token_accept",
+            )
+    elif target_status == GuestStatus.DECLINED:
+        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
 
     # Clean up session key if present
     session.pop("trip_invite_token", None)
 
-    flash("You're going!" if (trip.trip_status or 'planning') == 'going' else "You're planning!", "trip")
-    return redirect(url_for("trip_detail", trip_id=trip.id))
+    message = _rsvp_confirmation_message(target_status)
+    flash(message, "success" if target_status in ACTIVE_RSVP_STATUSES else "info")
+    return redirect(url_for("trip_detail", trip_id=trip.id) if target_status in ACTIVE_RSVP_STATUSES else url_for("my_trips"))
 
 
 @app.route("/trips/<int:trip_id>/invite/cancel", methods=["POST"])
@@ -13478,13 +13667,14 @@ def cancel_trip_invite(trip_id):
         flash("Invalid request.", "error")
         return redirect(url_for("trip_detail", trip_id=trip_id))
     
-    # Find the pending invite
+    # Cancelling preserves the relationship as Removed so old links and later
+    # reinvites cannot create duplicate participant rows.
     participant = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, user_id=user_id, status=GuestStatus.INVITED
+        trip_id=trip_id, user_id=user_id, status=GuestStatus.PENDING
     ).first()
     
     if participant:
-        db.session.delete(participant)
+        participant.status = GuestStatus.REMOVED
         db.session.commit()
         flash("Invite cancelled.", "info")
     
@@ -13536,10 +13726,15 @@ def send_trip_invites(trip_id):
             participant = SkiTripParticipant(
                 trip_id=trip_id,
                 user_id=friend_id,
-                status=GuestStatus.INVITED
+                status=GuestStatus.PENDING
             )
             db.session.add(participant)
             # Emit activity for the invited user
+            emit_trip_invite_received_activity(trip, current_user.id, friend_id)
+            invites_sent += 1
+            newly_invited_user_ids.append(friend_id)
+        elif existing.status in (GuestStatus.DECLINED, GuestStatus.REMOVED):
+            existing.status = GuestStatus.PENDING
             emit_trip_invite_received_activity(trip, current_user.id, friend_id)
             invites_sent += 1
             newly_invited_user_ids.append(friend_id)
@@ -13585,15 +13780,15 @@ def request_to_join_trip(trip_id):
     if trip.end_date < date.today():
         return jsonify({"success": False, "error": "This trip has already ended."}), 400
     
-    # 2. Requester must not already be an ACCEPTED participant
-    is_accepted = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, 
-        user_id=current_user.id,
-        status=GuestStatus.ACCEPTED
+    # 2. Requester must not already be an active participant.
+    is_accepted = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip_id,
+        SkiTripParticipant.user_id == current_user.id,
+        SkiTripParticipant.active_status_filter(),
     ).first() is not None
     
     if is_accepted:
-        return jsonify({"success": False, "error": "You are already an accepted participant of this trip."}), 400
+        return jsonify({"success": False, "error": "You are already an active participant of this trip."}), 400
         
     # 4. Only one pending request per user per trip
     existing_request = Invitation.query.filter_by(
@@ -13666,16 +13861,26 @@ def respond_to_join_request(request_id):
     if action == "accept":
         invitation.status = 'accepted'
         
-        # Add requester as participant
-        participant = SkiTripParticipant(
-            trip_id=trip.id,
-            user_id=invitation.sender_id,
-            status=GuestStatus.ACCEPTED,
-            role=ParticipantRole.GUEST,
-            start_date=trip.start_date,
-            end_date=trip.end_date
-        )
-        db.session.add(participant)
+        # Joining is an explicit expression of interest, never an inferred
+        # Going RSVP. Reuse an existing row rather than violating the unique
+        # trip/user relationship.
+        participant = SkiTripParticipant.query.filter_by(
+            trip_id=trip.id, user_id=invitation.sender_id
+        ).first()
+        if participant and participant.status in (GuestStatus.DECLINED, GuestStatus.REMOVED):
+            return jsonify({"success": False, "error": "Reinvite this person before accepting their request."}), 409
+        if participant:
+            participant.status = GuestStatus.INTERESTED
+        else:
+            participant = SkiTripParticipant(
+                trip_id=trip.id,
+                user_id=invitation.sender_id,
+                status=GuestStatus.INTERESTED,
+                role=ParticipantRole.GUEST,
+                start_date=trip.start_date,
+                end_date=trip.end_date
+            )
+            db.session.add(participant)
         
         # Mark trip as group trip if not already
         if not trip.is_group_trip:
@@ -13727,29 +13932,42 @@ def cancel_join_request(request_id):
 @app.route("/trips/<int:trip_id>/respond", methods=["POST"])
 @login_required
 def respond_to_trip_invite(trip_id):
-    """Accept or decline a trip invite."""
+    """Apply the current user's explicit RSVP to a direct trip invitation."""
     validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
-    
-    # Find the user's participant record
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
     ).first()
-    
-    if not participant or participant.status != GuestStatus.INVITED:
-        return jsonify({"success": False, "error": "No pending invite found"}), 404
-    
-    # Support both form data and JSON
-    if request.is_json:
-        data = request.get_json() or {}
-        action = data.get("response") or data.get("action")
-    else:
-        action = request.form.get("action")
-    
-    if action == "accept":
-        participant.status = GuestStatus.ACCEPTED
-        
-        # Archive solo trip if it exists
+    if not participant:
+        return jsonify({"success": False, "error": "No trip RSVP found"}), 404
+
+    target_status = _requested_rsvp_status()
+    if not target_status:
+        return jsonify({"success": False, "error": "Choose Going, Interested, or Not going."}), 400
+
+    current_status = participant.status
+    if current_status == GuestStatus.REMOVED:
+        return jsonify({"success": False, "error": "Only the organizer can reinvite you to this trip."}), 403
+    if current_status == GuestStatus.DECLINED and target_status != GuestStatus.DECLINED:
+        return jsonify({"success": False, "error": "Only the organizer can reinvite you to this trip."}), 403
+
+    # Repeated submissions are harmless. A stale decline submission also
+    # remains a no-op rather than reactivating the relationship.
+    if current_status == target_status:
+        message = _rsvp_confirmation_message(target_status)
+        if request.is_json:
+            return jsonify({"success": True, "message": message, "status": target_status.value})
+        flash(message, "info")
+        return redirect(url_for("trip_detail", trip_id=trip_id) if participant.is_active else url_for("my_trips"))
+
+    if current_status != GuestStatus.PENDING and not participant.is_active:
+        return jsonify({"success": False, "error": "This RSVP can only be changed by the organizer."}), 409
+
+    participant.status = target_status
+
+    if target_status in ACTIVE_RSVP_STATUSES:
+        # Preserve the existing duplicate-trip cleanup for either active RSVP;
+        # Interested and Going grant the same trip access.
         solo_trip = SkiTrip.query.filter(
             SkiTrip.user_id == current_user.id,
             SkiTrip.id != trip_id,
@@ -13757,22 +13975,27 @@ def respond_to_trip_invite(trip_id):
             SkiTrip.end_date == trip.end_date,
             db.or_(
                 SkiTrip.resort_id == trip.resort_id,
-                SkiTrip.mountain == trip.mountain
-            )
+                SkiTrip.mountain == trip.mountain,
+            ),
         ).first()
-        
         if solo_trip:
-            # Carry over equipment details from solo trip (SkiTrip doesn't have transportation_status)
             if solo_trip.equipment_override and solo_trip.equipment_override != 'use_default':
-                participant.equipment_status = ParticipantEquipment.OWN if solo_trip.equipment_override == 'have_own_equipment' else ParticipantEquipment.RENTING
-            
+                participant.equipment_status = (
+                    ParticipantEquipment.OWN
+                    if solo_trip.equipment_override == 'have_own_equipment'
+                    else ParticipantEquipment.RENTING
+                )
             db.session.delete(solo_trip)
-            
-        emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
-        emit_friend_joined_trip_activities(trip, current_user.id)
-        db.session.commit()
 
-        # ── B4: trip.invite.accepted — routed through centralized dispatch ──
+        if current_status == GuestStatus.PENDING:
+            emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
+            emit_friend_joined_trip_activities(trip, current_user.id)
+    elif target_status == GuestStatus.DECLINED and current_status == GuestStatus.PENDING:
+        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
+
+    db.session.commit()
+
+    if target_status in ACTIVE_RSVP_STATUSES and current_status == GuestStatus.PENDING:
         emit_messaging_event(
             event_name=EventName.TRIP_INVITE_ACCEPTED,
             actor_user_id=current_user.id,
@@ -13781,44 +14004,29 @@ def respond_to_trip_invite(trip_id):
             entity_id=trip.id,
             metadata={
                 "actor_name": current_user.first_name or current_user.username,
-                "resort":     trip.mountain or "your trip",
-                "trip_id":    trip_id,
+                "resort": trip.mountain or "your trip",
+                "trip_id": trip_id,
+                "rsvp": target_status.value,
             },
-            source_route="respond_to_trip_invite_accept",
+            source_route="respond_to_trip_invite",
         )
-
-        # Notify other accepted participants (excluding accepter and owner)
-        _other_accepted = SkiTripParticipant.query.filter(
+        other_active = SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != current_user.id,
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
-        for _op in _other_accepted:
+        for other_participant in other_active:
             emit_messaging_event(
                 event_name=EventName.TRIP_PARTICIPANT_ADDED,
                 actor_user_id=current_user.id,
-                recipient_user_id=_op.user_id,
+                recipient_user_id=other_participant.user_id,
                 entity_type="trip",
                 entity_id=trip.id,
-                metadata={
-                    "resort":  trip.mountain or "your trip",
-                    "trip_id": trip.id,
-                },
-                source_route="respond_to_trip_invite_accept",
+                metadata={"resort": trip.mountain or "your trip", "trip_id": trip.id},
+                source_route="respond_to_trip_invite",
             )
-
-        _accept_msg = "You're going!" if (trip.trip_status or 'planning') == 'going' else "You're planning!"
-        if request.is_json:
-            return jsonify({"success": True, "message": _accept_msg})
-        flash(_accept_msg, "success")
-        return redirect(url_for("trip_detail", trip_id=trip_id))
-    elif action == "decline":
-        participant.status = GuestStatus.DECLINED
-        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
-        db.session.commit()
-
-        # ── B4: trip.invite.declined — SILENT path, audit row only, no provider call ──
+    elif target_status == GuestStatus.DECLINED and current_status == GuestStatus.PENDING:
         emit_messaging_event(
             event_name=EventName.TRIP_INVITE_DECLINED,
             actor_user_id=current_user.id,
@@ -13827,18 +14035,168 @@ def respond_to_trip_invite(trip_id):
             entity_id=trip.id,
             metadata={
                 "actor_name": current_user.first_name or current_user.username,
-                "trip_id":    trip_id,
-                "resort":     trip.mountain or "your trip",
+                "trip_id": trip_id,
+                "resort": trip.mountain or "your trip",
             },
-            source_route="respond_to_trip_invite_decline",
+            source_route="respond_to_trip_invite",
         )
 
-        if request.is_json:
-            return jsonify({"success": True, "message": "Invite declined"})
-        flash("Invite declined.", "info")
-        return redirect(url_for("my_trips"))
-    else:
-        return jsonify({"success": False, "error": "Invalid action"}), 400
+    message = _rsvp_confirmation_message(target_status)
+    if request.is_json:
+        return jsonify({"success": True, "message": message, "status": target_status.value})
+    flash(message, "success" if target_status in ACTIVE_RSVP_STATUSES else "info")
+    return redirect(url_for("trip_detail", trip_id=trip_id) if target_status in ACTIVE_RSVP_STATUSES else url_for("my_trips"))
+
+
+@app.route("/trips/<int:trip_id>/rsvp", methods=["POST"])
+@login_required
+def update_own_trip_rsvp(trip_id):
+    """Allow an active participant to change their own RSVP or leave."""
+    validate_csrf_request()
+    trip = SkiTrip.query.get_or_404(trip_id)
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    if not participant or not participant.is_active:
+        return jsonify({"success": False, "error": "Only active participants can update this RSVP."}), 403
+
+    target_status = _requested_rsvp_status()
+    if trip.user_id == current_user.id and target_status not in (
+        GuestStatus.GOING,
+        GuestStatus.INTERESTED,
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Organizers may only choose Going or Interested.",
+        }), 400
+    if target_status not in (
+        GuestStatus.GOING,
+        GuestStatus.INTERESTED,
+        GuestStatus.DECLINED,
+    ):
+        return jsonify({"success": False, "error": "Choose Going, Interested, or Leave trip."}), 400
+
+    if participant.status != target_status:
+        participant.status = target_status
+        db.session.commit()
+
+    message = (
+        "You left this trip."
+        if target_status == GuestStatus.DECLINED
+        else _rsvp_confirmation_message(target_status)
+    )
+    if request.is_json:
+        return jsonify({"success": True, "message": message, "status": target_status.value})
+    flash(message, "info")
+    return redirect(url_for("my_trips") if target_status == GuestStatus.DECLINED else url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/participants/<int:user_id>/rsvp", methods=["POST"])
+@login_required
+def organizer_update_trip_rsvp(trip_id, user_id):
+    """Allow the organizer to change an active guest between Going and Interested."""
+    validate_csrf_request()
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+    if user_id == trip.user_id:
+        return jsonify({"success": False, "error": "Organizers manage their own RSVP."}), 400
+
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=user_id
+    ).first()
+    if not participant or not participant.is_active:
+        return jsonify({"success": False, "error": "Only active guests can be updated."}), 409
+
+    target_status = _requested_rsvp_status()
+    if target_status not in (GuestStatus.GOING, GuestStatus.INTERESTED):
+        return jsonify({"success": False, "error": "Organizers may set Going or Interested."}), 400
+    if participant.status != target_status:
+        participant.status = target_status
+        db.session.commit()
+
+    if request.is_json:
+        return jsonify({"success": True, "status": target_status.value})
+    flash("Guest RSVP updated.", "success")
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/participants/<int:user_id>/remove", methods=["POST"])
+@login_required
+def organizer_remove_trip_participant(trip_id, user_id):
+    """Persistently hide a guest RSVP relationship at the organizer's request."""
+    validate_csrf_request()
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+    if user_id == trip.user_id:
+        return jsonify({"success": False, "error": "The organizer cannot be removed."}), 400
+
+    confirmation = (
+        (request.get_json(silent=True) or {}).get("confirm")
+        if request.is_json else request.form.get("confirm")
+    )
+    if str(confirmation).lower() not in {"1", "true", "remove"}:
+        return jsonify({"success": False, "error": "Removal confirmation is required."}), 400
+
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=user_id
+    ).first()
+    if not participant:
+        return jsonify({"success": False, "error": "Trip participant not found."}), 404
+    if participant.status != GuestStatus.REMOVED:
+        participant.status = GuestStatus.REMOVED
+        db.session.commit()
+
+    if request.is_json:
+        return jsonify({"success": True, "status": GuestStatus.REMOVED.value})
+    flash("Participant removed from this trip.", "info")
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/participants/<int:user_id>/reinvite", methods=["POST"])
+@login_required
+def organizer_reinvite_trip_participant(trip_id, user_id):
+    """Reinvite a Declined or Removed guest by returning their RSVP to Pending."""
+    validate_csrf_request()
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+    if user_id == trip.user_id:
+        return jsonify({"success": False, "error": "The organizer cannot be reinvited."}), 400
+
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=user_id
+    ).first()
+    if not participant or participant.status not in (
+        GuestStatus.DECLINED,
+        GuestStatus.REMOVED,
+    ):
+        return jsonify({"success": False, "error": "Only Declined or Removed guests can be reinvited."}), 409
+
+    participant.status = GuestStatus.PENDING
+    if not trip.is_group_trip:
+        trip.is_group_trip = True
+    emit_trip_invite_received_activity(trip, current_user.id, user_id)
+    db.session.commit()
+    emit_messaging_event(
+        event_name=EventName.TRIP_INVITE_CREATED,
+        actor_user_id=current_user.id,
+        recipient_user_id=user_id,
+        entity_type="trip",
+        entity_id=trip.id,
+        metadata={
+            "actor_name": current_user.first_name or current_user.username,
+            "resort": trip.mountain or "a trip",
+            "trip_id": trip.id,
+        },
+        source_route="organizer_reinvite_trip_participant",
+    )
+
+    if request.is_json:
+        return jsonify({"success": True, "status": GuestStatus.PENDING.value})
+    flash("Invite resent.", "success")
+    return redirect(url_for("trip_detail", trip_id=trip_id))
 
 
 @app.route("/api/trips/<int:trip_id>/participant/signals", methods=["POST"])
@@ -13856,9 +14214,9 @@ def update_participant_signals(trip_id):
     if not participant:
         return jsonify({"success": False, "error": "You are not a participant of this trip."}), 404
     
-    # Only accepted participants or owners can update their signals
-    if participant.status != GuestStatus.ACCEPTED and participant.role != ParticipantRole.OWNER:
-        return jsonify({"success": False, "error": "You must accept the invite first."}), 403
+    # Interested and Going are equally active for setup and coordination.
+    if not participant.is_active:
+        return jsonify({"success": False, "error": "You must choose Going or Interested first."}), 403
     
     data = request.get_json() or {}
     
@@ -13939,13 +14297,13 @@ def delete_trip_form(trip_id):
         abort(403)
 
     # Capture notification data before hard delete (participant records cascade-delete with trip)
-    # Only notify ACCEPTED participants — pending invitees, declined, and removed users excluded
+    # Only notify active participants — pending, declined, and removed users excluded.
     _del_resort = trip.mountain or "your trip"
     _del_trip_id = trip.id
     _del_notify_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
     ]
@@ -13990,23 +14348,26 @@ def leave_trip(trip_id):
     trip = SkiTrip.query.get_or_404(trip_id)
     if trip.user_id == current_user.id:
         abort(403)
-    participant = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, user_id=current_user.id, status=GuestStatus.ACCEPTED
+    participant = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip_id,
+        SkiTripParticipant.user_id == current_user.id,
+        SkiTripParticipant.active_status_filter(),
     ).first()
     if not participant:
         abort(403)
-    # Capture recipients before deletion (owner has ACCEPTED status, captured naturally)
+    # Persist the relationship as Declined rather than deleting it, so a stale
+    # invite cannot silently recreate or reactivate the participant.
     _leave_resort = trip.mountain or "your trip"
     _leave_trip_id = trip.id
     _leave_notify_ids = [
         p.user_id for p in SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip_id,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != current_user.id,
         ).all()
     ]
     try:
-        db.session.delete(participant)
+        participant.status = GuestStatus.DECLINED
         db.session.commit()
         for _uid in _leave_notify_ids:
             emit_messaging_event(
@@ -16738,11 +17099,11 @@ def admin_trips():
     ).count()
     accepted_invites = SkiTripParticipant.query.filter(
         SkiTripParticipant.role == ParticipantRole.GUEST,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+        SkiTripParticipant.active_status_filter(),
     ).count()
     pending_invites  = SkiTripParticipant.query.filter(
         SkiTripParticipant.role == ParticipantRole.GUEST,
-        SkiTripParticipant.status == GuestStatus.INVITED,
+        SkiTripParticipant.status == GuestStatus.PENDING,
     ).count()
     invite_accept_pct = round(accepted_invites / total_invites * 100) if total_invites else None
 
@@ -16754,7 +17115,7 @@ def admin_trips():
         func.count(func.distinct(SkiTripParticipant.trip_id))
     ).filter(
         SkiTripParticipant.role == ParticipantRole.GUEST,
-        SkiTripParticipant.status == GuestStatus.ACCEPTED,
+        SkiTripParticipant.active_status_filter(),
     ).scalar() or 0
 
     avg_invites_per_trip = round(total_invites / trips_with_invites, 1) if trips_with_invites else 0
@@ -19566,12 +19927,12 @@ def admin_dashboard():
     ).count()
     p_tinv_today = SkiTripParticipant.query.filter(
         SkiTripParticipant.created_at >= _pulse_today_start,
-        SkiTripParticipant.status == GuestStatus.INVITED,
+        SkiTripParticipant.status == GuestStatus.PENDING,
     ).count()
     p_tinv_yest  = SkiTripParticipant.query.filter(
         SkiTripParticipant.created_at >= _pulse_yest_start,
         SkiTripParticipant.created_at <  _pulse_yest_end,
-        SkiTripParticipant.status == GuestStatus.INVITED,
+        SkiTripParticipant.status == GuestStatus.PENDING,
     ).count()
     p_in_app_invites_today = p_finv_today + p_tinv_today
     p_in_app_invites_yest  = p_finv_yest  + p_tinv_yest
@@ -20143,7 +20504,7 @@ def admin_activation():
             SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id
         ).filter(
             SkiTrip.is_group_trip == True,
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.role != ParticipantRole.OWNER,
             SkiTripParticipant.user_id.in_(ns_ids),
         ).all()
@@ -22131,7 +22492,7 @@ def admin_activation_intel():
 
     # ── Q6: accepted trip participants ───────────────────────────────────
     trip_guest_ids = {r[0] for r in db.session.execute(
-        db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status='accepted'")
+        db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status IN ('interested', 'going')")
     )}
 
     has_trip_ids = trip_owner_ids | trip_guest_ids
@@ -22447,7 +22808,7 @@ def admin_growth_intel():
     mel_fr_accepted   = mel_row[3] or 0
 
     part_accepted, part_total = db.session.execute(db.text(
-        "SELECT COUNT(*) FILTER (WHERE status = 'accepted'), COUNT(*) "
+        "SELECT COUNT(*) FILTER (WHERE status IN ('interested', 'going')), COUNT(*) "
         "FROM ski_trip_participant"
     )).fetchone()
     part_accepted = part_accepted or 0
@@ -22622,7 +22983,7 @@ def admin_crm_intel():
         db.text("SELECT DISTINCT user_id FROM ski_trip")
     )}
     trip_part_ids = {r[0] for r in db.session.execute(
-        db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status='accepted'")
+        db.text("SELECT DISTINCT user_id FROM ski_trip_participant WHERE status IN ('interested', 'going')")
     )}
     has_trip_ids = trip_owner_ids | trip_part_ids
 
@@ -23061,8 +23422,9 @@ def admin_user_detail(user_id):
                                  .limit(5).all()
     trips_created_count = SkiTrip.query.filter_by(user_id=user_id).count()
 
-    trips_joined_count = SkiTripParticipant.query.filter_by(
-        user_id=user_id, status=GuestStatus.ACCEPTED
+    trips_joined_count = SkiTripParticipant.query.filter(
+        SkiTripParticipant.user_id == user_id,
+        SkiTripParticipant.active_status_filter(),
     ).count()
 
     friend_count = Friend.query.filter(

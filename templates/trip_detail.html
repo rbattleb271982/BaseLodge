@@ -1419,65 +1419,58 @@
         </div>
         {% endif %}
 
-        <!-- Who's Going -->
-        {% if all_participants or invited_participants %}
-        <p class="td-section-label">Who's Going</p>
-        <div id="participants-section">
-            {% for p in all_participants %}
+        <!-- RSVP summary and groups -->
+        {% if going_participants or interested_participants or pending_participants or declined_participants %}
+        <p class="td-section-label">RSVP</p>
+        <p class="td-person-meta" style="margin: -6px 0 10px;">
+            {{ going_participants|length }} Going · {{ interested_participants|length }} Interested · {{ pending_participants|length }} Pending
+        </p>
+
+        {% for label, people in [('Going', going_participants), ('Interested', interested_participants), ('Pending', pending_participants), ('Declined', declined_participants)] %}
+            {% if people %}
+            <p class="td-person-status-tag" style="margin: 12px 0 4px;">{{ label }}</p>
+            {% for p in people %}
             <div class="td-person-row">
                 <div class="td-person-info">
-                    <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight: 400; color: var(--bl-color-text-muted); font-size: 12px;">(Organizer)</span>{% endif %}</p>
+                    <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight:400;color:var(--bl-color-text-muted);font-size:12px;">(Organizer)</span>{% endif %}</p>
                     <p class="td-person-meta">{{ p.user|identity_line }}</p>
-                    <p class="td-person-badges">{{ p.get_display_transportation() }} · {{ p.get_display_equipment() }}</p>
                 </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- Pending Invites (owner view) -->
-        {% if is_owner and invited_participants or pending_requests %}
-        {# REQUEST-type join requests are intentionally rendered inline with Pending Invites. Do not move without product review. #}
-        <p class="td-section-label">Pending Invites</p>
-        <div>
-            {% if pending_requests %}
-                {% for req in pending_requests %}
-                <div class="td-person-row">
-                    <div class="td-person-info">
-                        <p class="td-person-name">{{ req.sender.first_name | format_name }} {{ req.sender.last_name | format_name }}</p>
-                        <p class="td-person-meta">{{ req.sender|identity_line }}</p>
-                        <p class="td-person-status-tag">Requested to Join</p>
-                    </div>
-                    {% if is_owner %}
-                    <div class="td-person-actions">
-                        <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" class="td-person-btn-accept">Accept</button>
-                        <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" class="td-person-btn-decline">Decline</button>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            {% endif %}
-            {% if invited_participants %}
-                {% for p in invited_participants %}
-                <div class="td-person-row">
-                    <div class="td-person-info">
-                        <p class="td-person-name">{{ p.user|display_name(current_user.id) }}</p>
-                        <p class="td-person-meta">{{ p.user|identity_line }}</p>
-                    </div>
-                    {% if is_owner %}
+                {% if is_owner and p.user_id != current_user.id %}
+                <div class="td-person-actions">
+                    {% if label in ('Going', 'Interested') %}
+                    <form method="POST" action="{{ url_for('organizer_update_trip_rsvp', trip_id=trip.id, user_id=p.user_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="response" value="{{ 'interested' if label == 'Going' else 'going' }}">
+                        <button type="submit" class="td-cancel-link">Mark {{ 'Interested' if label == 'Going' else 'Going' }}</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('organizer_remove_trip_participant', trip_id=trip.id, user_id=p.user_id) }}" onsubmit="return confirm('Remove this participant from the trip?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="confirm" value="remove">
+                        <button type="submit" class="td-cancel-link">Remove</button>
+                    </form>
+                    {% elif label == 'Pending' %}
                     <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="user_id" value="{{ p.user_id }}">
-                        <button type="button" class="td-cancel-link" onclick="showCancelInviteModal(this.closest('form'))">Cancel</button>
+                        <button type="submit" class="td-cancel-link">Cancel</button>
+                    </form>
+                    {% else %}
+                    <form method="POST" action="{{ url_for('organizer_reinvite_trip_participant', trip_id=trip.id, user_id=p.user_id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="td-person-btn-accept">Reinvite</button>
                     </form>
                     {% endif %}
                 </div>
-                {% endfor %}
+                {% endif %}
+            </div>
+            {% endfor %}
             {% endif %}
-        </div>
+        {% endfor %}
+        {% endif %}
 
-        {% elif not is_owner and pending_requests %}
-        <p class="td-section-label">Pending Invites</p>
+        <!-- Join requests remain separate from RSVP groups. -->
+        {% if is_owner and pending_requests %}
+        <p class="td-section-label">Join requests</p>
         <div>
             {% for req in pending_requests %}
             <div class="td-person-row">
@@ -1486,12 +1479,41 @@
                     <p class="td-person-meta">{{ req.sender|identity_line }}</p>
                     <p class="td-person-status-tag">Requested to Join</p>
                 </div>
+                <div class="td-person-actions">
+                    <button onclick="respondToJoinRequest({{ req.id }}, 'accept')" class="td-person-btn-accept">Accept</button>
+                    <button onclick="respondToJoinRequest({{ req.id }}, 'decline')" class="td-person-btn-decline">Decline</button>
+                </div>
             </div>
             {% endfor %}
         </div>
         {% endif %}
 
+        {% if is_owner and current_user_participant %}
+        <div class="td-cancel-trip-wrap">
+            <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="response" value="{{ 'interested' if current_user_participant.status.value == 'going' else 'going' }}">
+                <button type="submit" class="td-cancel-trip-link">Mark {{ 'Interested' if current_user_participant.status.value == 'going' else 'Going' }}</button>
+            </form>
+        </div>
+        {% endif %}
+
         {% if is_guest %}
+        <div class="td-cancel-trip-wrap" style="display:flex;gap:12px;justify-content:flex-start;">
+            {% if current_user_participant and current_user_participant.status.value == 'going' %}
+            <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="response" value="interested">
+                <button type="submit" class="td-cancel-trip-link">Mark interested</button>
+            </form>
+            {% else %}
+            <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="response" value="going">
+                <button type="submit" class="td-cancel-trip-link">Mark going</button>
+            </form>
+            {% endif %}
+        </div>
         <div class="td-cancel-trip-wrap">
             <button type="button" class="td-cancel-trip-link" onclick="openLeaveSheet()">
                 Leave trip
@@ -1516,13 +1538,18 @@
             <div class="sticky-action-buttons">
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}" class="accept-form">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="accept">
-                    <button type="submit" class="bl-btn-primary" data-loading-text="Accepting…">Accept</button>
+                    <input type="hidden" name="response" value="going">
+                    <button type="submit" class="bl-btn-primary" data-loading-text="Saving…">Going</button>
                 </form>
                 <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="decline">
-                    <button type="submit" class="td-decline-link" data-loading-text="Declining…">Decline</button>
+                    <input type="hidden" name="response" value="interested">
+                    <button type="submit" class="td-decline-link" data-loading-text="Saving…">Interested</button>
+                </form>
+                <form method="POST" action="{{ url_for('respond_to_trip_invite', trip_id=trip.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="response" value="decline">
+                    <button type="submit" class="td-decline-link" data-loading-text="Saving…">Not going</button>
                 </form>
             </div>
         </div>

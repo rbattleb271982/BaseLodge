@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from flask import url_for
 
-from models import GuestStatus, SkiTrip, SkiTripParticipant
+from models import SkiTrip, SkiTripParticipant
 from services.ideas_engine import make_idea_card
 from services.open_dates import get_available_dates_for_user
 from services.pass_utils import normalize_pass as _norm_p, display_pass_label, passes_match
@@ -48,8 +48,7 @@ def trip_overlap_skill(user, all_friends):
 
     Exclusions:
       - Trips the user owns (trip.user_id == user.id)
-      - Trips the user has already accepted (SkiTripParticipant row with
-        status == GuestStatus.ACCEPTED)
+      - Trips where the user is already an active RSVP participant
       - Non-public trips (is_public != True)
       - Past trips (end_date < today)
 
@@ -71,8 +70,9 @@ def trip_overlap_skill(user, all_friends):
 
     user_accepted_trip_ids = {
         p.trip_id
-        for p in SkiTripParticipant.query.filter_by(
-            user_id=user.id, status=GuestStatus.ACCEPTED
+        for p in SkiTripParticipant.query.filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.active_status_filter(),
         ).all()
     }
 
@@ -94,7 +94,7 @@ def trip_overlap_skill(user, all_friends):
         SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id.in_([t.id for t in friend_trips]),
             SkiTripParticipant.user_id.in_(friend_ids),
-            SkiTripParticipant.status == GuestStatus.ACCEPTED,
+            SkiTripParticipant.active_status_filter(),
         ).all()
         if friend_trips
         else []

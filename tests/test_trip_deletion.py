@@ -30,8 +30,8 @@ def full_trip_setup(client):
         invited  = _make_user("invited")
         declined = _make_user("declined")
         trip = _make_trip(owner, resort=resort)
-        _add_participant(trip, accepted, GuestStatus.ACCEPTED)
-        _add_participant(trip, invited,  GuestStatus.INVITED)
+        _add_participant(trip, accepted, GuestStatus.INTERESTED)
+        _add_participant(trip, invited,  GuestStatus.PENDING)
         _add_participant(trip, declined, GuestStatus.DECLINED)
 
         db.session.add(TripInviteToken(

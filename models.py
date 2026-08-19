@@ -32,9 +32,28 @@ class TransportationStatus(PyEnum):
 
 
 class GuestStatus(PyEnum):
+    # Legacy SkiTripParticipant values retained solely for the startup backfill
+    # and for the separate GroupTrip / TripGuest system.
     INVITED = "invited"
     ACCEPTED = "accepted"
+
+    # Canonical SkiTripParticipant RSVP values.
+    PENDING = "pending"
+    INTERESTED = "interested"
+    GOING = "going"
     DECLINED = "declined"
+    REMOVED = "removed"
+
+
+ACTIVE_RSVP_STATUSES = (
+    GuestStatus.INTERESTED,
+    GuestStatus.GOING,
+)
+
+
+def is_active_rsvp_status(status):
+    """Return whether a SkiTripParticipant RSVP grants active trip access."""
+    return status in ACTIVE_RSVP_STATUSES
 
 
 class ParticipantRole(PyEnum):
@@ -749,13 +768,25 @@ class SkiTrip(db.Model):
         """Check if given user_id is the trip organizer."""
         return self.organizer_id == user_id
     
+    def get_active_participants(self):
+        """Return participants whose RSVP grants active trip membership."""
+        return [p for p in self.participants if is_active_rsvp_status(p.status)]
+
+    def get_going_participants(self):
+        """Return participants who explicitly selected Going."""
+        return [p for p in self.participants if p.status == GuestStatus.GOING]
+
+    def get_interested_participants(self):
+        """Return active participants who selected Interested."""
+        return [p for p in self.participants if p.status == GuestStatus.INTERESTED]
+
     def get_accepted_participants(self):
-        """Return list of accepted SkiTripParticipant records."""
-        return [p for p in self.participants if p.status == GuestStatus.ACCEPTED]
+        """Compatibility alias for legacy callers; returns active RSVP rows."""
+        return self.get_active_participants()
     
     def get_pending_participants(self):
-        """Return list of pending/invited SkiTripParticipant records."""
-        return [p for p in self.participants if p.status == GuestStatus.INVITED]
+        """Return list of unresolved SkiTripParticipant invitations."""
+        return [p for p in self.participants if p.status == GuestStatus.PENDING]
     
     def get_declined_participants(self):
         """Return list of declined SkiTripParticipant records."""
@@ -768,35 +799,40 @@ class SkiTrip(db.Model):
     
     @property
     def accepted_count(self):
-        """Return count of accepted participants."""
-        return len(self.get_accepted_participants())
+        """Compatibility count for active RSVP participants."""
+        return len(self.get_active_participants())
+
+    @property
+    def active_count(self):
+        """Return count of Interested and Going participants."""
+        return len(self.get_active_participants())
 
     @property
     def accepted_guest_count(self):
-        """Return count of accepted GUEST-role participants (excludes the trip owner)."""
+        """Return count of active guest participants (excludes the organizer)."""
         return len([
             p for p in self.participants
-            if p.status == GuestStatus.ACCEPTED and p.role == ParticipantRole.GUEST
+            if is_active_rsvp_status(p.status) and p.role == ParticipantRole.GUEST
         ])
 
     @property
     def invite_summary(self):
-        """Return formatted invite summary for trip tiles (e.g., '3 invited · 1 accepted')."""
+        """Return formatted RSVP summary for trip tiles."""
         invited = self.invited_count
-        accepted = self.accepted_count
-        if invited == 0 and accepted == 0:
+        active = self.active_count
+        if invited == 0 and active == 0:
             return None
         parts = []
         if invited > 0:
-            parts.append(f"{invited} invited")
-        if accepted > 0:
-            parts.append(f"{accepted} accepted")
+            parts.append(f"{invited} pending")
+        if active > 0:
+            parts.append(f"{active} active")
         return " · ".join(parts)
     
     def add_participant(self, user_id, status=None, role=None):
         """Add a participant to the trip. Returns the SkiTripParticipant record."""
         if status is None:
-            status = GuestStatus.INVITED
+            status = GuestStatus.PENDING
         if role is None:
             role = ParticipantRole.GUEST
         existing = SkiTripParticipant.query.filter_by(trip_id=self.id, user_id=user_id).first()
@@ -812,19 +848,19 @@ class SkiTrip(db.Model):
         return participant
     
     def add_owner_as_participant(self):
-        """Add trip owner as a participant with OWNER role and ACCEPTED status."""
+        """Add trip owner as an Interested participant with OWNER role."""
         return self.add_participant(
             self.user_id,
-            status=GuestStatus.ACCEPTED,
+            status=GuestStatus.INTERESTED,
             role=ParticipantRole.OWNER
         )
     
     def get_all_participants(self):
-        """Get all participants including owner (accepted or owner role)."""
+        """Get all active participants, including the organizer."""
         return SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == self.id,
             db.or_(
-                SkiTripParticipant.status == GuestStatus.ACCEPTED,
+                SkiTripParticipant.status.in_(ACTIVE_RSVP_STATUSES),
                 SkiTripParticipant.role == ParticipantRole.OWNER
             )
         ).all()
@@ -899,7 +935,7 @@ class SkiTripParticipant(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     status = db.Column(
         db.Enum(GuestStatus, name='ski_trip_participant_status_enum', values_callable=lambda x: [e.value for e in x], create_constraint=True),
-        default=GuestStatus.INVITED,
+        default=GuestStatus.PENDING,
         nullable=False
     )
     role = db.Column(
@@ -937,6 +973,16 @@ class SkiTripParticipant(db.Model):
     __table_args__ = (
         db.UniqueConstraint('trip_id', 'user_id', name='unique_ski_trip_participant'),
     )
+
+    @property
+    def is_active(self):
+        """Whether this participant has active trip-member access."""
+        return is_active_rsvp_status(self.status)
+
+    @classmethod
+    def active_status_filter(cls):
+        """Reusable SQL predicate for Interested and Going participant rows."""
+        return cls.status.in_(ACTIVE_RSVP_STATUSES)
     
     def get_display_transportation(self):
         """Get transportation status for display with labeled fallback."""

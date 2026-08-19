@@ -30,8 +30,8 @@ def trip_setup(client):
         declined = _make_user("declined")
         outsider = _make_user("outsider")
         trip = _make_trip(owner, resort=resort)
-        _add_participant(trip, accepted, GuestStatus.ACCEPTED)
-        _add_participant(trip, invited,  GuestStatus.INVITED)
+        _add_participant(trip, accepted, GuestStatus.INTERESTED)
+        _add_participant(trip, invited,  GuestStatus.PENDING)
         _add_participant(trip, declined, GuestStatus.DECLINED)
         db.session.commit()
         data = {
