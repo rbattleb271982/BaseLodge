@@ -1,0 +1,132 @@
+Investigate BL-35 — Consolidate Home summary and prioritize activity.
+
+Do not implement anything yet. I want an investigation and implementation plan only.
+
+Goal:
+Redesign the top of authenticated Home so BaseLodge activity appears substantially earlier without removing useful navigation or social context. Static profile details should no longer dominate the first viewport.
+
+Approved product direction:
+- Keep the existing “Welcome, [name]” header and profile access.
+- Consolidate Rider Type, Skill Level, and Pass into one compact identity line, e.g.:
+  SKIER · ADVANCED · NO PASS
+- Remove the individual Skis, Boots, and Bindings rows from Home ONLY if gear is already safely accessible elsewhere for the user to edit and for confirmed friends to see where appropriate.
+- Keep these three personal stats separate and tappable:
+  - Upcoming Trips
+  - Mountains Visited
+  - Wishlist Mountains
+- Integrate Friends’ Passes into the same compact summary area rather than keeping a second large standalone card.
+- Preserve Epic, Ikon, and Other as three independently tappable targets and preserve their current filtered-Friends destinations.
+- Reduce container chrome, repeated padding, and unnecessary vertical spacing.
+- Prioritize Happening and Ideas immediately after the compact summary.
+- Preserve BaseLodge’s existing cream background, burgundy treatment, typography, spacing language, and mobile-first visual style.
+- No profile bubbles/avatars should be introduced.
+
+Activity-control direction:
+- Investigate the current Happening / Ideas / Edit availability behavior before proposing changes.
+- Preserve all current dismissal persistence, ranking, and empty-state behavior.
+- Preserve the combined fallback when both Happening and Ideas are empty.
+- If compatible with the current implementation, consider folding visible counts into Happening / Ideas headings.
+- Treat Edit availability as a lighter activity-related action rather than a large standalone pill if that can be done without changing its semantics.
+- Do not imply availability belongs only to Ideas if it affects broader Home activity.
+
+Mobile target:
+On a normal modern iPhone, the first viewport should reasonably include:
+- Welcome/header
+- Compact winter identity
+- Personal stats
+- Compact Friends’ Passes
+- The beginning of actual Happening or Ideas content
+
+Do not introduce horizontal carousels or artificial collapsible UI just to achieve this.
+
+Important existing behavior to preserve:
+- Upcoming Trips tap-through
+- Mountains Visited tap-through
+- Wishlist Mountains tap-through
+- Epic / Ikon / Other Friends’ Passes filtering
+- Profile access
+- Existing profile editing paths
+- Happening and Ideas generation/ranking
+- Happening and Ideas dismissal persistence
+- Existing empty-state behavior
+- Combined Home fallback when both sections are empty
+
+Gear investigation:
+Before recommending removal of gear from Home, identify:
+- Where Skis are currently viewable/editable
+- Where Boots are currently viewable/editable
+- Where Bindings are currently viewable/editable
+- Whether those fields are visible to other users under the current privacy model
+- Whether Home is currently the only practical access point for any of them
+
+If Home is the only viable gear access point, flag that clearly rather than proposing silent removal.
+
+Out of scope:
+- New Home recommendation or ranking logic
+- Changes to Friends’ Passes counting semantics
+- Changes to availability semantics
+- New database tables or migrations
+- Bottom-navigation redesign
+- Broader profile redesign
+- Lifecycle reminders for incomplete gear
+
+Please investigate the live repository and return:
+
+1. Current Home architecture
+   - routes/controllers involved
+   - templates/partials involved
+   - relevant CSS/JS
+   - data passed into Home
+   - exact rendering order of the current Home sections
+
+2. Current gear architecture
+   - where Skis / Boots / Bindings are stored
+   - where they are editable
+   - where they are displayed
+   - relevant privacy/authorization logic
+
+3. Current Friends’ Passes architecture
+   - how Epic / Ikon / Other counts are calculated
+   - where the current card/partial lives
+   - tap-through destinations and filtering behavior
+
+4. Current Happening / Ideas architecture
+   - partials/templates
+   - generation/ranking logic
+   - dismissal persistence
+   - empty-state behavior
+   - Edit availability behavior
+   - any recent BL-13-related logic that must not regress
+
+5. Recommended revised Home information hierarchy
+   - exact proposed section order
+   - what should be consolidated
+   - what should be removed
+   - what should remain untouched
+   - any dependencies or risks
+
+6. Proposed implementation plan
+   - files to change
+   - specific changes in each file
+   - whether any backend/data changes are actually required
+   - tests to add/update
+   - responsive/mobile validation needed
+
+7. Regression risks
+   - especially gear access
+   - Friends’ Passes filtering
+   - Happening/Ideas empty states
+   - dismissed-item persistence
+   - profile editing access
+   - mobile first-viewport layout
+
+8. A proposed mobile text-wireframe of the redesigned Home
+   - no images
+   - no avatars/profile bubbles
+   - show the likely hierarchy and relative density
+
+Do not edit files.
+Do not commit.
+Do not push.
+
+End with a clear recommendation for the smallest safe implementation scope for BL-35.
