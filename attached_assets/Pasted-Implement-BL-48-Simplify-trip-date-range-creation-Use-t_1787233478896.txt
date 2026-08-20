@@ -1,0 +1,136 @@
+Implement BL-48 — Simplify trip date-range creation.
+
+Use the completed Task #296 investigation as the governing repository-backed implementation plan.
+
+GOAL
+
+Remove the redundant “Add this range” step from trip creation.
+
+When the user completes a valid start/end date selection, immediately stage that range using the EXISTING range-staging logic.
+
+Do not redesign or rewrite the date system.
+
+APPROVED BEHAVIOR
+
+Current:
+1. Tap start date
+2. Tap end date
+3. Tap “Add this range”
+4. Range is staged
+5. Calendar becomes ready for another range
+
+New:
+1. Tap start date
+2. Tap end date
+3. Range is automatically staged
+4. Existing selected-range row/chip appears
+5. Calendar becomes ready for another range
+
+Example:
+
+User taps:
+Jan 10
+Jan 14
+
+Immediately show the existing staged treatment:
+
+Jan 10 – Jan 14    ×
+
+The user can then select another range if desired.
+
+CRITICAL IMPLEMENTATION CONSTRAINT
+
+Task #296 confirmed that multiple selected ranges ultimately persist as independent SkiTrip records.
+
+PRESERVE THIS ARCHITECTURE EXACTLY.
+
+Do not:
+- consolidate ranges into one SkiTrip
+- introduce child range records
+- change the SkiTrip schema
+- change how multiple trips/ranges are persisted
+- change downstream interpretation of those SkiTrip records
+
+This is an interaction change only.
+
+REUSE EXISTING LOGIC
+
+The investigation concluded that the smallest safe implementation is to automatically invoke the existing range-staging logic after a valid end date is selected.
+
+Do that.
+
+Do not create a second implementation of:
+- range validation
+- staged-range rendering
+- hidden-field/form serialization
+- calendar reset
+- duplicate/overlap handling
+- remove/X behavior
+
+Refactor minimally only if necessary to allow both the existing code path and automatic staging to call the same function cleanly.
+
+“ADD THIS RANGE”
+
+Remove the now-redundant “Add this range” control from the normal creation interaction.
+
+Do not leave dead JavaScript, inaccessible controls, unused state, or obsolete styling behind.
+
+MULTI-RANGE
+
+Preserve existing multi-range behavior.
+
+After one range auto-stages:
+- it appears using the existing selected-range UI
+- the calendar resets appropriately
+- the user can select another start/end range
+- that second completed range also auto-stages
+- all ranges continue through the existing save/persistence behavior
+
+Do not merge adjacent or overlapping ranges unless that is already current behavior.
+
+CREATE VS EDIT
+
+Follow Task #296's findings regarding Create versus Edit.
+
+Do not broaden BL-48 into a Trip Detail date-editing redesign.
+
+If the investigation determined the existing Edit Trip experience uses independent behavior, leave it unchanged.
+
+Only apply auto-staging to the exact interaction Task #296 identified as safe.
+
+EDGE CASES
+
+Preserve current behavior for:
+- single-day trips, if supported
+- invalid end-before-start selection
+- overlapping ranges
+- adjacent ranges
+- duplicate ranges
+- removing a staged range
+- removing the only staged range
+- abandoning a partially selected range
+- saving without a valid range
+- multiple staged ranges
+
+Do not invent new validation semantics.
+
+VISUAL / MOBILE
+
+Keep the existing BaseLodge calendar and staged-range visual treatment.
+
+The improvement should feel almost invisible except that the unnecessary extra button is gone.
+
+Do not redesign the calendar.
+
+TESTS
+
+Add/update focused tests for the behavior identified in Task #296.
+
+At minimum verify:
+- valid start/end selection auto-stages
+- “Add this range” is no longer required
+- staged range renders correctly
+- multiple ranges can still be staged
+- staged ranges can still be removed
+- existing overlap/duplicate validation remains intact
+- save with
