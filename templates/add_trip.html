@@ -468,36 +468,6 @@
             margin-top: 4px;
         }
 
-        /* ── Inline range confirmation ── */
-        .at-range-confirm-block {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 14px 2px 4px;
-        }
-        .at-range-confirm-label {
-            font-size: 17px;
-            font-weight: 500;
-            color: #1A1A1A;
-            line-height: 1.35;
-        }
-        .at-range-confirm-btn {
-            background: #5C1219;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            padding: 9px 16px;
-            cursor: pointer;
-            font-family: inherit;
-            flex-shrink: 0;
-            white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .at-range-confirm-btn:active { opacity: 0.85; }
-
         /* ── Overlap modal ── */
         .at-overlap-modal {
             display: flex;
@@ -640,16 +610,6 @@
                     </div>
                     <div class="at-cal-grid" id="cal-grid"></div>
                 </div>
-
-                <!-- Inline range confirmation (non-group flow) -->
-                {% if not (prefill_friend and is_group) %}
-                <div id="at-range-confirm" style="display:none;">
-                    <div class="at-range-confirm-block">
-                        <span class="at-range-confirm-label" id="at-confirm-label"></span>
-                        <button type="button" class="at-range-confirm-btn" onclick="confirmAddRange()">Add this range</button>
-                    </div>
-                </div>
-                {% endif %}
 
                 <!-- Staged ranges (non-group flow) -->
                 {% if not (prefill_friend and is_group) %}
@@ -957,7 +917,6 @@
             startDateInput.value = dateStr;
             endDateInput.value   = '';
             pickingEnd = true;
-            hideRangeConfirm();
             updateCalendarClasses();
             updateRangeSummary();
         } else if (d < selStart) {
@@ -967,18 +926,17 @@
             startDateInput.value = dateStr;
             endDateInput.value   = '';
             // stay in pickingEnd = true
-            hideRangeConfirm();
             updateCalendarClasses();
             updateRangeSummary();
         } else {
-            // Same day (day trip) or after start — show confirmation, wait for explicit tap
+            // Same day (day trip) or after start — stage immediately for standard trips.
             selEnd = d;
             endDateInput.value = dateStr;
             pickingEnd = false;
             updateCalendarClasses();
             updateRangeSummary();
             if (!IS_GROUP_FLOW) {
-                showRangeConfirm();
+                confirmAddRange();
             }
         }
     }
@@ -1011,22 +969,6 @@
         if (hint) hint.style.display = 'none';
     }
 
-    function showRangeConfirm() {
-        const block = document.getElementById('at-range-confirm');
-        const labelEl = document.getElementById('at-confirm-label');
-        if (!block || !labelEl || !selStart || !selEnd) return;
-        const nights = nightCount(selStart, selEnd);
-        labelEl.textContent = sameDay(selStart, selEnd)
-            ? fmtMed(selStart) + ' → ' + fmtMed(selEnd) + ' · day trip'
-            : fmtMed(selStart) + ' → ' + fmtMed(selEnd) + (nights > 0 ? ' · ' + nights + (nights === 1 ? ' night' : ' nights') : '');
-        block.style.display = '';
-    }
-
-    function hideRangeConfirm() {
-        const block = document.getElementById('at-range-confirm');
-        if (block) block.style.display = 'none';
-    }
-
     function confirmAddRange() {
         if (!selStart || !selEnd) return;
 
@@ -1041,7 +983,6 @@
             startDateInput.value = endDateInput.value = '';
             updateCalendarClasses();
             updateRangeSummary();
-            hideRangeConfirm();
             preserveMountainSelection();
             return;
         }
@@ -1058,7 +999,6 @@
                 startDateInput.value = endDateInput.value = '';
                 updateCalendarClasses();
                 updateRangeSummary();
-                hideRangeConfirm();
                 preserveMountainSelection();
                 return;
             }
@@ -1075,7 +1015,6 @@
         startDateInput.value = endDateInput.value = '';
         updateCalendarClasses();
         updateRangeSummary();
-        hideRangeConfirm();
         renderStagedList();
         updateSubmitCTA();
     }
@@ -1118,7 +1057,7 @@
         const submitBtn = document.getElementById('submit-btn');
 
         if (selStart && selEnd) {
-            // Range selected, awaiting explicit confirmation ("Add this range")
+            // Group flow keeps the selected range in the scalar date fields.
             const nights = nightCount(selStart, selEnd);
             const rangeLabel = sameDay(selStart, selEnd)
                 ? fmtMed(selStart) + ' · day trip'
