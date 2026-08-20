@@ -1,0 +1,435 @@
+I want a comprehensive, evidence-based audit of the CURRENT BaseLodge Admin Dashboard as it exists in the codebase today.
+
+This is NOT an implementation task.
+Do NOT change code.
+Do NOT create a task.
+Do NOT recommend new features yet.
+Do NOT infer capability from TODOs, old docs, comments, archived plans, or unused code unless you clearly label it as dormant/not live.
+
+Your job is to reverse-engineer the admin experience exactly as it exists now so I can later give the output to another AI for product ideation.
+
+GOAL
+
+Produce a complete factual inventory of:
+
+1. Every admin screen/page/route
+2. Every admin section/module
+3. Every action an admin can currently take
+4. Every object/entity an admin can view, create, edit, delete, approve, pause, activate, filter, search, export, or otherwise manage
+5. Every admin-only metric, count, dashboard, table, status, warning, empty state, and operational tool
+6. Every admin permission/access-control rule
+7. Every piece of data visible to admins that normal users cannot see
+8. Any admin capability that exists in backend/services but is not surfaced in the UI
+9. Any admin UI that exists but is incomplete, stubbed, broken, dead, or no longer connected
+10. Important operational gaps that are FACTUAL consequences of the current implementation, but do not propose solutions yet
+
+IMPORTANT DISTINCTIONS
+
+For every capability, classify it as one of:
+
+- LIVE / USER-FACING ADMIN CAPABILITY
+- LIVE BACKEND CAPABILITY, NOT SURFACED IN ADMIN UI
+- PARTIAL / INCOMPLETE
+- DORMANT / DEAD CODE
+- PLANNED / STUBBED ONLY
+- UNKNOWN / CANNOT CONFIRM
+
+Do not blur these categories.
+
+AUDIT AREAS
+
+Please inspect and document at minimum:
+
+A. ADMIN ENTRY / ACCESS
+- Admin routes
+- Authentication
+- Role checks
+- How admin status is stored
+- Whether there are multiple admin roles or only a binary admin flag
+- What happens if a non-admin hits an admin route
+- Whether admin access differs between web/native
+- Any security-sensitive implementation details relevant to admin access
+
+B. ADMIN NAVIGATION / INFORMATION ARCHITECTURE
+- All admin tabs, sections, nav items, pages, subpages, modal states
+- Exact names as they appear in the product
+- Which sections are primary vs buried
+- Any screens that exist but are not reachable from normal admin navigation
+
+C. USER MANAGEMENT
+Audit everything admins can currently do with users:
+- Search/find users
+- View user details
+- Edit user information
+- Change admin status
+- Disable/suspend/delete users
+- Inspect friends/connections
+- Inspect passes, mountains, trips, gear, wishlist, availability, Places, etc.
+- View activity/history
+- Impersonate users, if supported
+- Reset or repair user state
+- Any privacy-sensitive user data exposed in admin
+- Any admin actions that directly mutate persisted user data
+
+D. FRIEND / CONNECTION MANAGEMENT
+- View connection requests
+- View established connections
+- Remove/fix connections
+- Suggested-friend controls
+- Moderation/reporting
+- Any social-graph repair tools
+
+E. MOUNTAIN MANAGEMENT
+- Add/edit/delete mountains
+- Mountain metadata
+- Pass relationships
+- Regions/states
+- Images/content
+- Active/inactive states
+- Resort aliases
+- Stats
+- Mountain page controls
+- Any admin controls for Been Here / Going / Wishlist / availability-derived intelligence
+
+F. PASS MANAGEMENT
+- Pass catalog
+- Pass ↔ mountain mappings
+- No Pass behavior
+- Multi-pass handling
+- Season handling
+- Historical pass support, if any exists today
+- Admin edits/repair capabilities
+- Pass recommendation/admin configuration
+
+G. TRIP MANAGEMENT
+- View/search trips
+- Edit/delete trips
+- Participant management
+- RSVP state
+- Participant-specific dates
+- Trip visibility
+- Trip cancellation
+- Shared/group trips
+- Organizer controls
+- External payment/registration links if anything exists already
+- Trip moderation/abuse tools
+- Repair/debugging capabilities
+
+H. AVAILABILITY
+- Any admin visibility into availability
+- Editing/repair
+- Expiration/staleness controls
+- Global settings/defaults
+- Derived availability jobs/services
+
+I. GEAR / PROFILE DATA
+- Admin visibility/editability for rider type, level, gear, profile information
+- Reference data management
+- Gear brand/product management if any
+- Moderation or repair
+
+J. WISHLIST / VISITED / HISTORY
+- Admin access to wishlist data
+- Mountains Visited
+- Any history/event storage
+- Ability to fix/remove records
+- Whether admin can distinguish current state from historical state
+
+K. PLACES / ACCOMMODATIONS
+- Admin management of user Places
+- Domain restrictions
+- Airbnb/Vrbo handling
+- moderation
+- unsafe-link controls
+- visibility controls
+- deletion/repair
+
+L. PARTNERS / COMMERCIAL ADMIN
+Audit in depth anything related to:
+- Partner records
+- Partner profiles
+- Local Partners
+- Mountain placements
+- Placement ordering
+- Start/end dates
+- Active/paused states
+- Rates/pricing
+- Payment status
+- Approved domains
+- URLs/tracking parameters
+- Impressions/clicks/CTR
+- Inventory limits
+- Preview/test tooling
+- Analytics
+- Any commercial kill switches
+- Any existing infrastructure that could later support affiliate or sponsored placements
+
+M. MESSAGING / NOTIFICATIONS
+- Push notification admin tools
+- Email tools
+- Manual sends
+- Message templates
+- Transactional events
+- Lifecycle campaigns
+- Audience selection
+- Test sends
+- delivery logs
+- failures/retries
+- frequency caps
+- notification preferences
+- message event history
+- provider configuration
+- any ability to trigger communications from admin
+
+N. LIFECYCLE / CRM
+- Any existing campaign/journey builder
+- hard-coded lifecycle rules
+- onboarding messages
+- reactivation
+- wishlist triggers
+- availability reminders
+- scheduled jobs
+- admin visibility/control
+- ability to pause campaigns
+- reporting
+
+O. ANALYTICS
+- Admin dashboard metrics
+- user counts
+- active users
+- trips
+- mountains
+- connections
+- conversion funnels
+- notification analytics
+- partner analytics
+- outbound click analytics
+- event tracking
+- date filtering
+- cohort views
+- export
+- any analytics present in services but missing from UI
+
+P. MODERATION / TRUST & SAFETY
+- User reporting
+- trip reporting
+- partner/link abuse
+- blocking
+- content moderation
+- suspicious account controls
+- rate limits
+- spam controls
+- admin audit trails
+- any operational safety tooling
+
+Q. DATA / OPERATIONS / DEBUGGING
+- Seed/reference-data controls
+- jobs
+- background tasks
+- queues
+- manual repair tools
+- database repair/admin utilities
+- migrations surfaced to admins
+- feature flags
+- config switches
+- environment controls
+- cache clearing
+- reindexing
+- analytics event inspection
+- message event inspection
+- logs/error visibility
+- any “dangerous” admin actions
+
+R. PRIVACY / DATA RIGHTS
+- Account deletion handling
+- data deletion
+- export
+- privacy settings
+- admin access to sensitive data
+- opt-outs
+- retention
+- any controls related to aggregated/commercial data
+- whether admin actions are audited
+
+S. ADMIN AUDIT LOGGING
+- Is there an admin action log?
+- Who changed what and when?
+- Before/after values?
+- Is it queryable?
+- Does it cover user-data changes?
+- Does it cover commercial/partner changes?
+- Does it cover notification sends?
+
+T. MOBILE / NATIVE CONSIDERATIONS
+- Is Admin web-only?
+- Does it render in the native shell?
+- Any admin-specific mobile behavior
+- Any controls that are unusable or hidden on mobile
+
+U. TEST COVERAGE
+Identify tests specifically covering admin:
+- routes
+- access control
+- user mutation
+- partner admin
+- messaging
+- analytics
+- dangerous actions
+- regression protection
+
+V. TECHNICAL ARCHITECTURE
+Document:
+- files/routes/templates/services/models involved
+- admin-specific models
+- important joins/data sources
+- authorization pattern
+- admin-specific APIs
+- background jobs
+- provider integrations
+- config/env dependencies
+
+OUTPUT FORMAT
+
+Please structure the report like this:
+
+# BaseLodge Admin Dashboard Audit
+
+## 1. Executive Summary
+A concise description of what the Admin Dashboard is capable of today and what its primary operational purpose appears to be.
+
+## 2. Admin Information Architecture
+List every reachable admin area and how navigation works.
+
+## 3. Capability Inventory
+Create a table with columns:
+
+Area | Capability | Live/Partial/Dormant/etc. | Admin Action | Data Touched | Risk Level | Evidence
+
+For Risk Level, use:
+- LOW
+- MEDIUM
+- HIGH
+- CRITICAL
+
+Anything that directly changes persisted USER data should be clearly marked:
+⚠️ USER DATA WRITE
+
+Anything that changes schema/migrations/reference structures should be clearly marked:
+⚠️ USER DATA / SCHEMA
+
+## 4. Detailed Domain Audit
+Separate sections for Users, Connections, Mountains, Passes, Trips, Availability, Profiles/Gear, Wishlist/Visited, Places, Partners, Messaging, Lifecycle, Analytics, Moderation, Privacy, Operations.
+
+## 5. Admin-Only Data Visibility
+List data admins can see that ordinary users cannot.
+
+## 6. Dangerous / High-Blast-Radius Actions
+Explicitly identify anything that could:
+- corrupt user state
+- change many users at once
+- send messages to many users
+- delete data
+- change partner/commercial state
+- alter permissions
+- change reference data
+
+For each one, state whether confirmation, validation, audit logging, rollback, or permission checks exist.
+
+## 7. Backend Capabilities Not Surfaced in Admin
+List useful operational capabilities that exist elsewhere in the code but have no admin UI.
+
+## 8. Dead / Partial / Historical Admin Code
+Clearly separate unused or incomplete admin capability from current product behavior.
+
+## 9. Admin Data-Model Map
+Explain which major BaseLodge entities the admin currently touches and how they relate.
+
+## 10. Admin Communications Architecture
+Explain exactly what admins can and cannot currently control about email, push, transactional messaging, and lifecycle messaging.
+
+## 11. Admin Commercial/Partner Architecture
+Deep dive into anything related to Partner and Local Partner management.
+
+## 12. Security / Privacy / Auditability
+Document current controls and factual weaknesses.
+
+## 13. Test Coverage
+What admin behavior is protected by tests and what important areas appear untested.
+
+## 14. Current Admin Capability Matrix
+Provide a compact matrix:
+
+Domain | View | Search | Create | Edit | Delete | Bulk Action | Analytics | Audit Log
+
+Use Yes / Partial / No / Unknown.
+
+## 15. Most Important FACTUAL Gaps
+Do not recommend features yet.
+
+Instead say things such as:
+“Admins can edit X, but no audit trail was found.”
+“Messaging events exist, but no admin delivery-log view was found.”
+“Partner placements can be managed, but no bulk export exists.”
+
+Only include gaps demonstrably supported by the code audit.
+
+## 16. BASELODGE ADMIN CONTEXT FOR PRODUCT IDEATION
+
+Finish with a self-contained 2,000–4,000 word section that I can copy directly into Claude.
+
+It should explain:
+- what the Admin Dashboard does today
+- what data admins can access
+- what operational workflows exist
+- current analytics
+- messaging controls
+- commercial tools
+- safety/privacy controls
+- important architectural constraints
+- what is partial or missing
+
+Do NOT include future product ideas in this section.
+
+EVIDENCE STANDARD
+
+Every important claim must be grounded in current code, templates, models, services, migrations, tests, or configuration.
+
+For each section, reference relevant files/functions/routes where useful.
+
+Do not treat:
+- TODOs
+- comments
+- old task descriptions
+- archived docs
+- future plans
+
+as evidence that functionality is live.
+
+If documentation conflicts with code, code wins.
+
+If something cannot be confirmed, label it UNKNOWN rather than guessing.
+
+Likely relevant places to inspect include, but are not limited to:
+
+- app.py / admin routes
+- models.py
+- analytics.py
+- db_init.py
+- templates/admin*
+- templates/base*
+- services/*
+- messaging services
+- push providers
+- analytics/event services
+- partner-related code
+- tests/test_admin*
+- tests involving permissions, users, trips, messaging, partners, or analytics
+- migrations
+- configuration/env files
+- seed/reference-data files
+
+Search beyond this list if the codebase points elsewhere.
+
+DO NOT IMPLEMENT ANYTHING.
+
+Return only the audit.
