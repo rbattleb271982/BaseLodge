@@ -1,9 +1,8 @@
 <!--
 Component: Home Header (Populated State)
-Purpose: Profile summary card — welcome greeting, identity line, equipment/CTA row,
-         and stat band. Rendered when the user has at least one upcoming or active trip.
+Purpose: Compact profile and Friends' Passes summary with identity line and stat band.
+         Rendered when the user has at least one upcoming or active trip.
 Used on: Home screen (populated state only — when next_trip is truthy)
-Variants: equipment set / equipment missing ("Complete your profile" CTA)
 
 Inputs:
   user            — User object
@@ -11,11 +10,6 @@ Inputs:
     .display_rider_type string | None
     .skill_level        string | None
     .pass_type          string | None   (rendered via pass_display filter)
-  home_eq         — EquipmentSetup object | None
-    .brand        string | None
-    .model        string | None
-    .boot_brand   string | None
-    .boot_model   string | None
   stat_trips_total    int
   stat_mountains      int
   stat_wishlist       int
@@ -27,61 +21,19 @@ Inputs:
 <div class="hc-card">
 
 
-    {# ── Identity line ── #}
+    {# ── Compact identity line ── #}
     {%- set _rt_val   = user.display_rider_type or 'Add rider type' -%}
     {%- set _sl_val   = user.skill_level or 'Add skill level' -%}
     {%- set _pass_val = (user.pass_type | pass_display) if user.pass_type else 'No pass yet' -%}
-    <div class="hc-identity">
-        <div class="hc-identity-row">
-            <span class="hc-identity-label">Rider Type:</span>
-            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit rider type">{{ _rt_val }}</a>
-        </div>
-        <div class="hc-identity-row">
-            <span class="hc-identity-label">Skill Level:</span>
-            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit skill level">{{ _sl_val }}</a>
-        </div>
-        <div class="hc-identity-row">
-            <span class="hc-identity-label">Pass:</span>
-            <a href="{{ url_for('select_pass') }}" class="hc-identity-link" aria-label="Edit pass">{{ _pass_val }}</a>
+    <div class="hc-identity hc-identity--compact">
+        <div class="hc-identity-line" aria-label="Personal profile summary">
+            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit rider type: {{ _rt_val }}">{{ _rt_val }}</a>
+            <span class="hc-identity-separator" aria-hidden="true">·</span>
+            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit skill level: {{ _sl_val }}">{{ _sl_val }}</a>
+            <span class="hc-identity-separator" aria-hidden="true">·</span>
+            <a href="{{ url_for('select_pass') }}" class="hc-identity-link" aria-label="Edit pass: {{ _pass_val }}">{{ _pass_val }}</a>
         </div>
     </div>
-
-    {# ── Equipment / CTA row ── #}
-    {%- set _has_gear     = home_eq and (home_eq.brand or home_eq.model) -%}
-    {%- set _has_boots    = home_eq and (home_eq.boot_brand or home_eq.boot_model) -%}
-    {%- set _has_bindings = home_eq and (home_eq.binding_brand or home_eq.binding_model) -%}
-    {%- set _is_renting   = user.equipment_status == 'needs_rentals' -%}
-    {%- set _primary_rt   = (user.rider_types or [''])[0] -%}
-    {%- set _gear_label   = 'Snowboard' if _primary_rt == 'Snowboarder' else ('Skis' if _primary_rt in ['Skier', 'Telemark'] else 'Equipment') -%}
-    {%- if _has_gear or _has_boots or _has_bindings %}
-    <div class="hc-identity">
-        {%- if _has_gear -%}
-        {%- set _g = ([home_eq.brand, home_eq.model] | select | join(' ')) -%}
-        <div class="hc-identity-row">
-            <span class="hc-identity-label">{{ _gear_label }}:</span>
-            <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit {{ _gear_label | lower }}">{{ _g }}</a>
-        </div>
-        {%- endif -%}
-        {%- if _has_boots -%}
-        {%- set _b = ([home_eq.boot_brand, home_eq.boot_model] | select | join(' ')) -%}
-        <div class="hc-identity-row">
-            <span class="hc-identity-label">Boots:</span>
-            <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit boots">{{ _b }}</a>
-        </div>
-        {%- endif -%}
-        {%- if _has_bindings -%}
-        {%- set _bn = ([home_eq.binding_brand, home_eq.binding_model] | select | join(' ')) -%}
-        <div class="hc-identity-row">
-            <span class="hc-identity-label">Bindings:</span>
-            <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit bindings">{{ _bn }}</a>
-        </div>
-        {%- endif -%}
-    </div>
-    {%- elif _is_renting %}
-    <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link" aria-label="Edit gear setup">Rental gear</a>
-    {%- else %}
-    <a href="{{ url_for('settings_equipment') }}" class="hc-profile-cta" aria-label="Add or edit your gear">Add your gear →</a>
-    {%- endif %}
 
     {# ── Stat band ── #}
     <div class="hc-stat-band">
@@ -103,5 +55,7 @@ Inputs:
             <span class="hc-stat-lbl">{% if (stat_wishlist or 0) == 1 %}Wishlist<br>Mountain{% else %}Wishlist<br>Mountains{% endif %}</span>
         </div>
     </div>
+
+    {% include 'partials/home/_section_friend_passes.html' %}
 
 </div>

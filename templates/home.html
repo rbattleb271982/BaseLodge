@@ -652,18 +652,18 @@
            Pills, sections, happening, requests, opportunities
            ═══════════════════════════════════════════════════════ */
 
-        /* ── Friends' Passes card ── */
+        /* ── Friends' Passes summary ── */
         .fp-card {
-            background: var(--bl-color-surface);
-            border: 1px solid var(--bl-color-border-soft);
-            border-radius: 12px;
-            padding: 13px 12px 11px;
-            margin-bottom: 12px;
+            background: transparent;
+            border-top: 1px solid var(--bl-color-border-soft);
+            border-radius: 0;
+            padding: 12px 0 0;
+            margin: 2px 0 0;
         }
         .fp-card-title {
-            margin: 0 0 9px 4px;
+            margin: 0 0 7px;
             color: var(--bl-color-text-muted);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             letter-spacing: 0.7px;
             line-height: 1.2;
@@ -676,7 +676,7 @@
         .fp-card-link {
             display: flex;
             min-width: 0;
-            min-height: 52px;
+            min-height: 44px;
             flex-direction: column;
             align-items: center;
             justify-content: center;
@@ -739,6 +739,20 @@
             background: var(--bl-color-primary);
             border-color: var(--bl-color-primary);
             color: #F5F0E8;
+        }
+        .bl-pill--availability {
+            padding-left: 4px;
+            padding-right: 4px;
+            border-color: transparent;
+            background: transparent;
+            color: var(--bl-color-primary);
+            text-decoration: underline;
+            text-decoration-color: rgba(92, 18, 25, 0.28);
+            text-underline-offset: 3px;
+        }
+        .bl-pill--availability:active {
+            background: transparent;
+            opacity: 0.58;
         }
         .bl-pill-count {
             font-size: 12px;
@@ -1186,11 +1200,9 @@
        b. Empty state      → partials/home/_header_empty.html
           - Same layout, no stat_row.html dependency
 
-    2. IDEAS FOR YOU Card (.hc-card, inline wrapper)
-       - Lightbulb icon + "IDEAS FOR YOU" label
-       - friend_at_mountain_card  → partials/home/_insight_card_been.html (.hc-idea-row)
-
-    3. Bottom Nav → components/bottom_nav.html
+     2. Happening, then Ideas / combined fallback
+     3. Secondary controls: availability, requests, and activity focus pills
+     4. Bottom Nav → components/bottom_nav.html
     ══════════════════════════════════════════════════════════════ -->
 
     {# ── Availability sheet (triggered by Edit availability pill) ── #}
@@ -1240,17 +1252,6 @@
 
         {% endif %}
 
-        {# ── Friends' Passes ── #}
-        {% include 'partials/home/_section_friend_passes.html' %}
-
-        {# ── Smart action pills ── #}
-        {% include 'partials/home/_section_pills.html' %}
-
-        {# ── Requests (pending trip invites + connect invites) ── #}
-        {% if requests_count > 0 %}
-        {% include 'partials/home/_section_requests.html' %}
-        {% endif %}
-
         {# ── Happening (friend ambient activity, text-only) ── #}
         {% if happening_signals %}
         {% include 'partials/home/_section_happening.html' %}
@@ -1258,6 +1259,14 @@
 
         {# ── Opportunities (ranked coordination feed, up to 5) ── #}
         {% include 'partials/home/_section_opportunities.html' %}
+
+        {# ── Secondary controls (after primary activity) ── #}
+        {% include 'partials/home/_section_pills.html' %}
+
+        {# ── Requests (pending trip invites + connect invites) ── #}
+        {% if requests_count > 0 %}
+        {% include 'partials/home/_section_requests.html' %}
+        {% endif %}
 
         {# ── Admin: Ideas pipeline diagnostic (explicit debug flag only) ── #}
         {% if show_ideas_diagnostic %}

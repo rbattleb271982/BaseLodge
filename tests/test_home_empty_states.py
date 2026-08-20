@@ -10,6 +10,9 @@ from models import DismissedInsightCard, Friend, db
 
 
 HOME_TEMPLATE = Path("templates/home.html").read_text()
+POPULATED_HEADER_TEMPLATE = Path("templates/partials/home/_header.html").read_text()
+EMPTY_HEADER_TEMPLATE = Path("templates/partials/home/_header_empty.html").read_text()
+PILLS_TEMPLATE = Path("templates/partials/home/_section_pills.html").read_text()
 
 
 def _fallback_tag(html):
@@ -134,6 +137,9 @@ def test_home_shows_both_activity_sections_when_both_have_content(client):
     assert 'id="section-happening"' in html
     assert 'id="section-opportunities"' in html
     assert "hidden" in _fallback_tag(html)
+    assert html.index('id="fp-card-title"') < html.index('id="section-happening"')
+    assert html.index('id="section-happening"') < html.index('id="section-opportunities"')
+    assert html.index('id="section-opportunities"') < html.index('id="section-pills"')
 
 
 def test_home_excludes_persisted_dismissals_and_returns_to_combined_fallback(client):
@@ -158,3 +164,32 @@ def test_home_dismissal_reconciles_final_sections_without_reload():
     assert "fallback.hidden = hasVisibleActivity;" in HOME_TEMPLATE
     assert "if (card.parentNode) card.remove();" in HOME_TEMPLATE
     assert "syncHomeActivityEmptyState();" in HOME_TEMPLATE
+
+
+def test_home_header_variants_use_compact_identity_and_preserve_stat_contracts():
+    for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
+        assert 'class="hc-identity-line"' in header_template
+        assert header_template.count("url_for('edit_profile')") == 2
+        assert "url_for('select_pass')" in header_template
+        assert "hc-identity-separator" in header_template
+
+        assert "stat_trips_url" in header_template
+        assert "stat_mountains_url" in header_template
+        assert "stat_wishlist_url" in header_template
+        assert "hc-stat-tile--link" in header_template
+
+
+def test_home_header_variants_remove_only_home_gear_rows_and_include_pass_summary():
+    for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
+        assert "partials/home/_section_friend_passes.html" in header_template
+        assert "settings_equipment" not in header_template
+        assert "Boots:" not in header_template
+        assert "Bindings:" not in header_template
+        assert "Add your gear" not in header_template
+        assert "Rental gear" not in header_template
+
+
+def test_home_keeps_availability_semantics_as_a_lighter_secondary_action():
+    assert 'class="bl-pill bl-pill--availability"' in PILLS_TEMPLATE
+    assert 'onclick="openAvailSheet()"' in PILLS_TEMPLATE
+    assert "bl-pill--availability" in HOME_TEMPLATE
