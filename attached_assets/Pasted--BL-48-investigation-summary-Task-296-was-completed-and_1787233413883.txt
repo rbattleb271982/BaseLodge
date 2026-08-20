@@ -1,0 +1,58 @@
+### BL-48 investigation summary
+
+Task #296 was completed and merged as an investigation-only task. No application files, tests, schema, data, commits, or pushes were changed.
+
+Key findings:
+
+- **Trip creation uses a custom calendar** in `templates/add_trip.html`.
+- The current flow is:
+  1. Select a start date.
+  2. Select an end date.
+  3. A confirmation block appears with **“Add this range.”**
+  4. Tapping the button calls the existing `confirmAddRange()` logic.
+  5. The range is staged below the calendar with an X/remove control.
+  6. Additional ranges can be selected.
+  7. Final save serializes all staged ranges to `date_ranges_json`.
+
+- **Multiple ranges are not stored inside one trip.**
+  - Each selected range becomes a separate `SkiTrip` database record when saved.
+  - Records created together may share `created_in_batch_id`, but that field is analytics metadata and is not used for range grouping.
+  - There is no separate trip-range table or child range model.
+
+- **Existing validation already covers:**
+  - Single-day trips
+  - End dates before start dates
+  - Duplicate ranges
+  - Inclusive overlapping ranges
+  - Existing trip conflicts
+  - Past dates
+  - Empty submissions
+  - Adjacent ranges, which remain separate and are allowed
+  - Removing staged ranges before saving
+
+- **Create and edit use different architectures.**
+  - New trip creation uses the custom multi-range calendar.
+  - Editing uses the Trip Detail date sheet with two native date inputs and `/api/trip/<id>/update-dates`.
+  - They should not be unified for BL-48.
+
+- **Downstream consumers depend on ordinary `SkiTrip.start_date` and `end_date` values**, including:
+  - Trips list and Trip Detail
+  - Home requests/opportunities
+  - Ideas and overlap calculations
+  - Profiles and friend profiles
+  - Mountain social trips
+  - Invitations and invite landing pages
+  - Notifications and activity generation
+  - Duration and date-formatting helpers
+
+### Recommended implementation
+
+BL-48 can remain a small front-end interaction change:
+
+- Call the existing `confirmAddRange()` function immediately after a valid end-date selection in the standard, non-group creation flow.
+- Remove or hide the redundant confirmation UI.
+- Preserve the existing staging, validation, serialization, remove/X control, multi-range behavior, and final save flow.
+- Leave group/invite creation and Trip Detail date editing unchanged.
+- Do not modify the data model or downstream date consumers.
+
+A follow-up implementation task was drafted as **Task #297 — Add trip dates as soon as a range is complete**, but it was subsequently cancelled.
