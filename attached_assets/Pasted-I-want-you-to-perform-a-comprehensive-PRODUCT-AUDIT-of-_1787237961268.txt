@@ -1,0 +1,650 @@
+I want you to perform a comprehensive PRODUCT AUDIT of the current BaseLodge application.
+
+This is NOT a coding task.
+
+DO NOT implement anything.
+DO NOT modify any files.
+DO NOT create a commit.
+DO NOT suggest new features yet.
+
+The purpose of this exercise is to create a highly detailed, accurate description of what BaseLodge actually does TODAY based on the current codebase.
+
+This audit will later be given to another AI model for a major product ideation exercise, so I want you to inspect the actual application deeply rather than relying on README files, task descriptions, assumptions, or what you remember from previous work.
+
+## Objective
+
+Answer:
+
+**“If someone had never seen BaseLodge before, what would they need to know to fully understand the product, its current capabilities, its data model, its social graph, and the building blocks that already exist?”**
+
+Think of this as reverse-engineering a comprehensive product requirements document from the existing application.
+
+---
+
+# 1. PRODUCT OVERVIEW
+
+Start by explaining BaseLodge in plain English.
+
+Cover:
+
+* What BaseLodge currently is
+* The primary user problem(s) it appears designed to solve
+* The major product surfaces
+* The core user journey
+* What makes the product social
+* What information BaseLodge knows about a user
+* What information BaseLodge knows about a user's friends
+* What information BaseLodge knows about mountains
+* What information BaseLodge knows about trips
+
+Do not write marketing copy. Describe the actual product.
+
+---
+
+# 2. COMPLETE SCREEN / PAGE INVENTORY
+
+Inspect the application and identify every meaningful user-facing screen, page, tab, modal, sheet, onboarding flow, and major UI state.
+
+For each one, document:
+
+### Screen / feature name
+
+**Purpose**
+
+What the screen allows the user to accomplish.
+
+**Information displayed**
+
+Everything meaningful shown to the user.
+
+**Actions available**
+
+Buttons, links, filters, editing, navigation, invitations, creation flows, etc.
+
+**Data dependencies**
+
+What underlying user, friend, mountain, trip, pass, availability, or other data powers the experience.
+
+**Connections to other features**
+
+Where the user can navigate from here and what other BaseLodge functionality this screen influences.
+
+Include empty states and meaningful conditional states where relevant.
+
+---
+
+# 3. HOME
+
+Audit Home especially carefully.
+
+Document every current Home component and what determines whether/how it appears.
+
+Include:
+
+* User/profile information
+* Stats
+* Network/friend information
+* Availability
+* Trips
+* Happening/activity content
+* Suggestions
+* Mountain-related content
+* Pass-related content
+* Calls to action
+* Empty states
+* Conditional cards
+* Any ranking or prioritization logic
+
+Explain the order in which Home content is presented.
+
+If there is logic determining what is surfaced or prioritized, document it.
+
+---
+
+# 4. FRIENDS & SOCIAL GRAPH
+
+Perform a deep audit of everything involving people and relationships.
+
+Document:
+
+* Friend relationships
+* Friend requests
+* Suggested friends
+* Mutual friends
+* Search
+* Global member search
+* Filters
+* Profile previews
+* Friend profiles
+* Any friend metadata shown
+* Rider type
+* Skill level
+* Pass information
+* Gear information
+* Mountain history
+* Wishlist information
+* Trip relationships
+* Availability
+* Any network statistics
+* Privacy or visibility rules
+* Any deduplication logic
+* Any distinctions between friends, non-friends, requested users, etc.
+
+Also explain what BaseLodge can currently infer or calculate about relationships between users.
+
+---
+
+# 5. USER PROFILE
+
+Document every piece of information a BaseLodge user can currently store about themselves.
+
+Separate these into categories such as:
+
+### Identity
+
+### Ski / snowboard identity
+
+### Passes
+
+### Gear
+
+### Mountains
+
+### Availability
+
+### Trips
+
+### Social information
+
+### Preferences
+
+### Account/settings
+
+For every field, identify:
+
+* Data type
+* Whether optional or required if apparent
+* Whether other users can see it
+* Where it is displayed
+* Where it can be edited
+* Whether it is currently used elsewhere in product logic
+
+---
+
+# 6. MOUNTAINS
+
+Perform a deep audit of the mountain system.
+
+Document:
+
+* Mountain database / model
+* Mountain profile pages
+* Mountain search/discovery
+* Filters
+* States/regions/countries
+* Pass relationships
+* User visit history
+* Visit counts
+* Wishlist behavior
+* Friend activity
+* Friend intelligence
+* Planned trips
+* Any network statistics
+* Resort statistics
+* External links
+* Any ranking/recommendation logic
+* Any data that exists in the backend but is not currently surfaced
+
+Explain everything BaseLodge currently knows about the relationship:
+
+**USER ↔ MOUNTAIN**
+
+and:
+
+**FRIEND NETWORK ↔ MOUNTAIN**
+
+---
+
+# 7. TRIPS
+
+Document the entire trip system.
+
+Include:
+
+* Creating trips
+* Editing trips
+* Inviting people
+* Invite states
+* Going / Interested / Declined behavior
+* Dates
+* Mountains
+* Accommodation
+* Airbnb / VRBO links if present
+* Day-trip handling
+* Participant lists
+* Trip visibility
+* Home integration
+* Mountain-page integration
+* Friend-profile integration
+* Notifications or activity generated by trips
+* Any trip-related lifecycle states
+
+Explain the underlying trip data model as clearly as possible.
+
+---
+
+# 8. AVAILABILITY
+
+Document exactly how availability currently works.
+
+Include:
+
+* How users enter availability
+* Data structure
+* Date ranges
+* Editing
+* Visibility
+* Where availability appears
+* How friends' availability is used
+* Whether overlapping availability is currently calculated
+* Any stale availability handling
+* Any Home integration
+* Any trip integration
+
+Most importantly, explain what could theoretically be calculated from the current availability data even if the UI does not currently expose it.
+
+Do NOT turn this into feature recommendations. Just identify technically possible derived information.
+
+---
+
+# 9. PASSES
+
+Document the complete pass system.
+
+Include:
+
+* Supported passes
+* Multi-pass behavior
+* No-pass behavior
+* Mountain/pass relationships
+* User/pass relationships
+* Friend filters
+* Home/network statistics
+* Any canonical pass definitions
+* Anywhere pass information influences the UI or logic
+
+Explain:
+
+**USER ↔ PASS ↔ MOUNTAIN**
+
+as it currently exists.
+
+---
+
+# 10. RIDER TYPE & SKILL LEVEL
+
+Document:
+
+* Supported rider types
+* Supported skill levels
+* Where users set them
+* Where they appear
+* How they can be filtered
+* Whether they influence any recommendation or matching logic today
+
+---
+
+# 11. GEAR
+
+Audit the complete gear system.
+
+Include:
+
+* Ski setups
+* Snowboard setups
+* Primary setups
+* Multiple disciplines
+* Fields stored
+* Editing
+* Profile display
+* Friend visibility
+* Any current Home integration
+* Any other feature using gear data
+
+Explain the underlying gear data model.
+
+---
+
+# 12. ACTIVITY / HAPPENING / NOTIFICATIONS
+
+Document every system that tells users what other people are doing or what has changed.
+
+Include:
+
+* Happening
+* Activity
+* Notifications
+* Friend activity
+* Trip activity
+* Mountain activity
+* Suggestions
+* Lifecycle messaging if represented in the app/codebase
+
+Explain what events currently generate activity.
+
+---
+
+# 13. SEARCH, FILTERING & DISCOVERY
+
+Inventory every search and filter system.
+
+For each one explain:
+
+* What can be searched
+* What can be filtered
+* Whether filters are multi-select
+* AND/OR behavior
+* Navigation state
+* Persistence
+* Result counts
+* Empty states
+
+---
+
+# 14. DATA GRAPH
+
+This section is extremely important.
+
+Based on the actual models/database/application logic, describe BaseLodge as a graph of entities and relationships.
+
+At minimum investigate:
+
+USER
+
+FRIEND / CONNECTION
+
+MOUNTAIN
+
+PASS
+
+TRIP
+
+AVAILABILITY
+
+GEAR
+
+VISIT
+
+WISHLIST
+
+ACCOMMODATION / LODGING
+
+ACTIVITY / NOTIFICATION
+
+and any other important entity you discover.
+
+For each entity explain:
+
+* Important fields
+* Relationships to other entities
+* Many-to-many relationships
+* Derived/calculated values
+* Historical information retained
+
+Then explain which combinations of data BaseLodge can currently query or calculate.
+
+For example, determine whether the existing data model could answer questions like:
+
+* Which of my friends have Ikon?
+* Which friends are Advanced?
+* Which friends snowboard?
+* Which friends have visited Jackson Hole?
+* Who has visited Jackson Hole the most?
+* Which friends have Jackson Hole on their wishlist?
+* Which friends are available during a certain weekend?
+* Which friends are attending a specific trip?
+* Which mountains are accessible through passes my friends own?
+* Which friends share a pass with me?
+
+These are examples only. Identify ALL meaningful intersections supported by the actual data.
+
+---
+
+# 15. DERIVED DATA & EXISTING INTELLIGENCE
+
+Identify calculations or intelligence already present in the application.
+
+Examples might include:
+
+* Visit counts
+* Mutual friends
+* Network counts
+* Shared passes
+* Trip participation
+* Availability overlaps
+* Mountain familiarity
+* Suggested friends
+* Ranking logic
+
+For each, explain exactly how it is calculated if you can determine that from the code.
+
+Also identify data that could already be derived from existing records but simply is not currently calculated or surfaced.
+
+Again: DO NOT recommend features yet.
+
+---
+
+# 16. EXTERNAL SERVICES & INTEGRATIONS
+
+Document any current external integrations or external-data dependencies.
+
+Examples:
+
+* Maps
+* Resort data
+* Weather
+* Email
+* Push notifications
+* Authentication
+* Airbnb
+* VRBO
+* Analytics
+* APIs
+* LLMs
+* MCP
+* External links
+
+Separate:
+
+**Actually integrated today**
+
+from:
+
+**Referenced/planned/stubbed but not currently functional**
+
+Do not assume something is integrated merely because it appears in comments or task documentation.
+
+---
+
+# 17. PRIVACY & VISIBILITY MODEL
+
+Document any existing rules controlling:
+
+* Who can see profiles
+* Who can see gear
+* Who can see trips
+* Who can see accommodations
+* Who can see availability
+* Who can see mountain history
+* Who can see wishlist mountains
+* Friend vs non-friend visibility
+* Hidden information
+* Blocking or removal behavior if present
+
+---
+
+# 18. CURRENT PRODUCT LOOPS
+
+Based strictly on existing functionality, identify the primary loops BaseLodge currently enables.
+
+Examples:
+
+User adds friends → friend information makes BaseLodge more useful → user discovers more connections.
+
+User creates trip → invites friends → friends participate → activity appears elsewhere.
+
+Do not invent future loops. Explain loops supported by the product today.
+
+---
+
+# 19. PARTIALLY BUILT / DORMANT FUNCTIONALITY
+
+Search the codebase for functionality that:
+
+* Exists but is not exposed
+* Is partially implemented
+* Is behind a feature flag
+* Has backend support but limited UI
+* Has UI but incomplete backend behavior
+* Appears abandoned
+* Is referenced by templates/routes/models but not currently reachable
+
+This section is important because we do not want another AI proposing something BaseLodge effectively already contains.
+
+Clearly label confidence levels where necessary.
+
+---
+
+# 20. TECHNICAL CONSTRAINTS RELEVANT TO PRODUCT IDEATION
+
+Without turning this into a full engineering audit, identify architecture or data-model constraints that materially affect what product features could reasonably be built.
+
+Examples:
+
+* Missing historical records
+* Data stored only as current state
+* Relationships that aren't normalized
+* Expensive queries
+* Missing geographic data
+* Missing timestamps
+* Lack of event history
+* Privacy assumptions
+* Authentication limitations
+
+Only include constraints relevant to future product capabilities.
+
+---
+
+# 21. FINAL CAPABILITY MATRIX
+
+End with a concise matrix.
+
+For every major BaseLodge capability classify it as:
+
+**LIVE**
+Fully implemented and user-facing.
+
+**PARTIAL**
+Some implementation exists but the experience/data is incomplete.
+
+**DATA EXISTS**
+Underlying information exists and can likely support functionality, but there is little/no user-facing feature around it.
+
+**PLANNED/STUBBED**
+Evidence exists in the codebase, but it is not meaningfully implemented.
+
+Organize the matrix across:
+
+* Social graph
+* Profiles
+* Friends
+* Passes
+* Rider type
+* Skill level
+* Gear
+* Mountains
+* Mountain history
+* Wishlists
+* Trips
+* Availability
+* Lodging
+* Activity
+* Search
+* Filters
+* Recommendations
+* Notifications
+* External integrations
+* AI/intelligence
+
+---
+
+# 22. PRODUCT GRAPH SUMMARY FOR ANOTHER AI
+
+Finally, produce a self-contained section titled:
+
+# BASELODGE CONTEXT FOR PRODUCT IDEATION
+
+This should be approximately 1,500–3,000 words and summarize everything another AI product strategist needs to know about BaseLodge.
+
+It should explain:
+
+* What BaseLodge is
+* What users can currently do
+* What data exists
+* What the social graph contains
+* What the mountain graph contains
+* What the trip graph contains
+* What relationships exist among the data
+* What functionality is already implemented
+* What is partially implemented
+* What major technical/product constraints exist
+
+Do NOT include new feature ideas in this section.
+
+I want to be able to copy this entire final section directly into another AI prompt.
+
+---
+
+## Investigation requirements
+
+Actually inspect the codebase.
+
+Check:
+
+* Routes
+* Models
+* Database/schema
+* Templates/components
+* JavaScript/client logic
+* API endpoints
+* Background jobs
+* Services
+* Configuration
+* Feature flags
+* Tests
+* Seed/reference data
+* Relevant migrations
+* Existing documentation only as supporting evidence
+
+Where documentation conflicts with running/current code, treat the current implementation as authoritative and call out the discrepancy.
+
+Do not infer that something exists just because a TODO, old task, comment, or documentation file mentions it.
+
+Distinguish clearly between:
+
+**Implemented behavior**
+**Underlying capability**
+**Partially implemented behavior**
+**Historical/dead code**
+**Planned behavior**
+
+Be exhaustive. Length is not a concern.
+
+Again:
+
+**DO NOT CHANGE ANY CODE.**
+**DO NOT IMPLEMENT ANYTHING.**
+**DO NOT CREATE A COMMIT.**
+**DO NOT GIVE ME NEW FEATURE IDEAS.**
+
+I only want a comprehensive factual audit of BaseLodge as it exists right now.
