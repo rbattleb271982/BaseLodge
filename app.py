@@ -14690,6 +14690,16 @@ def mountains_visited():
     if selected_resort_ids:
         selected_resorts = Resort.query.filter(Resort.id.in_(selected_resort_ids)).all()
     
+    # BL-91: one all-time aggregate of explicit SkiDay records for the signed-in
+    # user. The selector renders these only for mountains that are currently in
+    # Mountains Visited; manual and legacy entries with no SkiDay are unchanged.
+    logged_day_counts = dict(
+        db.session.query(SkiDay.resort_id, func.count(SkiDay.id))
+        .filter(SkiDay.user_id == user.id)
+        .group_by(SkiDay.resort_id)
+        .all()
+    )
+
     # Group and sort selected resorts for display
     grouped_selected = group_resorts_for_display(selected_resorts)
     
@@ -14705,6 +14715,7 @@ def mountains_visited():
         selected_resorts=selected_resorts,
         grouped_selected=grouped_selected,
         mountains_visited_count=mountains_visited_count,
+        logged_day_counts=logged_day_counts,
         countries=countries_list,
     )
 

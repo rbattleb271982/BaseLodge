@@ -31,6 +31,7 @@
   /* ── Configuration ─────────────────────────────────────────── */
   var RS_MODE   = {{ rs_mode | tojson }};
   var RS_LIMIT  = {{ rs_limit | tojson }};
+  var RS_LOGGED_DAY_COUNTS = {{ (rs_logged_day_counts | default({})) | tojson }};
   var ADD_URL    = RS_MODE === 'visited' ? '/api/mountains-visited/add'    : '/api/wishlist/add';
   var REMOVE_URL = RS_MODE === 'visited' ? '/api/mountains-visited/remove' : '/api/wishlist/remove';
   var COUNT_WORD = RS_MODE === 'visited' ? 'visited' : 'wishlisted';
@@ -145,6 +146,23 @@
       + '<polyline points="20 6 9 17 4 12"/></svg>';
   }
 
+  function loggedDayMetaHtml(id, checked) {
+    if (RS_MODE !== 'visited' || !checked) return '';
+    var count = Number(RS_LOGGED_DAY_COUNTS[id] || 0);
+    if (!count) return '';
+    return '<span class="rs-resort-logged-days">'
+      + count + ' logged day' + (count === 1 ? '' : 's')
+      + '</span>';
+  }
+
+  function resortNameHtml(id, checked) {
+    var resort = RS_DATA[id];
+    return '<span class="rs-resort-copy">'
+      + '<span class="rs-resort-name">' + esc(resort.name) + '</span>'
+      + loggedDayMetaHtml(id, checked)
+      + '</span>';
+  }
+
   /* ── Caret indicator ────────────────────────────────────────── */
   function caretHtml() {
     /* U+203A › — right-pointing; rotated 90° via CSS when open */
@@ -205,7 +223,7 @@
             + ' role="checkbox"'
             + ' aria-checked="' + (checked ? 'true' : 'false') + '"'
             + ' tabindex="0">'
-            + '<span class="rs-resort-name">' + esc(r.name) + '</span>'
+            + resortNameHtml(id, checked)
             + '<span class="rs-checkbox" aria-hidden="true">' + (checked ? checkSvg() : '') + '</span>'
             + '</div>'
           );
@@ -315,6 +333,8 @@
     var checked = RS_SELECTED.has(id);
     el.classList.toggle('rs-resort-row--selected', checked);
     el.setAttribute('aria-checked', checked ? 'true' : 'false');
+    var copy = el.querySelector('.rs-resort-copy');
+    if (copy) copy.outerHTML = resortNameHtml(id, checked);
     var cb = el.querySelector('.rs-checkbox');
     if (cb) cb.innerHTML = checked ? checkSvg() : '';
   }

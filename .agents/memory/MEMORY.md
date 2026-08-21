@@ -7,3 +7,4 @@
 - [Activity model column name](activity-model.md) — Activity.type is the SQLAlchemy column (not activity_type); filter_by(type=...) not filter_by(activity_type=...).
 - [state_name Jinja filter](state-name-filter.md) — converts USPS/Canada 2-letter abbreviation to full state name; _STATE_ABBREV_TO_NAME dict in app.py; existing state_fullname filter only handles Resort objects.
 - [Alembic revision ID limit](alembic-revision-id-limit.md) — this database stores alembic version identifiers in VARCHAR(32); keep new revision IDs at or below that length.
+- [SkiDay display privacy](ski-day-display-privacy.md) — per-resort logged-day totals are owner-only; friend Mountains Visited stays unchanged unless a later requirement explicitly expands it.
