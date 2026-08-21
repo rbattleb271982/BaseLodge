@@ -1,0 +1,92 @@
+Do not implement #77 yet.
+I want a deeper deletion-safety audit before any account-deletion code is changed.
+Account deletion is destructive, and I want to be extremely conservative about modifying this flow.
+Do not change application code, models, migrations, tests, task metadata, or database data during this audit.
+Goal
+Prove that the proposed #77 fix is safe before we implement it.
+Specifically, audit the entire database relationship graph involving User and user-owned records, not just the four FK gaps identified in the first investigation.
+1. Build the complete FK inventory
+Inspect the actual models and migrations and identify every foreign key that can directly or indirectly be affected when a User is deleted.
+For each FK report:
+table/model
+column
+target
+nullable or non-nullable
+database ON DELETE behavior
+ORM relationship/cascade behavior
+what delete_account() currently does with it
+whether the current behavior is safe
+Do not rely only on model declarations. Compare models against migrations/database schema where possible.
+2. Audit deletion ordering
+Trace the current delete_account() operation from beginning to end.
+Identify exactly which statements execute before:
+owned trip deletion
+db.session.flush()
+User deletion
+commit
+Determine whether SQLAlchemy could flush automatically before the explicit flush and therefore expose an FK violation earlier than expected.
+3. Re-evaluate the four proposed fixes
+Specifically validate:
+Invitation.trip_id
+FriendCooldown
+FriendSuggestion
+SuggestionPushCooldown
+For each one, prove:
+the FK can actually block deletion
+the proposed hard-delete is semantically correct
+deleting it cannot remove meaningful history belonging to another user
+there isn't a safer null/preserve option already supported by the schema
+4. Pay special attention to push-notification data
+Audit all:
+push device tokens
+push notification records
+notification preferences
+notification logs/events
+suggestion push cooldowns
+any OneSignal-related persisted identifiers
+I do not want #77 accidentally changing notification behavior or recreating the deletion problems we've previously encountered.
+State explicitly which notification-related records #77 would touch and which it would leave completely unchanged.
+5. Simulate representative deletion scenarios
+Without modifying production data, determine what happens for at least these cases:
+simple user with almost no related data
+user with friends
+user who invited other users
+user who owns trips
+user who created a trip owned by somebody else
+user participating in other users' trips
+user with SkiDays
+user with availability
+user with push-device/notification data
+user involved in friend suggestions
+user whose owned trip has invitations between two completely different users
+heavily connected user containing as many of these relationships simultaneously as practical
+6. Verify transaction safety
+Confirm that account deletion remains one database transaction.
+If any operation fails:
+no partial account deletion should be committed
+unrelated users' records should remain unchanged
+the deleting user's account should remain intact
+Identify whether the current exception handling actually guarantees this.
+7. Produce a preservation matrix
+Give me a table of every affected data type with exactly one outcome:
+DELETE
+NULL USER REFERENCE
+PRESERVE
+DATABASE CASCADE
+Explain why each outcome is correct.
+8. Testing plan before implementation
+Design the tests that would prove the fix safe, including FK enforcement.
+I especially want tests proving:
+another user's trip cannot accidentally be deleted
+another user's SkiDays cannot accidentally be deleted
+unrelated invitations cannot be deleted unless their underlying trip itself is being deleted
+unrelated friendships/suggestions remain intact
+notification preferences/data belonging to other users remain intact
+a failed deletion rolls the entire transaction back
+no dangling FK references remain after successful deletion
+Final recommendation
+End with exactly one of:
+SAFE TO IMPLEMENT AS PREVIOUSLY PROPOSED
+SAFE TO IMPLEMENT WITH THESE CHANGES: [changes]
+DO NOT IMPLEMENT YET: [reason]
+Do not implement anything during this audit.
