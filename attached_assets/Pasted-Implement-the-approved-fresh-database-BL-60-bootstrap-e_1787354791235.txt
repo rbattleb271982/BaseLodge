@@ -1,0 +1,100 @@
+Implement the approved fresh-database BL-60 bootstrap exactly according to the investigation/spec.
+This implementation is for new development/test PostgreSQL databases only.
+Hard constraints
+Do not modify production.
+Do not run anything against production.
+Do not restart Flask.
+Do not modify historical Alembic revisions.
+Do not change app.py.
+Do not change startup DDL/mutators.
+Do not change OneSignal, push notifications, or push tokens.
+Do not resume BL-77.
+Do not seed production data.
+Do not bootstrap the actual Replit development database until the implementation has first passed the required disposable PostgreSQL validation.
+Implement
+Create:
+bootstrap/bl60_schema.sql
+bootstrap/bl60_schema_contract.json
+scripts/bootstrap_bl60.py
+tests/test_bootstrap_bl60_postgres.py
+Make only the focused change needed in:
+runtime_config.py
+Implement the exact 28-table BL-60 schema and 12 enum types documented in the approved investigation.
+ski_day must not be part of the BL-60 bootstrap.
+mountain_page_view must exist in its actual BL-60 state without its resort/user FKs, because BL-306 owns that reconciliation.
+friend_cooldown must use the intentional deployed ON DELETE CASCADE behavior for both user FKs.
+Safety runner
+scripts/bootstrap_bl60.py must fail closed unless all approved safeguards pass, including:
+runtime is exactly development or test
+explicit BASELODGE_BOOTSTRAP_MODE=1
+explicit BASELODGE_BOOTSTRAP_DATABASE_URL
+PostgreSQL only
+production identity rejection
+development bootstrap identity matches the configured development DB identity
+no existing alembic_version
+no existing application tables
+no existing BaseLodge enums
+target is otherwise empty as specified
+transaction + PostgreSQL advisory lock
+no credential logging
+It must never import Flask or app.py.
+A second bootstrap attempt against an initialized DB must refuse rather than act idempotently.
+Schema contract
+Implement the normalized catalog comparison described in the approved spec.
+It must validate meaningful differences in:
+tables/columns
+PostgreSQL types
+nullability
+defaults
+enums and label order
+PKs
+unique/check constraints
+FKs and delete actions
+indexes, column order, predicates, sort order and relevant operator classes
+Do not hide meaningful schema differences through normalization.
+Disposable PostgreSQL validation FIRST
+Before touching the actual Replit development database:
+Start with a disposable empty PostgreSQL database.
+Run the bootstrap through the safety runner.
+Prove its catalog matches the committed BL-60 contract.
+Stamp it:
+bl60_mtn_filter_edu
+Upgrade:
+bl60_mtn_filter_edu → bl305_ski_day_foundation → bl306_mpv_fk_reconcile
+Verify current revision is:
+bl306_mpv_fk_reconcile
+Verify SkiDay and its intended FKs.
+Verify BL-306 adds the intended MountainPageView FKs.
+Verify the production-path simulation from BL-60 through BL-306.
+Verify BL-306 fails closed with representative MountainPageView orphans.
+Run all approved bootstrap refusal/failure tests.
+Run the full BaseLodge regression suite.
+Replit development database
+Do not initialize it automatically as part of implementation.
+Once disposable PostgreSQL validation and the full regression suite pass, STOP and report that the bootstrap implementation itself is validated.
+I want a separate explicit approval before we use the new bootstrap against the real Replit development database.
+Commit
+If and only if the implementation and required validation pass, commit the implementation with the task ID:
+#309: Add safe BL-60 development database bootstrap
+Do not include unrelated changes in the commit.
+Return
+Report:
+files changed
+bootstrap implementation
+safety guards implemented
+schema-equivalence validation result
+disposable PostgreSQL bootstrap result
+BL-60 stamp result
+BL-305/BL-306 upgrade result
+final disposable revision
+failure/refusal test results
+full regression-suite result
+commit hash
+confirmation the actual Replit development DB remains untouched
+confirmation production remains untouched
+confirmation Flask remains stopped
+confirmation BL-77 remains blocked
+End with exactly one:
+BOOTSTRAP VALIDATED — READY FOR EXPLICIT DEVELOPMENT DATABASE INITIALIZATION APPROVAL
+or
+BOOTSTRAP NOT READY: [reason]
