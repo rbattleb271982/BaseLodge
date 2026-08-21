@@ -11,7 +11,12 @@ the app after source edits, and each import can execute those routines.
 Flask migration command to invoke legacy startup routines despite no controlled
 production migration being intended.
 
-**How to apply:** Clear or replace production database URLs before running local
-commands that import the app; preserve the test suite's pre-import SQLite guard.
-For production, run one controlled migration process with startup DDL disabled,
-not from application workers or a watched development server.
+**How to apply:** BaseLodge runtime selection is explicit and fail-closed:
+development/test need their own URL plus a protected-production identity hash;
+they never select the shared Supabase URL. Migration commands require a separate
+migration URL and explicit migration mode, and must use direct Alembic rather
+than Flask app startup. The legacy shared Supabase URL is a temporary,
+production-runtime-only deployment compatibility path. Keep the pre-import
+SQLite test guard. For production, run one controlled migration process with
+startup DDL disabled, not from application workers or a watched development
+server.

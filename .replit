@@ -27,7 +27,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python app.py"
+args = "env BASELODGE_RUNTIME_ENV=development python app.py"
 waitForPort = 5000
 
 [[ports]]
@@ -40,7 +40,7 @@ externalPort = 3000
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "--workers=2", "app:app"]
+run = ["env", "BASELODGE_RUNTIME_ENV=production", "gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "--workers=2", "app:app"]
 
 [userenv]
 

@@ -6,13 +6,12 @@ from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
+from alembic import command
+from alembic.config import Config
 from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
-from app import app
-from flask_migrate import upgrade as alembic_upgrade
 
-from models import FriendCooldown, db
-from tests.conftest import _swap_engine
+from models import FriendCooldown
 
 
 MIGRATION_PATH = (
@@ -240,12 +239,14 @@ def test_full_chain_upgrades_from_bl60_shape_in_order():
         } == {("resort", "CASCADE"), ("user", "SET NULL")}
 
 
-def test_alembic_upgrade_traverses_from_bl60_to_head_on_isolated_engine():
-    engine = sa.create_engine("sqlite:///:memory:")
+def test_alembic_upgrade_traverses_from_bl60_to_head_on_isolated_engine(
+    tmp_path, monkeypatch
+):
+    database_url = f"sqlite:///{tmp_path / 'migration.db'}"
+    engine = sa.create_engine(database_url)
     metadata = _base_metadata()
     sa.Table("ski_trip", metadata, sa.Column("id", sa.Integer(), primary_key=True))
     _legacy_page_view_table(metadata)
-    saved_engine = _swap_engine(engine)
 
     try:
         with engine.begin() as connection:
@@ -263,11 +264,19 @@ def test_alembic_upgrade_traverses_from_bl60_to_head_on_isolated_engine():
                 )
             )
 
-        with app.app_context():
-            alembic_upgrade(
-                directory=str(MIGRATION_PATH.parents[1]),
-                revision="head",
-            )
+        monkeypatch.setenv("BASELODGE_RUNTIME_ENV", "test")
+        monkeypatch.setenv("BASELODGE_MIGRATION_MODE", "1")
+        monkeypatch.setenv("BASELODGE_MIGRATION_DATABASE_URL", database_url)
+        monkeypatch.setenv(
+            "BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH", "0" * 64
+        )
+        alembic_config = Config(
+            str(MIGRATION_PATH.parents[1] / "alembic.ini")
+        )
+        alembic_config.set_main_option(
+            "script_location", str(MIGRATION_PATH.parents[1])
+        )
+        command.upgrade(alembic_config, "head")
 
         with engine.connect() as connection:
             assert connection.execute(
@@ -277,9 +286,6 @@ def test_alembic_upgrade_traverses_from_bl60_to_head_on_isolated_engine():
                 sa.inspect(connection).get_table_names()
             )
     finally:
-        with app.app_context():
-            db.session.remove()
-        _swap_engine(saved_engine)
         engine.dispose()
 
 

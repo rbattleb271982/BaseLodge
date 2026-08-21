@@ -8,7 +8,7 @@ SYSTEM OF RECORD (as of 2026-01-15):
   
   - Resort data: 693 resorts imported from prod_resorts_full.xlsx
   - Schema: Managed exclusively via Flask-Migrate/Alembic
-  - Database: SUPABASE_DATABASE_URL environment variable
+  - Database: Explicit BaseLodge environment-specific database variable
   
   DO NOT use db.create_all() or run legacy seed scripts.
   All schema changes must go through migrations.
@@ -26,6 +26,10 @@ from datetime import datetime, date, timedelta, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import IntegrityError
+from runtime_config import (
+    RuntimeConfigurationError,
+    resolve_application_database_config,
+)
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
@@ -159,19 +163,12 @@ def generate_resort_slug(name):
 # Do NOT reintroduce profile routes or templates.
 # ============================================================================
 
-is_production = os.environ.get("SUPABASE_DATABASE_URL") is not None and "postgresql" in os.environ.get("SUPABASE_DATABASE_URL", "")
+try:
+    database_configuration = resolve_application_database_config()
+except RuntimeConfigurationError as exc:
+    raise RuntimeError(f"BaseLodge runtime configuration error: {exc}") from exc
 
-# Enforce Supabase connection for resort-related operations
-SUPABASE_URL = os.environ.get("SUPABASE_DATABASE_URL")
-if not SUPABASE_URL:
-    if is_production:
-        raise RuntimeError("CRITICAL: SUPABASE_DATABASE_URL is not set in production. App startup aborted.")
-    else:
-        # Loud warning for development
-        print("!" * 70)
-        print("⚠️  WARNING: SUPABASE_DATABASE_URL is not set.")
-        print("⚠️  Development will fallback to local SQLite but Resort data will be MISSING.")
-        print("!" * 70)
+is_production = database_configuration.runtime_env == "production"
 
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
@@ -372,7 +369,7 @@ def health_check():
         return jsonify({
             "status": "healthy",
             "database": "connected",
-            "environment": os.environ.get("FLASK_ENV", "development"),
+            "environment": database_configuration.runtime_env,
             "timestamp": datetime.utcnow().isoformat()
         }), 200
     except Exception as e:
@@ -1430,24 +1427,7 @@ def emit_availability_overlap_activities_for_trip(trip):
 
 
 # Database Configuration
-supabase_url = os.environ.get("SUPABASE_DATABASE_URL")
-if supabase_url:
-    supabase_url = supabase_url.strip().strip('"').strip("'")
-    if supabase_url.startswith("postgres://"):
-        supabase_url = "postgresql://" + supabase_url[len("postgres://"):]
-    if supabase_url.startswith("postgresql+psycopg2://"):
-        supabase_url = "postgresql://" + supabase_url[len("postgresql+psycopg2://"):]
-    for bad_prefix in ["postgresql+asyncpg://", "postgresql+aiopg://"]:
-        if supabase_url.startswith(bad_prefix):
-            supabase_url = "postgresql://" + supabase_url[len(bad_prefix):]
-    if supabase_url.startswith(("postgresql://", "postgres://")) and "@" in supabase_url and "://" in supabase_url:
-        app.config["SQLALCHEMY_DATABASE_URI"] = supabase_url
-    else:
-        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///baselodge.db"
-else:
-    if is_production:
-        raise RuntimeError("SUPABASE_DATABASE_URL must be set in production.")
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///baselodge.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = database_configuration.database_url
 
 app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
     "pool_recycle": 300,
@@ -2878,21 +2858,13 @@ def log_startup_diagnostics():
     """Log database and user counts on startup for debugging."""
     try:
         with app.app_context():
-            db_url = os.environ.get("SUPABASE_DATABASE_URL")
-            
-            # Mask credentials
-            if db_url and "@" in db_url:
-                safe_db = db_url.split("@")[-1]
-            elif not is_production:
-                safe_db = "DEVELOPMENT FALLBACK: SQLite (baselodge.db)"
-            else:
-                safe_db = "ERROR: NOT SET"
+            safe_db = database_configuration.safe_identity
             
             print("=" * 70)
             print("🔧 BASELODGE STARTUP DIAGNOSTICS")
             print("=" * 70)
             print(f"DATABASE: {safe_db}")
-            print(f"PRODUCTION MODE: {is_production}")
+            print(f"RUNTIME ENVIRONMENT: {database_configuration.runtime_env}")
             
             # Count records
             user_count = User.query.count()
@@ -24193,4 +24165,9 @@ def admin_app_store_refresh():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=database_configuration.debug_enabled,
+        use_reloader=database_configuration.debug_enabled,
+    )
