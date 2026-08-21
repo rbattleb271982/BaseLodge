@@ -1,0 +1,234 @@
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Ski Days{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('profile') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
+{% block topbar_title %}Ski Days{% endblock %}
+{% block topbar_right %}{% endblock %}
+{% block head %}
+<style>
+    .sd-wrap {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 8px 16px 44px;
+    }
+    .sd-intro {
+        color: var(--bl-color-text-muted);
+        font-size: 14px;
+        line-height: 1.45;
+        margin: 0 0 20px;
+    }
+    .sd-card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
+        padding: 16px;
+        margin-bottom: 18px;
+    }
+    .sd-card-title {
+        color: var(--bl-color-text);
+        font-size: 16px;
+        font-weight: 650;
+        margin: 0 0 14px;
+    }
+    .sd-field {
+        margin-bottom: 12px;
+    }
+    .sd-label {
+        color: var(--bl-color-text-muted);
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+    .sd-input {
+        background: #fff;
+        border: 1px solid var(--bl-color-border);
+        border-radius: 10px;
+        box-sizing: border-box;
+        color: var(--bl-color-text);
+        font: inherit;
+        min-height: 46px;
+        padding: 11px 12px;
+        width: 100%;
+    }
+    .sd-input:focus {
+        border-color: #5C1219;
+        outline: 2px solid rgba(92,18,25,0.12);
+    }
+    .sd-primary {
+        background: #5C1219;
+        border: 0;
+        border-radius: 10px;
+        color: #fff;
+        cursor: pointer;
+        font: inherit;
+        font-weight: 650;
+        min-height: 46px;
+        padding: 10px 16px;
+        width: 100%;
+    }
+    .sd-primary:active { background: #6B000F; }
+    .sd-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .sd-row {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
+        padding: 14px 16px;
+    }
+    .sd-row-summary {
+        align-items: center;
+        display: flex;
+        gap: 12px;
+        justify-content: space-between;
+    }
+    .sd-row-info { min-width: 0; }
+    .sd-row-date {
+        color: var(--bl-color-text);
+        font-size: 16px;
+        font-weight: 650;
+    }
+    .sd-row-resort {
+        color: var(--bl-color-text-muted);
+        font-size: 13px;
+        margin-top: 3px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .sd-actions {
+        display: flex;
+        flex-shrink: 0;
+        gap: 8px;
+    }
+    .sd-action {
+        background: transparent;
+        border: 1px solid var(--bl-color-border);
+        border-radius: 8px;
+        color: #5C1219;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        padding: 7px 10px;
+    }
+    .sd-action--remove { color: #8B1A1A; }
+    .sd-edit {
+        border-top: 1px solid var(--bl-color-border-soft);
+        display: none;
+        margin-top: 13px;
+        padding-top: 13px;
+    }
+    .sd-edit.is-open { display: block; }
+    .sd-edit-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .sd-edit-actions .sd-primary { flex: 1; }
+    .sd-cancel {
+        background: transparent;
+        border: 1px solid var(--bl-color-border);
+        border-radius: 10px;
+        color: var(--bl-color-text-muted);
+        cursor: pointer;
+        font: inherit;
+        padding: 10px 14px;
+    }
+    .sd-empty {
+        color: var(--bl-color-text-muted);
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 0;
+        text-align: center;
+    }
+    @media (max-width: 420px) {
+        .sd-row-summary { align-items: flex-start; flex-direction: column; }
+        .sd-actions { width: 100%; }
+        .sd-action { flex: 1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sd-wrap">
+    <p class="sd-intro">Keep your confirmed ski history accurate. Add a missed day or correct a date or resort.</p>
+
+    <div class="sd-card">
+        <h1 class="sd-card-title">Add a missed ski day</h1>
+        <form method="post" action="{{ url_for('ski_day_add') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="sd-field">
+                <label class="sd-label" for="sd-add-date">Date</label>
+                <input class="sd-input" id="sd-add-date" name="ski_date" type="date" required>
+            </div>
+            <div class="sd-field">
+                <label class="sd-label" for="sd-add-resort">Resort</label>
+                <select class="sd-input" id="sd-add-resort" name="resort_id" required>
+                    <option value="">Choose a resort</option>
+                    {% for resort in resorts %}
+                    <option value="{{ resort.id }}">{{ resort.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="sd-primary" type="submit">Add ski day</button>
+        </form>
+    </div>
+
+    <div class="sd-list" aria-live="polite">
+        {% if ski_days %}
+            {% for day, resort in ski_days %}
+            <div class="sd-row">
+                <div class="sd-row-summary">
+                    <div class="sd-row-info">
+                        <div class="sd-row-date">{{ day.ski_date.strftime('%b %-d, %Y') }}</div>
+                        <div class="sd-row-resort">{{ resort.name }}</div>
+                    </div>
+                    <div class="sd-actions">
+                        <button class="sd-action" type="button" onclick="toggleSkiDayEdit('sd-edit-{{ day.id }}', this)">Edit</button>
+                        <form method="post" action="{{ url_for('ski_day_delete', ski_day_id=day.id) }}" onsubmit="return confirm('Remove this ski day?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="sd-action sd-action--remove" type="submit">Remove</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="sd-edit" id="sd-edit-{{ day.id }}">
+                    <form method="post" action="{{ url_for('ski_day_edit', ski_day_id=day.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="sd-field">
+                            <label class="sd-label" for="sd-date-{{ day.id }}">Date</label>
+                            <input class="sd-input" id="sd-date-{{ day.id }}" name="ski_date" type="date" value="{{ day.ski_date.isoformat() }}" required>
+                        </div>
+                        <div class="sd-field">
+                            <label class="sd-label" for="sd-resort-{{ day.id }}">Resort</label>
+                            <select class="sd-input" id="sd-resort-{{ day.id }}" name="resort_id" required>
+                                {% for option in resorts %}
+                                <option value="{{ option.id }}" {% if option.id == day.resort_id %}selected{% endif %}>{{ option.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="sd-edit-actions">
+                            <button class="sd-primary" type="submit">Save changes</button>
+                            <button class="sd-cancel" type="button" onclick="toggleSkiDayEdit('sd-edit-{{ day.id }}')">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="sd-card">
+                <p class="sd-empty">No ski days logged yet. Add a missed day above to start your history.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+<script>
+function toggleSkiDayEdit(id, button) {
+    var panel = document.getElementById(id);
+    if (!panel) return;
+    var opening = !panel.classList.contains('is-open');
+    panel.classList.toggle('is-open', opening);
+    if (button) button.setAttribute('aria-expanded', opening ? 'true' : 'false');
+}
+</script>
+{% endblock %}

@@ -11498,7 +11498,145 @@ def profile():
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
                            upcoming_trips_count=upcoming_trips_count,
-                           primary_equipment=primary_equipment)
+                           primary_equipment=primary_equipment,
+                           ski_day_count=SkiDay.query.filter_by(
+                               user_id=current_user.id
+                           ).count())
+
+
+def _ski_day_resorts():
+    """Return selectable canonical resorts for the SkiDay correction screen."""
+    return Resort.query.filter(
+        db.or_(Resort.is_region.is_(False), Resort.is_region.is_(None))
+    ).order_by(Resort.country_code, Resort.state_code, Resort.name).all()
+
+
+def _parse_ski_day_form():
+    """Validate a web SkiDay form and return (resort, date, error)."""
+    resort_id_raw = (request.form.get("resort_id") or "").strip()
+    try:
+        resort_id = int(resort_id_raw)
+    except (TypeError, ValueError):
+        return None, None, "Choose a valid resort."
+
+    resort = db.session.get(Resort, resort_id)
+    if not resort or resort.is_region:
+        return None, None, "Choose a valid resort."
+
+    ski_date_raw = (request.form.get("ski_date") or "").strip()
+    try:
+        ski_date = date.fromisoformat(ski_date_raw)
+    except (TypeError, ValueError):
+        return None, None, "Enter a valid ski date."
+
+    return resort, ski_date, None
+
+
+@app.route("/profile/ski-days")
+@login_required
+def ski_days():
+    """Show the signed-in user's confirmed SkiDay history."""
+    rows = (
+        db.session.query(SkiDay, Resort)
+        .join(Resort, SkiDay.resort_id == Resort.id)
+        .filter(SkiDay.user_id == current_user.id)
+        .order_by(SkiDay.ski_date.desc(), SkiDay.id.desc())
+        .all()
+    )
+    return render_template(
+        "ski_days.html",
+        page_title="Ski Days",
+        ski_days=rows,
+        resorts=_ski_day_resorts(),
+    )
+
+
+@app.route("/profile/ski-days/add", methods=["POST"])
+@login_required
+def ski_day_add():
+    """Add one missed confirmed SkiDay for the current user."""
+    validate_csrf_request()
+    resort, ski_date, error = _parse_ski_day_form()
+    if error:
+        flash(error, "error")
+        return redirect(url_for("ski_days"))
+
+    duplicate = SkiDay.query.filter_by(
+        user_id=current_user.id,
+        resort_id=resort.id,
+        ski_date=ski_date,
+    ).first()
+    if duplicate:
+        flash("That ski day is already logged.", "error")
+        return redirect(url_for("ski_days"))
+
+    db.session.add(SkiDay(
+        user_id=current_user.id,
+        resort_id=resort.id,
+        ski_date=ski_date,
+        source="user_confirmation",
+    ))
+    try:
+        db.session.commit()
+        flash("Ski day added.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash("That ski day is already logged.", "error")
+    return redirect(url_for("ski_days"))
+
+
+@app.route("/profile/ski-days/<int:ski_day_id>/edit", methods=["POST"])
+@login_required
+def ski_day_edit(ski_day_id):
+    """Correct the date or resort of one of the current user's SkiDays."""
+    validate_csrf_request()
+    ski_day = SkiDay.query.filter_by(
+        id=ski_day_id,
+        user_id=current_user.id,
+    ).first_or_404()
+    resort, ski_date, error = _parse_ski_day_form()
+    if error:
+        flash(error, "error")
+        return redirect(url_for("ski_days"))
+
+    duplicate = SkiDay.query.filter(
+        SkiDay.user_id == current_user.id,
+        SkiDay.resort_id == resort.id,
+        SkiDay.ski_date == ski_date,
+        SkiDay.id != ski_day.id,
+    ).first()
+    if duplicate:
+        flash("You already have that resort and date logged.", "error")
+        return redirect(url_for("ski_days"))
+
+    ski_day.resort_id = resort.id
+    ski_day.ski_date = ski_date
+    try:
+        db.session.commit()
+        flash("Ski day updated.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash("You already have that resort and date logged.", "error")
+    return redirect(url_for("ski_days"))
+
+
+@app.route("/profile/ski-days/<int:ski_day_id>/delete", methods=["POST"])
+@login_required
+def ski_day_delete(ski_day_id):
+    """Hard-delete one of the current user's incorrectly logged SkiDays."""
+    validate_csrf_request()
+    ski_day = SkiDay.query.filter_by(
+        id=ski_day_id,
+        user_id=current_user.id,
+    ).first_or_404()
+    db.session.delete(ski_day)
+    try:
+        db.session.commit()
+        flash("Ski day removed.", "success")
+    except IntegrityError:
+        db.session.rollback()
+        flash("We couldn't remove that ski day. Please try again.", "error")
+    return redirect(url_for("ski_days"))
 
 @app.route("/notifications")
 @login_required
