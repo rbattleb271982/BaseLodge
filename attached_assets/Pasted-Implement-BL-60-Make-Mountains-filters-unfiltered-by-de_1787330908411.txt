@@ -1,0 +1,315 @@
+Implement **BL-60 — Make Mountains filters unfiltered by default and improve discoverability** based on the completed investigation.
+
+This is an **implementation task**. Make the code changes, migration, and tests needed to complete BL-60.
+
+## Hard constraint
+
+This must ship through the existing **web/backend architecture only**.
+
+Do **not** modify:
+
+* Native iOS project files
+* Native Android project files
+* Capacitor configuration
+* Native plugins
+* App permissions
+* Entitlements
+* Anything that would require submitting a new binary to the Apple App Store or Google Play Store
+
+The investigation confirmed BL-60 can be completed without a native rebuild. Preserve that constraint.
+
+## Existing implementation findings
+
+Mountains is currently implemented through:
+
+* `GET /mountains` in `app.py`
+* `GET /api/mountains-data`
+* `templates/mountains_tab.html`
+
+The current route derives default Country/State behavior from `current_user.home_state`, and the template applies those defaults after resort data loads.
+
+Filter selections are otherwise page-local only and are not persisted in the database, session, URL, cookies, `localStorage`, or `sessionStorage`.
+
+There are two current behaviors that must be removed:
+
+1. Mountains automatically derives and applies the user's home State/Country.
+2. The current Clear behavior explicitly resets Country to **United States** instead of restoring the fully unfiltered list.
+
+There is also existing bfcache handling that can preserve old DOM filter selections when returning to Mountains. BL-60 intentionally changes this behavior.
+
+## Required implementation
+
+### 1. Remove all automatic filter defaults
+
+Every time the user enters Mountains:
+
+* Country = unselected
+* State = unselected
+* Pass = unselected
+* Search = empty
+* Full active mountain list is shown
+
+Do not derive Mountains defaults from:
+
+* `home_state`
+* home country
+* pass ownership
+* prior filter selections
+* another page visit
+
+Remove the current route/template wiring that exists only to apply the home-state Mountains default.
+
+Do not remove `home_state` itself or change its behavior elsewhere in BaseLodge.
+
+### 2. Reset Mountains whenever the user returns
+
+Filters should reset whenever the Mountains screen is entered, including:
+
+* fresh navigation
+* page refresh
+* returning from another BaseLodge tab/page
+* browser back navigation / bfcache restoration
+* native webview navigation using the existing deployed app shell
+
+The user should never return to Mountains and find a prior filter/search state still applied.
+
+Do **not** force an unnecessary resort-data refetch solely to accomplish this. If the existing in-memory resort payload can be reused safely, reset the UI controls and rerender from it.
+
+Keep the existing five-minute resort-data cache untouched.
+
+### 3. Fix Clear
+
+The existing Clear control should become a small **Clear** action.
+
+Show it only when at least one filtering input is active, including:
+
+* Country
+* State
+* Pass
+* Search
+
+When tapped:
+
+* empty Search
+* clear Country
+* clear State
+* clear Pass
+* rebuild State options appropriately for no Country selection
+* immediately rerender the complete active mountain list
+
+Do **not** set Country to United States.
+
+### 4. Permanent filter-area treatment
+
+Use the existing filter row/container rather than rebuilding the filter UI.
+
+After normal page load, the Country / State / Pass filtering area should have a restrained visual container treatment:
+
+* subtle tinted background
+* light outline/border
+* modest radius/padding as appropriate
+* visually consistent with the existing BaseLodge design system
+
+The resting state must **not** look selected.
+
+Reuse existing CSS variables/tokens wherever possible. Do not introduce arbitrary new brand colors.
+
+### 5. Active filter treatment
+
+Reuse the existing active-state machinery where possible, including the current `md-select--active` / `markActive()` pattern found during investigation.
+
+When Country, State, or Pass has a value:
+
+* make that control visually stronger than its inactive resting state
+
+Do not redesign the selects.
+
+Search should continue to count toward whether **Clear** is shown, even if Search does not use the same selected-control styling as the dropdowns.
+
+### 6. One-time filter education
+
+The first time an account visits Mountains, show a small anchored coachmark around the filter area.
+
+Requirements:
+
+* Highlight the **entire Country / State / Pass filter area**
+* Use a temporary stronger highlight than the permanent filter-container styling
+* Display exact copy:
+
+**Filter mountains by state and pass.**
+
+* Point the coachmark to the filter area as a whole
+* Explicit control: **X only**
+* No “Got it” button
+
+It may also dismiss when:
+
+* user taps/clicks outside
+* user interacts with a Mountains filter
+* a short timeout completes
+
+Use one shared, idempotent dismissal function.
+
+Once dismissed through any valid path, the education should be considered seen permanently for that account.
+
+The coachmark must not prevent the user from operating the filter controls.
+
+Give the X an appropriate accessible name.
+
+Do not create a generic sitewide onboarding framework for this task.
+
+### 7. Persist education state at account level
+
+Follow the existing BaseLodge pattern identified during investigation:
+
+* `User.welcome_modal_seen_at`
+* `/onboarding/welcome-shown`
+
+Reuse the **pattern**, not the existing field/endpoint.
+
+Add a dedicated nullable timestamp field on `User`, preferably:
+
+`mountains_filter_education_seen_at`
+
+Add the necessary migration.
+
+Expose a Boolean to the Mountains template derived from whether that timestamp is set.
+
+Add a small authenticated endpoint such as:
+
+`POST /api/mountains/filter-education-seen`
+
+It should:
+
+* require authentication
+* validate CSRF
+* operate only on the current user
+* be idempotent
+* write the timestamp only if not already set
+* commit explicitly
+* roll back on failure
+* return a small JSON success response
+
+Do not use local-device storage for this state.
+
+Do not build a generic preferences table for this task.
+
+## Expected implementation surface
+
+Keep the scope as close as possible to:
+
+### `app.py`
+
+* Remove home-state Mountains default derivation/passing
+* Pass education visibility state
+* Add the authenticated dismissal endpoint
+
+### `models.py`
+
+* Add `mountains_filter_education_seen_at`
+
+### `migrations/versions/`
+
+* Add the required migration
+
+### `templates/mountains_tab.html`
+
+* Remove automatic Country/State initialization
+* Reset filters on entry/restoration
+* Fix Clear behavior
+* Add permanent filter-container treatment
+* Strengthen active filter states
+* Add first-visit coachmark/highlight
+* Add dismissal/persistence handling
+
+### Tests
+
+Add focused coverage for the new server and UI behavior.
+
+Do not broaden the task unless the current architecture genuinely requires it.
+
+## Required tests
+
+At minimum, add or update coverage for:
+
+### Server/persistence
+
+* `/mountains` requires authentication
+* Mountains renders without home-state-derived defaults
+* Education-dismissal endpoint rejects unauthenticated requests
+* Education-dismissal endpoint rejects invalid/missing CSRF
+* Endpoint changes only the current user's state
+* Endpoint is idempotent
+* Seen state persists across new requests
+
+### Mountains behavior
+
+Verify as much of the client behavior as the current test stack reasonably supports:
+
+* first load is fully unfiltered
+* Country/State/Pass start blank
+* Search starts blank
+* Country → State dependency still works
+* Country, State, Pass, and Search filtering still work together
+* active controls receive active styling only when selected
+* Clear only appears when a filter/search is active
+* Clear empties every filter/search input
+* Clear restores the complete active list
+* returning through bfcache resets previous filters
+* first-visit education appears when timestamp is unset
+* exact copy is used
+* X dismissal works
+* filter-interaction dismissal works
+* outside-dismissal path works
+* timeout dismissal path works
+* all valid dismissal paths persist the seen state
+* education does not appear once account is marked seen
+
+## Important regression protections
+
+Do not change:
+
+* resort availability rules
+* active/inactive resort logic
+* region/country data structure
+* friend counts
+* pass data
+* five-minute Mountains data cache
+* global `home_state` behavior outside Mountains
+* native navigation
+* push functionality
+* existing native app shell behavior
+
+## Completion report
+
+After implementation, return:
+
+### Files changed
+
+List every file changed.
+
+### Behavior changed
+
+Summarize the user-visible changes.
+
+### Persistence
+
+Confirm the field/migration/endpoint added.
+
+### Tests
+
+List tests added/updated and their result.
+
+### Native-build verification
+
+State explicitly:
+
+**Native iOS/Android files changed: Yes / No**
+
+**New app-store build required: Yes / No**
+
+Both answers should be **No** for this task.
+
+### Commit
+
+Provide the Git commit hash for the completed BL-60 implementation.
