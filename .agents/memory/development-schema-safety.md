@@ -19,4 +19,7 @@ than Flask app startup. The legacy shared Supabase URL is a temporary,
 production-runtime-only deployment compatibility path. Keep the pre-import
 SQLite test guard. For production, run one controlled migration process with
 startup DDL disabled, not from application workers or a watched development
-server.
+server. The standalone bootstrap imports root-level runtime configuration, so
+direct script execution must retain the repository root on Python's import path
+(for example, `PYTHONPATH="$PWD"`); this path must never be replaced with a
+Flask/app import.

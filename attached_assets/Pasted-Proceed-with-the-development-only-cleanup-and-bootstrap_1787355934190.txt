@@ -1,0 +1,105 @@
+Proceed with the development-only cleanup and bootstrap retry.
+This is a controlled development database task.
+Do not touch production.
+Do not restart Flask until the full bootstrap/stamp/upgrade verification passes.
+Preconditions
+The verified development database is:
+postgresql://helium:5432/heliumdb
+Its fingerprint is:
+b6d12084fe886e2c4690c5cbc6619d79f1afe7722f94c29eddcd87d113d8c05e
+The protected production fingerprint is:
+732b2adf0aaed1c390923f6c581c036d4c20d96ef45b64a893491d04fe0b4ab5
+The only remaining user-created object in the development DB is:
+public.activitytype
+It has no application dependencies and is not part of the approved #311 BL-60 contract.
+1. Re-verify identity before cleanup
+Before any write:
+verify runtime is development
+verify target identity is the approved Replit development DB
+verify target fingerprint matches the approved development fingerprint
+verify target fingerprint does not match production
+verify no application tables exist
+verify no alembic_version
+verify public.activitytype is still the only BaseLodge/user-created schema object
+If anything differs, STOP.
+2. Drop only the stray enum
+Drop only:
+public.activitytype
+Do not use CASCADE unless PostgreSQL requires it solely for the implicit internal array type.
+Do not drop or alter anything else.
+Immediately re-inspect the public schema and confirm it is now empty enough for the #311 bootstrap guards.
+3. Run the validated #311 bootstrap
+Use:
+BASELODGE_RUNTIME_ENV=development
+BASELODGE_BOOTSTRAP_MODE=1
+BASELODGE_BOOTSTRAP_DATABASE_URL pointing to the verified Replit development DB
+Run the committed scripts/bootstrap_bl60.py.
+Do not import Flask or app.py.
+Verify the BL-60 catalog contract passes.
+4. Stamp BL-60
+Using standalone Alembic with explicit migration mode, stamp:
+bl60_mtn_filter_edu
+5. Upgrade to head
+Run:
+bl60_mtn_filter_edu
+→ bl305_ski_day_foundation
+→ bl306_mpv_fk_reconcile
+using the verified development DB only.
+Verify current revision becomes:
+bl306_mpv_fk_reconcile
+6. Verify development schema
+Confirm:
+BL-60 bootstrap contract passed
+ski_day exists
+SkiDay FKs are correct
+MountainPageView has:
+resort FK ON DELETE CASCADE
+user FK ON DELETE SET NULL
+no orphan FK violations
+alembic_version is correct
+no startup mutators were invoked
+7. Reference data
+Do not copy production data.
+Do not seed users, trips, push tokens, availability, or analytics.
+Do not run the existing resort importer unless it has already been separately approved as safe.
+If schema initialization succeeds but resort/reference data is still missing, report that as the next blocker.
+8. Restart gate
+Do not restart:
+Flask Server
+Project workflow
+At the end, report whether the schema is structurally ready for Flask and whether missing reference data is the only remaining blocker.
+Production safety
+During this task:
+no production writes
+no production migrations
+no production schema changes
+no OneSignal calls
+no production push changes
+no BL-77 changes
+Commit
+No code change is expected.
+Do not create a commit unless an unexpected code fix becomes necessary.
+If a code fix appears necessary, STOP and report it before editing.
+Return
+Report:
+identity preflight result
+activitytype cleanup result
+post-cleanup empty-schema result
+BL-60 bootstrap result
+stamp result
+BL-305/BL-306 upgrade result
+final Alembic revision
+SkiDay FK verification
+MountainPageView FK verification
+FK integrity result
+whether reference data is still missing
+whether Flask is structurally safe to restart
+confirmation production was untouched
+confirmation push/OneSignal was unchanged
+Flask Server status
+Project workflow status
+BL-77 status
+End with exactly one:
+DEVELOPMENT DATABASE INITIALIZED — READY FOR RESTART REVIEW
+or
+DEVELOPMENT DATABASE INITIALIZATION BLOCKED: [reason]
