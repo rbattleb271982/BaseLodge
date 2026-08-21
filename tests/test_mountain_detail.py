@@ -4,7 +4,7 @@ import pytest
 
 from app import app
 from conftest import _add_participant, _login, _make_resort, _make_trip, _make_user
-from models import Friend, GuestStatus, SkiTripParticipant, db
+from models import Friend, GuestStatus, Invitation, SkiTripParticipant, db
 
 
 def _connect(user, friend):
@@ -32,6 +32,143 @@ def _set_rsvp(trip, user, status):
         user_id=user.id,
     ).one()
     participant.status = status
+
+
+def test_mountain_page_shows_been_here_only_for_canonical_visit_id(client):
+    with app.app_context():
+        viewer = _make_user("been-here")
+        resort = _make_resort("Been Here Peak")
+        resort_slug = resort.slug
+        viewer.visited_resort_ids = [resort.id]
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "✓ Been here" in html
+    assert "Not marked as visited" not in html
+
+
+@pytest.mark.parametrize("visited_ids", [None, []])
+def test_mountain_page_empty_or_null_visit_ids_are_not_been_here(client, visited_ids):
+    with app.app_context():
+        viewer = _make_user("not-been-here")
+        resort = _make_resort("Not Been Here Peak")
+        resort_slug = resort.slug
+        viewer.visited_resort_ids = visited_ids
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Not marked as visited" in html
+    assert "✓ Been here" not in html
+
+
+def test_mountain_page_does_not_infer_been_here_from_trips_rsvps_wishlist_or_legacy_names(client):
+    with app.app_context():
+        viewer = _make_user("signals-not-visit")
+        host = _make_user("signals-host")
+        resort = _make_resort("Signals Peak")
+        resort_slug = resort.slug
+        viewer.visited_resort_ids = []
+        viewer.mountains_visited = [resort.name]
+        viewer.wish_list_resorts = [resort.id]
+
+        past_trip = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=date.today() - timedelta(days=10),
+            end_date=date.today() - timedelta(days=9),
+        )
+        _set_rsvp(past_trip, viewer, GuestStatus.GOING)
+
+        future_trip = _make_trip(viewer, resort=resort)
+        _set_rsvp(future_trip, viewer, GuestStatus.INTERESTED)
+
+        going_trip = _make_trip(host, resort=resort)
+        _add_participant(going_trip, viewer, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Not marked as visited" in html
+    assert "✓ Been here" not in html
+
+
+def test_mountain_page_does_not_show_pending_or_nonfriend_visited_users(client):
+    with app.app_context():
+        viewer = _make_user("privacy-viewer")
+        pending_user = _friend("pending-visited", "Pending")
+        nonfriend = _friend("nonfriend-visited", "Nonfriend")
+        resort = _make_resort("Privacy Visit Peak")
+        resort_slug = resort.slug
+        pending_user.visited_resort_ids = [resort.id]
+        nonfriend.visited_resort_ids = [resort.id]
+        db.session.add(Invitation(
+            sender_id=viewer.id,
+            receiver_id=pending_user.id,
+            status="pending",
+        ))
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Pending Friend" not in html
+    assert "Nonfriend Friend" not in html
+    assert "recorded this mountain as visited" not in html
+
+
+def test_mountain_page_does_not_show_removed_friend_visit(client):
+    with app.app_context():
+        viewer = _make_user("removed-viewer")
+        removed_friend = _friend("removed-visited", "Removed")
+        resort = _make_resort("Removed Visit Peak")
+        resort_slug = resort.slug
+        removed_friend.visited_resort_ids = [resort.id]
+        _connect(viewer, removed_friend)
+        db.session.flush()
+        Friend.query.filter_by(user_id=viewer.id, friend_id=removed_friend.id).delete()
+        Friend.query.filter_by(user_id=removed_friend.id, friend_id=viewer.id).delete()
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Removed Friend" not in html
+    assert "recorded this mountain as visited" not in html
+
+
+def test_mountain_page_multiple_recorded_visits_keep_existing_summary_behavior(client):
+    with app.app_context():
+        viewer = _make_user("many-visits-viewer")
+        friends = []
+        resort = _make_resort("Many Visits Peak")
+        resort_slug = resort.slug
+        for label in ["alpha", "bravo", "charlie", "delta"]:
+            friend = _friend(label, label.title())
+            friend.visited_resort_ids = [resort.id]
+            _connect(viewer, friend)
+            friends.append(friend)
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "4 friends have recorded this mountain as visited" in html
+    assert "Alpha Friend" in html
+    assert "Bravo Friend" in html
+    assert "Charlie Friend" in html
+    assert "Delta Friend" not in html
+    assert "+1 more" in html
 
 
 def test_mountain_page_separates_person_level_going_and_interested(client):

@@ -12075,6 +12075,7 @@ def mountain_detail(slug):
             user_pass_name = _re.sub(r'\s+[Pp]ass$', '', _up).strip()
             break
     is_on_wishlist = resort.id in (current_user.wish_list_resorts or [])
+    has_recorded_visit = resort.id in (current_user.visited_resort_ids or [])
 
     if app.debug:
         print(f"[ROUTE_PERF] route=mountain_detail total={time.perf_counter()-_rp_t0:.4f}s")
@@ -12089,6 +12090,7 @@ def mountain_detail(slug):
         recorded_visit_friends=recorded_visit_friends,
         user_pass_covered=user_pass_covered,
         user_pass_name=user_pass_name,
+        has_recorded_visit=has_recorded_visit,
         is_on_wishlist=is_on_wishlist,
         wishlist_friends=wishlist_friends,
     )
