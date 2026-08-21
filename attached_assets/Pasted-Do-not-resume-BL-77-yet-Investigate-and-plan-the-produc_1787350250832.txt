@@ -1,0 +1,78 @@
+Do not resume BL-77 yet.
+Investigate and plan the production schema reconciliation required before BL-77 can safely continue.
+This is an investigation/planning task only. Do not run migrations, alter production schema, modify production data, or change application code yet.
+Goal
+Resolve these three confirmed production/schema mismatches:
+Production is one Alembic revision behind and is missing:
+bl305_ski_day_foundation
+the ski_day table and its FKs
+mountain_page_view exists in production but was created by startup DDL without the foreign keys declared by the SQLAlchemy model.
+FriendCooldown production FKs intentionally use ON DELETE CASCADE, while the SQLAlchemy model does not declare that behavior.
+First: determine the actual production migration process
+Trace exactly how BaseLodge production database migrations are supposed to be applied today.
+Determine:
+whether Replit deploy automatically runs Alembic
+whether startup code runs migrations
+whether migrations are currently manual
+why bl305_ski_day_foundation was committed but never applied to production
+whether any prior migrations have also been skipped or handled through startup DDL instead
+what command/process is considered safe and canonical for production schema upgrades
+Do not run that process yet.
+SkiDay reconciliation
+Inspect bl305_ski_day_foundation and confirm whether it is safe to apply directly to the current production revision:
+bl60_mtn_filter_edu → bl305_ski_day_foundation
+Verify:
+table does not already exist
+no conflicting indexes/constraints exist
+migration is additive
+upgrade is safe for existing users/trips
+downgrade behavior
+expected locking/downtime risk
+whether any backfill is required
+Do not apply it.
+MountainPageView reconciliation
+Determine the safest way to reconcile the existing production mountain_page_view table with the SQLAlchemy model.
+Production currently has the table but lacks:
+resort_id → resort.id ON DELETE CASCADE
+user_id → user.id ON DELETE SET NULL
+Determine whether we should:
+add an Alembic migration that adds those FKs to the existing table
+change the model to match the current startup-created schema
+or use another minimal approach
+Before recommending new FKs, inspect production data read-only for:
+orphaned resort_id values
+orphaned user_id values
+nullability compatibility
+If orphaned values exist, explain what must happen before a constraint can safely be added. Do not repair them.
+Also determine whether the startup DDL should be changed so it no longer drifts from the migration/model source of truth.
+FriendCooldown reconciliation
+Treat deployed PostgreSQL and the original FriendDiscovery migration as evidence that ON DELETE CASCADE is intentional.
+Determine whether the smallest correction is simply to update the SQLAlchemy model FKs to declare:
+ondelete="CASCADE"
+for both FriendCooldown user references.
+Confirm whether that model-only correction requires any migration. If deployed schema already has the correct cascade behavior, avoid creating a no-op production migration unless the migration history genuinely needs one.
+Broader migration safety check
+Before proposing changes, verify whether any other startup-created tables currently differ from their SQLAlchemy models or migrations in ways that could create the same problem.
+Keep this targeted. Do not turn it into a complete application architecture rewrite.
+Return
+Production migration process
+Explain exactly how schema changes are currently deployed and why BL-305 did not reach production.
+SkiDay migration readiness
+State whether bl305_ski_day_foundation is safe to apply as-is.
+MountainPageView reconciliation
+Give the smallest safe recommendation.
+FriendCooldown reconciliation
+Give the smallest safe recommendation.
+Additional drift discovered
+List only material related findings.
+Recommended execution order
+Give the exact sequence we should follow before returning to BL-77.
+Risk assessment
+Identify anything capable of deleting or corrupting existing user data.
+Native-build assessment
+Confirm whether all reconciliation work remains server/backend-only with no new iOS or Android build.
+End with exactly one:
+SAFE TO RECONCILE USING THIS PLAN: [ordered steps]
+or
+DO NOT RECONCILE YET: [reason]
+Do not implement, migrate, commit, or change task metadata during this investigation.
