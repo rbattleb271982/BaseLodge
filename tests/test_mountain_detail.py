@@ -1,10 +1,18 @@
 from datetime import date, timedelta
 
 import pytest
+import sqlalchemy as sa
 
 from app import app, get_ski_season_window
 from conftest import _add_participant, _login, _make_resort, _make_trip, _make_user
-from models import Friend, GuestStatus, Invitation, SkiTripParticipant, db
+from models import (
+    Friend,
+    GuestStatus,
+    Invitation,
+    SkiTripParticipant,
+    UserAvailability,
+    db,
+)
 
 
 def _connect(user, friend):
@@ -32,6 +40,15 @@ def _set_rsvp(trip, user, status):
         user_id=user.id,
     ).one()
     participant.status = status
+
+
+def _add_availability(user, *dates, note=None):
+    for available_date in dates:
+        db.session.add(UserAvailability(
+            user_id=user.id,
+            date=available_date,
+            note=note,
+        ))
 
 
 def test_mountain_page_shows_been_here_only_for_canonical_visit_id(client):
@@ -507,3 +524,295 @@ def test_mountain_page_recorded_visit_name_links_to_visited_mountains(client):
 
     assert "Visited Friend" in html
     assert f'href="/mountains-visited/{friend_id}"' in html
+
+
+def test_mountain_availability_requires_an_explicit_own_trip(client):
+    with app.app_context():
+        viewer = _make_user("availability-viewer")
+        friend = _friend("availability-friend", "Available")
+        resort = _make_resort("Availability Anchor Peak")
+        _connect(viewer, friend)
+        _add_availability(friend, date.today() + timedelta(days=10))
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "is free during your" not in html
+    assert "are free during your" not in html
+
+
+def test_mountain_availability_ignores_past_own_trips(client):
+    with app.app_context():
+        viewer = _make_user("past-trip-owner")
+        friend = _friend("past-trip-friend", "Past")
+        resort = _make_resort("Past Availability Peak")
+        yesterday = date.today() - timedelta(days=1)
+        _make_trip(viewer, resort=resort, start_date=yesterday - timedelta(days=1), end_date=yesterday)
+        _connect(viewer, friend)
+        _add_availability(friend, date.today() + timedelta(days=1))
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "is free during your" not in html
+    assert "are free during your" not in html
+
+
+def test_mountain_availability_uses_inclusive_partial_and_full_overlap(client):
+    with app.app_context():
+        viewer = _make_user("availability-owner")
+        partial = _friend("partial", "Partial")
+        full = _friend("full", "Full")
+        boundary = _friend("boundary", "Boundary")
+        resort = _make_resort("Inclusive Availability Peak")
+        start = date.today() + timedelta(days=10)
+        end = start + timedelta(days=2)
+        _make_trip(viewer, resort=resort, start_date=start, end_date=end)
+        for friend in [partial, full, boundary]:
+            _connect(viewer, friend)
+        _add_availability(partial, start + timedelta(days=1))
+        _add_availability(full, start, start + timedelta(days=1), end)
+        _add_availability(boundary, end)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+    text = " ".join(html.split())
+
+    assert "3 friends are free during your" in html
+    assert f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')} trip" in text
+
+
+def test_mountain_availability_omits_friends_without_shared_dates(client):
+    with app.app_context():
+        viewer = _make_user("no-shared-owner")
+        friend = _friend("no-shared-friend", "No Shared")
+        resort = _make_resort("No Shared Availability Peak")
+        start = date.today() + timedelta(days=10)
+        _make_trip(viewer, resort=resort, start_date=start, end_date=start + timedelta(days=2))
+        _connect(viewer, friend)
+        _add_availability(friend, start + timedelta(days=3))
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "is free during your" not in html
+    assert "are free during your" not in html
+
+
+def test_mountain_availability_deduplicates_identical_windows_but_keeps_distinct_ones(client):
+    with app.app_context():
+        viewer = _make_user("multi-window-owner")
+        friend = _friend("multi-window-friend", "Morgan")
+        resort = _make_resort("Multiple Availability Peak")
+        first_start = date.today() + timedelta(days=10)
+        first_end = first_start + timedelta(days=1)
+        second_start = first_end + timedelta(days=5)
+        second_end = second_start + timedelta(days=1)
+        _make_trip(viewer, resort=resort, start_date=first_start, end_date=first_end)
+        _make_trip(viewer, resort=resort, start_date=first_start, end_date=first_end)
+        _make_trip(viewer, resort=resort, start_date=second_start, end_date=second_end)
+        _connect(viewer, friend)
+        _add_availability(friend, first_start, second_end)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+    text = " ".join(html.split())
+
+    assert html.count("is free during your") == 2
+    assert text.count(
+        f"{first_start.strftime('%b %-d')}–{first_end.strftime('%b %-d')} trip"
+    ) == 1
+    assert text.count(
+        f"{second_start.strftime('%b %-d')}–{second_end.strftime('%-d')} trip"
+    ) == 1
+
+
+def test_mountain_availability_uses_participant_dates_over_parent_trip_dates(client):
+    with app.app_context():
+        viewer = _make_user("participant-window-owner")
+        host = _make_user("participant-window-host")
+        friend = _friend("participant-window-friend", "Override")
+        resort = _make_resort("Participant Override Peak")
+        parent_start = date.today() + timedelta(days=10)
+        parent_end = parent_start + timedelta(days=5)
+        override_start = parent_start + timedelta(days=2)
+        override_end = override_start + timedelta(days=1)
+        shared_trip = _make_trip(
+            host,
+            resort=resort,
+            start_date=parent_start,
+            end_date=parent_end,
+        )
+        _add_participant(shared_trip, viewer, GuestStatus.GOING)
+        participant = SkiTripParticipant.query.filter_by(
+            trip_id=shared_trip.id,
+            user_id=viewer.id,
+        ).one()
+        participant.start_date = override_start
+        participant.end_date = override_end
+        _connect(viewer, friend)
+        _add_availability(friend, override_start)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+    text = " ".join(html.split())
+
+    assert "Override</a> is free during your" in html
+    assert f"{override_start.strftime('%b %-d')}–{override_end.strftime('%-d')} trip" in text
+    assert f"{parent_start.strftime('%b %-d')}–{parent_end.strftime('%-d')} trip" not in text
+
+
+def test_mountain_availability_falls_back_to_parent_dates_for_incomplete_override(client):
+    with app.app_context():
+        viewer = _make_user("partial-override-owner")
+        host = _make_user("partial-override-host")
+        friend = _friend("partial-override-friend", "Fallback")
+        resort = _make_resort("Partial Override Peak")
+        parent_start = date.today() + timedelta(days=10)
+        parent_end = parent_start + timedelta(days=1)
+        shared_trip = _make_trip(
+            host,
+            resort=resort,
+            start_date=parent_start,
+            end_date=parent_end,
+        )
+        _add_participant(shared_trip, viewer, GuestStatus.GOING)
+        participant = SkiTripParticipant.query.filter_by(
+            trip_id=shared_trip.id,
+            user_id=viewer.id,
+        ).one()
+        participant.start_date = parent_start + timedelta(days=1)
+        _connect(viewer, friend)
+        _add_availability(friend, parent_start)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+    text = " ".join(html.split())
+
+    assert "Fallback</a> is free during your" in html
+    assert f"{parent_start.strftime('%b %-d')}–{parent_end.strftime('%b %-d')} trip" in text
+
+
+def test_mountain_availability_uses_table_rows_then_legacy_fallback_without_raw_data(client):
+    with app.app_context():
+        viewer = _make_user("availability-source-owner")
+        table_friend = _friend("table-friend", "Table")
+        legacy_friend = _friend("legacy-friend", "Legacy")
+        resort = _make_resort("Availability Source Peak")
+        start = date.today() + timedelta(days=10)
+        _make_trip(viewer, resort=resort, start_date=start, end_date=start + timedelta(days=1))
+        _connect(viewer, table_friend)
+        _connect(viewer, legacy_friend)
+        _add_availability(table_friend, start, note="Private availability note")
+        legacy_friend.open_dates = [start.isoformat()]
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "2 friends are free during your" in html
+    assert "Private availability note" not in html
+    assert start.isoformat() not in html
+
+
+def test_mountain_availability_table_rows_take_precedence_over_legacy_dates(client):
+    with app.app_context():
+        viewer = _make_user("table-priority-owner")
+        friend = _friend("table-priority-friend", "Priority")
+        resort = _make_resort("Table Priority Peak")
+        start = date.today() + timedelta(days=10)
+        _make_trip(viewer, resort=resort, start_date=start, end_date=start + timedelta(days=1))
+        _connect(viewer, friend)
+        _add_availability(friend, start + timedelta(days=10))
+        friend.open_dates = [start.isoformat()]
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "is free during your" not in html
+    assert "are free during your" not in html
+
+
+def test_mountain_availability_is_direct_friend_only_and_keeps_rsvps_independent(client):
+    with app.app_context():
+        viewer = _make_user("availability-privacy-owner")
+        direct = _friend("availability-direct", "Direct")
+        pending = _friend("availability-pending", "Pending")
+        nonfriend = _friend("availability-nonfriend", "Nonfriend")
+        friend_of_friend = _friend("availability-fof", "Friend Of Friend")
+        resort = _make_resort("Availability Privacy Peak")
+        start = date.today() + timedelta(days=10)
+        _make_trip(viewer, resort=resort, start_date=start, end_date=start + timedelta(days=1))
+        _connect(viewer, direct)
+        _connect(direct, friend_of_friend)
+        db.session.add(Invitation(
+            sender_id=viewer.id,
+            receiver_id=pending.id,
+            status="pending",
+        ))
+        for friend in [direct, pending, nonfriend, friend_of_friend]:
+            _add_availability(friend, start)
+        direct_trip = _make_trip(direct, resort=resort, start_date=start, end_date=start + timedelta(days=1))
+        _set_rsvp(direct_trip, direct, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Going This Winter · 1 friend" in html
+    assert "1 friend is free during your" in html
+    assert "Pending Friend" not in html
+    assert "Nonfriend Friend" not in html
+    assert "Friend Of Friend Friend" not in html
+
+
+def test_mountain_availability_uses_one_batch_query(client):
+    with app.app_context():
+        viewer = _make_user("availability-query-owner")
+        first = _friend("availability-query-first", "First")
+        second = _friend("availability-query-second", "Second")
+        resort = _make_resort("Availability Query Peak")
+        start = date.today() + timedelta(days=10)
+        _make_trip(viewer, resort=resort, start_date=start, end_date=start + timedelta(days=1))
+        _connect(viewer, first)
+        _connect(viewer, second)
+        _add_availability(first, start)
+        _add_availability(second, start)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+        engine = db.engine
+
+    statements = []
+
+    def capture(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if "user_availability" in statement.lower():
+            statements.append(statement.lower())
+
+    sa.event.listen(engine, "before_cursor_execute", capture)
+    try:
+        _login(client, viewer_id)
+        response = _page(client, resort_slug)
+        assert response.status_code == 200
+    finally:
+        sa.event.remove(engine, "before_cursor_execute", capture)
+
+    assert len(statements) == 1
+    assert " in " in statements[0]

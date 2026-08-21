@@ -310,7 +310,40 @@
             </div>
         {% endmacro %}
 
-        {% if going_friends or interested_friends or recorded_visit_friends.count or wishlist_friends.count %}
+        {% macro availability_summary(summary) %}
+            <div class="md-social-summary md-social-summary--availability">
+                <p class="md-social-summary-copy">
+                    {% if summary.count == 1 and summary.preview|length == 1 and not summary.remaining_count %}
+                        <a class="md-social-summary-link" href="{{ url_for('friend_profile', friend_id=summary.preview[0].id) }}">{{ summary.preview[0].first_name }}</a> is free during your
+                    {% else %}
+                        {{ summary.count }} friend{{ 's' if summary.count != 1 else '' }} {{ 'are' if summary.count != 1 else 'is' }} free during your
+                    {% endif %}
+                    {% set s = summary.start_date %}
+                    {% set e = summary.end_date %}
+                    {% if s == e %}
+                        {{ s.strftime('%b %-d') }}
+                    {% elif s.month == e.month and s.year == e.year %}
+                        {{ s.strftime('%b %-d') }}–{{ e.strftime('%-d') }}
+                    {% elif s.year == e.year %}
+                        {{ s.strftime('%b %-d') }}–{{ e.strftime('%b %-d') }}
+                    {% else %}
+                        {{ s.strftime('%b %-d, %Y') }}–{{ e.strftime('%b %-d, %Y') }}
+                    {% endif %} trip
+                </p>
+                {% if not (summary.count == 1 and summary.preview|length == 1 and not summary.remaining_count) and (summary.preview or summary.remaining_count) %}
+                <p class="md-social-summary-names">
+                    {% for friend in summary.preview %}
+                        <a class="md-social-summary-link" href="{{ url_for('friend_profile', friend_id=friend.id) }}">{{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}</a>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    {% if summary.remaining_count %}
+                        {% if summary.preview %} {% endif %}<span class="md-social-more">+{{ summary.remaining_count }} more</span>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        {% endmacro %}
+
+        {% if going_friends or interested_friends or availability_overlaps or recorded_visit_friends.count or wishlist_friends.count %}
         <section class="md-social-section" aria-label="Friends at this mountain">
             {% if going_friends %}
             <div class="md-social-group">
@@ -335,6 +368,12 @@
                 {% endif %}
             </div>
             {% endif %}
+
+            {% for summary in availability_overlaps %}
+            <div class="md-social-group">
+                {{ availability_summary(summary) }}
+            </div>
+            {% endfor %}
 
             {% if recorded_visit_friends.count %}
             <div class="md-social-group">

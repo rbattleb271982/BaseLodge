@@ -12034,6 +12034,132 @@ def settings_profile_add_rider_type():
 
 # ── Mountain Detail Page ─────────────────────────────────────────────────────
 
+def _build_mountain_availability_overlaps(
+    user,
+    resort_id,
+    friend_ids,
+    friends_by_id,
+    visible_current_intent_ids,
+    today,
+):
+    """Return trip-scoped friend availability summaries for one resort.
+
+    Availability is intentionally batch-loaded here. UserAvailability rows are
+    authoritative for a friend when any active row exists; legacy open_dates is
+    used only for friends with no active table-backed rows.
+    """
+    own_trip_rows = (
+        db.session.query(SkiTrip, SkiTripParticipant)
+        .outerjoin(
+            SkiTripParticipant,
+            db.and_(
+                SkiTripParticipant.trip_id == SkiTrip.id,
+                SkiTripParticipant.user_id == user.id,
+            ),
+        )
+        .filter(
+            SkiTrip.resort_id == resort_id,
+            SkiTrip.end_date >= today,
+            db.or_(
+                SkiTrip.user_id == user.id,
+                SkiTripParticipant.active_status_filter(),
+            ),
+        )
+        .all()
+    )
+
+    effective_windows = set()
+    for trip, participant in own_trip_rows:
+        if (
+            participant
+            and participant.start_date
+            and participant.end_date
+        ):
+            start_date = participant.start_date
+            end_date = participant.end_date
+        else:
+            start_date = trip.start_date
+            end_date = trip.end_date
+
+        if start_date and end_date and start_date <= end_date:
+            effective_windows.add((start_date, end_date))
+
+    if not effective_windows or not friend_ids:
+        return []
+
+    availability_rows = (
+        UserAvailability.query
+        .filter(
+            UserAvailability.user_id.in_(friend_ids),
+            UserAvailability.is_available == True,
+        )
+        .all()
+    )
+    table_backed_friend_ids = {row.user_id for row in availability_rows}
+    available_dates_by_friend = {
+        friend_id: set()
+        for friend_id in friend_ids
+    }
+    for row in availability_rows:
+        if row.date >= today:
+            available_dates_by_friend.setdefault(row.user_id, set()).add(row.date)
+
+    # Preserve the canonical table-first fallback semantics without issuing a
+    # query for each friend. The friend objects are already preloaded.
+    for friend_id, friend in friends_by_id.items():
+        if friend_id in table_backed_friend_ids:
+            continue
+        for date_value in friend.open_dates or []:
+            try:
+                parsed_date = (
+                    datetime.strptime(date_value, "%Y-%m-%d").date()
+                    if isinstance(date_value, str)
+                    else date_value
+                )
+            except (TypeError, ValueError):
+                continue
+            if parsed_date >= today:
+                available_dates_by_friend.setdefault(friend_id, set()).add(parsed_date)
+
+    summaries = []
+    for start_date, end_date in sorted(effective_windows):
+        qualifying_friends = [
+            friends_by_id[friend_id]
+            for friend_id in friend_ids
+            if friend_id in friends_by_id
+            and any(
+                start_date <= available_date <= end_date
+                for available_date in available_dates_by_friend.get(friend_id, set())
+            )
+        ]
+        if not qualifying_friends:
+            continue
+
+        sorted_friends = sorted(
+            qualifying_friends,
+            key=lambda friend: (
+                (friend.first_name or "").lower(),
+                (friend.last_name or "").lower(),
+                friend.id,
+            ),
+        )
+        preview_candidates = [
+            friend
+            for friend in sorted_friends
+            if friend.id not in visible_current_intent_ids
+        ]
+        preview = preview_candidates[:3]
+        summaries.append({
+            "start_date": start_date,
+            "end_date": end_date,
+            "count": len(sorted_friends),
+            "preview": preview,
+            "remaining_count": max(len(preview_candidates) - len(preview), 0),
+        })
+
+    return summaries
+
+
 @app.route("/mountain/<slug>")
 @login_required
 def mountain_detail(slug):
@@ -12196,6 +12322,15 @@ def mountain_detail(slug):
         if resort.id in (friend.wish_list_resorts or [])
     ])
 
+    availability_overlaps = _build_mountain_availability_overlaps(
+        user=current_user,
+        resort_id=resort.id,
+        friend_ids=friend_ids,
+        friends_by_id=friends_by_id,
+        visible_current_intent_ids=_visible_current_intent_ids,
+        today=today,
+    )
+
     primary_pass = resort.get_primary_pass()
     pass_names = resort.get_pass_names()
 
@@ -12238,6 +12373,7 @@ def mountain_detail(slug):
         has_recorded_visit=has_recorded_visit,
         is_on_wishlist=is_on_wishlist,
         wishlist_friends=wishlist_friends,
+        availability_overlaps=availability_overlaps,
     )
 
 
