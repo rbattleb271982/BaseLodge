@@ -1,0 +1,181 @@
+Investigate **BL-65 — Surface editable gear setups in Home profile summary**.
+
+This is an **investigation only**. Do not make any code changes yet.
+
+The goal is to determine the smallest way to implement BL-65 through the currently deployed web/backend architecture **without requiring a new iOS or Android build**.
+
+## Hard constraint
+
+Do not propose or make changes to:
+
+* Native iOS project files
+* Native Android project files
+* Capacitor configuration
+* Native plugins
+* App permissions
+* Entitlements
+* Anything requiring a new Apple App Store or Google Play binary
+
+If any portion would require a native rebuild, identify it clearly.
+
+## Desired behavior
+
+On the Home tab/profile summary area where the user currently sees information such as:
+
+**Skier · Level · Pass**
+
+we want to surface the user's gear directly underneath.
+
+### User has no gear
+
+Show an underlined callout:
+
+**Add your gear**
+
+This should clearly look tappable/editable.
+
+Tapping it should take the user to the existing Profile area where gear can already be added or edited.
+
+Do not create a second gear-entry workflow.
+
+### User has gear
+
+Replace the empty-state callout with the user's primary setup.
+
+For a skier, display the primary ski setup on a single line.
+
+For a snowboarder, display the primary snowboard setup on a single line.
+
+If the user is both a skier **and** snowboarder and has entered both setups, show **both** setups.
+
+The gear display should remain concise and fit naturally into the existing Home profile summary.
+
+The displayed gear should also be **underlined/tappable** so it is obvious that it can be edited.
+
+Tapping existing gear should take the user to the same existing Profile gear-editing experience.
+
+## What I want you to investigate
+
+Determine:
+
+1. Where the Home profile summary containing Skier / Level / Pass is implemented.
+2. Exactly what data is currently used to render that summary.
+3. Where gear information is currently stored.
+4. What fields/models represent:
+
+   * skis
+   * snowboard
+   * primary ski setup
+   * primary snowboard setup
+   * any brand/model/details currently captured.
+5. Whether BaseLodge already distinguishes between a user's primary setup and additional gear.
+6. How the existing Profile gear-entry/editing experience works.
+7. What route/page/section should the Home gear link navigate to.
+8. Whether that destination can be deep-linked directly to the gear section using the current architecture.
+9. Whether Home already receives enough user/gear data to render this without another API request.
+10. If not, identify the smallest server-side change needed to provide it.
+11. How skier/snowboarder/both status is represented today.
+12. How to handle these existing-data cases:
+
+    * skier with ski gear
+    * skier without ski gear
+    * snowboarder with snowboard gear
+    * snowboarder without snowboard gear
+    * skier + snowboarder with both setups
+    * skier + snowboarder with only one setup
+    * gear data exists but discipline/profile status does not match it
+13. Whether any schema migration is required.
+14. Whether any new endpoint/API is required.
+15. Whether any portion requires native iOS/Android work.
+16. What automated tests should be added or updated.
+17. Any existing Home/Profile behavior that could regress.
+
+## Important implementation preference
+
+Favor the **smallest possible implementation**.
+
+Reuse:
+
+* existing gear data
+* existing Profile gear editing
+* existing navigation
+* existing Home profile-summary components
+* existing BaseLodge typography/link treatments
+
+Do not:
+
+* redesign Home
+* redesign Profile
+* create a new gear-management workflow
+* create new gear schema unless genuinely necessary
+* create a generic component framework solely for this task
+* add new native navigation
+
+The purpose of BL-65 is simply to make existing gear information more visible and easier to access.
+
+## Return your findings in this format
+
+### Current Home implementation
+
+Identify where the Home profile summary is rendered and how its data gets there.
+
+### Current gear model
+
+Explain exactly how gear is stored today, including how ski and snowboard setups are represented and whether “primary” already exists.
+
+### Existing gear editing flow
+
+Explain where users currently add/edit gear and the best existing destination for the Home link.
+
+### Display logic recommendation
+
+Using the actual current data model, recommend the exact display behavior for:
+
+* no gear
+* ski only
+* snowboard only
+* both
+
+Include an example of what each rendered line would look like using the fields BaseLodge actually stores.
+
+### Requirement-by-requirement feasibility
+
+For each BL-65 requirement state:
+
+* **Web/backend only:** Yes / No
+* Existing component/data to reuse
+* Required change
+* Risk/dependency
+
+### Data/API assessment
+
+State whether BL-65 requires:
+
+* schema migration
+* new API endpoint
+* additional server query
+* additional page data
+
+Explain any **Yes** answer.
+
+### Native-build assessment
+
+State explicitly:
+
+**Can all of BL-65 ship without a new iOS or Android build? Yes / No**
+
+If no, identify exactly why.
+
+### Recommended implementation scope
+
+List the minimum files/components/routes expected to change.
+
+### Testing
+
+List the tests required.
+
+### Risks / open questions
+
+Only include genuine issues discovered in the codebase. Do not invent new product questions if the existing architecture/data already answers them.
+
+Do not implement anything until I review the investigation.
