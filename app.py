@@ -11903,6 +11903,7 @@ def mountain_detail(slug):
     _rp_t0 = time.perf_counter()
     resort = Resort.query.filter_by(slug=slug, is_active=True).first_or_404()
     today = date.today()
+    season_start, season_end = get_ski_season_window(today)
 
     # Current user's friend IDs (bidirectional friendship model: Friend row = user_id → friend_id)
     friend_ids = set(
@@ -11915,6 +11916,8 @@ def mountain_detail(slug):
         .filter(
             SkiTrip.resort_id == resort.id,
             SkiTrip.end_date >= today,
+            SkiTrip.start_date >= season_start,
+            SkiTrip.start_date <= season_end,
             SkiTrip.is_public == True,
         )
         .order_by(SkiTrip.start_date.asc())
