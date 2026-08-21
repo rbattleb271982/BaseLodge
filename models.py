@@ -910,6 +910,88 @@ class SkiTrip(db.Model):
         }
 
 
+class SkiDay(db.Model):
+    """One confirmed day a user actually skied or snowboarded at a resort.
+
+    SkiDay is independent from SkiTrip planning data. ``trip_id`` is optional
+    provenance only, so later changes to—or deletion of—a trip cannot rewrite
+    confirmed ski history.
+    """
+    __tablename__ = 'ski_day'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'user_id',
+            'resort_id',
+            'ski_date',
+            name='uq_ski_day_user_resort_date',
+        ),
+    )
+
+    VALID_SOURCES = frozenset({
+        'user_confirmation',
+        'trip_confirmation',
+        'historical_import',
+    })
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    resort_id = db.Column(
+        db.Integer,
+        db.ForeignKey('resort.id', ondelete='RESTRICT'),
+        nullable=False,
+        index=True,
+    )
+    ski_date = db.Column(db.Date, nullable=False)
+    source = db.Column(
+        db.String(32),
+        nullable=False,
+        default='user_confirmation',
+        server_default='user_confirmation',
+    )
+    trip_id = db.Column(
+        db.Integer,
+        db.ForeignKey('ski_trip.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+    )
+    confirmed_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=sa.func.now(),
+    )
+    created_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        server_default=sa.func.now(),
+    )
+    updated_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        server_default=sa.func.now(),
+    )
+
+    @sa.orm.validates('source')
+    def validate_source(self, _key, value):
+        if value not in self.VALID_SOURCES:
+            raise ValueError(f'Unsupported SkiDay source: {value}')
+        return value
+
+    def __repr__(self):
+        return (
+            f'<SkiDay user={self.user_id} resort={self.resort_id} '
+            f'date={self.ski_date}>'
+        )
+
+
 class Friend(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)

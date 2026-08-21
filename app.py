@@ -97,7 +97,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, SkiDay, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -6107,6 +6107,10 @@ def _delete_trip_related_data(trip):
 
     SkiTripParticipant and SkiTripPlanningPost are handled automatically by the
     ORM 'all, delete-orphan' cascade on db.session.delete(trip).
+
+    SkiDay rows are intentionally not deleted.  Their nullable trip_id FK uses
+    ON DELETE SET NULL so confirmed ski history remains independent of planning
+    data after a trip is removed.
 
     MessageEventLog rows that reference the trip via object_type/object_id are
     intentional audit-history records with no FK constraint — they are preserved.
@@ -14868,18 +14872,23 @@ def delete_account():
             db.or_(Invitation.sender_id == user_id, Invitation.receiver_id == user_id)
         ).delete(synchronize_session=False)
 
-        # 8. SkiTripParticipant rows where this user is a guest on someone else's trip
+        # 8. Confirmed SkiDay history belongs to the user and is deleted with their
+        #    account.  This happens before bulk trip deletion so SkiDay.trip_id is
+        #    never a blocker; other users' SkiDays remain untouched.
+        SkiDay.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
+        # 9. SkiTripParticipant rows where this user is a guest on someone else's trip
         SkiTripParticipant.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 9. TripGuest rows where this user is a guest on someone else's GroupTrip
+        # 10. TripGuest rows where this user is a guest on someone else's GroupTrip
         TripGuest.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 10. Friend rows (both directions)
+        # 11. Friend rows (both directions)
         Friend.query.filter(
             db.or_(Friend.user_id == user_id, Friend.friend_id == user_id)
         ).delete(synchronize_session=False)
 
-        # 10b. Planning posts authored by this user on any trip (including trips
+        # 11b. Planning posts authored by this user on any trip (including trips
         #      owned by others).  Must be removed before the user row is deleted
         #      because ski_trip_planning_post.user_id has a non-nullable FK to
         #      user.id.  DB-level CASCADE exists but SQLAlchemy intercepts the
@@ -14887,7 +14896,7 @@ def delete_account():
         #      which fails on the NOT NULL column.
         SkiTripPlanningPost.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 11. SkiTrips owned by this user — delete child rows first, then trips.
+        # 12. SkiTrips owned by this user — delete child rows first, then trips.
         #     The bulk DELETE on ski_trip bypasses Postgres ON DELETE CASCADE, so
         #     every child table with a trip_id FK must be cleaned up explicitly.
         owned_trip_ids = [r[0] for r in db.session.query(SkiTrip.id).filter_by(user_id=user_id).all()]
@@ -14908,7 +14917,7 @@ def delete_account():
             ).delete(synchronize_session=False)
         SkiTrip.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 12. GroupTrips hosted by this user — delete guests first, then trips
+        # 13. GroupTrips hosted by this user — delete guests first, then trips
         hosted_group_ids = [r[0] for r in db.session.query(GroupTrip.id).filter_by(host_id=user_id).all()]
         if hosted_group_ids:
             TripGuest.query.filter(
@@ -14916,16 +14925,16 @@ def delete_account():
             ).delete(synchronize_session=False)
         GroupTrip.query.filter_by(host_id=user_id).delete(synchronize_session=False)
 
-        # 13. Open availability dates
+        # 14. Open availability dates
         UserAvailability.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 14. Dismissed insight cards
+        # 15. Dismissed insight cards
         DismissedInsightCard.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 15. Push device tokens
+        # 16. Push device tokens
         PushDeviceToken.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
-        # 15b. Invite share events — must be deleted explicitly.
+        # 16b. Invite share events — must be deleted explicitly.
         #      InviteShareEvent.user has a backref='invite_share_events' on User
         #      without passive_deletes=True.  When SQLAlchemy processes
         #      db.session.delete(user) it tries to SET user_id=NULL on the related

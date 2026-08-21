@@ -5,10 +5,11 @@ Setup context is CLOSED before yield; assertions use their own
 `with app.app_context():` blocks.
 """
 import secrets
+from datetime import date
 import pytest
 from app import app
 from models import (
-    db, User, SkiTrip, SkiTripParticipant, SkiTripPlanningPost,
+    db, User, SkiTrip, SkiDay, SkiTripParticipant, SkiTripPlanningPost,
     TripInviteToken, Invitation, Friend, GuestStatus,
 )
 from tests.conftest import (
@@ -44,6 +45,22 @@ def deletion_setup(client):
 
         other_trip = _make_trip(other, resort=resort)
         _add_participant(other_trip, user, GuestStatus.ACCEPTED)
+        db.session.add_all([
+            SkiDay(
+                user_id=user.id,
+                resort_id=resort.id,
+                ski_date=date(2026, 1, 15),
+                trip_id=owned_trip.id,
+                source="trip_confirmation",
+            ),
+            SkiDay(
+                user_id=other.id,
+                resort_id=resort.id,
+                ski_date=date(2026, 1, 16),
+                trip_id=other_trip.id,
+                source="user_confirmation",
+            ),
+        ])
         db.session.commit()
         data = {
             "user_id":       user.id,
@@ -107,6 +124,17 @@ def test_delete_account_other_users_data_survives(client, deletion_setup):
     with app.app_context():
         assert SkiTrip.query.get(s["other_trip_id"]) is not None
         assert User.query.get(s["other_id"]) is not None
+        assert SkiDay.query.filter_by(user_id=s["other_id"]).count() == 1
+
+
+def test_delete_account_removes_only_deleted_users_ski_days(client, deletion_setup):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert SkiDay.query.filter_by(user_id=s["user_id"]).count() == 0
+        assert SkiDay.query.filter_by(user_id=s["other_id"]).count() == 1
 
 
 # ── Wrong confirmation email → user preserved ─────────────────────────────────
