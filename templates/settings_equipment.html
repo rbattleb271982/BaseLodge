@@ -987,8 +987,20 @@ function deleteSetup(setupId, btn) {
         });
 }
 
+function openSetupFromHash() {
+    var match = /^#setup-(\d+)$/.exec(window.location.hash || '');
+    if (!match) return;
+    var setupId = Number(match[1]);
+    if (!Number.isSafeInteger(setupId) || setupId < 1) return;
+    // Only rendered cards belong to the current user. An invalid or foreign
+    // hash is ignored so the normal Gear page remains fully usable.
+    if (!document.getElementById('eq-card-' + setupId)) return;
+    openEditForm(setupId);
+}
+
 // Init on load — populate brand list, filter binding types (no discipline set yet on load)
 populateBrandOptions('Skier');
 filterBindingTypes('');
+openSetupFromHash();
 </script>
 {% endblock %}

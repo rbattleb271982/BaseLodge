@@ -179,14 +179,12 @@ def test_home_header_variants_use_compact_identity_and_preserve_stat_contracts()
         assert "hc-stat-tile--link" in header_template
 
 
-def test_home_header_variants_remove_only_home_gear_rows_and_include_pass_summary():
+def test_home_header_variants_include_editable_gear_summary_and_pass_summary():
     for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
         assert "partials/home/_section_friend_passes.html" in header_template
-        assert "settings_equipment" not in header_template
+        assert "partials/home/_gear_summary.html" in header_template
         assert "Boots:" not in header_template
         assert "Bindings:" not in header_template
-        assert "Add your gear" not in header_template
-        assert "Rental gear" not in header_template
 
 
 def test_home_keeps_availability_semantics_as_a_lighter_secondary_action():

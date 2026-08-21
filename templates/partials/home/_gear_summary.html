@@ -1,0 +1,31 @@
+{# Compact, editable Home gear summary. Inputs: home_rider_disciplines,
+   home_gear_by_discipline, home_is_renting. #}
+{% if home_is_renting %}
+<div class="hc-gear-summary" aria-label="Gear">
+    <a href="{{ url_for('settings_equipment') }}" class="hc-gear-link" aria-label="Edit rental gear">Rental gear</a>
+</div>
+{% elif home_rider_disciplines %}
+<div class="hc-gear-summary" aria-label="Gear">
+    {% for discipline in home_rider_disciplines %}
+        {% set setup = home_gear_by_discipline.get(discipline) %}
+        {% set label = 'Skis' if discipline == 'skier' else 'Snowboard' %}
+        {% if setup %}
+            {% set setup_name = setup.label or ([setup.brand, setup.model] | select | join(' ')) or (label ~ ' setup') %}
+            <a href="{{ url_for('settings_equipment') }}#setup-{{ setup.id }}"
+               class="hc-gear-link"
+               aria-label="Edit {{ label | lower }} setup: {{ setup_name }}">
+                <span class="hc-gear-link-label">{{ label }}</span>
+                <span class="hc-gear-link-separator" aria-hidden="true">·</span>
+                <span class="hc-gear-link-value">{{ setup_name }}</span>
+            </a>
+        {% else %}
+            {% if home_rider_disciplines | length > 1 %}
+                {% set add_text = 'Add your ski gear' if discipline == 'skier' else 'Add your snowboard gear' %}
+            {% else %}
+                {% set add_text = 'Add your gear' %}
+            {% endif %}
+            <a href="{{ url_for('settings_equipment') }}" class="hc-gear-link">{{ add_text }}</a>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endif %}

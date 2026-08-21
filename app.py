@@ -97,7 +97,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -10532,6 +10532,36 @@ def build_friend_at_mountain_card(user, today, friend_ids):
     }
 
 
+def _home_gear_disciplines(user):
+    """Return Home-relevant gear disciplines from current or legacy rider data."""
+    rider_values = user.rider_types or []
+    if isinstance(rider_values, str):
+        rider_values = [rider_values]
+    else:
+        rider_values = list(rider_values)
+
+    if not rider_values:
+        primary = user.primary_rider_type or user.rider_type
+        if primary:
+            rider_values.append(primary)
+        secondary = user.secondary_rider_types or []
+        rider_values.extend([secondary] if isinstance(secondary, str) else secondary)
+
+    disciplines = []
+    for rider_value in rider_values:
+        for rider_type in str(rider_value).split(","):
+            normalized = rider_type.strip().lower()
+            if normalized in ("skier", "telemark"):
+                discipline = EquipmentDiscipline.SKIER.value
+            elif normalized == "snowboarder":
+                discipline = EquipmentDiscipline.SNOWBOARDER.value
+            else:
+                continue
+            if discipline not in disciplines:
+                disciplines.append(discipline)
+    return disciplines
+
+
 @app.route("/home")
 @login_required
 def home():
@@ -10967,10 +10997,33 @@ def home():
         'engine_total': _diag_opp_engine_count,
     }
 
+    # BL-65: Home may show one relevant setup per discipline. The current
+    # is_primary flag is deliberately global, so query only relevant rows and
+    # order a matching primary first, then fall back to the oldest setup for
+    # each discipline without changing existing primary semantics.
     _hp_t0 = time.perf_counter()
-    home_eq = user.get_active_equipment()
+    home_rider_disciplines = _home_gear_disciplines(user)
+    home_is_renting = user.equipment_status == EquipmentStatus.NEEDS_RENTALS.value
+    home_gear_by_discipline = {}
+    if home_rider_disciplines and not home_is_renting:
+        home_setup_rows = (
+            EquipmentSetup.query
+            .filter(
+                EquipmentSetup.user_id == user.id,
+                EquipmentSetup.discipline.in_(home_rider_disciplines),
+            )
+            .order_by(
+                db.case((EquipmentSetup.is_primary == True, 0), else_=1),
+                EquipmentSetup.created_at.asc().nullsfirst(),
+                EquipmentSetup.id.asc(),
+            )
+            .all()
+        )
+        for setup in home_setup_rows:
+            if setup.discipline and setup.discipline.value not in home_gear_by_discipline:
+                home_gear_by_discipline[setup.discipline.value] = setup
     if app.debug:
-        print(f"[HOME_PERF] active_equipment={time.perf_counter()-_hp_t0:.4f}s")
+        print(f"[HOME_PERF] gear_summary={time.perf_counter()-_hp_t0:.4f}s")
 
     for _row in dest_feed:
         if _row.get('idea_type') == 'availability_overlap' and _row.get('anchor_friend_id'):
@@ -11004,7 +11057,9 @@ def home():
         stat_trips_url=url_for('my_trips'),
         stat_mountains_url=url_for('mountains_visited'),
         stat_wishlist_url=url_for('settings_wish_list'),
-        home_eq=home_eq,
+        home_rider_disciplines=home_rider_disciplines,
+        home_gear_by_discipline=home_gear_by_discipline,
+        home_is_renting=home_is_renting,
         friend_count=len(friend_ids),
         friend_pass_counts=friend_pass_counts,
         other_pass_slugs_url=OTHER_PASS_SLUGS_URL,
