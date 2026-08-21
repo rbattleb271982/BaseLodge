@@ -1,0 +1,190 @@
+Implement #311 — Build Fresh Database Bootstrap exactly as scoped.
+This is an implementation task.
+Do not broaden it into production reconciliation, development DB initialization, Flask startup, startup-mutator retirement, push/OneSignal work, BL-77, or seed-data import.
+Hard constraints
+During this implementation:
+Do not touch production schema or data.
+Do not run production migrations.
+Do not alter historical Alembic revisions.
+Do not run the bootstrap against the real Replit development database.
+Do not restart Flask Server.
+Do not restart Project workflow.
+Do not import app.py from the bootstrap path.
+Do not change startup mutators.
+Do not modify push or OneSignal behavior.
+Do not resume BL-77.
+1. Build the BL-60 bootstrap schema artifact
+Create:
+bootstrap/bl60_schema.sql
+The SQL must create the reviewed schema equivalent to bl60_mtn_filter_edu.
+It must include:
+the 28 reviewed BL-60 application tables
+the 12 reviewed enum types
+the reviewed columns, defaults, nullability, PKs, unique/check constraints, FKs, FK delete actions, and indexes
+It must not create:
+alembic_version
+ski_day
+post-BL-60 schema
+MountainPageView FKs owned by BL-306
+Preserve the reviewed BL-60 behavior:
+mountain_page_view exists with PK/index but without resort/user FKs
+friend_cooldown uses ON DELETE CASCADE for both user FKs
+Do not use current SQLAlchemy models as the source of truth where they differ from the approved BL-60 specification.
+2. Build the normalized schema contract
+Create:
+bootstrap/bl60_schema_contract.json
+It must encode the reviewed BL-60 catalog contract for:
+tables
+columns and ordinal order
+PostgreSQL types/type modifiers
+nullability
+defaults
+enum names and ordered values
+PKs
+unique/check constraints
+FKs and delete actions
+indexes
+index column order
+sort order where meaningful
+predicates
+relevant operator classes
+Normalize only irrelevant PostgreSQL-generated differences.
+Do not normalize away meaningful schema mismatches.
+3. Add standalone guarded bootstrap runner
+Create:
+scripts/bootstrap_bl60.py
+It must be standalone and must never import Flask or app.py.
+Add the minimum side-effect-free support needed in:
+runtime_config.py
+The runner must refuse to execute unless all safeguards pass.
+Require:
+BASELODGE_RUNTIME_ENV is exactly development or test
+BASELODGE_BOOTSTRAP_MODE=1
+BASELODGE_BOOTSTRAP_DATABASE_URL
+PostgreSQL dialect
+production identity rejection using the existing #309 guard
+in development, bootstrap target identity equals the configured development DB identity
+no alembic_version
+no BaseLodge application tables
+no BaseLodge enum types
+otherwise-empty target schema as defined in the approved spec
+Also:
+acquire a PostgreSQL advisory lock
+execute bootstrap in one transaction
+roll back completely on any failure
+do not print URLs, usernames, passwords, or credentials
+refuse a second invocation after initialization
+4. Schema-equivalence verification
+After executing the SQL on a disposable PostgreSQL DB, the runner/test tooling must compare the resulting catalog to bl60_schema_contract.json.
+A mismatch must fail closed.
+Verify meaningful details including:
+types
+lengths/modifiers
+nullability
+defaults
+enum ordering
+FK actions
+partial-index predicates
+relevant operator classes
+unique/check constraints
+5. Disposable PostgreSQL tests
+Create:
+tests/test_bootstrap_bl60_postgres.py
+Use isolated disposable PostgreSQL only.
+Do not use the real Replit development DB.
+Cover at minimum:
+Successful fresh bootstrap
+Empty DB.
+Bootstrap succeeds.
+Catalog matches BL-60 contract.
+alembic_version does not exist before stamping.
+Stamp:
+bl60_mtn_filter_edu
+Upgrade:
+bl305_ski_day_foundation
+bl306_mpv_fk_reconcile
+Verify current revision:
+bl306_mpv_fk_reconcile
+Verify ski_day exists with expected FKs.
+Verify BL-306 adds MountainPageView:
+resort FK with ON DELETE CASCADE
+user FK with ON DELETE SET NULL
+Existing BL-60 path simulation
+On a separate disposable PostgreSQL DB:
+create/restore reviewed BL-60 equivalent
+stamp BL-60
+do not invoke bootstrap runner
+upgrade to head
+verify same final migration state
+BL-306 orphan handling
+Insert representative disposable MountainPageView orphan references.
+Verify BL-306 fails closed and does not silently delete, remap, or null ambiguous rows.
+Then resolve only those test-only rows and verify upgrade succeeds.
+Refusal/failure tests
+Verify bootstrap refuses:
+production identity
+BASELODGE_RUNTIME_ENV=production
+invalid/missing runtime
+missing BASELODGE_BOOTSTRAP_MODE=1
+missing bootstrap URL
+non-PostgreSQL URL
+populated target
+existing alembic_version
+existing BaseLodge enum
+development bootstrap URL differing from configured development DB URL
+second bootstrap invocation
+Also simulate:
+SQL failure partway through
+catalog mismatch after DDL
+Prove the transaction rolls back completely.
+6. Full regression testing
+Run the focused bootstrap/PostgreSQL tests first.
+Then run the full BaseLodge regression suite only against verified isolated non-production test infrastructure.
+If isolation cannot be proven, do not run the suite and report the blocker.
+7. Real Replit development DB must remain untouched
+Do not bootstrap, stamp, migrate, seed, or otherwise initialize the real Replit development database in this task.
+At the end, verify it is still empty/unmodified.
+I will separately approve initialization after the implementation is validated.
+8. Workflow status
+Keep:
+Flask Server stopped
+Project workflow stopped
+Do not restart either one.
+9. Commit requirement
+If and only if:
+bootstrap implementation passes
+schema equivalence passes
+disposable PostgreSQL bootstrap/stamp/upgrade passes
+failure/refusal protections pass
+full regression suite passes
+production remains untouched
+actual Replit development DB remains untouched
+then commit.
+The Git commit message MUST include Task #311.
+Use this exact commit message:
+#311: Build fresh database bootstrap
+Do not omit #311.
+Return
+Report:
+files changed
+bootstrap schema implementation
+contract implementation
+safety guards
+disposable PostgreSQL bootstrap result
+BL-60 stamp result
+BL-305/BL-306 upgrade result
+final disposable revision
+MountainPageView orphan-test result
+refusal/failure test results
+full regression result
+confirmation production was untouched
+confirmation real Replit development DB was untouched
+Flask Server status
+Project workflow status
+BL-77 status
+Git commit hash
+exact Git commit message
+End with exactly one:
+BOOTSTRAP VALIDATED — READY FOR EXPLICIT DEVELOPMENT DATABASE INITIALIZATION APPROVAL
+or
+BOOTSTRAP NOT READY: [reason]
