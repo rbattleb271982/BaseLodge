@@ -1,0 +1,70 @@
+Investigate #77 — Fix delete-account FK violations blocking account deletion.
+This is an investigation only. Do not make any code changes yet.
+The goal is to determine the smallest safe fix so account deletion succeeds reliably in PostgreSQL without introducing schema changes or native-app work.
+Hard constraint
+Do not propose or make changes to:
+Native iOS project files
+Native Android project files
+Capacitor configuration
+Native plugins
+App permissions
+Entitlements
+Anything requiring a new Apple App Store or Google Play binary
+What I want you to investigate
+Determine:
+The exact current delete_account() flow in app.py.
+The deletion order for all user-owned or user-referencing records.
+Every foreign key that can still reference the user at delete time.
+Specifically verify:
+User.invited_by_user_id
+SkiTrip.created_by_user_id
+Invitation.trip_id
+any other nullable or non-cascading user references
+Which references should be:
+hard-deleted
+nulled
+preserved
+cascaded by the database
+Whether the current SQLite tests mask PostgreSQL FK failures because FK enforcement differs.
+Whether the smallest fix is a few explicit UPDATE ... SET NULL operations before user deletion.
+Whether any model relationship or FK definition needs to change.
+Whether a schema migration is actually required.
+Whether deleting a user could incorrectly delete trips or data that belong to another user.
+How to preserve other users’ trips while removing the deleted user’s creator/inviter references.
+What happens to invitations tied to trips owned by the deleting user.
+What tests are required to reproduce the current PostgreSQL failure and verify the fix.
+Whether any existing account-deletion behavior could regress.
+Important implementation preference
+Favor the smallest possible backend-only fix.
+Reuse the existing account-deletion flow.
+Do not:
+redesign account deletion
+add schema unless genuinely necessary
+create a new deletion service/framework
+change unrelated ownership semantics
+delete data belonging to other users unnecessarily
+Return your findings in this format
+Current deletion flow
+Describe the current deletion order and where it can fail.
+FK risk inventory
+List each relevant FK, its delete behavior, and whether it can block account deletion.
+Recommended fix
+Give the smallest exact change required.
+Data-preservation behavior
+Explain what should happen to trips, invitations, and records owned by other users that reference the deleting user.
+Data/API/schema assessment
+State whether this requires:
+schema migration
+new API
+model changes
+additional queries/updates
+Native-build assessment
+State explicitly:
+Can this ship without a new iOS or Android build? Yes / No
+Recommended implementation scope
+List the minimum files/tests expected to change.
+Testing
+Include PostgreSQL/FK-sensitive coverage where possible.
+Risks / open questions
+Only include genuine unresolved issues discovered from the codebase.
+Do not implement anything until I review the investigation.
