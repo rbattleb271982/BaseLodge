@@ -1,0 +1,101 @@
+Investigate the safe non-production reference-data bootstrap needed before restarting BaseLodge against the newly initialized Replit development database.
+This is an investigation only. Do not import data yet.
+Do not restart Flask.
+Do not touch production.
+Current state
+The Replit development database is safely isolated and initialized at:
+bl306_mpv_fk_reconcile
+Verified:
+28 BL-60 tables present
+ski_day present with correct FKs
+MountainPageView FKs reconciled
+no orphan FK violations
+resort rows: 0
+country rows: 0
+The remaining known blocker for normal application behavior is missing reference data.
+Goal
+Determine the smallest safe way to populate development-only reference data so BaseLodge can boot and render normally without copying production data.
+Hard safety constraints
+During this investigation:
+no production reads of user/private data
+no production writes
+no production migrations
+no development DB writes
+do not run importers
+do not seed users
+do not seed trips
+do not seed friendships
+do not seed SkiDays
+do not seed push tokens
+do not restart Flask
+do not touch OneSignal
+do not resume BL-77
+Repository/file inspection is allowed.
+Investigate existing reference-data sources
+Review:
+attached_assets/BaseLodge_Resort_Master_IMPORT_READY_v3_1778641272852.xlsx
+scripts/import_resorts.py
+exports/resort_import_validation.csv
+any country/reference-data seed scripts
+any existing safe development seed scripts
+Determine:
+Whether the workbook is the canonical non-production source for resorts.
+Exactly what tables the resort importer writes.
+Whether it populates:
+resort
+resort_pass
+country
+any other table
+Whether the importer currently imports app.py.
+Whether importing app.py would trigger startup mutators.
+Whether the importer has any runtime/production identity guard.
+Whether --dry-run is truly non-mutating.
+Whether live import is currently the default.
+Whether the importer can be safely refactored into a standalone, side-effect-free development-only importer without changing production.
+Whether country rows are required separately before resort import.
+Whether any required pass mappings/reference rows are absent from the workbook/importer.
+Whether BaseLodge needs any other reference data before a development Preview can start successfully.
+Safe design recommendation
+Recommend the smallest safe development-only reference-data import flow.
+Prefer:
+explicit BASELODGE_RUNTIME_ENV=development
+explicit import authorization such as BASELODGE_REFERENCE_IMPORT_MODE=1
+explicit development DB URL
+production identity rejection
+standalone database access without importing app.py
+dry-run by default
+explicit flag required for writes
+deterministic source workbook
+transaction + rollback on failure
+Do not copy anything from production.
+Data inventory
+Return exactly what development needs before restart:
+required resort rows
+required country rows
+required resort_pass rows
+any other mandatory reference rows
+Separate:
+required to boot/use the app
+nice-to-have demo data
+Restart assessment
+Determine whether Flask can safely restart immediately after only the reference-data import, or whether another prerequisite remains.
+Return
+Existing importer assessment
+Explain its current safety problems and what it writes.
+Canonical reference source
+Identify the approved non-production source(s).
+Required development reference data
+List the minimum required tables/data.
+Recommended safe import approach
+Give the smallest implementation needed.
+Testing plan
+Explain how to verify dry-run, production refusal, development import, row counts, FK integrity, and idempotency/duplicate handling.
+Restart status
+State whether successful reference import would make Flask safe to restart.
+BL-77 status
+Confirm BL-77 remains blocked.
+End with exactly one:
+SAFE TO IMPLEMENT DEVELOPMENT REFERENCE-DATA IMPORT USING THIS PLAN
+or
+DO NOT IMPLEMENT REFERENCE IMPORT YET: [reason]
+Do not implement or commit anything during this investigation.
