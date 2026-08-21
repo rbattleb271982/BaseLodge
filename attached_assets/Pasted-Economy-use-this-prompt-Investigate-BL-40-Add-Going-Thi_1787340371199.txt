@@ -1,0 +1,206 @@
+Economy — use this prompt:
+
+> Investigate **BL-40 — Add Going This Winter intelligence to mountain pages**.
+>
+> This is an **investigation only**. Do not make any code changes yet.
+>
+> The goal is to determine the smallest way to surface useful **Going This Winter** social intelligence on mountain detail pages through the currently deployed web/backend architecture **without requiring a new iOS or Android build**.
+>
+> ## Hard constraint
+>
+> Do not propose or make changes to:
+>
+> * Native iOS project files
+> * Native Android project files
+> * Capacitor configuration
+> * Native plugins
+> * App permissions
+> * Entitlements
+> * Anything requiring a new Apple App Store or Google Play binary
+>
+> If any portion would require a native rebuild, identify it clearly.
+>
+> ## Desired behavior
+>
+> On a mountain detail page, help the signed-in user understand which friends are planning to go to that mountain during the current ski season / winter.
+>
+> The intent is to make the mountain page more socially useful using trip and friend data BaseLodge already stores.
+>
+> Do not create a new trip-planning workflow as part of BL-40.
+>
+> Do not infer that someone actually visited or skied the mountain simply because they have a future trip.
+>
+> ## What I want you to investigate
+>
+> Determine:
+>
+> 1. Where mountain detail pages are currently implemented.
+> 2. What trip/social data is already loaded by the mountain-detail route.
+> 3. What the existing **Friends Going** treatment currently means.
+> 4. Whether that current treatment already satisfies part or all of BL-40.
+> 5. What BL-40 specifically means by **Going This Winter** based on the existing task/spec.
+> 6. Whether it should include:
+>
+>    * public trips only
+>    * private trips
+>    * trip owners
+>    * confirmed Going participants
+>    * Interested participants
+>    * users merely invited to trips
+>    * past trips during the current season
+>    * only future/in-progress trips
+> 7. How BaseLodge currently defines the ski season / winter boundary.
+> 8. Whether there is already a current-season helper, season-year field, or date utility that should be reused.
+> 9. If no explicit season concept exists, identify the safest smallest date rule already used elsewhere.
+> 10. Whether participant-specific trip dates should affect Going This Winter if they already exist in the current codebase.
+> 11. How overlapping or duplicate trips should be deduplicated so one friend does not appear multiple times.
+> 12. Whether the mountain-detail route already has enough data to calculate the desired state without another query.
+> 13. Whether existing preloaded direct-friend and trip data can be reused.
+> 14. Whether the UI should show:
+>
+>     * a count only
+>     * names
+>     * trip dates
+>     * a compact combination
+>     * or whether BL-40 already defines this.
+> 15. How to handle:
+>
+>     * no friends going
+>     * one friend going
+>     * multiple friends going
+>     * one friend on multiple qualifying trips
+>     * the signed-in user also going
+> 16. Whether the signed-in user’s own trip state should appear separately from friend intelligence.
+> 17. Whether private-trip privacy rules could leak a friend’s plans if BL-40 is implemented incorrectly.
+> 18. Whether blocked, removed, pending, or non-confirmed connections can enter the current social query.
+> 19. Whether any schema migration is required.
+> 20. Whether any new API endpoint is required.
+> 21. Whether any additional server query is required.
+> 22. Whether any aggregation/query helper is required.
+> 23. Whether any portion requires native iOS/Android work.
+> 24. What automated tests should be added or updated.
+> 25. Any mountain-page, trip, privacy, or friend behavior that could regress.
+>
+> ## Important implementation preference
+>
+> Favor the **smallest possible implementation**.
+>
+> Reuse:
+>
+> * existing mountain-detail trip data
+> * existing direct-friend data
+> * existing Going/Interested social-summary components
+> * existing public/private trip rules
+> * existing trip-date/season helpers
+> * existing friend deduplication behavior
+>
+> Do not:
+>
+> * redesign the mountain page
+> * create a new trip workflow
+> * create a new season model unless genuinely necessary
+> * expose private trip participation
+> * treat Interested as Going unless the existing task explicitly says to
+> * infer completed visits or ski days
+> * add schema unless genuinely necessary
+> * create new APIs if the existing route can support the feature
+> * change native navigation or native UI
+>
+> ## Return your findings in this format
+>
+> ### Current mountain trip/social implementation
+>
+> Identify the route, template, relevant trip/friend queries, and what the existing Friends Going treatment currently shows.
+>
+> ### Current trip-state semantics
+>
+> Explain exactly what trip owner status, participant Going, Interested, pending/invited, public/private, and date state mean today.
+>
+> ### Current-season / winter logic
+>
+> Identify how BaseLodge currently determines the relevant ski season or winter window, if at all.
+>
+> If no explicit season concept exists, explain the smallest safe approach.
+>
+> ### BL-40 behavior recommendation
+>
+> Based on the existing task/spec and current architecture, define exactly who should count as **Going This Winter**.
+>
+> Be explicit about:
+>
+> * trip owners
+> * Going participants
+> * Interested participants
+> * private trips
+> * future trips
+> * in-progress trips
+> * past trips
+> * duplicate trips
+>
+> ### Display recommendation
+>
+> Recommend the smallest UI treatment using the existing mountain-page social summary.
+>
+> Include examples for:
+>
+> * 0 friends
+> * 1 friend
+> * multiple friends
+>
+> ### Privacy assessment
+>
+> Explain how public/private trip visibility and confirmed-friend rules must be preserved.
+>
+> ### Requirement-by-requirement feasibility
+>
+> For each BL-40 requirement state:
+>
+> * **Web/backend only:** Yes / No
+> * Existing component/data to reuse
+> * Required change
+> * Risk/dependency
+>
+> ### Data/API assessment
+>
+> State whether BL-40 requires:
+>
+> * schema migration
+> * new API endpoint
+> * additional server query
+> * aggregation/query helper
+> * additional page data
+>
+> Explain any **Yes** answer.
+>
+> ### Native-build assessment
+>
+> State explicitly:
+>
+> **Can all of BL-40 ship without a new iOS or Android build? Yes / No**
+>
+> If no, identify exactly why.
+>
+> ### Recommended implementation scope
+>
+> List the minimum files/components/routes expected to change.
+>
+> ### Testing
+>
+> List the tests required, including:
+>
+> * no friends going
+> * one friend going
+> * multiple friends going
+> * duplicate qualifying trips
+> * Going vs Interested
+> * public vs private trips
+> * future vs in-progress vs past trips
+> * confirmed vs non-confirmed connections
+> * signed-in user’s own trip state if applicable
+> * regression protection for BL-39 and existing mountain social summaries
+>
+> ### Risks / open questions
+>
+> Only include genuine issues discovered in the codebase. Do not invent product questions if the existing task or architecture already answers them.
+>
+> Do not implement anything until I review the investigation.
