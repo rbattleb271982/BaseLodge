@@ -1,0 +1,213 @@
+Define the reviewed fresh PostgreSQL bootstrap baseline equivalent to bl60_mtn_filter_edu and the disposable validation plan required before we implement it.
+This is an investigation/design task only.
+Do not modify migrations, application code, tests, secrets, task metadata, production schema, production data, or the empty Replit development database yet.
+Flask must remain stopped.
+BL-77 remains blocked.
+Goal
+Produce a precise, reviewable specification for a fresh-database bootstrap artifact that creates a PostgreSQL schema equivalent to BaseLodge at:
+bl60_mtn_filter_edu
+This bootstrap artifact will be used only for brand-new development/test databases.
+It must not become another active Alembic root and must not rewrite the historical production migration chain.
+The intended eventual flow is:
+EMPTY DEVELOPMENT DB
+       ↓
+reviewed bootstrap schema equivalent to bl60
+       ↓
+alembic stamp bl60_mtn_filter_edu
+       ↓
+bl305_ski_day_foundation
+       ↓
+bl306_mpv_fk_reconcile
+       ↓
+current head
+Production must retain its existing path:
+bl60_mtn_filter_edu
+       ↓
+bl305_ski_day_foundation
+       ↓
+bl306_mpv_fk_reconcile
+Hard safety constraints
+During this investigation:
+no production writes
+no production schema changes
+no production migrations
+no development DB writes
+no Flask startup
+no startup DDL
+no OneSignal or push actions
+no BL-77 work
+no edits or commits
+Read-only repository inspection is allowed.
+Read-only production catalog inspection is allowed only if necessary to define the current bl60 equivalent, and must never expose credentials or private user data.
+1. Define the authoritative bl60 schema
+Determine exactly what schema a database stamped at:
+bl60_mtn_filter_edu
+is expected to contain before BL-305 and BL-306.
+Do not simply use the current SQLAlchemy models, because those already include post-BL-60 concepts such as SkiDay and may include model/schema drift.
+Build the baseline from the combination of:
+historical Alembic revisions through BL-60
+current production schema where production is known to be at BL-60
+startup-created schema that exists in production
+intentional deployed FK behavior already identified
+Clearly distinguish:
+Alembic-managed schema
+startup-created schema
+model-only expectations not actually present at BL-60
+2. Produce a complete bootstrap schema inventory
+For every table that must exist at BL-60, list:
+table name
+columns
+PostgreSQL types
+nullability
+defaults
+primary key
+foreign keys and ON DELETE behavior
+unique constraints
+indexes
+required enum types
+Include all currently required BaseLodge tables at BL-60.
+Pay particular attention to:
+user
+resort
+ski_trip
+ski_trip_participant
+friend
+friend_cooldown
+friend_suggestion
+suggestion_push_cooldown
+invitation
+activity
+equipment_setup
+group_trip
+trip_guest
+user_availability
+push-token / notification-related tables
+message_event_log
+trip invite/planning tables
+mountain_page_view
+Do not include ski_day in the BL-60 baseline if it belongs to BL-305.
+3. Handle startup-created objects explicitly
+Identify objects that exist in production at BL-60 only because of startup DDL rather than Alembic.
+For each, determine whether the fresh bootstrap baseline should include the actual deployed BL-60 shape or the newer model-intended shape.
+In particular:
+MountainPageView
+Production BL-60 currently has the table without the model-declared FKs.
+The new baseline should preserve the correct sequencing so BL-306 can perform its intended reconciliation rather than accidentally pre-solving BL-306.
+State exactly what MountainPageView shape the bootstrap must create before BL-306.
+FriendCooldown
+Production intentionally has:
+ON DELETE CASCADE
+for both user FKs.
+Ensure the baseline reflects the intentional deployed behavior.
+4. Separate schema from data
+The bootstrap artifact must create schema only unless a tiny piece of reference data is genuinely required for the database structure itself.
+Do not include:
+production users
+trips
+friendships
+SkiDays
+push tokens
+availability
+production analytics
+production resort activity
+Identify any historical migrations that inserted reference rows and determine whether those belong in:
+schema bootstrap
+a separate non-production seed step
+or neither
+5. Determine bootstrap artifact format
+Recommend the safest artifact type.
+Compare at least:
+reviewed SQL file
+standalone Python/SQLAlchemy bootstrap script
+pg_dump --schema-only style reviewed artifact
+another appropriate approach
+Requirements:
+must not import app.py
+must not execute startup mutators
+must not alter Alembic revision history
+must be deterministic
+must be straightforward to test on disposable PostgreSQL
+must fail closed if the target database is not empty
+Recommend one.
+6. Empty-database protection
+Design safeguards so this bootstrap can never accidentally be applied to production or a populated database.
+At minimum consider:
+require BASELODGE_RUNTIME_ENV=development or test
+require an explicit bootstrap mode variable
+reuse the production database identity rejection
+verify there are zero application tables before creating anything
+refuse to operate if alembic_version already exists
+refuse production endpoint identity
+Define the exact checks.
+7. Disposable PostgreSQL validation plan
+Define automated tests that prove:
+Fresh database path
+Start empty PostgreSQL.
+Apply bootstrap artifact.
+Compare resulting schema to expected BL-60 inventory.
+Stamp bl60_mtn_filter_edu.
+Upgrade to head.
+Verify:
+current revision = bl306_mpv_fk_reconcile
+ski_day exists with correct FKs
+MountainPageView reconciliation works
+expected indexes/constraints exist
+Existing production path simulation
+Start from a disposable database representing BL-60 and verify:
+bl60 → bl305 → bl306
+works without invoking the bootstrap.
+Failure cases
+Verify the bootstrap refuses:
+production identity
+populated DB
+DB with alembic_version
+invalid runtime environment
+missing explicit bootstrap authorization
+8. Schema equivalence check
+Design a repeatable comparison between:
+the bootstrap-created BL-60 schema
+the expected BL-60 schema
+Normalize irrelevant PostgreSQL-generated differences such as automatically generated names where appropriate, but do not ignore meaningful differences in:
+types
+constraints
+nullability
+defaults
+indexes
+FK actions
+9. Development reference data
+Separately assess what BaseLodge would need after schema bootstrap to render a useful development Preview.
+Identify the minimum non-production seed requirements, especially:
+resorts
+passes/reference mappings
+any required configuration rows
+Do not design or execute production data copying.
+State whether safe seed data already exists in the repository.
+If not, recommend that as a separate task rather than mixing it into the schema bootstrap.
+Return
+Authoritative BL-60 definition
+Explain what sources define it and how conflicts are resolved.
+Complete BL-60 schema inventory
+Give the table/constraint/index/enum specification needed by the bootstrap.
+Startup-created schema handling
+Explain exactly how MountainPageView, FriendCooldown, and other startup-created objects should appear.
+Bootstrap artifact recommendation
+State the exact format and why.
+Safety guards
+Give every guard required before the artifact can execute.
+Validation plan
+Give the disposable PostgreSQL tests and schema-equivalence checks.
+Seed-data assessment
+State what separate reference data is needed after bootstrap.
+Implementation scope
+List the exact files you expect a later implementation to add/change.
+Production impact
+Confirm the strategy leaves existing production migration history unchanged.
+Restart status
+Confirm Flask remains stopped.
+BL-77 status
+Confirm BL-77 remains blocked.
+End with exactly one:
+SAFE TO IMPLEMENT FRESH-DATABASE BOOTSTRAP USING THIS SPEC
+or
+DO NOT IMPLEMENT BOOTSTRAP YET: [reason]
+Do not implement or commit anything during this investigation.
