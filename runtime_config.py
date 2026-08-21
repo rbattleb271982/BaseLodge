@@ -177,3 +177,41 @@ def resolve_migration_database_config(
     if runtime_env in {"development", "test"}:
         _reject_production_identity(database_url, environment)
     return DatabaseConfiguration(runtime_env, database_url, "migration")
+
+
+def resolve_bootstrap_database_config(
+    environ: Mapping[str, str] | None = None,
+) -> DatabaseConfiguration:
+    """Resolve a guarded, empty-database bootstrap target without opening it."""
+    environment = os.environ if environ is None else environ
+    runtime_env = _runtime_env(environment)
+    if runtime_env not in {"development", "test"}:
+        raise RuntimeConfigurationError(
+            "Bootstrap database access is only allowed for development or test."
+        )
+    if _value(environment, "BASELODGE_BOOTSTRAP_MODE") != "1":
+        raise RuntimeConfigurationError(
+            "BASELODGE_BOOTSTRAP_MODE=1 is required for bootstrap database access."
+        )
+
+    database_url = _require_url(
+        environment, "BASELODGE_BOOTSTRAP_DATABASE_URL", runtime_env
+    )
+    if not urlsplit(database_url).scheme.lower().startswith("postgresql"):
+        raise RuntimeConfigurationError(
+            "BASELODGE_BOOTSTRAP_DATABASE_URL must use a PostgreSQL dialect."
+        )
+    _reject_production_identity(database_url, environment)
+
+    if runtime_env == "development":
+        development_url = _require_url(
+            environment, "BASELODGE_DEVELOPMENT_DATABASE_URL", runtime_env
+        )
+        _reject_production_identity(development_url, environment)
+        if database_identity(database_url) != database_identity(development_url):
+            raise RuntimeConfigurationError(
+                "Development bootstrap target must match the configured development "
+                "database identity."
+            )
+
+    return DatabaseConfiguration(runtime_env, database_url, "bootstrap")
