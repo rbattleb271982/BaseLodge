@@ -1,6 +1,6 @@
 """Persistence and foreign-key coverage for the canonical SkiDay foundation."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 import unittest.mock
@@ -13,7 +13,13 @@ from sqlalchemy.exc import IntegrityError
 
 from app import app
 from models import GuestStatus, SkiDay, SkiTripParticipant, db
-from tests.conftest import _login, _make_resort, _make_trip, _make_user, json_post
+from tests.conftest import (
+    _login,
+    _make_resort,
+    _make_trip,
+    _make_user,
+    json_post,
+)
 
 
 def _ski_day(user, resort, ski_date, **kwargs):
@@ -49,6 +55,65 @@ def test_ski_day_persists_required_confirmation_fields(client):
         assert stored.confirmed_at is not None
         assert stored.created_at is not None
         assert stored.updated_at is not None
+
+
+def test_first_ski_day_adds_its_resort_to_canonical_visited_ids(client):
+    with app.app_context():
+        user = _make_user("sync-first")
+        resort = _make_resort()
+        db.session.add(_ski_day(user, resort, date(2026, 1, 10)))
+        db.session.commit()
+        db.session.refresh(user)
+
+        assert user.visited_resort_ids == [resort.id]
+        assert user.mountains_visited == []
+
+
+def test_additional_ski_days_at_same_resort_do_not_duplicate_visited_id(client):
+    with app.app_context():
+        user = _make_user("sync-repeat")
+        resort = _make_resort()
+        db.session.add_all([
+            _ski_day(user, resort, date(2026, 1, 10)),
+            _ski_day(user, resort, date(2026, 1, 11)),
+        ])
+        db.session.commit()
+        db.session.refresh(user)
+
+        assert user.visited_resort_ids == [resort.id]
+
+
+def test_ski_day_sync_preserves_existing_manual_and_legacy_visit_data(client):
+    with app.app_context():
+        user = _make_user("sync-manual")
+        resort = _make_resort()
+        user.visited_resort_ids = [resort.id]
+        user.mountains_visited = ["Manual Mountain"]
+        db.session.add(_ski_day(user, resort, date(2026, 1, 10)))
+        db.session.commit()
+        db.session.refresh(user)
+
+        assert user.visited_resort_ids == [resort.id]
+        assert user.mountains_visited == ["Manual Mountain"]
+
+
+def test_ski_days_sync_distinct_resorts_without_touching_another_user(client):
+    with app.app_context():
+        user = _make_user("sync-owner")
+        other = _make_user("sync-other")
+        first_resort = _make_resort()
+        second_resort = _make_resort()
+        db.session.add_all([
+            _ski_day(user, first_resort, date(2026, 1, 10)),
+            _ski_day(user, second_resort, date(2026, 1, 11)),
+            _ski_day(other, first_resort, date(2026, 1, 10)),
+        ])
+        db.session.commit()
+        db.session.refresh(user)
+        db.session.refresh(other)
+
+        assert user.visited_resort_ids == [first_resort.id, second_resort.id]
+        assert other.visited_resort_ids == [first_resort.id]
 
 
 def test_ski_day_source_uses_controlled_vocabulary(client):
@@ -188,6 +253,72 @@ def test_ski_day_hard_delete_allows_a_corrected_replacement(client):
             resort_id=resort.id,
             ski_date=date(2026, 1, 10),
         ).count() == 1
+
+
+def test_deleting_ski_day_does_not_remove_visited_resort(client):
+    with app.app_context():
+        user = _make_user("sync-delete")
+        resort = _make_resort()
+        day = _ski_day(user, resort, date(2026, 1, 10))
+        db.session.add(day)
+        db.session.commit()
+        day_id = day.id
+        user_id = user.id
+
+        db.session.delete(day)
+        db.session.commit()
+        stored_user = db.session.get(type(user), user_id)
+
+        assert db.session.get(SkiDay, day_id) is None
+        assert stored_user.visited_resort_ids == [resort.id]
+
+
+def test_correcting_ski_day_adds_new_resort_and_retains_old_visit(client):
+    with app.app_context():
+        user = _make_user("sync-correct")
+        old_resort = _make_resort()
+        new_resort = _make_resort()
+        day = _ski_day(user, old_resort, date(2026, 1, 10))
+        db.session.add(day)
+        db.session.commit()
+
+        day.resort_id = new_resort.id
+        db.session.commit()
+        db.session.refresh(user)
+
+        assert user.visited_resort_ids == [old_resort.id, new_resort.id]
+
+
+def test_existing_manual_mountains_visited_add_and_remove_still_work(client):
+    with app.app_context():
+        user = _make_user("manual-api")
+        first_resort = _make_resort()
+        second_resort = _make_resort()
+        first_resort_id = first_resort.id
+        second_resort_id = second_resort.id
+        db.session.commit()
+        user_id = user.id
+
+    _login(client, user_id)
+    assert json_post(
+        client,
+        "/api/mountains-visited/add",
+        {"resort_id": first_resort_id},
+    ).status_code == 200
+    assert json_post(
+        client,
+        "/api/mountains-visited/add",
+        {"resort_id": second_resort_id},
+    ).status_code == 200
+    assert json_post(
+        client,
+        "/api/mountains-visited/remove",
+        {"resort_id": first_resort_id},
+    ).status_code == 200
+
+    with app.app_context():
+        user = db.session.get(type(user), user_id)
+        assert user.visited_resort_ids == [second_resort_id]
 
 
 def test_ski_day_supports_future_per_resort_day_aggregation(client):

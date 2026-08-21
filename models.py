@@ -992,6 +992,57 @@ class SkiDay(db.Model):
         )
 
 
+def sync_ski_day_to_visited_resorts(user_id, resort_id, connection=None):
+    """Add a SkiDay's resort to the user's canonical visited-resort IDs.
+
+    This is deliberately additive: it never removes IDs and never modifies
+    the deprecated ``mountains_visited`` names. ``connection`` is supplied by
+    mapper events so the synchronization participates in the SkiDay
+    transaction; callers outside an event can use the current session.
+    """
+    if user_id is None or resort_id is None:
+        return False
+
+    executor = connection or db.session
+    visited_ids = executor.execute(
+        sa.select(User.__table__.c.visited_resort_ids).where(
+            User.__table__.c.id == user_id
+        )
+    ).scalar_one_or_none()
+    visited_ids = list(visited_ids or [])
+
+    if resort_id in visited_ids:
+        return False
+
+    visited_ids.append(resort_id)
+    executor.execute(
+        sa.update(User.__table__)
+        .where(User.__table__.c.id == user_id)
+        .values(visited_resort_ids=visited_ids)
+    )
+    return True
+
+
+@sa.event.listens_for(SkiDay, 'after_insert')
+def _sync_inserted_ski_day_to_visited_resorts(mapper, connection, target):
+    sync_ski_day_to_visited_resorts(
+        target.user_id,
+        target.resort_id,
+        connection=connection,
+    )
+
+
+@sa.event.listens_for(SkiDay, 'after_update')
+def _sync_updated_ski_day_to_visited_resorts(mapper, connection, target):
+    # Updates are additive too: moving a corrected SkiDay can add its new
+    # resort, but the old visited entry is intentionally retained.
+    sync_ski_day_to_visited_resorts(
+        target.user_id,
+        target.resort_id,
+        connection=connection,
+    )
+
+
 class Friend(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
