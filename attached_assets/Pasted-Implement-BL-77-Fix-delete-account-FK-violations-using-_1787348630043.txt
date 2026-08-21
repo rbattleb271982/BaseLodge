@@ -1,0 +1,150 @@
+Implement BL-77 — Fix delete-account FK violations, using the completed deletion-safety audit as the authoritative scope.
+This is an implementation task. Do not re-investigate or broaden the feature.
+Because account deletion is destructive, implement this conservatively and do not change anything outside the explicitly approved scope.
+Before changing code
+First perform the audit's remaining read-only verification against the deployed PostgreSQL constraint catalog.
+Confirm the deployed FK behavior matches the models/migrations for:
+Invitation.trip_id
+FriendCooldown.user_a_id
+FriendCooldown.user_b_id
+all three FriendSuggestion user FKs
+both SuggestionPushCooldown user FKs
+SkiTrip.created_by_user_id
+User.invited_by_user_id
+PushDeviceToken.user_id
+SkiDay.user_id
+SkiDay.trip_id
+MessageEventLog.actor_user_id
+MessageEventLog.recipient_user_id
+MountainPageView.user_id
+If the deployed constraints materially differ from the completed audit, STOP. Do not implement anything. Return the differences to me.
+Do not modify production data during this verification.
+Approved implementation
+Only if the deployed schema matches expectations, make these five cleanup changes.
+1. Invitations tied to owned trips
+Before deleting the signed-in user's owned trips:
+collect the owned trip IDs
+hard-delete Invitation rows whose trip_id belongs to those trips
+This includes invitations where the sender and receiver are both other users, because the underlying trip itself is being deleted.
+Do not delete invitations associated with surviving trips unless existing account-deletion behavior already requires their deletion.
+2. FriendCooldown
+Delete FriendCooldown rows where the deleting user is either:
+user_a_id
+user_b_id
+3. FriendSuggestion
+Delete FriendSuggestion rows where the deleting user is:
+suggester_id
+recipient_id
+suggested_user_id
+4. SuggestionPushCooldown
+Delete SuggestionPushCooldown rows where the deleting user is either:
+suggester_id
+recipient_id
+This is pair-specific delivery-throttling state only.
+Do not change any other push-notification behavior.
+5. Activity records for deleted owned trips
+Before deleting owned trips, delete Activity rows whose existing object_type / object_id semantics identify one of those owned trips.
+This prevents stale Activity records pointing to trips that no longer exist.
+Do not apply this behavior to MessageEventLog. Those audit records must remain preserved.
+Preserve existing behavior exactly
+Keep the existing handling for:
+User.invited_by_user_id → NULL
+SkiTrip.created_by_user_id on another user's surviving trip → NULL
+MessageEventLog.actor_user_id / recipient_user_id → NULL
+MountainPageView.user_id → existing database ON DELETE SET NULL
+deleting user's SkiDays → DELETE
+other users' SkiDays → PRESERVE
+other users' trips → PRESERVE
+deleting user's PushDeviceTokens → DELETE
+other users' PushDeviceTokens → PRESERVE
+other users' notification preferences → PRESERVE
+OneSignal remote/provider state → DO NOT TOUCH
+Do not add any OneSignal API calls.
+Do not modify:
+push registration
+push permission handling
+notification delivery logic
+notification preference behavior
+native notification code
+Transaction safety
+Account deletion must remain one database transaction.
+Do not introduce an intermediate commit.
+Add a rollback test that deliberately causes the deletion transaction to fail after cleanup has begun but before successful commit.
+After rollback, verify:
+the User still exists
+their owned trip still exists
+their relationships still exist
+their PushDeviceTokens still exist
+their SkiDays still exist
+unrelated users' records remain unchanged
+The user should only be logged out after a successful commit.
+Preservation tests
+Explicitly prove:
+Another user's trip is not deleted merely because the deleting user created it.
+That surviving trip's created_by_user_id becomes NULL.
+Another user's SkiDays survive.
+Another user's SkiDay linked to a deleted owned trip survives and follows the existing trip_id ON DELETE SET NULL behavior.
+Unrelated invitations survive.
+Unrelated FriendSuggestions survive.
+Unrelated FriendCooldowns survive.
+Unrelated SuggestionPushCooldowns survive.
+Other users' PushDeviceTokens survive.
+Other users' notification preferences remain unchanged.
+MessageEventLog rows survive with deleted-user actor/recipient references nulled.
+Invitations belonging to a deleted owned trip are removed.
+Activity records referencing a deleted owned trip are removed.
+FK-sensitive testing
+Explicitly enable SQLite foreign-key enforcement for the focused tests.
+After successful deletion, run SQLite foreign_key_check or the appropriate existing equivalent and verify there are no dangling FK references.
+Use PostgreSQL-backed verification as well if the existing environment provides a safe test database.
+Do not modify production data to test account deletion.
+Scope
+Expected application changes should remain limited primarily to:
+app.py
+tests/test_account_deletion.py
+No schema migration is expected.
+No model change is expected.
+If implementation appears to require models.py, a migration, a new deletion framework/service, or broader architectural changes, STOP and report why instead of expanding scope.
+Native-build constraint
+Make no changes to:
+iOS
+Android
+Capacitor
+OneSignal/native integration
+permissions
+entitlements
+app-store binaries
+Before committing
+Run:
+focused FK-enforced account-deletion tests
+rollback/preservation tests
+full regression suite
+Then inspect the final diff specifically for deletion scope.
+Confirm that every new destructive operation belongs to only these five approved categories:
+Invitations attached to deleted owned trips
+FriendCooldown involving the deleting user
+FriendSuggestion involving the deleting user
+SuggestionPushCooldown involving the deleting user
+Activity records referencing deleted owned trips
+If anything else has been added to the deletion scope, do not commit. Report it to me instead.
+Commit requirement
+If and only if all verification passes, commit the implementation.
+The Git commit message MUST include the task ID BL-77.
+Use this exact commit message:
+BL-77: Fix delete-account FK violations
+Do not use a generic commit message and do not omit BL-77.
+Return
+Report:
+deployed PostgreSQL constraint verification
+files changed
+each new deletion operation added
+preservation behavior verified
+rollback test result
+FK-integrity result
+focused test result
+full regression result
+explicit confirmation that no unrelated push-notification behavior changed
+explicit confirmation that no OneSignal behavior changed
+native-build verification
+Git commit hash
+exact Git commit message
