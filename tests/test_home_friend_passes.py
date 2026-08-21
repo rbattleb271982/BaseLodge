@@ -76,8 +76,24 @@ def test_home_always_renders_zero_count_card(client):
     assert response.status_code == 200
     html = response.data.decode()
     assert "Friends' Passes" in html
+    assert "Friends' Passes · 0 friends" in html
     assert html.count('class="fp-card-count">0</span>') == 3
     assert html.index(">Epic</span>") < html.index(">Ikon</span>") < html.index(">Other</span>")
+
+
+def test_home_renders_singular_friend_total(client):
+    with app.app_context():
+        me = _make_user("home-one-friend")
+        friend = _make_user("home-one-friend-target")
+        db.session.add(Friend(user_id=me.id, friend_id=friend.id))
+        db.session.commit()
+        me_id = me.id
+
+    _login(client, me_id)
+    response = client.get("/home")
+
+    assert response.status_code == 200
+    assert "Friends' Passes · 1 friend" in response.data.decode()
 
 
 def test_home_renders_multi_pass_counts_and_filter_links(client):
@@ -106,3 +122,4 @@ def test_home_renders_multi_pass_counts_and_filter_links(client):
     assert 'aria-label="Show 2 Epic pass friends"' in html
     assert 'aria-label="Show 1 Ikon pass friends"' in html
     assert 'aria-label="Show 2 friends with other passes"' in html
+    assert "Friends' Passes · 3 friends" in html

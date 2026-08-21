@@ -635,6 +635,52 @@ class TestGlobalSearchFilterInteraction:
         assert _matches("",        "",             "")         is True
 
 
+class TestResultCountPresentation:
+    """Verify result-count hooks preserve local/global search separation."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, client):
+        with app.app_context():
+            self.me = _make_user("result-count-owner")
+            self.friend = _make_user("result-count-friend")
+            _add_friend(self.me, self.friend)
+            db.session.commit()
+            self.me_id = self.me.id
+        self.client = client
+
+    def _html(self):
+        response = _get_friends(self.client, self.me_id)
+        assert response.status_code == 200
+        return response.data.decode()
+
+    def test_local_result_count_starts_hidden_and_is_driven_by_visible_rows(self):
+        html = self._html()
+
+        assert 'id="fr-local-result-count" class="fr-result-count" style="display:none;"' in html
+        assert "var totalVisible  = 0;" in html
+        assert "localCountEl.textContent" in html
+        assert "1 friend matching" in html
+        assert "friends matching" in html
+
+    def test_local_count_is_hidden_when_search_and_filters_are_cleared(self):
+        html = self._html()
+
+        assert "var localSearchActive = Boolean(q || hasFilters);" in html
+        assert "localCountEl.style.display = 'none';" in html
+        assert "frClearAll()" in html
+        assert "searchFriends(inp ? inp.value : '')" in html
+
+    def test_global_count_uses_returned_array_and_preserves_empty_state(self):
+        html = self._html()
+
+        assert 'id="fr-global-result-count" class="fr-result-count" style="display:none;"' in html
+        assert "var resultCount = Array.isArray(results) ? results.length : 0;" in html
+        assert "Showing 1 member" in html
+        assert "Showing ' + resultCount + ' members" in html
+        assert "No members found." in html
+        assert "results.length" not in html.split("function _frRenderGlobalResults", 1)[0]
+
+
 # ── JS filter state injected into the page ───────────────────────────────────
 
 class TestFilterJsPresence:

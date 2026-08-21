@@ -6,11 +6,14 @@ Used on: Home screen
 
 Inputs:
   friend_pass_counts   dict with epic, ikon, and other integer counts
+  friend_count         int — total confirmed friends
   other_pass_slugs_url comma-separated canonical non-Epic/non-Ikon pass slugs
 -->
 
 <section class="fp-card" aria-labelledby="fp-card-title">
-    <h2 class="fp-card-title" id="fp-card-title">Friends' Passes</h2>
+    <h2 class="fp-card-title" id="fp-card-title">
+        Friends' Passes · {{ friend_count or 0 }} {{ 'friend' if (friend_count or 0) == 1 else 'friends' }}
+    </h2>
     <div class="fp-card-grid">
         <a class="fp-card-link" href="{{ url_for('friends') }}?pass=epic"
            aria-label="Show {{ friend_pass_counts.epic or 0 }} Epic pass friends">

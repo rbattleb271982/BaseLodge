@@ -395,6 +395,11 @@
         .fr-filter-no-results .fr-filter-clear-all {
             font-size: 14px;
         }
+        .fr-result-count {
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+            margin: 6px 0 0;
+        }
 
         /* ── Filter bottom sheet ──────────────────────────────────────── */
         .fr-flt-overlay {
@@ -854,6 +859,8 @@
         <div class="fr-chips" id="fr-chips" style="display:none"></div>
 
         <p id="fr-search-hint" style="display:none; font-size:13px; color:var(--bl-color-text-muted); margin:6px 0 0;"></p>
+        <p id="fr-local-result-count" class="fr-result-count" style="display:none;"></p>
+        <p id="fr-global-result-count" class="fr-result-count" style="display:none;"></p>
 
         <p class="fr-no-results" id="fr-no-results" style="display: none;">
             No friends match &ldquo;<span id="fr-query-text"></span>&rdquo;.
@@ -1150,6 +1157,20 @@
             totalVisible += groupVisible;
         });
 
+        var localCountEl = document.getElementById('fr-local-result-count');
+        var localSearchActive = Boolean(q || hasFilters);
+        if (localCountEl) {
+            if (localSearchActive) {
+                localCountEl.textContent = totalVisible === 1
+                    ? '1 friend matching'
+                    : totalVisible + ' friends matching';
+                localCountEl.style.display = '';
+            } else {
+                localCountEl.textContent = '';
+                localCountEl.style.display = 'none';
+            }
+        }
+
         // Reset empty states
         if (filterNoResEl) filterNoResEl.style.display = 'none';
         if (noResultsEl)   noResultsEl.style.display   = 'none';
@@ -1192,10 +1213,14 @@
         var globalResults = document.getElementById('fr-global-results');
         var noResults = document.getElementById('fr-no-results');
         var filterNoRes = document.getElementById('fr-filter-no-results');
+        var localCount = document.getElementById('fr-local-result-count');
+        var globalCount = document.getElementById('fr-global-result-count');
 
         if (alphaList) alphaList.style.display = 'none';
         if (noResults) noResults.style.display = 'none';
         if (filterNoRes) filterNoRes.style.display = 'none';
+        if (localCount) localCount.style.display = 'none';
+        if (globalCount) globalCount.style.display = 'none';
         if (globalResults) {
             globalResults.style.display = '';
             globalResults.innerHTML = '<p style="color:var(--bl-color-text-muted);font-size:14px;padding:16px 0 8px;">Searching\u2026</p>';
@@ -1237,10 +1262,17 @@
         var globalResults = document.getElementById('fr-global-results');
         var noResults = document.getElementById('fr-no-results');
         var hint = document.getElementById('fr-search-hint');
+        var localCount = document.getElementById('fr-local-result-count');
+        var globalCount = document.getElementById('fr-global-result-count');
         if (alphaList) alphaList.style.display = '';
         if (globalResults) { globalResults.style.display = 'none'; globalResults.innerHTML = ''; }
         if (noResults) noResults.style.display = 'none';
         if (hint) hint.style.display = 'none';
+        if (localCount) localCount.style.display = 'none';
+        if (globalCount) {
+            globalCount.textContent = '';
+            globalCount.style.display = 'none';
+        }
         // Re-apply client-side filter for whatever is still in the input
         var cur = (document.getElementById('fr-search').value || '');
         if (!cur) searchFriends('');
@@ -1271,6 +1303,14 @@
     function _frRenderGlobalResults(results) {
         var globalResults = document.getElementById('fr-global-results');
         if (!globalResults) return;
+        var globalCount = document.getElementById('fr-global-result-count');
+        var resultCount = Array.isArray(results) ? results.length : 0;
+        if (globalCount) {
+            globalCount.textContent = resultCount === 1
+                ? 'Showing 1 member'
+                : 'Showing ' + resultCount + ' members';
+            globalCount.style.display = '';
+        }
 
         if (!results || !results.length) {
             globalResults.innerHTML = '<p style="color:var(--bl-color-text-muted);font-size:14px;padding:16px 0 8px;">No members found.</p>';
