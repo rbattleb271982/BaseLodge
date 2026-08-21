@@ -1,0 +1,41 @@
+Task #309 Phase 1 is complete and committed as a89a753e4f01d8c9b6d187893b8b5ddb1f8b4ca5.
+Do not restart the Flask Server or Project workflow yet.
+The next step is to configure a safe non-production development database so the app can run again without touching production.
+This is an investigation/configuration task only. Do not modify production data or schema.
+Goal
+Determine the safest way to provision and configure:
+BASELODGE_DEVELOPMENT_DATABASE_URL
+BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH
+so development can start safely.
+Requirements
+Inspect the current Replit environment/secrets configuration without exposing credentials.
+Determine whether a suitable non-production Postgres database already exists.
+If one exists, verify it is distinct from production using the new identity guard.
+If one does not exist, recommend the smallest safe way to create one:
+separate Supabase project/database
+Replit Postgres
+another isolated disposable/dev Postgres
+Do not reuse the production Supabase database with a different user/role.
+Do not use a different schema inside the production database.
+Do not weaken or bypass the production-identity guard.
+Do not restart the app until the development DB is configured and verified as non-production.
+Production identity hash
+Determine the exact safe procedure for generating BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH from the production endpoint identity without logging or exposing credentials.
+Do not change production.
+Development database bootstrap
+Once a safe development database is identified, determine what schema initialization it needs before the app can run:
+whether to run Alembic from base to current head
+whether legacy startup DDL is still required for development
+whether seed/demo data is needed
+Do not run production migrations.
+If a development migration is safe, keep it strictly against the verified development database.
+Return
+Report:
+whether a dev database already exists
+recommended dev database option if not
+exact secrets/configuration that need to be added
+how to generate/set the production identity fingerprint safely
+exact development DB bootstrap sequence
+whether it will be safe to restart Flask afterward
+any blockers
+Do not restart the workflow or change production during this task.
