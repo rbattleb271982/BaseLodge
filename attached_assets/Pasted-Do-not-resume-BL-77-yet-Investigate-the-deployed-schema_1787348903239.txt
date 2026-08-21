@@ -1,0 +1,64 @@
+Do not resume BL-77 yet.
+Investigate the deployed schema drift that blocked implementation.
+This is an investigation only. Do not change application code, models, migrations, tests, production data, task metadata, or database schema.
+Goal
+Determine why the connected deployed PostgreSQL schema differs from the current BaseLodge codebase/migrations, specifically:
+FriendCooldown has ON DELETE CASCADE in deployed PostgreSQL but not in the audited model expectation
+ski_day is missing from deployed public
+mountain_page_view is missing from deployed public
+What to investigate
+Confirm the exact database URL / environment currently being queried and whether it is:
+production
+staging
+development
+preview
+another database
+Confirm the active PostgreSQL schema/search path.
+Search all schemas for:
+ski_day
+mountain_page_view
+friend_cooldown
+Determine the current deployed Alembic revision.
+Compare it to the repository's latest Alembic head.
+Identify whether the SkiDay migration from BL-73 has actually been applied to the connected deployed database.
+Identify whether mountain_page_view is:
+migration-managed
+startup-created
+present under another schema
+absent because this database is behind
+Trace the migration history for FriendCooldown and explain why deployed PostgreSQL has ON DELETE CASCADE.
+Determine whether the current SQLAlchemy model matches deployed FriendCooldown behavior or whether there is model/migration drift.
+Determine whether any other User-related FK constraints differ materially between:
+current models
+current migrations
+deployed PostgreSQL
+Do a read-only inventory of the deployed tables and Alembic revision state sufficient to determine whether BL-77 was pointed at the correct database.
+Important safety rule
+Do not run migrations.
+Do not execute alembic upgrade.
+Do not create missing tables.
+Do not alter foreign keys.
+Do not modify production data.
+Return findings in this format
+Connected database identity
+State exactly which environment/database/schema was inspected.
+Migration state
+Report:
+deployed Alembic revision
+repository Alembic head
+whether deployed is current or behind
+SkiDay discrepancy
+Explain why ski_day is absent and whether BL-73's migration has been applied.
+MountainPageView discrepancy
+Explain why mountain_page_view is absent.
+FriendCooldown discrepancy
+Explain why deployed FKs cascade and whether that behavior is intentional/current.
+Broader schema-drift check
+List any other material User/FK differences found.
+BL-77 implication
+End with exactly one of:
+BL-77 MAY RESUME AGAINST THIS DATABASE
+BL-77 MAY RESUME AFTER MIGRATIONS ARE RECONCILED
+BL-77 IS POINTED AT THE WRONG DATABASE
+DO NOT RESUME BL-77: [reason]
+Do not implement or migrate anything during this investigation.
