@@ -9,3 +9,4 @@
 - [Alembic revision ID limit](alembic-revision-id-limit.md) — this database stores alembic version identifiers in VARCHAR(32); keep new revision IDs at or below that length.
 - [SkiDay display privacy](ski-day-display-privacy.md) — per-resort logged-day totals are owner-only; friend Mountains Visited stays unchanged unless a later requirement explicitly expands it.
 - [Mountain availability overlap](mountain-availability-overlap.md) — expose only derived direct-friend overlap during the viewer's own resort trip windows; keep availability editor privacy copy unchanged.
+- [Development schema safety](development-schema-safety.md) — Flask file-watcher reloads can run legacy startup DDL against the configured production database; isolate development before editing.

@@ -1,0 +1,85 @@
+Do not resume BL-77 yet.
+We now have a verified production schema-reconciliation issue that must be handled separately and safely before account deletion is touched. The production findings show that bl305_ski_day_foundation is unapplied, mountain_page_view has four orphaned references and lacks its model-declared FKs, and FriendCooldown has model/schema drift.
+I want to prepare the reconciliation implementation but NOT apply any database changes to production yet.
+Goal
+Make the codebase and migration path ready for a controlled production reconciliation while leaving the production database completely untouched.
+1. FriendCooldown model correction
+Update the SQLAlchemy model so both FriendCooldown user foreign keys explicitly declare the already-intended and already-deployed behavior:
+ondelete="CASCADE"
+This should be a model-only correction.
+Do not create a migration solely for FriendCooldown because production already has the correct constraints.
+2. MountainPageView reconciliation migration
+Create a new Alembic migration after bl305_ski_day_foundation that can eventually reconcile the existing mountain_page_view table.
+However, do not silently decide what to do with the three orphaned resort references.
+The migration must not guess resort mappings or indiscriminately delete analytics.
+Design the migration so the data-cleanup decision is explicit and reviewable before production execution.
+The eventual desired schema is:
+resort_id → resort.id ON DELETE CASCADE
+user_id → user.id ON DELETE SET NULL
+The known orphaned user reference may eventually be nulled because user_id is nullable, but do not execute that against production in this task.
+For the three orphaned resort_id values, capture enough read-only diagnostic information to let me decide what they represent:
+orphaned resort_id
+number of affected rows
+page-view timestamps if available
+slug/name or other historical identifying information if recoverable from existing data/logical references
+whether the referenced resort may have been deleted, merged, renamed, or replaced
+Do not modify those rows.
+3. Remove competing MountainPageView schema authority
+Prepare the application so run_mountain_page_view_migration() no longer acts as an independent production schema creator once the Alembic reconciliation is adopted.
+Prefer Alembic as the canonical schema authority.
+Be careful about deployment ordering: do not create a state where old production can fail to boot simply because the reconciliation migration has not yet been run.
+If safely removing/disabling the startup DDL requires the production migration to happen first, do not remove it yet. Instead document the exact follow-up change and deployment order.
+4. Production migration process
+Do not automatically add flask db upgrade to production deployment unless you can prove that doing so is safe for the current Replit autoscale deployment lifecycle.
+Determine the safest explicit production procedure for this reconciliation.
+I want to avoid multiple Gunicorn workers or deployment instances racing to execute migrations.
+The preferred outcome may be a controlled one-time migration/release command rather than running Alembic from normal application startup.
+5. SkiDay migration
+Do not rewrite bl305_ski_day_foundation.
+Validate it as part of the migration chain:
+bl60_mtn_filter_edu
+→ bl305_ski_day_foundation
+→ new MountainPageView reconciliation migration
+Do not apply either migration to production during this task.
+6. Test on a disposable database
+Where possible, test the full migration chain against a disposable/local database representing the current production revision.
+Validate:
+SkiDay table creation
+SkiDay FK behavior
+MountainPageView reconciliation behavior with valid rows
+behavior when orphan rows exist
+FriendCooldown model alignment
+upgrade ordering
+migration failure safety
+Do not use production for destructive migration testing.
+7. Hard production safety constraint
+During this task:
+no production migration
+no production UPDATE
+no production DELETE
+no production ALTER TABLE
+no production CREATE TABLE
+no production constraint changes
+no account-deletion changes
+no BL-77 implementation
+no OneSignal changes
+no push-notification changes
+Read-only production queries are allowed only when necessary to diagnose the three orphaned MountainPageView resort IDs.
+Return before committing
+Show me:
+Code changes proposed
+Exactly what changed or would change in the repository.
+Migration chain
+Confirm the intended sequence and revision IDs.
+Orphaned MountainPageView diagnostics
+Give me the three orphaned resort IDs and everything useful you can determine about them without modifying production.
+Production execution plan
+Give me the exact safe sequence we would later use to reconcile production, including when the application should be stopped/redeployed if necessary.
+Startup-DDL transition
+Explain exactly when run_mountain_page_view_migration() can safely be removed or disabled.
+Testing
+Report disposable-database migration results.
+BL-77 status
+Confirm BL-77 remains blocked and unchanged.
+Do not commit yet.
+I want to review the proposed reconciliation, particularly the three orphaned MountainPageView records, before any commit or production schema change.

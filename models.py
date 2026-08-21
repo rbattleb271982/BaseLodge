@@ -1190,8 +1190,16 @@ class FriendCooldown(db.Model):
     __tablename__ = 'friend_cooldown'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_a_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user_b_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_a_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    user_b_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False,
+    )
     expires_at = db.Column(db.DateTime, nullable=False)
 
     __table_args__ = (
