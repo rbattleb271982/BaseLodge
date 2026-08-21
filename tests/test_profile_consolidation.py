@@ -9,10 +9,11 @@ Profile/Account screen. Those refactor-guard tests are no longer valid.
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.pool import StaticPool
-from datetime import date
+from datetime import date, datetime
 from werkzeug.security import generate_password_hash
 
 from app import app, db
+from conftest import _login
 from models import User
 
 
@@ -93,6 +94,9 @@ def logged_in_user(client):
             last_name="User",
             rider_types=["Skier"],
             pass_type="ikon",
+            skill_level="Intermediate",
+            home_state="CO",
+            onboarding_completed_at=datetime.utcnow(),
         )
         user.password_hash = generate_password_hash("testpassword")
         user.lifecycle_stage = "active"
@@ -133,3 +137,41 @@ def test_trip_duration_display(client, logged_in_user):
 
         duration = (trip.end_date - trip.start_date).days + 1
         assert duration == 4, f"Trip should be 4 days, got {duration}"
+
+
+def test_profile_shows_joined_month_and_year_without_day_or_time(client, logged_in_user):
+    """Own Profile renders the canonical account date at month/year precision."""
+    logged_in_user.created_at = datetime(2025, 3, 14, 16, 27, 9)
+    db.session.commit()
+    _login(client, logged_in_user.id)
+
+    response = client.get("/profile")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Joined BaseLodge · March 2025" in html
+    assert "March 14" not in html
+    assert "16:27" not in html
+    assert "2025-03-14" not in html
+
+
+def test_profile_omits_joined_line_when_created_at_is_null(client, logged_in_user):
+    """Legacy accounts without a canonical timestamp get no placeholder."""
+    logged_in_user.created_at = None
+    db.session.commit()
+    _login(client, logged_in_user.id)
+
+    response = client.get("/profile")
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert "Joined BaseLodge" not in html
+    assert "Unknown" not in html
+
+
+def test_friend_profile_template_remains_without_joined_account_metadata():
+    """BL-82 is intentionally limited to the signed-in user's Profile."""
+    from pathlib import Path
+
+    friend_profile_template = Path("templates/friend_profile.html").read_text()
+    assert "Joined BaseLodge" not in friend_profile_template
