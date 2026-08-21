@@ -1,0 +1,57 @@
+Implement BL-99 — Allow users to correct logged ski days using the existing SkiDay foundation.
+This is an implementation task.
+Goal
+Give users a simple web-only way to correct their persisted SkiDay history without changing the underlying SkiDay semantics.
+Required behavior
+Users should be able to:
+add a missed SkiDay
+remove an incorrectly logged SkiDay
+change the date of an existing SkiDay
+change the resort of an existing SkiDay
+All changes must respect the canonical uniqueness constraint:
+user_id + resort_id + ski_date
+Important semantics
+SkiDay remains the canonical logged-day record.
+Use hard delete for removing an incorrect SkiDay.
+Do not create a soft-delete or audit-history system.
+Do not infer ski days from trip ranges or RSVPs.
+Do not alter source/provenance unless the correction genuinely requires it.
+Any new or moved SkiDay should continue to trigger the existing BL-89 additive Mountains Visited sync.
+Removing or moving a SkiDay must not remove an old mountain from Mountains Visited.
+Scope
+Reuse the existing Profile / ski-history / settings architecture where possible.
+Favor the smallest existing user-facing surface suitable for editing logged days.
+Do not create a large new history product or redesign Profile.
+Authorization
+Users may edit or delete only their own SkiDay records.
+Do not allow access to or mutation of another user's raw SkiDay history.
+Validation
+Validate:
+resort exists
+date is valid
+resulting user/resort/date combination is unique
+current user owns the record being edited/deleted
+Handle uniqueness conflicts cleanly rather than surfacing a database error.
+Testing
+Cover:
+add a valid missed SkiDay
+reject duplicate same user/resort/date
+edit date successfully
+edit resort successfully
+edit into an existing duplicate is rejected
+delete a SkiDay successfully
+another user's SkiDay cannot be edited or deleted
+new/moved SkiDay adds the resort to Mountains Visited through BL-89
+deleting a SkiDay does not remove Mountains Visited
+trip-linked SkiDay remains editable
+correction does not alter unrelated SkiDays
+Run focused tests and the full regression suite.
+Confirm no native iOS, Android, Capacitor, or app-store changes.
+Do not implement BL-91 yet.
+Commit the implementation and return:
+files changed
+correction UX added
+validation/authorization behavior
+tests/results
+native-build verification
+Git commit hash
