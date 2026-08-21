@@ -1,0 +1,174 @@
+Investigate **BL-82 — Add “Joined BaseLodge” month and year to Profile**.
+
+This is an **investigation only**. Do not make any code changes yet.
+
+The goal is to determine the smallest way to implement BL-82 through the currently deployed web/backend architecture **without requiring a new iOS or Android build**.
+
+## Hard constraint
+
+Do not propose or make changes to:
+
+* Native iOS project files
+* Native Android project files
+* Capacitor configuration
+* Native plugins
+* App permissions
+* Entitlements
+* Anything requiring a new Apple App Store or Google Play binary
+
+If any portion would require a native rebuild, identify it clearly.
+
+## Desired behavior
+
+On the Profile page, show a concise line indicating when the user joined BaseLodge.
+
+Preferred format:
+
+**Joined BaseLodge · Month YYYY**
+
+Example:
+
+**Joined BaseLodge · March 2025**
+
+Do not show the exact day or time.
+
+The treatment should feel like lightweight profile metadata and fit naturally into the existing Profile hierarchy.
+
+Do not create a new card, section, or account-history experience solely for this information.
+
+## What I want you to investigate
+
+Determine:
+
+1. Where the signed-in user Profile page is implemented.
+2. Whether viewing another user/friend profile uses the same route/template or a separate one.
+3. Whether the existing BL-82 task/spec already establishes whether the join date should appear:
+
+   * only on the user's own Profile
+   * on other users' profiles
+   * on both
+4. What existing field represents the user's actual BaseLodge account creation/join date.
+5. Whether `User.created_at`, registration timestamp, or another field is the correct canonical source.
+6. How that field is currently populated.
+7. Whether it is reliably populated for:
+
+   * current users
+   * older/legacy users
+   * migrated users, if any
+   * test users
+8. Whether any existing records can have a null or unreliable join timestamp.
+9. Whether the Profile route already receives the required timestamp.
+10. Whether any additional server query is needed.
+11. Where in the current Profile hierarchy this line should appear.
+12. What existing profile metadata styling should be reused.
+13. Whether BaseLodge already has a standard month/year date-formatting pattern or helper.
+14. Whether the date should be formatted server-side or directly in the template.
+15. Whether timezone handling creates any meaningful edge case when displaying month/year only.
+16. Whether locale-specific month formatting is already standardized in BaseLodge.
+17. Whether any schema migration is required.
+18. Whether any new endpoint/API is required.
+19. Whether any portion requires native iOS/Android work.
+20. What automated tests should be added or updated.
+21. Any existing Profile behavior that could regress.
+
+## Important implementation preference
+
+Favor the **smallest possible implementation**.
+
+Reuse:
+
+* existing account creation/join timestamp
+* existing Profile route data
+* existing Profile templates/components
+* existing Profile metadata styling
+* existing date-formatting conventions/helpers
+
+Do not:
+
+* add a new database field if an accurate existing timestamp already exists
+* create a new API endpoint if the Profile route already has the data
+* redesign Profile
+* create a new profile card or account-history section
+* expose exact registration day or time
+* create new native navigation or UI
+* broaden this into tenure, badges, anniversaries, or other account-history features
+
+The purpose of BL-82 is simply to surface a small, accurate **Joined BaseLodge · Month YYYY** detail using data BaseLodge already owns wherever possible.
+
+## Return your findings in this format
+
+### Current Profile implementation
+
+Identify the relevant Profile route(s), template(s), and how profile metadata is currently rendered.
+
+### Canonical join-date source
+
+Explain exactly which existing field should power the join date and why it is the correct source.
+
+### Existing data quality
+
+Explain whether that field is reliably populated for current and legacy users, including any real null or migration edge cases.
+
+### Display recommendation
+
+Recommend the exact Profile placement and styling.
+
+Include an example of the rendered line using the actual BaseLodge date source.
+
+### Visibility recommendation
+
+Based on the existing task/spec and current Profile architecture, state whether the join date should appear on:
+
+* own Profile only
+* other users' profiles only
+* both
+
+Do not invent a new privacy/product rule if the existing task already answers this.
+
+### Requirement-by-requirement feasibility
+
+For each BL-82 requirement state:
+
+* **Web/backend only:** Yes / No
+* Existing component/data to reuse
+* Required change
+* Risk/dependency
+
+### Data/API assessment
+
+State whether BL-82 requires:
+
+* schema migration
+* new API endpoint
+* additional server query
+* additional page data
+
+Explain any **Yes** answer.
+
+### Native-build assessment
+
+State explicitly:
+
+**Can all of BL-82 ship without a new iOS or Android build? Yes / No**
+
+If no, identify exactly why.
+
+### Recommended implementation scope
+
+List the minimum files/components/routes expected to change.
+
+### Testing
+
+List the tests required, including:
+
+* correct month/year rendering
+* no exact day/time exposure
+* own Profile behavior
+* friend/other-user Profile behavior if applicable
+* null/legacy behavior if applicable
+
+### Risks / open questions
+
+Only include genuine issues discovered in the codebase. Do not invent product questions if the existing architecture or task already answers them.
+
+Do not implement anything until I review the investigation.
