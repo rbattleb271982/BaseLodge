@@ -1,0 +1,76 @@
+Proceed with the safe development database setup for Task #309.
+Do not touch production.
+Do not restart Flask until the development database is configured, migrated, and verified.
+Goal
+Configure the existing Replit development Postgres as BaseLodge’s development database and bootstrap it safely.
+Configure development-only values
+Set:
+BASELODGE_DEVELOPMENT_DATABASE_URL = the existing Replit-managed development DATABASE_URL
+BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH = 732b2adf0aaed1c390923f6c581c036d4c20d96ef45b64a893491d04fe0b4ab5
+BASELODGE_MIGRATION_DATABASE_URL = the same Replit development database URL
+These must be development-only.
+Do not expose or print the database password or full connection URL.
+Do not change the production Supabase secret.
+Preflight
+Before any migration:
+Resolve the configured development database using the new side-effect-free runtime configuration.
+Verify its safe identity is:
+postgresql://helium:5432/heliumdb
+Verify its fingerprint is:
+b6d12084fe886e2c4690c5cbc6619d79f1afe7722f94c29eddcd87d113d8c05e
+Verify it does not match the protected production fingerprint.
+If any check fails, STOP.
+Bootstrap the development schema
+Run the Alembic migration chain against the verified development database only.
+Use explicit migration mode:
+BASELODGE_RUNTIME_ENV=development
+BASELODGE_MIGRATION_MODE=1
+Then run:
+python -m alembic -c migrations/alembic.ini upgrade head
+Do not import app.py to perform this migration.
+Verify
+After migration:
+Run:
+python -m alembic -c migrations/alembic.ini current
+Verify the development database is at:
+bl306_mpv_fk_reconcile
+Also verify:
+ski_day exists
+mountain_page_view exists
+expected SkiDay FKs exist
+expected MountainPageView FKs exist
+development DB has no FK or migration errors
+Seed data
+Do not copy production data.
+Do not import production users, trips, push tokens, or private data.
+If the app requires resort/reference data to boot meaningfully, determine the minimum existing safe non-production seed mechanism.
+If no reviewed seed mechanism exists, do not invent one in this task. Report that separately.
+Startup mutators
+Legacy startup mutation routines still exist.
+Do not modify them here.
+After Alembic bootstrap, assess whether starting Flask against the verified development database is safe from a production-isolation perspective.
+It is acceptable if those routines mutate only the isolated development database.
+Restart gate
+Do not restart Flask automatically.
+At the end, report whether it is now safe for me to restart the Flask Server.
+Production safety
+During this task:
+no production queries that mutate data
+no production migrations
+no production schema changes
+no production seed/copy
+no OneSignal calls
+no push-token changes in production
+no BL-77 changes
+Return
+Report:
+development secrets/configuration status
+development identity verification
+Alembic upgrade result
+current revision
+required tables/FKs verified
+whether seed/reference data is still missing
+whether Flask is safe to restart
+confirmation that production was untouched
+any blocker
+Do not create a new commit unless code changes are genuinely required.
