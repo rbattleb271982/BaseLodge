@@ -1,0 +1,116 @@
+Implement BL-64 — Expand Home network stats and add Friends result counts using the completed investigation and optional Task #303.
+This is an implementation task.
+Goal
+Make two small web-only improvements:
+Surface the existing confirmed-friend total in the Home Friends’ Passes summary.
+Show compact result counts in the Friends experience for local search/filtering and global member search.
+Hard constraint
+This must ship through the existing Flask/webview architecture only.
+Do not modify:
+Native iOS project files
+Native Android project files
+Capacitor configuration
+Native plugins
+App permissions
+Entitlements
+Anything requiring a new Apple App Store or Google Play binary
+Home behavior
+Reuse the existing friend_count already passed to Home.
+In the existing Friends’ Passes section, add quiet context near the title, for example:
+Friends’ Passes · 14 friends
+Use correct singular/plural handling:
+1 friend
+N friends
+Do not create a new card or stat block.
+Do not calculate total friends by summing Epic / Ikon / Other pass groups. Those groups can overlap for multi-pass friends.
+Use the existing friend_count only.
+Friends local search/filter counts
+Reuse the existing totalVisible value already maintained by searchFriends().
+Show a compact muted result-count line only when local search and/or filters are active.
+Recommended copy:
+N friends matching
+Examples:
+1 friend matching
+8 friends matching
+0 friends matching
+Behavior:
+No search and no filters: do not show redundant count text.
+Search only: show the number of currently visible confirmed-friend rows.
+One filter: show the number of currently visible confirmed-friend rows.
+Multiple filters: show the number of currently visible confirmed-friend rows.
+Search + filters: show the intersection count already produced by the current filtering logic.
+Zero results: show 0 friends matching alongside the existing no-results state.
+Clearing search and all filters should hide the matching-count treatment again.
+Do not change existing filter semantics:
+categories remain ANDed
+selected values within a category remain ORed
+Global member search counts
+The Enter-key global search uses:
+GET /api/users/search?q=...
+Reuse the returned result array.
+Show:
+Showing N members
+Examples:
+Showing 1 member
+Showing 12 members
+Showing 50 members
+Use results.length.
+Do not present this as a true total number of matches because the endpoint is capped at 50 rows.
+Preserve the existing No members found behavior.
+Do not change global search semantics or make local Friends filters apply to global member-search results.
+Expected implementation scope
+Keep changes as close as possible to:
+templates/partials/home/_section_friend_passes.html
+templates/friends.html
+tests/test_friends_page.py
+an existing focused Home test file or a small Home regression test
+app.py should not need to change because friend_count already exists in Home context and the Friends page already has all necessary client-side data.
+Do not add:
+schema fields
+migrations
+new API endpoints
+additional Home queries
+additional local Friends queries
+analytics infrastructure
+Testing
+Add or update coverage for:
+Home
+zero confirmed friends
+one confirmed friend
+multiple confirmed friends
+correct singular/plural copy
+multi-pass friend does not inflate total friend count
+existing Epic / Ikon / Other pass counts remain unchanged
+Local Friends results
+no search/filter state has no redundant result-count line
+search-only result count
+one active filter
+multiple active filters across categories
+multiple selected values within one category
+search combined with filters
+zero matching results
+clearing search restores normal state
+clearing filters restores normal state
+existing no-results behavior remains intact
+Global member search
+one returned member
+multiple returned members
+zero returned members
+50 returned rows renders Showing 50 members
+wording does not imply an uncapped total
+Regression
+Home pass deep links continue to pre-apply the existing pass filter
+current filter behavior remains unchanged
+global member search remains separate from local friend filtering
+Native-build verification
+Confirm explicitly:
+Native iOS/Android files changed: No
+Capacitor configuration changed: No
+New app-store build required: No
+Completion
+Run focused tests and the full test suite, commit the completed BL-64 implementation, and return:
+files changed
+behavior changed
+tests/results
+native-build verification
+Git commit hash
