@@ -1,0 +1,92 @@
+Do not implement BL-91. The investigation confirmed that BaseLodge does not currently store a canonical logged ski/snowboard day, so displaying an “all-time logged days” count would require a new data model and logging/confirmation behavior and is outside this easy no-new-build pass.
+Leave BL-91 code and task metadata unchanged for now.
+Move on to BL-64 — Expand Home network stats and add Friends result counts.
+This is an investigation only. Do not make any code changes yet.
+The goal is to determine the smallest way to implement BL-64 through the currently deployed web/backend architecture without requiring a new iOS or Android build.
+Hard constraint
+Do not propose or make changes to:
+Native iOS project files
+Native Android project files
+Capacitor configuration
+Native plugins
+App permissions
+Entitlements
+Anything requiring a new Apple App Store or Google Play binary
+If any portion would require a native rebuild, identify it clearly.
+What I want you to investigate
+Determine:
+Where the current Home network stats are implemented.
+What stats are currently shown on Home.
+Exactly what each current stat counts and where that data comes from.
+What BL-64 currently specifies should be added or expanded.
+Where the Friends tab/search/filter result lists are implemented.
+Whether Friends result counts already exist in the backend or client state but are simply not displayed.
+Whether the existing Friends queries already return enough information to show a result count without another query.
+How result counts should behave when:
+no Friends filters/search are active
+search is active
+one filter is active
+multiple filters are active
+zero results are returned
+Whether the count should represent:
+all friends
+currently visible results
+filtered/search results
+another existing definition already established by BL-64
+Whether Home network stats use direct database counts, cached values, or already-loaded objects.
+Whether any proposed new Home stats can be calculated from existing persisted data.
+Whether any additional server query or aggregation is required.
+Whether any schema migration is required.
+Whether any new API endpoint is required.
+Whether any current Home or Friends data-loading path could be reused.
+Whether any portion requires native iOS/Android work.
+What automated tests should be added or updated.
+Any existing Home/Friends behavior that could regress.
+Important implementation preference
+Favor the smallest possible implementation.
+Reuse:
+existing Home network-stat data
+existing Friends queries
+existing search/filter state
+existing Home and Friends components
+existing BaseLodge count/stat styling
+Do not:
+redesign Home
+redesign Friends
+create a new analytics system
+duplicate existing queries unnecessarily
+add schema unless genuinely required
+create a new API if existing routes already have the required data
+change native navigation or native UI
+Return your findings in this format
+Current Home network stats
+Identify where they are rendered, what they show, and how each value is calculated.
+Current Friends results implementation
+Identify the relevant routes/templates/client logic for Friends search and filtering and whether visible-result counts are already available.
+BL-64 behavior recommendation
+Based on the existing task/spec and codebase, state exactly what should be added to Home and how Friends result counts should behave.
+Requirement-by-requirement feasibility
+For each BL-64 requirement state:
+Web/backend only: Yes / No
+Existing component/data to reuse
+Required change
+Risk/dependency
+Data/API assessment
+State whether BL-64 requires:
+schema migration
+new API endpoint
+additional server query
+aggregation query
+additional page data
+Explain any Yes answer.
+Native-build assessment
+State explicitly:
+Can all of BL-64 ship without a new iOS or Android build? Yes / No
+If no, identify exactly why.
+Recommended implementation scope
+List the minimum files/components/routes expected to change.
+Testing
+List the tests required, including normal, filtered, searched, and zero-result Friends states plus any new Home stat behavior.
+Risks / open questions
+Only include genuine issues discovered in the codebase. Do not invent product questions if the existing task or architecture already answers them.
+Do not implement anything until I review the investigation.
