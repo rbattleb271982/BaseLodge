@@ -1,0 +1,117 @@
+Stop here and treat the production-safety incident as the priority.
+Do not resume BL-77.
+Do not make any further application edits while the current watched Flask workflow is running against production configuration.
+This is an investigation only for proposed Task #308 — Prevent development edits from changing the production database.
+Immediate safety step
+First, stop the local/Replit watched Flask development workflow that is currently running and capable of re-importing app.py.
+Do not restart it during this investigation.
+Do not run:
+flask ...
+python app.py
+Gunicorn
+pytest if its fixtures import the production-configured app
+any command that imports app.py
+Alembic commands that initialize the Flask app
+until you have proven they cannot touch production.
+Hard production safety constraint
+During this investigation:
+no production INSERT
+no production UPDATE
+no production DELETE
+no production ALTER
+no production CREATE
+no migrations
+no startup DDL
+no OneSignal calls
+no push-token cleanup
+no account deletion
+no application code edits
+no model edits
+no migration edits
+no test edits
+no task metadata edits
+Do not import the Flask app merely to inspect configuration.
+Use file inspection, environment inspection, and shell-level configuration inspection only.
+Goal
+Determine exactly why local development / Replit agent activity is able to connect to the production Supabase database and execute startup DDL when app.py is imported or the watcher reloads.
+Then design the smallest safe architecture that makes this impossible by default.
+Investigate
+Identify exactly where DATABASE_URL or equivalent production DB credentials are coming from in the development/Replit workspace.
+Identify all environment-selection logic for production, development, testing, and preview.
+Determine why the current Replit workspace reports REPLIT_ENVIRONMENT=production and FLASK_ENV=production while being used interactively for development.
+Identify every startup routine that can mutate schema or data merely by importing or starting the app.
+Identify which of those routines ran during the incident.
+Identify whether any startup routine can delete rows, rewrite rows, create tables, alter tables, add indexes, or mutate push-device data.
+Determine whether pytest or other test commands can currently inherit production DB credentials.
+Determine whether Alembic/Flask CLI commands import the app and therefore trigger startup routines before the command itself runs.
+Determine whether the Replit watcher automatically restarts after file edits and re-imports the production-configured application.
+Identify the safest separation between local/dev DB, test DB, and production DB.
+Determine whether Replit provides environment-specific secrets/configuration that should be used so development never receives production DB credentials by default.
+Determine how production migrations should be run through a separate explicit controlled process without allowing normal app workers or development agents to perform them.
+Required safety design
+Recommend a design where:
+Development
+Uses a non-production database by default.
+Cannot accidentally fall back to production if the dev DB variable is missing.
+Fails closed if development is pointed at a recognized production host/database.
+Tests
+Always use an isolated test database.
+Cannot inherit production DATABASE_URL.
+Fail immediately if a test process detects production credentials.
+Production
+Uses production credentials only in the production runtime.
+Normal application startup does not run ad hoc schema mutations.
+Alembic is the schema source of truth.
+Migrations
+Run through one explicit controlled release command/process.
+Never run automatically from Gunicorn workers.
+Never run automatically because a developer edits a file.
+Never race across autoscale workers.
+Startup DDL inventory
+Return a complete list of startup routines that currently mutate database state.
+For each show:
+function name
+where it is invoked
+whether it performs DDL or DML
+whether it can delete/change existing data
+whether it should eventually move to Alembic
+whether disabling it immediately would break an unreconciled production schema
+Pay special attention to:
+push-token startup routines
+MountainPageView startup routine
+FriendDiscovery startup routine
+MessageEventLog routines
+trip invite/planning-post routines
+ghost/cleanup routines
+Incident assessment
+Using existing logs only, summarize what actually ran during the accidental production app imports.
+Do not run additional production commands to recreate the incident.
+Separate:
+routines that merely checked schema
+routines that executed DDL
+routines that executed DML
+routines that reported zero affected rows
+State whether there is any evidence that production user data was changed during this incident.
+Do not claim “no data changed” unless the existing logs support that.
+Return
+Root cause
+Explain precisely why interactive development was connected to production and why file edits caused production startup routines to execute.
+Immediate containment
+State what should be done before any more BaseLodge code work continues.
+Environment-separation design
+Give the smallest safe development/test/production configuration.
+Startup mutation inventory
+List all import/startup database mutations.
+Migration architecture
+Recommend how Alembic should become the single schema authority without breaking current production.
+Incident assessment
+State what the logs prove did or did not happen.
+Implementation plan for Task #308
+Break the eventual fix into the smallest safe ordered steps.
+BL-77 status
+Confirm BL-77 remains blocked.
+End with exactly one:
+SAFE TO IMPLEMENT TASK #308 USING THIS PLAN
+or
+DO NOT IMPLEMENT TASK #308 YET: [reason]
+Do not commit anything during this investigation.
