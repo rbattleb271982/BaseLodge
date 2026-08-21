@@ -203,6 +203,7 @@ class User(UserMixin, db.Model):
     # Progressive profile completion (Dec 2025)
     primary_riding_style = db.Column(db.String(50), nullable=True)  # Groomers, Powder, All-Mountain, Park, Mixed
     welcome_modal_seen_at = db.Column(db.DateTime, nullable=True)  # Set when welcome modal dismissed (once only)
+    mountains_filter_education_seen_at = db.Column(db.DateTime, nullable=True)  # Set when Mountains filter education is dismissed
     backcountry_capable = db.Column(db.Boolean, default=False, nullable=True)  # Does user ski backcountry?
     avi_certified = db.Column(db.Boolean, nullable=True)  # Avalanche certified (only relevant if backcountry_capable)
     previous_pass = db.Column(db.String(100), nullable=True)  # Pass held last season

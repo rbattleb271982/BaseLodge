@@ -6,3 +6,4 @@
 - [Trip planning board](trip-planning-board.md) — SkiTripPlanningPost model + GET /trips/<id>/planning + 3 API endpoints; messaging event TRIP_PLANNING_POST_CREATED wired in both constants + dispatch; trip_detail shows can_plan + planning_post_count; notes moved to private owner-only field in Edit Trip.
 - [Activity model column name](activity-model.md) — Activity.type is the SQLAlchemy column (not activity_type); filter_by(type=...) not filter_by(activity_type=...).
 - [state_name Jinja filter](state-name-filter.md) — converts USPS/Canada 2-letter abbreviation to full state name; _STATE_ABBREV_TO_NAME dict in app.py; existing state_fullname filter only handles Resort objects.
+- [Alembic revision ID limit](alembic-revision-id-limit.md) — this database stores alembic version identifiers in VARCHAR(32); keep new revision IDs at or below that length.

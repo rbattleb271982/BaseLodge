@@ -73,10 +73,21 @@
     }
 
     /* ── Filters ── */
+    .md-filter-area {
+        position: relative;
+        margin-bottom: 8px;
+        padding: 8px;
+        background: var(--bl-color-surface-blush);
+        border: 1px solid var(--bl-color-border-soft);
+        border-radius: 10px;
+    }
+    .md-filter-area--education {
+        border-color: var(--bl-color-primary);
+        box-shadow: 0 0 0 3px rgba(92, 18, 25, 0.14);
+    }
     .md-filters {
         display: flex;
         gap: 8px;
-        margin-bottom: 8px;
         flex-wrap: wrap;
     }
     .md-select-wrap {
@@ -118,8 +129,58 @@
         border-color: var(--bl-color-primary);
     }
     .md-select--active {
-        border-color: var(--bl-color-primary);
+        border: 1.5px solid var(--bl-color-primary);
         color: var(--bl-color-primary);
+        font-weight: 600;
+        background: var(--bl-color-surface);
+    }
+
+    /* ── First-visit filter education ──────────────────────────── */
+    .md-filter-education {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: var(--bl-color-surface);
+        border: 1px solid var(--bl-color-primary);
+        border-radius: 8px;
+        color: var(--bl-color-text);
+        box-shadow: 0 4px 12px rgba(26, 26, 26, 0.12);
+    }
+    .md-filter-education::before {
+        content: '';
+        position: absolute;
+        top: -6px;
+        left: 24px;
+        width: 10px;
+        height: 10px;
+        background: var(--bl-color-surface);
+        border-top: 1px solid var(--bl-color-primary);
+        border-left: 1px solid var(--bl-color-primary);
+        transform: rotate(45deg);
+    }
+    .md-filter-education-copy {
+        flex: 1;
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.4;
+    }
+    .md-filter-education-close {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        margin: -4px -4px 0 0;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: var(--bl-color-text-muted);
+        font: inherit;
+        font-size: 21px;
+        line-height: 22px;
+        cursor: pointer;
     }
 
     /* ── Clear + count row ── */
@@ -244,28 +305,37 @@
                placeholder="Search mountains" autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
 
-    <div class="md-filters">
-        <div class="md-select-wrap">
-            <select class="md-select" id="md-country">
-                <option value="">All countries</option>
-            </select>
+    <div class="md-filter-area{% if show_mountains_filter_education %} md-filter-area--education{% endif %}" id="md-filter-area">
+        <div class="md-filters">
+            <div class="md-select-wrap">
+                <select class="md-select" id="md-country">
+                    <option value="">All countries</option>
+                </select>
+            </div>
+            <div class="md-select-wrap">
+                <select class="md-select" id="md-state">
+                    <option value="">All regions</option>
+                </select>
+            </div>
+            <div class="md-select-wrap" id="md-pass-wrap" style="display:none;">
+                <select class="md-select" id="md-pass">
+                    <option value="">All passes</option>
+                </select>
+            </div>
         </div>
-        <div class="md-select-wrap">
-            <select class="md-select" id="md-state">
-                <option value="">All regions</option>
-            </select>
+        {% if show_mountains_filter_education %}
+        <div class="md-filter-education" id="md-filter-education" role="status">
+            <p class="md-filter-education-copy">Filter mountains by state and pass.</p>
+            <button class="md-filter-education-close" id="md-filter-education-close"
+                    type="button" aria-label="Dismiss filter education">&times;</button>
         </div>
-        <div class="md-select-wrap" id="md-pass-wrap" style="display:none;">
-            <select class="md-select" id="md-pass">
-                <option value="">All passes</option>
-            </select>
-        </div>
+        {% endif %}
     </div>
 
     <div class="md-meta-row">
         <p class="md-count" id="md-count"></p>
         <button class="md-clear-btn" id="md-clear-btn" type="button"
-                onclick="mdClearFilters()" style="display:none;">Clear filters</button>
+                onclick="mdClearFilters()" style="display:none;">Clear</button>
     </div>
 
     <div class="md-results" id="md-results"></div>
@@ -288,9 +358,8 @@
     var RESORTS = [];
     var STATES_BY_COUNTRY = {};
     var _mdLoaded = false;
-
-    var DEFAULT_COUNTRY = {{ default_country | tojson }};
-    var DEFAULT_STATE   = {{ default_state   | tojson }};
+    var SHOW_FILTER_EDUCATION = {{ show_mountains_filter_education | tojson }};
+    var MOUNTAINS_CSRF_TOKEN = {{ csrf_token() | tojson }};
 
     var elSearch   = document.getElementById('md-search');
     var elPass     = document.getElementById('md-pass');
@@ -302,6 +371,11 @@
     var elCount    = document.getElementById('md-count');
     var elClearBtn = document.getElementById('md-clear-btn');
     var elLoading  = document.getElementById('md-loading');
+    var elFilterArea = document.getElementById('md-filter-area');
+    var elEducation = document.getElementById('md-filter-education');
+    var elEducationClose = document.getElementById('md-filter-education-close');
+    var _educationDismissed = !SHOW_FILTER_EDUCATION;
+    var _educationTimer = null;
 
     /* ── Populate selects from JSON data ───────────────────────── */
     function populateCountrySelect(countries) {
@@ -311,7 +385,6 @@
             html += '<option value="' + esc(cc) + '">' + esc(cn) + '</option>';
         });
         elCountry.innerHTML = html;
-        if (DEFAULT_COUNTRY) elCountry.value = DEFAULT_COUNTRY;
     }
 
     function populatePassSelect(all_passes) {
@@ -457,20 +530,71 @@
     function mdClearFilters() {
         elSearch.value = '';
         elPass.value = '';
-        elCountry.value = 'US';
-        renderStateOptions('US', '');
+        elCountry.value = '';
+        renderStateOptions('', '');
         filterAndRender();
     }
     window.mdClearFilters = mdClearFilters;
 
+    function resetFilters() {
+        elSearch.value = '';
+        elPass.value = '';
+        elCountry.value = '';
+        renderStateOptions('', '');
+        filterAndRender();
+    }
+
+    /* ── First-visit education ─────────────────────────────────── */
+    function dismissFilterEducation() {
+        if (_educationDismissed) return;
+        _educationDismissed = true;
+        if (_educationTimer) window.clearTimeout(_educationTimer);
+        if (elEducation && elEducation.parentNode) elEducation.remove();
+        if (elFilterArea) elFilterArea.classList.remove('md-filter-area--education');
+        document.removeEventListener('pointerdown', onEducationPointerDown, true);
+
+        fetch('/api/mountains/filter-education-seen', {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': MOUNTAINS_CSRF_TOKEN },
+            keepalive: true
+        }).catch(function () {
+            // The local coachmark remains dismissed; the account-level state is retried
+            // on a later fresh page if this request fails.
+        });
+    }
+
+    function onEducationPointerDown(event) {
+        if (!elEducation || elEducation.contains(event.target)) return;
+        dismissFilterEducation();
+    }
+
+    function initializeFilterEducation() {
+        if (!SHOW_FILTER_EDUCATION || !elEducation) return;
+        if (elEducationClose) {
+            elEducationClose.addEventListener('click', dismissFilterEducation);
+        }
+        document.addEventListener('pointerdown', onEducationPointerDown, true);
+        _educationTimer = window.setTimeout(dismissFilterEducation, 6500);
+    }
+
     /* ── Event listeners ───────────────────────────────────────── */
-    elSearch.addEventListener('input', filterAndRender);
-    elPass.addEventListener('change', filterAndRender);
+    elSearch.addEventListener('input', function () {
+        dismissFilterEducation();
+        filterAndRender();
+    });
+    elPass.addEventListener('change', function () {
+        dismissFilterEducation();
+        filterAndRender();
+    });
     elCountry.addEventListener('change', function () {
+        dismissFilterEducation();
         renderStateOptions(elCountry.value, '');
         filterAndRender();
     });
-    elState.addEventListener('change', filterAndRender);
+    elState.addEventListener('change', function () {
+        dismissFilterEducation();
+        filterAndRender();
+    });
 
     /* ── Fetch resort data from API ────────────────────────────── */
     function loadMountainsData() {
@@ -488,7 +612,7 @@
                 STATES_BY_COUNTRY = data.states_by_country || {};
                 populateCountrySelect(data.countries || []);
                 populatePassSelect(data.all_passes || []);
-                renderStateOptions(DEFAULT_COUNTRY || 'US', DEFAULT_STATE || '');
+                renderStateOptions('', '');
                 filterAndRender();
                 _mdLoaded = true;
                 elLoading.style.display = 'none';
@@ -505,12 +629,16 @@
             });
     }
 
-    /* ── bfcache guard: skip re-fetch on back navigation ──────── */
+    /* ── Reset UI on all entries; reuse bfcache data when available ──────── */
     window.addEventListener('pageshow', function (e) {
-        if (e.persisted && _mdLoaded) return;
+        if (e.persisted && _mdLoaded) {
+            resetFilters();
+            return;
+        }
         loadMountainsData();
     });
 
+    initializeFilterEducation();
 }());
 </script>
 {% endblock %}

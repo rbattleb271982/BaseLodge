@@ -5219,7 +5219,6 @@ def mountains_tab():
     """Mountains discovery page — shell only. Resort data served via /api/mountains-data
     to keep this HTML response small (~20 KB vs the previous ~210 KB with inline JSON).
     """
-    user = current_user
     _rp_t0 = time.perf_counter()
 
     # ── Warm the resort cache (data itself served via /api/mountains-data) ─────
@@ -5227,22 +5226,36 @@ def mountains_tab():
     if app.debug:
         print(f"[ROUTE_PERF] mountains.all_resorts=0.0000s count={len(_resort_map)} (cached)")
 
-    # ── Default filter derived from onboarding state (pure Python, ~0 ms) ──────
-    default_state = user.home_state or ""
-    default_country = ""
-    if default_state:
-        for r in _resort_map.values():
-            if r.state_code == default_state:
-                default_country = r.country_code or ""
-                break
-
     if app.debug:
         print(f"[ROUTE_PERF] route=mountains total={time.perf_counter()-_rp_t0:.4f}s (shell only)")
     return render_template(
         "mountains_tab.html",
-        default_country=default_country,
-        default_state=default_state,
+        show_mountains_filter_education=not bool(
+            current_user.mountains_filter_education_seen_at
+        ),
     )
+
+
+@app.route("/api/mountains/filter-education-seen", methods=["POST"])
+@login_required
+def mark_mountains_filter_education_seen():
+    """Persist the one-time Mountains filter education dismissal for this account."""
+    validate_csrf_request()
+
+    if not current_user.mountains_filter_education_seen_at:
+        current_user.mountains_filter_education_seen_at = datetime.utcnow()
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.error(
+                "Could not save Mountains filter education dismissal for user %s: %s",
+                current_user.id,
+                exc,
+            )
+            return jsonify({"ok": False, "error": "save_failed"}), 500
+
+    return jsonify({"ok": True, "seen": True}), 200
 
 
 # ── Per-user server-side response cache for /api/mountains-data ───────────────
