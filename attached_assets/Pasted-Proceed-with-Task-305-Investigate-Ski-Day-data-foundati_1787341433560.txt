@@ -1,0 +1,42 @@
+Proceed with Task #305 — Investigate Ski Day data foundation.
+Do the actual codebase investigation now. Do not create another task and do not implement anything.
+Trace the existing trip, participant, Mountains Visited, post-trip, user-data-write, and related persistence patterns and return the full findings for Task #305.
+Specifically determine:
+Whether any canonical Ski Day / attendance record already exists.
+The exact minimum new model required if it does not.
+Required vs optional fields.
+The correct uniqueness constraint for user + resort + calendar date.
+Whether discipline should be stored now.
+Whether source/provenance should be stored now.
+Whether trip_id should be nullable and reference-only.
+What should happen to confirmed Ski Days if the originating Trip is edited, deleted, made private, or left.
+How duplicate confirmation attempts should behave.
+How future BL-99 corrections should add, remove, or change logged days.
+Whether corrections should hard-delete records or preserve an audit/history state.
+What existing BaseLodge user-data audit patterns can be reused.
+How BL-89 should consume this model to update Mountains Visited without overwriting manual/legacy visit history.
+How BL-91 should aggregate the model into all-time logged-day counts by mountain.
+Required schema migration, indexes, foreign keys, constraints, and deletion behavior.
+Whether any API endpoint is needed for the foundation itself, or whether writes should remain owned by later confirmation/correction tasks.
+Privacy rules for raw Ski Day records and whether friends should ever see raw dates versus aggregates only.
+How future historical/imported Ski Days could fit without expanding the initial implementation unnecessarily.
+Exact files expected to change when this foundation is eventually implemented.
+Required automated tests and regression risks.
+Return the investigation under these headings:
+Current state
+Recommended Ski Day model
+Field-by-field rationale
+Uniqueness and deduplication
+Trip independence
+Correction model
+Audit/deletion recommendation
+BL-89 dependency
+BL-91 dependency
+Privacy
+Schema / index / API assessment
+Native-build assessment
+Recommended future implementation scope
+Testing
+Risks / open questions
+State explicitly whether the persistence foundation can ship without a new iOS or Android build.
+Investigation only. Do not modify code, schema, migrations, APIs, native files, tests, or task metadata.
