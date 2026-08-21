@@ -1,0 +1,53 @@
+Implement BL-89 — Sync confirmed skiing to Mountains Visited using the newly implemented canonical SkiDay foundation.
+This is an implementation task. Do not re-investigate the SkiDay model.
+Goal
+Whenever a confirmed SkiDay is successfully created for a user, ensure that resort is also represented in the user's existing Mountains Visited data.
+The SkiDay record remains the canonical source for confirmed ski-day history. Mountains Visited remains the existing distinct-mountain list.
+Required behavior
+After successful creation of a SkiDay:
+Check whether its resort_id is already in User.visited_resort_ids.
+If not, add it.
+If already present, do nothing.
+Never create duplicate resort IDs.
+Preserve existing manually added and legacy Mountains Visited entries.
+Important correction semantics
+BL-89 should be additive only.
+Deleting or correcting a SkiDay must not automatically remove a mountain from Mountains Visited.
+A mountain may have been:
+manually marked visited
+visited on another SkiDay
+represented by legacy historical data
+Therefore SkiDay deletion must not be interpreted as proof that the user has never visited the mountain.
+Architecture
+Determine the smallest reusable server-side point where successful SkiDay creation should trigger this synchronization.
+Prefer a model/service/helper-level implementation that future SkiDay write flows can reuse rather than duplicating the logic in every future endpoint.
+Do not create a new user-facing workflow.
+Do not change
+Existing manual Mountains Visited add/remove behavior
+Legacy mountains_visited behavior
+SkiDay uniqueness semantics
+Trip or RSVP behavior
+BL-39 Been Here semantics
+BL-40 Going This Winter
+Wishlist behavior
+Do not implement BL-91 or BL-99 yet.
+Testing
+Cover:
+First SkiDay at a mountain adds the resort to Mountains Visited.
+Additional SkiDays at the same mountain do not duplicate it.
+A mountain already manually marked visited remains unchanged.
+SkiDays at different mountains add each distinct resort.
+SkiDay creation for one user does not modify another user's Mountains Visited.
+Deleting a SkiDay does not remove the mountain from Mountains Visited.
+Correcting/moving a SkiDay to another resort does not erase the old Mountains Visited entry and can add the new resort.
+Existing manual add/remove behavior still works.
+BL-39 Been Here continues to derive from visited_resort_ids.
+Run focused tests and the full regression suite.
+Confirm no native iOS, Android, Capacitor, or app-store changes.
+Commit the implementation and return:
+files changed
+exact synchronization behavior
+tests/results
+regression verification
+native-build verification
+Git commit hash
