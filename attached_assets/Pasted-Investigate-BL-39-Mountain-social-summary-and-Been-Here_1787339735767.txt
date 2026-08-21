@@ -1,0 +1,108 @@
+Investigate BL-39 — Mountain social summary and Been Here.
+This is an investigation only. Do not make any code changes yet.
+The goal is to determine the smallest way to implement BL-39 through the currently deployed web/backend architecture without requiring a new iOS or Android build.
+Hard constraint
+Do not propose or make changes to:
+Native iOS project files
+Native Android project files
+Capacitor configuration
+Native plugins
+App permissions
+Entitlements
+Anything requiring a new Apple App Store or Google Play binary
+If any portion would require a native rebuild, identify it clearly.
+Desired behavior
+Improve each mountain page by surfacing useful social context from BaseLodge data that already exists, with particular focus on:
+whether the signed-in user has been to that mountain
+which friends have been there
+a compact summary of relevant network activity
+The intent is to make the mountain page feel more personal and social without creating a new visit-tracking system or changing native apps.
+What I want you to investigate
+Determine:
+Where mountain detail pages are implemented.
+What route(s), templates, partials, and APIs currently supply mountain-page data.
+What social/friend information is already shown on mountain pages today.
+How BaseLodge currently determines whether the signed-in user has visited a mountain.
+How BaseLodge currently determines whether a friend has visited a mountain.
+Whether visited_resort_ids, legacy mountains_visited, trips, or another source is used.
+What BL-39 specifically requires for the Been Here state based on the existing task/spec.
+Whether Been Here is intended to be:
+display-only
+editable/tappable
+or already defined by the task.
+Whether the existing mountain route already has the signed-in user’s visited state.
+Whether it already has enough friend data to identify friends who have visited.
+If not, identify the smallest additional query or aggregation needed.
+Whether BaseLodge already has a reusable friend-avatar/list treatment on mountain or trip pages.
+Whether friend counts or friend names should be displayed when multiple friends have visited.
+How to handle:
+user has been there, no friends have
+user has not been there, one friend has
+several friends have been there
+nobody in the network has been there
+legacy visited-mountain records
+Whether privacy/friendship rules already restrict which friends can appear.
+Whether blocked, removed, pending, or non-confirmed connections can ever leak into the current mountain-page data.
+Whether the same visit source used by Mountains Visited should be treated as authoritative for BL-39.
+Whether any schema migration is required.
+Whether any new API endpoint is required.
+Whether any additional server query is required.
+Whether any portion requires native iOS/Android work.
+What automated tests should be added or updated.
+Any mountain-page, friendship, or Mountains Visited behavior that could regress.
+Important implementation preference
+Favor the smallest possible implementation.
+Reuse:
+existing visited-mountain data
+existing confirmed-friend data
+existing mountain-page components
+existing avatar/count/social-summary patterns
+existing friendship/privacy rules
+Do not:
+redesign the mountain page
+create a new visit logging system
+infer actual ski days from trip dates
+create new schema unless genuinely necessary
+create new APIs if existing route data can support the feature
+expose non-confirmed connections
+change native navigation or native UI
+Return your findings in this format
+Current mountain-page implementation
+Identify the relevant route(s), templates, partials, APIs, and existing social content.
+Current visit data
+Explain exactly how own-user and friend mountain visits are represented today.
+BL-39 behavior recommendation
+Based on the existing task/spec and current data model, state exactly what should appear on the mountain page for:
+signed-in user Been Here state
+friends who have been there
+network summary
+Display recommendation
+Recommend the smallest UI treatment using existing mountain-page patterns.
+Include example states for zero, one, and multiple friends.
+Privacy assessment
+Explain which connection states may appear and confirm that only permitted/confirmed friend data is surfaced.
+Requirement-by-requirement feasibility
+For each BL-39 requirement state:
+Web/backend only: Yes / No
+Existing component/data to reuse
+Required change
+Risk/dependency
+Data/API assessment
+State whether BL-39 requires:
+schema migration
+new API endpoint
+additional server query
+aggregation query
+additional page data
+Explain any Yes answer.
+Native-build assessment
+State explicitly:
+Can all of BL-39 ship without a new iOS or Android build? Yes / No
+If no, identify exactly why.
+Recommended implementation scope
+List the minimum files/components/routes expected to change.
+Testing
+List tests required for own visit state, zero/one/multiple friend visits, legacy visit data, friendship/privacy behavior, and regressions.
+Risks / open questions
+Only include genuine issues discovered in the codebase. Do not invent new product questions if the existing task or architecture already answers them.
+Do not implement anything until I review the investigation.
