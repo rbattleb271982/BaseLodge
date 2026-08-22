@@ -1,0 +1,57 @@
+Perform Task #318 — MountainPageView Repair Investigation now.
+
+Follow the approved #318 task exactly.
+
+This is INVESTIGATION ONLY.
+
+Use protected read-only production access where required to re-verify the current MountainPageView state.
+
+Do not:
+
+* modify production data
+* modify production schema
+* execute BL-306
+* execute BL-317
+* run any migration
+* restart or redeploy production
+* change application code
+* change tests
+* modify push tokens
+* invoke OneSignal or APNs
+* resume BL-77
+* create a Git commit
+
+Re-verify the current production state rather than relying solely on the previous orphan counts.
+
+Specifically determine:
+
+1. Every current orphaned MountainPageView resort reference.
+2. Every current orphaned non-null user reference.
+3. Whether historical resort_id = 1 can be identified with high confidence from repository/history or other safe evidence.
+4. If it cannot be identified with high confidence, whether deleting only those invalid analytics rows is the minimum defensible repair.
+5. Whether the orphaned user reference should be repaired by setting user_id = NULL, consistent with the intended BL-306 ON DELETE SET NULL behavior.
+6. Whether any other data issue would prevent BL-306 from succeeding.
+7. The exact fail-closed, single-transaction repair operation we could approve next.
+8. The exact controlled sequence to repair the data and advance production only from BL-305 to BL-306, stopping before BL-317.
+
+Remember that MountainPageView is analytics data. Do not invent or infer a resort identity merely to preserve an analytics row.
+
+If historical resort identity is uncertain, classify it accordingly and recommend the safest disposition rather than guessing.
+
+Report the full findings required by #318, including exact affected row IDs and expected values needed to make a future repair transaction fail closed if production state changes.
+
+Do not execute the proposed repair.
+
+Do not apply BL-306.
+
+Do not implement anything.
+
+End with exactly:
+
+SAFE TO REPAIR MOUNTAINPAGEVIEW AND APPLY BL-306 USING THIS PLAN
+
+or
+
+DO NOT REPAIR YET: [reason]
+
+Do not commit anything because #318 is an investigation task.
