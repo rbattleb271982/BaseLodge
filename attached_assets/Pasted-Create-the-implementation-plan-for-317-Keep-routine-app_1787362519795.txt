@@ -1,0 +1,143 @@
+Create the implementation plan for #317 — Keep routine app startups from changing the database, based on the completed #310 investigation.
+PLAN ONLY. DO NOT IMPLEMENT YET.
+The completed investigation found that normal app.py startup currently executes numerous schema migrations and data-maintenance routines. Some are already represented in Alembic, some only partially, and some have no explicit migration/maintenance replacement.
+The final goal is:
+Normal BaseLodge startup must perform zero persistent database schema or maintenance mutations.
+It may still perform legitimate runtime behavior such as read-only diagnostics, cache initialization, and request-time last_active_at updates.
+Current state
+Development database: bl306_mpv_fk_reconcile
+Production database: bl305_ski_day_foundation
+Production BL-305 has been applied successfully and the live SkiDay/profile failure is resolved.
+Production BL-306 remains intentionally blocked pending explicit disposition of known MountainPageView orphan rows.
+Development and production database identities are now isolated by #309.
+Fresh development bootstrap exists through #311.
+Flask currently still runs legacy startup mutation routines.
+BL-77 remains blocked.
+Critical planning rule
+Do not propose simply deleting all startup migration calls.
+Every startup mutation must first have one of:
+an authoritative Alembic replacement;
+an explicit guarded one-time maintenance command; or
+documented evidence that the behavior is obsolete and can safely disappear.
+Build an exact coverage matrix
+For every startup mutator identified in #310, specify:
+current function
+DDL performed
+DML performed
+current Alembic coverage
+missing schema coverage
+missing data/backfill coverage
+proposed replacement
+whether production already satisfies its resulting state
+whether development already satisfies its resulting state
+whether a new migration is required
+whether a one-time maintenance command is required
+whether the startup function can then be deleted entirely
+Include every identified routine, not just the high-risk ones.
+Migration design
+Design the smallest sensible Alembic revision or revision sequence needed to capture the schema/index behavior that still exists only in startup code.
+Do not create those migrations yet.
+Account for the fact that:
+development is already at BL-306
+production is only at BL-305
+new migrations must form a safe linear path after BL-306
+production must eventually pass through BL-306 before receiving post-BL-306 migrations
+Determine whether one post-BL-306 consolidation migration is appropriate or whether multiple revisions are safer.
+Maintenance commands
+Design explicit guarded replacements for startup DML that should not be in Alembic, particularly:
+sandbox push-token correction/deactivation
+ghost-user cleanup
+rider-type normalization
+pass mapping correction
+connection-toast historical backfill
+any remaining equipment/pass/RSVP/participant-pass backfills
+For each, determine whether it is:
+still required,
+already complete in production,
+already complete in development,
+obsolete,
+or needs a one-time controlled execution.
+Do not assume historical cleanup must be rerun merely because the old startup routine exists.
+Push-token requirement
+Treat push-token maintenance as particularly sensitive.
+Normal startup must ultimately have no ability to:
+deactivate tokens
+change APNs environment
+change push preferences
+modify OneSignal identifiers
+Define the explicit maintenance mechanism and safeguards if that capability still needs to exist.
+SQLite/test behavior
+Plan how to remove normal-startup db.create_all() without breaking isolated tests.
+Tests and disposable environments should use an explicit bootstrap/setup path rather than application boot owning schema creation.
+BL-306 dependency
+Keep production BL-306 reconciliation as a separate controlled operational step.
+Do not include automatic BL-306 execution in #317.
+Clearly identify exactly which portion of #317 cannot be deployed to production until BL-306 has been successfully applied.
+Rollout phases
+Design #317 so implementation can be developed and tested safely before production cutover.
+Prefer phases such as:
+Phase A — explicit replacements
+add missing Alembic schema coverage
+add guarded maintenance tooling
+leave current startup behavior temporarily intact
+Phase B — development validation
+prove explicit replacements on isolated/disposable databases
+prove current development at BL-306 can advance safely
+Phase C — production prerequisite
+separately resolve MountainPageView orphans
+separately apply BL-306
+apply any required post-BL-306 schema migration/maintenance
+Phase D — startup retirement
+remove mutation calls from normal app boot
+remove SQLite db.create_all() from normal boot
+retain legitimate non-mutating initialization
+Adjust those phases if repository evidence supports a safer sequence.
+Test architecture
+Define how to prove normal startup is mutation-free.
+I want a regression test that will fail in the future if somebody adds startup behavior that issues persistent:
+CREATE
+ALTER
+DROP
+INSERT
+UPDATE
+DELETE
+Also preserve tests for legitimate read-only startup behavior and request-time activity tracking.
+Task sizing
+The investigation recommended one coordinated implementation task. Validate that recommendation.
+If it should remain one task, explain how its internal phases prevent partial unsafe deployment.
+If it truly needs to be split, give the exact task boundaries and dependencies. Do not split it merely because it is large.
+Production safety
+Planning only.
+Do not:
+change code
+change tests
+create migrations
+run migrations
+modify development data
+modify production
+restart workflows
+touch push tokens
+call OneSignal
+run BL-306
+resume BL-77
+create a commit
+Return
+Give me:
+Complete replacement matrix
+Proposed Alembic revision structure
+Proposed maintenance commands
+Push-token replacement design
+SQLite/test bootstrap replacement
+Exact implementation phases
+Production rollout sequence
+BL-306 dependency
+Startup-retirement criteria
+Test architecture
+Files likely to change
+Whether #317 remains one coordinated task
+Exact point at which BL-77 becomes safe to revisit
+Do not implement anything.
+End with exactly:
+#317 PLAN COMPLETE — READY FOR IMPLEMENTATION
+or
+#317 PLAN BLOCKED: [reason]
