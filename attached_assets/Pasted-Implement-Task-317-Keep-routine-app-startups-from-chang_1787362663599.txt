@@ -1,0 +1,147 @@
+Implement Task #317 — Keep routine app startups from changing the database using:
+.local/tasks/read-only-app-startup.md
+as the authoritative implementation plan.
+This is an implementation task.
+Follow the plan exactly. Do not re-scope or redesign it unless implementation uncovers a genuine contradiction or safety blocker.
+Goal
+Make normal BaseLodge application startup read-only with respect to persistent database schema and maintenance work.
+After #317:
+normal application startup may:
+validate runtime configuration
+initialize Flask/extensions
+establish DB connections
+initialize non-mutating caches/services
+run read-only diagnostics
+serve requests
+but must not perform persistent:
+CREATE
+ALTER
+DROP
+INSERT
+UPDATE
+DELETE
+merely because the application starts/imports.
+Legitimate request-time behavior such as the existing last_active_at heartbeat is not considered startup mutation and should remain unchanged.
+Follow the approved phases
+Implement the phases defined in .local/tasks/read-only-app-startup.md, including:
+Phase A — explicit replacements
+Establish the approved Alembic replacements for startup schema/index behavior that is not already covered.
+Establish the approved explicit guarded maintenance mechanisms for historical DML/backfills that should not run during application startup.
+Do not automatically run historical cleanup merely because a command now exists.
+Phase B — development validation
+Validate all replacements using the isolated development/disposable database infrastructure.
+Development is currently at:
+bl306_mpv_fk_reconcile
+Do not use production for implementation testing.
+Production boundary
+Do not perform the production cutover in this implementation unless the approved plan explicitly identifies a repository-only step that is safe before BL-306.
+Production is currently:
+bl305_ski_day_foundation
+and BL-306 is still separately blocked by known MountainPageView orphan references.
+Do not:
+run production BL-306
+repair MountainPageView production data
+run new post-BL-306 migrations in production
+remove a production-required fallback before its replacement is actually deployed
+If the final startup-retirement phase cannot safely ship until production BL-306 is complete, implement and validate it in the repository/dev environment but clearly identify it as not ready for production rollout yet.
+Push-token safety
+Treat push-token behavior as especially sensitive.
+Normal startup must no longer be capable of:
+deactivating push tokens
+changing APNs environment
+changing push-notification preferences
+changing OneSignal identifiers
+If the historical sandbox-token correction still needs to exist, move it only to the explicit guarded maintenance mechanism defined in the approved plan.
+Do not execute that maintenance against production during this task.
+Do not call OneSignal.
+Maintenance safety
+Any explicit maintenance commands introduced by #317 must use the approved safety model:
+explicit runtime
+explicit target DB
+production identity protection
+explicit authorization/write mode
+dry-run/reporting where planned
+transaction/rollback protection
+no automatic execution from app.py
+Historical maintenance should not execute automatically during:
+Flask startup
+Gunicorn startup
+Replit workflow startup
+imports
+file-watch reloads
+SQLite/test behavior
+Remove normal-startup ownership of db.create_all() according to the plan.
+Preserve isolated tests using the explicit test/bootstrap mechanism defined in #317.
+Do not make normal application boot responsible for schema creation.
+Startup mutation regression protection
+Implement the planned regression tests proving that normal application import/startup cannot issue persistent:
+CREATE
+ALTER
+DROP
+INSERT
+UPDATE
+DELETE
+Preserve:
+read-only startup diagnostics
+cache initialization
+intentional request-time activity tracking
+Add explicit regression protection that push-token state cannot change merely because BaseLodge starts.
+BL-306
+BL-306 remains a separate production operational prerequisite.
+Do not bundle its production execution into #317.
+Do not alter the known production MountainPageView orphan rows.
+BL-77
+Do not resume BL-77.
+BL-77 remains blocked until:
+production BL-306 succeeds,
+the final production FK graph is reviewed,
+account-deletion tests pass against that final state.
+Production safety
+During this implementation:
+no production migration
+no production DDL
+no production DML
+no production data cleanup
+no production push-token changes
+no OneSignal calls
+no BL-306 production execution
+no BL-77 work
+Read-only production verification is allowed only if explicitly required by the approved plan and must not expose credentials/private data.
+Validation
+Run:
+focused #317 replacement/maintenance tests
+startup mutation-capture tests
+push-startup safety tests
+migration tests on isolated/disposable PostgreSQL
+development startup verification
+full isolated BaseLodge regression suite
+If implementation reveals that removing a startup routine would leave an unrepresented production schema/data dependency, STOP before removing that routine and report the blocker.
+Commit requirement
+If and only if the implementation and all repository/development validation pass, commit the work.
+The Git commit message MUST include #317.
+Use:
+#317: Make routine app startup database read-only
+Do not omit #317.
+Return
+Report:
+files changed
+startup mutators removed from normal boot
+schema behavior moved to Alembic
+DML/backfills moved to explicit maintenance commands
+push-token startup behavior removed/replaced
+SQLite/test bootstrap replacement
+startup mutation regression-test results
+focused test results
+full regression results
+development startup verification
+any portions intentionally not deployable to production until BL-306
+confirmation production was untouched
+confirmation OneSignal/push data was untouched
+BL-306 status
+BL-77 status
+Git commit hash
+exact Git commit message
+End with exactly one:
+#317 IMPLEMENTED AND VALIDATED — READY FOR PRODUCTION PREREQUISITE REVIEW
+or
+#317 IMPLEMENTATION BLOCKED: [reason]
