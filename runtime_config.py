@@ -253,3 +253,39 @@ def resolve_reference_import_database_config(
             )
 
     return DatabaseConfiguration(runtime_env, database_url, "reference_import")
+
+
+def resolve_development_user_database_config(
+    environ: Mapping[str, str] | None = None,
+) -> DatabaseConfiguration:
+    """Resolve the explicitly authorized isolated development-user target."""
+    environment = os.environ if environ is None else environ
+    runtime_env = _runtime_env(environment)
+    if runtime_env != "development":
+        raise RuntimeConfigurationError(
+            "Development-user creation is only allowed in development."
+        )
+    if _value(environment, "BASELODGE_DEVELOPMENT_USER_MODE") != "1":
+        raise RuntimeConfigurationError(
+            "BASELODGE_DEVELOPMENT_USER_MODE=1 is required for development-user creation."
+        )
+
+    database_url = _require_url(
+        environment, "BASELODGE_DEVELOPMENT_USER_DATABASE_URL", runtime_env
+    )
+    if not urlsplit(database_url).scheme.lower().startswith("postgresql"):
+        raise RuntimeConfigurationError(
+            "BASELODGE_DEVELOPMENT_USER_DATABASE_URL must use a PostgreSQL dialect."
+        )
+    _reject_production_identity(database_url, environment)
+
+    configured_development_url = _require_url(
+        environment, "BASELODGE_DEVELOPMENT_DATABASE_URL", runtime_env
+    )
+    if database_identity(database_url) != database_identity(configured_development_url):
+        raise RuntimeConfigurationError(
+            "Development-user target must match the configured development "
+            "database identity."
+        )
+
+    return DatabaseConfiguration(runtime_env, database_url, "development_user")
