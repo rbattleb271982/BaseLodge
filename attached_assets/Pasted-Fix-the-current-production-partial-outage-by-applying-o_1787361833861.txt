@@ -1,0 +1,109 @@
+Fix the current production partial outage by applying only bl305_ski_day_foundation to the production database.
+This is a controlled production migration operation.
+Do not upgrade to Alembic head.
+Do not run bl306_mpv_fk_reconcile.
+We already know production contains unresolved MountainPageView orphan references, so BL-306 must remain deferred until those records receive an explicit disposition decision.
+Immediate goal
+Move production from:
+bl60_mtn_filter_edu
+to exactly:
+bl305_ski_day_foundation
+so the missing ski_day table exists and authenticated /profile no longer fails with:
+psycopg2.errors.UndefinedTable: relation "ski_day" does not exist
+Hard safety constraints
+Do not import app.py.
+Do not use Flask-Migrate.
+Do not run application startup routines.
+Do not run Gunicorn migrations.
+Do not restart/redeploy production unless genuinely required.
+Do not run BL-306.
+Do not repair MountainPageView rows.
+Do not change account data.
+Do not change push tokens.
+Do not call OneSignal.
+Do not resume BL-77.
+1. Production migration preflight
+Before any schema write, verify read-only:
+runtime target is production
+migration target identity matches the protected Supabase production identity
+current Alembic revision is exactly bl60_mtn_filter_edu
+public.ski_day does not exist
+bl305_ski_day_foundation directly descends from bl60_mtn_filter_edu
+bl305 is additive and contains no data rewrite/backfill
+If any precondition differs, STOP.
+2. Recovery protection
+Before applying the migration, confirm an appropriate current production backup/recovery point exists.
+Do not expose backup credentials or production secrets.
+If recovery coverage cannot be confirmed, STOP and report that.
+3. Use standalone migration infrastructure
+Use the #309 standalone Alembic path that does not import app.py.
+Require:
+explicit production migration mode
+explicit production migration database URL
+protected production identity validation
+Acquire the existing singleton/advisory migration lock if supported by the migration tooling.
+There must be only one migration process.
+4. Upgrade only to BL-305
+Run the Alembic equivalent of:
+upgrade bl305_ski_day_foundation
+Do not use upgrade head.
+Do not execute BL-306.
+5. Verify migration
+Immediately verify read-only:
+alembic_version = bl305_ski_day_foundation
+public.ski_day exists
+SkiDay columns/indexes exist
+SkiDay FK behavior is:
+user_id → user.id ON DELETE CASCADE
+resort_id → resort.id ON DELETE RESTRICT
+trip_id → ski_trip.id ON DELETE SET NULL
+table contains 0 rows unless legitimate writes occurred after creation
+mountain_page_view remains unchanged
+BL-306 has not executed
+6. Verify live application behavior
+Without modifying user data, verify:
+/auth still renders normally
+authenticated /profile no longer throws the missing-ski_day exception
+logout can reach /auth without a 500
+logs show no new UndefinedTable: ski_day exception
+Use an already-safe verification mechanism. Do not request or use my production password.
+If authenticated verification cannot be performed without credentials, verify the schema and logs and tell me what I should test manually in the live app.
+7. Push/startup safety
+Do not intentionally trigger a production restart or cold start.
+The existing startup mutators remain a separate known hardening issue.
+Specifically:
+do not run push-token cleanup
+do not modify APNs environment/token state
+do not invoke OneSignal
+Report if any production restart happens unexpectedly.
+8. BL-306 remains blocked
+Explicitly leave:
+bl306_mpv_fk_reconcile
+unapplied.
+Record that it remains blocked by the previously identified MountainPageView orphan references and requires a separate approved reconciliation.
+Code/commit
+This should be an operational database migration only.
+Do not modify code.
+Do not create a Git commit.
+If code changes unexpectedly appear necessary, STOP before editing and report why.
+Return
+Report:
+production identity preflight
+backup/recovery confirmation
+starting Alembic revision
+exact migration target used
+migration result
+final Alembic revision
+SkiDay table/FK verification
+confirmation BL-306 was not run
+confirmation MountainPageView was unchanged
+/auth verification
+/profile verification if safely possible
+logout verification if safely possible
+any production restart/cold-start activity
+confirmation push/OneSignal data was untouched
+BL-77 status
+End with exactly one:
+BL-305 APPLIED — PRODUCTION SKIDAY SCHEMA RESTORED
+or
+PRODUCTION MIGRATION BLOCKED: [reason]
