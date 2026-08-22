@@ -1,0 +1,143 @@
+Investigate the production MountainPageView orphan records blocking BL-306 and produce the exact safe repair plan.
+INVESTIGATION ONLY. DO NOT CHANGE PRODUCTION DATA OR SCHEMA.
+Current state
+Production is currently at:
+bl305_ski_day_foundation
+Development is at:
+bl317_startup_schema
+Task #317 has been implemented and committed, but its final production rollout is intentionally waiting for production to pass through BL-306.
+Previous read-only investigation found production mountain_page_view contains:
+51 total rows
+3 rows with orphaned resort_id = 1
+1 orphaned non-null user_id
+The three known orphan resort rows were previously identified as page-view IDs:
+1
+2
+4
+with timestamps around May 27–28, 2026.
+Do not assume those findings are still unchanged. Re-verify them read-only.
+Goal
+Determine the exact, minimum, defensible data repair needed so:
+bl306_mpv_fk_reconcile
+can safely run in production.
+BL-306 intends to add:
+mountain_page_view.resort_id → resort.id ON DELETE CASCADE
+mountain_page_view.user_id → user.id ON DELETE SET NULL
+Hard safety constraints
+During this investigation:
+no production INSERT
+no production UPDATE
+no production DELETE
+no production ALTER
+no migration
+no BL-306 execution
+no production restart
+no push-token changes
+no OneSignal calls
+no BL-77 work
+Use read-only production queries only.
+1. Re-verify every orphan
+Report the current:
+MountainPageView row ID
+resort_id
+user_id
+viewed_at
+session_key presence/absence without exposing the raw value
+Separately identify:
+orphaned resort references
+orphaned user references
+Confirm the total number of affected rows.
+2. Investigate resort_id = 1
+Determine whether there is any defensible way to identify what resort ID 1 historically represented.
+Search repository/history and safe metadata sources for:
+old resort seed/import files
+migration fixtures
+deleted resort records in historical assets
+historical resort ID mappings
+logs or references that associate resort ID 1 with a resort name/slug
+old trip or analytics references
+Do not query or expose private user content unnecessarily.
+Classify the result as exactly one:
+IDENTIFIABLE WITH HIGH CONFIDENCE
+POSSIBLE BUT NOT RELIABLE
+NOT IDENTIFIABLE
+If identifiable, give the evidence.
+Do not guess.
+3. Decide the resort-orphan disposition
+Compare these options for the three orphan MountainPageView rows:
+A. Remap to a known valid resort
+Only acceptable if historical identity can be established with high confidence.
+B. Delete the three invalid analytics rows
+Evaluate whether this is the safest treatment if the resort cannot be established.
+Remember these are page-view analytics records, not trips, users, SkiDays, friendships, or transactional history.
+C. Another preservation approach
+Only recommend if it preserves meaningful data without inventing a resort identity or weakening the intended FK.
+Give one recommended outcome.
+4. Orphaned user reference
+Identify the exact affected MountainPageView row(s).
+Determine whether the referenced user still exists.
+Because user_id is nullable and BL-306 establishes ON DELETE SET NULL, evaluate whether the correct repair is simply:
+user_id = NULL
+Preserve the page-view event itself unless there is a concrete reason not to.
+5. Verify no other BL-306 blockers
+Read-only confirm:
+no additional orphaned resort IDs
+no additional orphaned non-null user IDs
+required MountainPageView columns/nullability match BL-306 expectations
+existing index state matches expectations
+production revision remains bl305_ski_day_foundation
+BL-306 directly descends from BL-305
+6. Exact repair transaction
+Design the smallest production repair operation.
+It should:
+target only explicitly approved MountainPageView row IDs
+execute in one transaction
+verify expected current values before modifying them
+abort if rows no longer match the reviewed state
+report exact affected-row counts
+make no changes outside mountain_page_view
+Do not execute it yet.
+7. BL-306 execution plan
+After the hypothetical repair, define the controlled sequence:
+Confirm current production backup/recovery coverage.
+Run repair transaction.
+Verify zero MountainPageView orphans.
+Run standalone Alembic migration only to bl306_mpv_fk_reconcile.
+Verify both FKs and row preservation.
+Stop before bl317_startup_schema.
+#317's production migration/cutover should remain a subsequent separately approved step.
+8. Production impact
+Explicitly distinguish:
+analytics rows that would be deleted
+analytics rows that would merely have user_id nulled
+user/account data
+trip data
+SkiDay data
+push/notification data
+Confirm whether anything other than MountainPageView analytics would be touched.
+Return
+Current orphan inventory
+Give the re-verified state.
+Resort ID 1 investigation
+State whether its historical identity can be established.
+Recommended repair
+Give the exact row-level disposition.
+User-reference repair
+Give the exact recommendation.
+BL-306 readiness
+Identify any remaining blockers.
+Proposed repair transaction
+Describe the exact guarded operation without executing it.
+Controlled BL-306 sequence
+Give the steps through BL-306 only.
+Production impact
+State exactly what data would and would not change.
+#317 / BL-77 status
+Confirm:
+#317 is implemented but final production rollout remains pending.
+BL-77 remains blocked.
+End with exactly one:
+SAFE TO REPAIR MOUNTAINPAGEVIEW AND APPLY BL-306 USING THIS PLAN
+or
+DO NOT REPAIR YET: [reason]
+Do not implement, repair, migrate, deploy, restart, or commit anything during this investigation.
