@@ -585,7 +585,7 @@ def test_mountain_availability_uses_inclusive_partial_and_full_overlap(client):
     text = " ".join(html.split())
 
     assert "3 friends are free during your" in html
-    assert f"{start.strftime('%b %-d')}–{end.strftime('%b %-d')} trip" in text
+    assert f"{start.strftime('%b %-d')}–{end.strftime('%-d')} trip" in text
 
 
 def test_mountain_availability_omits_friends_without_shared_dates(client):
@@ -630,7 +630,7 @@ def test_mountain_availability_deduplicates_identical_windows_but_keeps_distinct
 
     assert html.count("is free during your") == 2
     assert text.count(
-        f"{first_start.strftime('%b %-d')}–{first_end.strftime('%b %-d')} trip"
+        f"{first_start.strftime('%b %-d')}–{first_end.strftime('%-d')} trip"
     ) == 1
     assert text.count(
         f"{second_start.strftime('%b %-d')}–{second_end.strftime('%-d')} trip"
@@ -704,7 +704,7 @@ def test_mountain_availability_falls_back_to_parent_dates_for_incomplete_overrid
     text = " ".join(html.split())
 
     assert "Fallback</a> is free during your" in html
-    assert f"{parent_start.strftime('%b %-d')}–{parent_end.strftime('%b %-d')} trip" in text
+    assert f"{parent_start.strftime('%b %-d')}–{parent_end.strftime('%-d')} trip" in text
 
 
 def test_mountain_availability_uses_table_rows_then_legacy_fallback_without_raw_data(client):
