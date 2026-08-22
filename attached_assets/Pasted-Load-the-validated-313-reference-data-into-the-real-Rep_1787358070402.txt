@@ -1,0 +1,110 @@
+Load the validated #313 reference data into the real Replit development database.
+This is a controlled development-only data load.
+Do not touch production.
+Do not restart Flask until the import and verification are complete.
+Preconditions
+Use the already configured development-only values:
+BASELODGE_RUNTIME_ENV=development
+BASELODGE_DEVELOPMENT_DATABASE_URL
+BASELODGE_REFERENCE_IMPORT_DATABASE_URL
+BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH
+The target must resolve to the verified Replit development database:
+postgresql://helium:5432/heliumdb
+with fingerprint:
+b6d12084fe886e2c4690c5cbc6619d79f1afe7722f94c29eddcd87d113d8c05e
+It must not match production.
+1. Preflight
+Before any write, verify:
+runtime is development
+target identity matches the configured development DB
+target fingerprint matches the approved development fingerprint
+target fingerprint does not match production
+current Alembic revision is bl306_mpv_fk_reconcile
+resort exists
+resort_pass exists
+current resort rows = 0
+current resort-pass rows = 0
+no users, trips, SkiDays, push tokens, or analytics are present
+If any check differs, STOP.
+2. Dry-run first
+Run the committed #313 importer in its default dry-run mode against the canonical workbook:
+attached_assets/BaseLodge_Resort_Master_IMPORT_READY_v3_1778641272852.xlsx
+Verify it reports exactly:
+695 resorts
+245 resort-pass mappings
+212 mapped resorts
+483 resorts without major-pass mappings
+no duplicate slugs
+no duplicate mapping pairs
+no missing mapping slugs
+no invalid pass names
+no country-code mismatch
+If dry-run differs, STOP.
+3. Apply to development only
+Require:
+BASELODGE_REFERENCE_IMPORT_MODE=1
+Then run the importer with:
+--apply
+against the verified Replit development DB only.
+Do not import any production data.
+4. Verify final reference data
+Confirm:
+resort rows = 695
+resort-pass rows = 245
+mapped resorts = 212
+no duplicate resort slugs
+no duplicate resort/pass pairs
+no orphan resort-pass rows
+multi-pass mappings are preserved
+no None/blank pass rows
+Also verify:
+user rows = 0
+SkiTrip rows = 0
+SkiDay rows = 0
+PushDeviceToken rows = 0
+MountainPageView rows = 0
+5. FK / integrity check
+Run a non-destructive integrity check for:
+resort-pass FK validity
+duplicate constraints
+Alembic revision unchanged at bl306_mpv_fk_reconcile
+Do not run startup mutators.
+6. Restart gate
+Do not restart Flask automatically.
+At the end, determine whether the development database now has everything structurally required for a normal BaseLodge startup.
+If yes, report that it is safe for me to restart the Flask Server.
+Production safety
+During this task:
+no production writes
+no production migration
+no production schema changes
+no production data copy
+no OneSignal calls
+no production push changes
+no BL-77 changes
+Commit
+This task should require no code change.
+Do not create a commit unless an unexpected code fix becomes necessary.
+If a code fix is needed, STOP and report it before editing.
+Return
+Report:
+identity preflight
+dry-run result
+apply result
+resort count
+resort-pass count
+mapped resort count
+multi-pass validation
+FK/integrity result
+confirmation no user/trip/SkiDay/push/analytics rows were created
+Alembic revision
+whether Flask is safe to restart
+confirmation production untouched
+confirmation push/OneSignal unchanged
+Flask Server status
+Project workflow status
+BL-77 status
+End with exactly one:
+DEVELOPMENT REFERENCE DATA LOADED — SAFE FOR FLASK RESTART
+or
+DEVELOPMENT REFERENCE DATA LOAD BLOCKED: [reason]
