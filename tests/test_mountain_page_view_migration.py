@@ -239,7 +239,7 @@ def test_full_chain_upgrades_from_bl60_shape_in_order():
         } == {("resort", "CASCADE"), ("user", "SET NULL")}
 
 
-def test_alembic_upgrade_traverses_from_bl60_to_head_on_isolated_engine(
+def test_alembic_upgrade_traverses_from_bl60_to_bl306_on_isolated_engine(
     tmp_path, monkeypatch
 ):
     database_url = f"sqlite:///{tmp_path / 'migration.db'}"
@@ -276,7 +276,7 @@ def test_alembic_upgrade_traverses_from_bl60_to_head_on_isolated_engine(
         alembic_config.set_main_option(
             "script_location", str(MIGRATION_PATH.parents[1])
         )
-        command.upgrade(alembic_config, "head")
+        command.upgrade(alembic_config, "bl306_mpv_fk_reconcile")
 
         with engine.connect() as connection:
             assert connection.execute(

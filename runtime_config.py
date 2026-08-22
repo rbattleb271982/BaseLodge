@@ -179,6 +179,47 @@ def resolve_migration_database_config(
     return DatabaseConfiguration(runtime_env, database_url, "migration")
 
 
+def resolve_maintenance_database_config(
+    environ: Mapping[str, str] | None = None,
+) -> DatabaseConfiguration:
+    """Resolve an explicitly authorized standalone maintenance target."""
+    environment = os.environ if environ is None else environ
+    runtime_env = _runtime_env(environment)
+    if _value(environment, "BASELODGE_MAINTENANCE_MODE") != "1":
+        raise RuntimeConfigurationError(
+            "BASELODGE_MAINTENANCE_MODE=1 is required for maintenance access."
+        )
+
+    database_url = _require_url(
+        environment, "BASELODGE_MAINTENANCE_DATABASE_URL", runtime_env
+    )
+    if not urlsplit(database_url).scheme.lower().startswith("postgresql"):
+        raise RuntimeConfigurationError(
+            "BASELODGE_MAINTENANCE_DATABASE_URL must use a PostgreSQL dialect."
+        )
+
+    if runtime_env == "production":
+        if database_identity_hash(database_url) != _expected_production_hash(environment):
+            raise RuntimeConfigurationError(
+                "Production maintenance target must match the protected production "
+                "database identity."
+            )
+    else:
+        _reject_production_identity(database_url, environment)
+        if runtime_env == "development":
+            development_url = _require_url(
+                environment, "BASELODGE_DEVELOPMENT_DATABASE_URL", runtime_env
+            )
+            _reject_production_identity(development_url, environment)
+            if database_identity(database_url) != database_identity(development_url):
+                raise RuntimeConfigurationError(
+                    "Development maintenance target must match the configured "
+                    "development database identity."
+                )
+
+    return DatabaseConfiguration(runtime_env, database_url, "maintenance")
+
+
 def resolve_bootstrap_database_config(
     environ: Mapping[str, str] | None = None,
 ) -> DatabaseConfiguration:

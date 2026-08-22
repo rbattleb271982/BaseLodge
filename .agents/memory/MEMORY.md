@@ -1,5 +1,4 @@
 - [Full pass system expansion](pass-system-expansion.md) — canonical slugs now include indy/mountain_collective/powder_alliance/freedom/ski_california; no LEGACY_TO_MVP collapse; resort backfill done.
-- [Startup migration pattern](startup-migration-pattern.md) — use db.text() not text(); define function then call immediately after; wrap in try/except with inner rollback.
 - [Admin console architecture](admin-console-arch.md) — all admin pages extend admin_console.html; active_tab drives sidebar highlight + submenu display; bar chart classes must be defined per-template in {% block head %}.
 - [Activity tracking / last_active_at](activity-tracking.md) — field was never written in app.py; fix stamps it at all login paths + throttled before_request heartbeat (1×/hr via session).
 - [App Store metrics architecture](app-store-metrics.md) — AppStoreMetric model stores daily snapshots; refresh via POST /admin/app-store/refresh only; dashboard reads DB never live APIs; ASC page views/conversion NOT available via public API.
@@ -9,4 +8,4 @@
 - [Alembic revision ID limit](alembic-revision-id-limit.md) — this database stores alembic version identifiers in VARCHAR(32); keep new revision IDs at or below that length.
 - [SkiDay display privacy](ski-day-display-privacy.md) — per-resort logged-day totals are owner-only; friend Mountains Visited stays unchanged unless a later requirement explicitly expands it.
 - [Mountain availability overlap](mountain-availability-overlap.md) — expose only derived direct-friend overlap during the viewer's own resort trip windows; keep availability editor privacy copy unchanged.
-- [Development schema safety](development-schema-safety.md) — Flask file-watcher reloads can run legacy startup DDL against the configured production database; isolate development before editing.
+- [Startup database safety](development-schema-safety.md) — routine app startup is read-only; schema uses standalone Alembic and historical DML uses guarded maintenance only.

@@ -1447,10 +1447,8 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
-# Auto-create tables for SQLite (local development only)
-if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
-    with app.app_context():
-        db.create_all()
+# Schema creation belongs to explicit Alembic/bootstrap tooling. Application
+# import and normal worker startup must never mutate persistent schema or data.
 
 
 def run_equipment_migration():
@@ -1499,13 +1497,9 @@ def run_equipment_migration():
         print(f"equipment_migration: skipped ({e})")
 
 
-# ── Startup migration safety switch ───────────────────────────────────────────
-_SKIP_STARTUP_MIGRATIONS = os.environ.get("BASELODGE_SKIP_STARTUP_MIGRATIONS") == "1"
-if _SKIP_STARTUP_MIGRATIONS:
-    print("STARTUP MIGRATIONS: SKIPPED via BASELODGE_SKIP_STARTUP_MIGRATIONS=1")
-
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_equipment_migration()
+# Legacy maintenance implementations below are intentionally not invoked at
+# startup. Their schema and data responsibilities are owned by explicit
+# Alembic and maintenance commands.
 
 
 def run_push_token_migration():
@@ -1543,8 +1537,6 @@ def run_push_token_migration():
         print(f"push_token_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_push_token_migration()
 
 
 def run_batch_trip_migration():
@@ -1574,8 +1566,6 @@ def run_batch_trip_migration():
         print(f"batch_trip_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_batch_trip_migration()
 
 
 def run_push_notif_pref_migration():
@@ -1605,8 +1595,6 @@ def run_push_notif_pref_migration():
         print(f"push_notif_pref_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_push_notif_pref_migration()
 
 
 def run_message_event_log_migration():
@@ -1658,8 +1646,6 @@ def run_message_event_log_migration():
         print(f"message_event_log_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_message_event_log_migration()
 
 
 def run_mel_dedupe_index_migration():
@@ -1707,8 +1693,6 @@ def run_mel_dedupe_index_migration():
         print(f"mel_dedupe_index_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_mel_dedupe_index_migration()
 
 
 def run_deploy_b_schema_migration():
@@ -1753,8 +1737,6 @@ def run_deploy_b_schema_migration():
         print(f"deploy_b_schema_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_deploy_b_schema_migration()
 
 
 def run_ghost_user_cleanup_migration():
@@ -1797,8 +1779,6 @@ def run_ghost_user_cleanup_migration():
         print(f"ghost_user_cleanup_migration: ERROR — {e}")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_ghost_user_cleanup_migration()
 
 
 def run_ski_trip_updated_at_migration():
@@ -1817,8 +1797,6 @@ def run_ski_trip_updated_at_migration():
     except Exception as e:
         print(f"ski_trip_updated_at_migration: skipped ({e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_ski_trip_updated_at_migration()
 
 
 def run_trip_invite_token_migration():
@@ -1852,8 +1830,6 @@ def run_trip_invite_token_migration():
     except Exception as e:
         print(f"trip_invite_token_migration: skipped ({e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_trip_invite_token_migration()
 
 
 def run_pass_system_expansion_migration():
@@ -1927,8 +1903,6 @@ def run_pass_system_expansion_migration():
         print(f"pass_system_expansion_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_pass_system_expansion_migration()
 
 
 def run_trip_rsvp_migration():
@@ -2025,8 +1999,6 @@ def run_trip_rsvp_migration():
         print(f"trip_rsvp_migration: skipped ({error})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_trip_rsvp_migration()
 
 
 # ============================================================================
@@ -2063,8 +2035,6 @@ def run_mountain_page_view_migration():
         print(f"mountain_page_view_migration: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_mountain_page_view_migration()
 
 
 # ============================================================================
@@ -2151,8 +2121,6 @@ def run_rider_type_normalization_migration():
     except Exception as e:
         print(f"rider_type_normalization_migration: skipped ({e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_rider_type_normalization_migration()
 
 
 # ============================================================================
@@ -2192,8 +2160,6 @@ def _run_app_store_metric_migration():
     except Exception as _e:
         print(f"app_store_metric_migration: skipped ({_e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    _run_app_store_metric_migration()
 
 
 def _run_invite_share_event_migration():
@@ -2227,8 +2193,6 @@ def _run_invite_share_event_migration():
     except Exception as _e:
         print(f"invite_share_event_migration: skipped ({_e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    _run_invite_share_event_migration()
 
 
 # ============================================================================
@@ -2302,8 +2266,6 @@ def run_perf_index_migration():
         print(f"perf_index_migration: skipped ({_e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_perf_index_migration()
 
 
 def run_ski_trip_notes_migration():
@@ -2322,8 +2284,6 @@ def run_ski_trip_notes_migration():
     except Exception as e:
         print(f"ski_trip_notes_migration: skipped ({e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_ski_trip_notes_migration()
 
 
 def run_ski_trip_planning_post_migration():
@@ -2358,8 +2318,6 @@ def run_ski_trip_planning_post_migration():
     except Exception as e:
         print(f"ski_trip_planning_post_migration: skipped ({e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_ski_trip_planning_post_migration()
 
 
 _FRIEND_DISCOVERY_ALEMBIC_REV = '3a7f1c9e2b4d'
@@ -2457,8 +2415,6 @@ def run_friend_discovery_migration():
     except Exception as e:
         print(f'friend_discovery_migration: skipped ({e})')
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_friend_discovery_migration()
 
 
 def run_participant_pass_migration():
@@ -2506,8 +2462,6 @@ def run_participant_pass_migration():
     except Exception as e:
         print(f"participant_pass_migration: skipped ({e})")
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    run_participant_pass_migration()
 
 
 def _run_pass_mapping_correction_migration():
@@ -2746,8 +2700,6 @@ def _run_pass_mapping_correction_migration():
             print(f"pass_mapping_migration: FAILED — {_e}")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    _run_pass_mapping_correction_migration()
 
 
 def _run_connection_toast_backfill_migration():
@@ -2813,8 +2765,6 @@ def _run_connection_toast_backfill_migration():
         print(f"connection_toast_backfill: skipped ({e})")
 
 
-if not _SKIP_STARTUP_MIGRATIONS:
-    _run_connection_toast_backfill_migration()
 
 
 # ============================================================================

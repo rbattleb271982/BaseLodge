@@ -1,25 +1,23 @@
 ---
-name: Development schema safety
-description: Prevent local Flask reloads and migration commands from unintentionally executing legacy startup DDL against production.
+name: Startup database safety
+description: Keep routine application startup read-only and preserve the production rollout gate around BL-306.
 ---
 
-Local development must not run with a production database URL while startup
-schema routines remain in application import paths. Flask's file watcher reloads
-the app after source edits, and each import can execute those routines.
+Routine application import and worker startup must not perform persistent
+schema or historical-data maintenance. Schema changes belong to standalone
+Alembic, and one-time DML belongs to guarded, dry-run-first maintenance tooling.
 
 **Why:** A schema-preparation task caused watcher-driven reloads and a direct
 Flask migration command to invoke legacy startup routines despite no controlled
-production migration being intended.
+production migration being intended. Production also remained behind BL-306
+because MountainPageView orphan references required a separate explicit decision.
 
 **How to apply:** BaseLodge runtime selection is explicit and fail-closed:
 development/test need their own URL plus a protected-production identity hash;
 they never select the shared Supabase URL. Migration commands require a separate
 migration URL and explicit migration mode, and must use direct Alembic rather
-than Flask app startup. The legacy shared Supabase URL is a temporary,
-production-runtime-only deployment compatibility path. Keep the pre-import
-SQLite test guard. For production, run one controlled migration process with
-startup DDL disabled, not from application workers or a watched development
-server. The standalone bootstrap imports root-level runtime configuration, so
-direct script execution must retain the repository root on Python's import path
-(for example, `PYTHONPATH="$PWD"`); this path must never be replaced with a
-Flask/app import.
+than Flask app startup. Maintenance requires its own target URL, mode, write
+authorization, dry-run/report, singleton lock, and transaction, and must never
+import the Flask app or contact push providers. Do not deploy the startup-call
+removal to production until production BL-306 has separately succeeded; do not
+fold MountainPageView orphan repair into an application rollout.

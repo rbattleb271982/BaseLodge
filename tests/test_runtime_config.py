@@ -11,6 +11,7 @@ from runtime_config import (
     RuntimeConfigurationError,
     database_identity_hash,
     resolve_application_database_config,
+    resolve_maintenance_database_config,
     resolve_migration_database_config,
 )
 
@@ -172,6 +173,62 @@ def test_nonproduction_migration_rejects_production_endpoint_with_alternate_role
         )
 
 
+def test_maintenance_configuration_requires_explicit_mode_and_target():
+    with pytest.raises(RuntimeConfigurationError, match="MAINTENANCE_MODE"):
+        resolve_maintenance_database_config(
+            _environment(BASELODGE_MAINTENANCE_DATABASE_URL=DEVELOPMENT_URL)
+        )
+    with pytest.raises(RuntimeConfigurationError, match="MAINTENANCE_DATABASE_URL"):
+        resolve_maintenance_database_config(
+            _environment(BASELODGE_MAINTENANCE_MODE="1")
+        )
+
+
+def test_development_maintenance_requires_its_configured_database_identity():
+    with pytest.raises(RuntimeConfigurationError, match="must match"):
+        resolve_maintenance_database_config(
+            _environment(
+                BASELODGE_MAINTENANCE_MODE="1",
+                BASELODGE_MAINTENANCE_DATABASE_URL=(
+                    "postgresql://other:never-log@other.db.example:5432/baselodge"
+                ),
+                BASELODGE_DEVELOPMENT_DATABASE_URL=DEVELOPMENT_URL,
+            )
+        )
+
+    configuration = resolve_maintenance_database_config(
+        _environment(
+            BASELODGE_MAINTENANCE_MODE="1",
+            BASELODGE_MAINTENANCE_DATABASE_URL=DEVELOPMENT_URL,
+            BASELODGE_DEVELOPMENT_DATABASE_URL=DEVELOPMENT_URL,
+        )
+    )
+    assert configuration.source == "maintenance"
+    assert configuration.runtime_env == "development"
+
+
+def test_production_maintenance_requires_protected_production_identity():
+    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+        resolve_maintenance_database_config(
+            _environment(
+                BASELODGE_RUNTIME_ENV="production",
+                BASELODGE_MAINTENANCE_MODE="1",
+                BASELODGE_MAINTENANCE_DATABASE_URL=DEVELOPMENT_URL,
+            )
+        )
+
+    configuration = resolve_maintenance_database_config(
+        _environment(
+            BASELODGE_RUNTIME_ENV="production",
+            BASELODGE_MAINTENANCE_MODE="1",
+            BASELODGE_MAINTENANCE_DATABASE_URL=PRODUCTION_URL_ALTERNATE_ROLE,
+        )
+    )
+    assert configuration.safe_identity == (
+        "postgresql://prod.db.example:6543/baselodge"
+    )
+
+
 def test_safe_identity_excludes_database_username_and_password():
     configuration = resolve_application_database_config(
         _environment(BASELODGE_DEVELOPMENT_DATABASE_URL=DEVELOPMENT_URL)
@@ -214,4 +271,4 @@ def test_migration_graph_inspection_does_not_import_app():
     )
 
     assert result.returncode == 0, result.stderr
-    assert "bl306_mpv_fk_reconcile" in result.stdout
+    assert "bl317_startup_schema" in result.stdout
