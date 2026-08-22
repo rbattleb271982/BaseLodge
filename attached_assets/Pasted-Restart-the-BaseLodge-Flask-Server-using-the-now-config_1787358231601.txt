@@ -1,0 +1,62 @@
+Restart the BaseLodge Flask Server using the now-configured development environment.
+This is a restart and verification task only.
+Do not change code.
+Do not touch production.
+Do not run migrations.
+Do not resume BL-77.
+Preconditions
+Development is now configured with:
+BASELODGE_RUNTIME_ENV=development
+a verified non-production Replit PostgreSQL database
+Alembic revision bl306_mpv_fk_reconcile
+695 resorts
+245 resort-pass mappings
+production identity protection enabled
+Restart
+Start only the normal Replit Flask Server development workflow.
+Do not start any production Gunicorn process.
+Do not change database configuration.
+Verify startup
+Confirm:
+application connects to the Replit development database, not Supabase production
+production identity guard passes
+Flask starts successfully
+no migration command runs
+no production database operation occurs
+no OneSignal call occurs during startup
+The retained legacy startup routines may still execute against the isolated development database. Report which ones execute and whether any fail, but do not modify them in this task.
+Verify application
+Open Preview and confirm:
+BaseLodge loads
+no server error page
+resort-dependent pages can access the 695 development resorts
+no obvious database/schema exceptions appear in logs
+Because the development DB intentionally contains no real users, trips, or friendships, do not treat absence of production user data as an error.
+Safety verification
+Confirm explicitly:
+active DB identity is the Replit development database
+production Supabase was not accessed or modified
+no migration ran
+no push/OneSignal behavior was changed
+Do not
+modify code
+seed users
+copy production data
+run BL-77
+run production reconciliation
+create a commit
+Return
+Report:
+Flask Server status
+active database identity
+startup routine results
+Preview result
+any errors/warnings
+resort/reference-data availability
+production safety confirmation
+whether normal BaseLodge development can now resume
+BL-77 status
+End with exactly one:
+DEVELOPMENT ENVIRONMENT RESTORED — NORMAL DEVELOPMENT CAN RESUME
+or
+DEVELOPMENT RESTART BLOCKED: [reason]
