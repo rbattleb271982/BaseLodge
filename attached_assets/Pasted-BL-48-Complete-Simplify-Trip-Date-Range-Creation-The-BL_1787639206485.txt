@@ -1,0 +1,39 @@
+BL-48 — Complete Simplify Trip Date-Range Creation
+The BL-48 investigation confirmed that the primary requested date-range behavior is already implemented. Do not rewrite or refactor that existing functionality.
+Complete only the remaining BL-48 gap identified by the investigation.
+Required change
+Update the standard trip-creation CTA eligibility so Save trip is actionable only when both are true:
+At least one valid date range has been staged; and
+A valid mountain/resort has been selected.
+Currently updateSubmitCTA() considers the staged range but can enable the CTA before a mountain is selected. Correct that client-side behavior.
+Ensure selecting or clearing/changing the mountain immediately refreshes CTA eligibility.
+Preserve existing behavior
+Do not change the already-working BL-48 functionality:
+End-date selection automatically commits the range.
+There is no “Add this range” confirmation UI.
+The committed range appears below the calendar with the existing X/remove affordance.
+The picker resets so another range can be selected.
+Multiple staged ranges remain supported.
+Each staged range continues to create its own SkiTrip record under the existing architecture.
+Existing duplicate, overlap, past-date, reversed-date, and server-side validation remains unchanged.
+Existing status and visibility behavior remains unchanged.
+Group/propose flow remains scalar and unchanged.
+Trip editing remains unchanged.
+Do not redesign multi-range persistence or introduce discontinuous ranges within a single SkiTrip.
+Tests
+Add focused regression coverage proving:
+staged date range + no mountain → CTA disabled;
+mountain + no staged range → CTA disabled;
+mountain + staged valid range → CTA enabled;
+clearing the selected mountain disables the CTA again;
+existing auto-commit and multi-range behavior remains intact;
+group/propose behavior remains unchanged.
+Run the focused BL-48 tests and full isolated regression suite.
+Restart only the development Flask workflow and verify the standard Add Trip flow against BaseLodge Dev.
+Do not Publish. Do not touch production, database schema, migrations, production configuration, or production data.
+If everything passes, commit with a message beginning:
+BL-48:
+End with:
+BL-48 READY FOR PRODUCTION PUBLISH
+or
+BL-48 BLOCKED: [reason]
