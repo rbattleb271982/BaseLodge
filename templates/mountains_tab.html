@@ -168,10 +168,10 @@
         line-height: 1.4;
     }
     .md-filter-education-close {
-        flex: 0 0 auto;
-        width: 24px;
-        height: 24px;
-        margin: -4px -4px 0 0;
+        flex: 0 0 44px;
+        width: 44px;
+        height: 44px;
+        margin: -10px -8px 0 0;
         padding: 0;
         border: 0;
         border-radius: 50%;
@@ -179,8 +179,15 @@
         color: var(--bl-color-text-muted);
         font: inherit;
         font-size: 21px;
-        line-height: 22px;
+        line-height: 1;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .md-filter-education-close:focus-visible {
+        outline: 2px solid var(--bl-color-primary);
+        outline-offset: 2px;
     }
 
     /* ── Clear + count row ── */
@@ -202,7 +209,9 @@
     .md-clear-btn {
         background: none;
         border: none;
-        padding: 0;
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px 8px;
         font-size: 13px;
         color: var(--bl-color-primary);
         cursor: pointer;
@@ -375,7 +384,6 @@
     var elEducation = document.getElementById('md-filter-education');
     var elEducationClose = document.getElementById('md-filter-education-close');
     var _educationDismissed = !SHOW_FILTER_EDUCATION;
-    var _educationTimer = null;
 
     /* ── Populate selects from JSON data ───────────────────────── */
     function populateCountrySelect(countries) {
@@ -548,10 +556,8 @@
     function dismissFilterEducation() {
         if (_educationDismissed) return;
         _educationDismissed = true;
-        if (_educationTimer) window.clearTimeout(_educationTimer);
         if (elEducation && elEducation.parentNode) elEducation.remove();
         if (elFilterArea) elFilterArea.classList.remove('md-filter-area--education');
-        document.removeEventListener('pointerdown', onEducationPointerDown, true);
 
         fetch('/api/mountains/filter-education-seen', {
             method: 'POST',
@@ -563,36 +569,25 @@
         });
     }
 
-    function onEducationPointerDown(event) {
-        if (!elEducation || elEducation.contains(event.target)) return;
-        dismissFilterEducation();
-    }
-
     function initializeFilterEducation() {
         if (!SHOW_FILTER_EDUCATION || !elEducation) return;
         if (elEducationClose) {
             elEducationClose.addEventListener('click', dismissFilterEducation);
         }
-        document.addEventListener('pointerdown', onEducationPointerDown, true);
-        _educationTimer = window.setTimeout(dismissFilterEducation, 6500);
     }
 
     /* ── Event listeners ───────────────────────────────────────── */
     elSearch.addEventListener('input', function () {
-        dismissFilterEducation();
         filterAndRender();
     });
     elPass.addEventListener('change', function () {
-        dismissFilterEducation();
         filterAndRender();
     });
     elCountry.addEventListener('change', function () {
-        dismissFilterEducation();
         renderStateOptions(elCountry.value, '');
         filterAndRender();
     });
     elState.addEventListener('change', function () {
-        dismissFilterEducation();
         filterAndRender();
     });
 

@@ -96,3 +96,46 @@ def test_mountains_template_resets_all_inputs_and_reuses_bfcache_data():
     assert "if (e.persisted && _mdLoaded) {\n            resetFilters();" in source
     assert "Filter mountains by state and pass." in source
     assert "md-filter-area--education" in source
+
+
+def test_mountains_template_keeps_explicit_filters_and_no_results_behavior():
+    with open("templates/mountains_tab.html", encoding="utf-8") as template:
+        source = template.read()
+
+    assert 'id="md-search"' in source
+    assert 'id="md-country"' in source
+    assert 'id="md-state"' in source
+    assert 'id="md-pass"' in source
+    assert "if (country && r.country_code !== country) return false;" in source
+    assert "if (state   && r.state_code   !== state)   return false;" in source
+    assert "if (pass    && r.pass_keys.indexOf(pass) === -1) return false;" in source
+    assert "No mountains found." in source
+    assert 'href="/mountain/' in source
+
+
+def test_filter_education_is_dismissed_only_by_the_close_button():
+    with open("templates/mountains_tab.html", encoding="utf-8") as template:
+        source = template.read()
+
+    education = source.split("/* ── First-visit education ─────────────────────────────────── */", 1)[1]
+    event_listeners = source.split("/* ── Event listeners ───────────────────────────────────────── */", 1)[1]
+
+    assert "elEducationClose.addEventListener('click', dismissFilterEducation);" in education
+    assert "onEducationPointerDown" not in education
+    assert "pointerdown" not in education
+    assert "setTimeout" not in education
+    assert "_educationTimer" not in source
+    assert "dismissFilterEducation();" not in event_listeners
+
+
+def test_mountains_filter_controls_have_accessible_touch_targets():
+    with open("templates/mountains_tab.html", encoding="utf-8") as template:
+        source = template.read()
+
+    close_css = source.split(".md-filter-education-close {", 1)[1].split("}", 1)[0]
+    clear_css = source.split(".md-clear-btn {", 1)[1].split("}", 1)[0]
+
+    assert "width: 44px;" in close_css
+    assert "height: 44px;" in close_css
+    assert "min-width: 44px;" in clear_css
+    assert "min-height: 44px;" in clear_css
