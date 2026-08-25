@@ -294,66 +294,68 @@
             background: #FFFFFF;
             border: 1px solid #E5DFD0;
             border-radius: 14px;
-            padding: 12px;
+            overflow: hidden;
             margin-bottom: 20px;
         }
-        .td-setup-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
+        .td-setup-rows {
+            display: block;
         }
-        .td-setup-chip {
+        .td-setup-row {
             box-sizing: border-box;
             display: flex;
-            flex: 1 1 100px;
-            min-width: 0;
-            max-width: 100%;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
             min-height: 52px;
-            flex-direction: column;
-            justify-content: center;
-            gap: 3px;
-            padding: 9px 11px;
-            border: 1px solid #E5DFD0;
-            border-radius: 12px;
+            padding: 12px 16px;
+            border: 0;
+            border-bottom: 1px solid #E5DFD0;
             background: #FFFFFF;
             color: var(--bl-color-text);
             text-align: left;
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
         }
-        button.td-setup-chip {
+        .td-setup-row:last-child {
+            border-bottom: 0;
+        }
+        button.td-setup-row {
             cursor: pointer;
         }
-        button.td-setup-chip:active {
+        button.td-setup-row:active {
             background: #F5F1E8;
         }
-        .td-setup-chip--readonly {
+        .td-setup-row--readonly {
             cursor: default;
             background: #FAF9F6;
         }
-        .td-setup-chip-label {
+        .td-setup-row-label {
+            flex: 0 0 92px;
             color: var(--bl-color-text-muted);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 0.65px;
-            line-height: 1;
+            line-height: 1.25;
             text-transform: uppercase;
         }
-        .td-setup-chip-value {
+        .td-setup-row-value {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
             gap: 4px;
+            flex: 1 1 auto;
             min-width: 0;
             color: #5C1219;
             font-size: 13px;
             font-weight: 600;
             line-height: 1.25;
             overflow-wrap: anywhere;
+            text-align: right;
         }
-        .td-setup-chip-value--soft {
+        .td-setup-row-value--soft {
             color: var(--bl-color-text-muted);
         }
-        .td-setup-chip .chevron-icon {
+        .td-setup-row .chevron-icon {
             flex-shrink: 0;
         }
         .td-setup-editors {
@@ -1610,16 +1612,31 @@
         <!-- My Setup -->
         <h2 class="td-setup-heading">My setup</h2>
         <div class="td-setup-card" id="td-setup-card">
-        <div class="td-setup-chips">
+        <div class="td-setup-rows">
+            {# Rider type is profile context, not a trip-editable setting. #}
+            <div class="td-setup-row td-setup-row--readonly" aria-label="Riding">
+                <span class="td-setup-row-label">Riding</span>
+                <span class="td-setup-row-value{% if not current_user.display_rider_type %} td-setup-row-value--soft{% endif %}">
+                    {{ (current_user.display_rider_type or 'Not set')|trim }}
+                </span>
+            </div>
+
             {# Pass — still opens the existing pass sheet for editable members. #}
             {% if is_member %}
-            <button type="button" class="td-setup-chip" onclick="openPassSheet()" aria-label="Edit pass type">
+            <button type="button" class="td-setup-row" onclick="openPassSheet()" aria-label="Edit pass type">
             {% else %}
-            <div class="td-setup-chip td-setup-chip--readonly" aria-label="Pass">
+            <div class="td-setup-row td-setup-row--readonly" aria-label="Pass">
             {% endif %}
-                <span class="td-setup-chip-label">Pass</span>
-                <span class="td-setup-chip-value {% if not my_pass_display %}td-setup-chip-value--soft{% endif %}">
-                    <span id="td-pass-display-text">{{ my_pass_display or 'No pass' }}</span>
+                <span class="td-setup-row-label">Pass</span>
+                {% set _participant_pass_value = current_user_participant.pass_type if current_user_participant else '' %}
+                {% set _has_explicit_no_pass = _participant_pass_value in ('no_pass', 'No Pass') or current_user.pass_type in ('no_pass', 'No Pass') %}
+                <span class="td-setup-row-value{% if not my_pass_display %} td-setup-row-value--soft{% endif %}">
+                    <span id="td-pass-display-text">{{ my_pass_display or ('No pass' if _has_explicit_no_pass or not is_member else 'Add pass') }}</span>
+                    {% if is_member %}
+                    <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);" aria-hidden="true">
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                    {% endif %}
                 </span>
             {% if is_member %}
             </button>
@@ -1629,14 +1646,15 @@
 
             {# Equipment — trip-level status with profile fallback. #}
             {% if is_member %}
-            <button type="button" class="td-setup-chip" id="equipmentHeader" aria-controls="equipmentOverrideOptions" aria-expanded="false" onclick="toggleEquipmentOverride()">
+            <button type="button" class="td-setup-row" id="equipmentHeader" aria-controls="equipmentOverrideOptions" aria-expanded="false" onclick="toggleEquipmentOverride()">
             {% else %}
-            <div class="td-setup-chip td-setup-chip--readonly" id="equipmentHeader" aria-label="Equipment">
+            <div class="td-setup-row td-setup-row--readonly" id="equipmentHeader" aria-label="Equipment">
             {% endif %}
-                <span class="td-setup-chip-label">Equipment</span>
-                <span class="td-setup-chip-value {% if not is_member %}td-setup-chip-value--soft{% endif %}">
+                <span class="td-setup-row-label">Equipment</span>
+                {% set _equipment_display = current_user_participant.get_display_equipment() if current_user_participant else 'Not set' %}
+                <span class="td-setup-row-value{% if _equipment_display == 'Not set' %} td-setup-row-value--soft{% endif %}">
                     <span id="equipmentSummaryText">
-                        {% if current_user_participant %}{{ current_user_participant.get_display_equipment() }}{% else %}Not set{% endif %}
+                        {{ 'Set equipment' if is_member and _equipment_display == 'Not set' else _equipment_display }}
                     </span>
                     {% if is_member %}
                     <svg class="chevron-icon" id="equipmentChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
@@ -1652,12 +1670,12 @@
 
             {# Lessons — trip-level status with the existing inline editor. #}
             {% if is_member %}
-            <button type="button" class="td-setup-chip" id="lessonHeader" aria-controls="lesson-options-inline" aria-expanded="false" onclick="toggleLessonEditor()">
+            <button type="button" class="td-setup-row" id="lessonHeader" aria-controls="lesson-options-inline" aria-expanded="false" onclick="toggleLessonEditor()">
             {% else %}
-            <div class="td-setup-chip td-setup-chip--readonly" id="lessonHeader" aria-label="Lessons">
+            <div class="td-setup-row td-setup-row--readonly" id="lessonHeader" aria-label="Lessons">
             {% endif %}
-                <span class="td-setup-chip-label">Lessons</span>
-                <span class="td-setup-chip-value {% if not is_member %}td-setup-chip-value--soft{% endif %}">
+                <span class="td-setup-row-label">Lessons</span>
+                <span class="td-setup-row-value{% if not is_member %} td-setup-row-value--soft{% endif %}">
                     <span id="lesson-summary-text">
                         {% if current_user_participant and current_user_participant.taking_lesson %}
                             {% if current_user_participant.taking_lesson.value == 'yes' %}Taking a lesson{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering a lesson{% else %}No lesson{% endif %}

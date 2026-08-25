@@ -1,6 +1,7 @@
 """BL-53 — compact Trip Detail My setup coverage."""
 
 from pathlib import Path
+import re
 
 import pytest
 
@@ -59,8 +60,10 @@ def test_compact_setup_chips_preserve_editable_controls(client):
     html = _trip_html(client, owner_id, trip_id)
 
     assert '<h2 class="td-setup-heading">My setup</h2>' in html
-    assert 'class="td-setup-chips"' in html
-    assert 'class="td-setup-chip"' in html
+    assert 'class="td-setup-rows"' in html
+    assert 'class="td-setup-row td-setup-row--readonly" aria-label="Riding"' in html
+    assert 'class="td-setup-row-label">Riding</span>' in html
+    assert re.search(r'class="td-setup-row-value">\s*Skier\s*</span>', html)
     assert 'id="td-pass-display-text"' in html
     assert 'id="equipmentSummaryText"' in html
     assert 'id="lesson-summary-text"' in html
@@ -69,11 +72,16 @@ def test_compact_setup_chips_preserve_editable_controls(client):
     assert 'id="lessonHeader"' in html
     assert 'aria-controls="equipmentOverrideOptions"' in html
     assert 'aria-controls="lesson-options-inline"' in html
+    assert html.index('>Riding</span>') < html.index('>Pass</span>')
+    assert html.index('>Pass</span>') < html.index('>Equipment</span>')
+    assert html.index('>Equipment</span>') < html.index('>Lessons</span>')
+    assert 'td-setup-chips' not in html
+    assert 'td-setup-chip' not in html
 
     # Source context is available in the editor, not permanently in the chip.
     assert 'id="equipmentSourceText"' in html
     assert 'id="equipmentSourceText">\n                    From profile' in html
-    assert 'td-setup-chip-label">Equipment</span>' in html
+    assert 'td-setup-row-label">Equipment</span>' in html
     assert 'Equipment</span>\n                        <span style="font-size: 11px' not in html
 
 
@@ -157,7 +165,7 @@ def test_pending_invitee_gets_view_only_setup_chips(client):
 
     html = _trip_html(client, invited_id, trip_id)
 
-    assert 'class="td-setup-chip td-setup-chip--readonly"' in html
+    assert html.count('td-setup-row td-setup-row--readonly') == 4
     assert 'onclick="openPassSheet()"' not in html
     assert 'onclick="toggleEquipmentOverride()"' not in html
     assert 'onclick="toggleLessonEditor()"' not in html
@@ -209,6 +217,90 @@ def test_equipment_profile_fallback_and_no_status_display(client):
     assert "Bringing own" in _trip_html(client, own_user_id, own_trip_id)
     assert "Renting" in _trip_html(client, rental_user_id, rental_trip_id)
     assert "Not set" in _trip_html(client, unset_user_id, unset_trip_id)
+
+
+@pytest.mark.parametrize(
+    ("rider_types", "display_value"),
+    [
+        (["Skier"], "Skier"),
+        (["Snowboarder"], "Snowboarder"),
+        (["Skier", "Snowboarder"], "Skier + Snowboarder"),
+    ],
+)
+def test_my_setup_riding_row_supports_rider_type_variants(
+    client, rider_types, display_value
+):
+    with app.app_context():
+        resort = _make_resort()
+        owner = _make_user(f"trip-detail-{display_value}")
+        owner.rider_types = rider_types
+        trip = _make_trip(owner, resort=resort)
+        owner_id = owner.id
+        trip_id = trip.id
+        db.session.commit()
+
+    html = _trip_html(client, owner_id, trip_id)
+
+    assert re.search(
+        rf'class="td-setup-row-value">\s*{re.escape(display_value)}\s*</span>',
+        html,
+    )
+
+
+def test_my_setup_distinguishes_missing_values_from_explicit_no_pass(
+    client, monkeypatch
+):
+    monkeypatch.setattr(
+        User,
+        "is_core_profile_complete",
+        property(lambda _user: True),
+    )
+    with app.app_context():
+        resort = _make_resort()
+        missing_owner = _make_user("trip-detail-missing-setup")
+        missing_owner.pass_type = ""
+        missing_owner.equipment_status = None
+        missing_trip = _make_trip(missing_owner, resort=resort)
+
+        explicit_owner = _make_user("trip-detail-explicit-no-pass")
+        explicit_owner.pass_type = "no_pass"
+        explicit_owner.equipment_status = None
+        explicit_trip = _make_trip(explicit_owner, resort=resort)
+        db.session.commit()
+
+        missing_owner_id = missing_owner.id
+        missing_trip_id = missing_trip.id
+        explicit_owner_id = explicit_owner.id
+        explicit_trip_id = explicit_trip.id
+
+    missing_html = _trip_html(client, missing_owner_id, missing_trip_id)
+    explicit_html = _trip_html(client, explicit_owner_id, explicit_trip_id)
+
+    assert "Add pass" in missing_html
+    assert "Set equipment" in missing_html
+    assert "No pass" in explicit_html
+    assert "Add pass" not in explicit_html
+    assert "No lesson" in missing_html
+
+
+def test_my_setup_edit_affordances_are_absent_for_pending_invitee(client):
+    with app.app_context():
+        owner_id, trip_id, _owner_participant_id = _setup_trip()
+        invited = _make_user("trip-detail-pending-affordance")
+        trip = SkiTrip.query.get(trip_id)
+        _add_participant(trip, invited, GuestStatus.PENDING)
+        invited_id = invited.id
+        db.session.commit()
+
+    html = _trip_html(client, invited_id, trip_id)
+
+    setup_html = html.split('id="td-setup-card"', 1)[1].split(
+        "</div><!-- /td-setup-card -->", 1
+    )[0]
+    assert 'class="td-setup-row td-setup-row--readonly"' in setup_html
+    assert 'onclick="openPassSheet()"' not in setup_html
+    assert 'onclick="toggleEquipmentOverride()"' not in setup_html
+    assert 'onclick="toggleLessonEditor()"' not in setup_html
 
 
 def test_lessons_and_equipment_use_existing_signal_endpoint(client):
