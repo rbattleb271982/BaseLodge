@@ -1,0 +1,84 @@
+Approved. Implement Replit task #329 as BaseLodge task BL-52 — Redesign Trip Detail as the Trip Hub according to the approved plan.
+Confirmed product decisions
+Attention summary: Implement the conditional What needs attention summary using only existing BaseLodge state. It may surface actionable existing conditions such as pending invitations/join requests, no planning activity, incomplete personal setup, or other already-supported unresolved coordination states identified in the plan.
+Do not create a task-management system, new persistence, or new notification behavior.
+RSVP disclosure: Use the compact RSVP count summary with progressive disclosure for participant groups. Preserve immediately useful Going information when the group is small. Do not change RSVP statuses, permissions, participant actions, or BL-51 attendance-date behavior.
+Sticky behavior: Do not introduce a global sticky Trip Detail header. Preserve only the existing Pending-invitee sticky RSVP action bar.
+Implement the approved hierarchy
+Reorganize the existing Trip Detail around:
+Compact trip summary
+Conditional What needs attention
+Your trip — My dates + compact My Setup
+Who's going — compact RSVP/participant coordination
+Plan together
+Existing coordination summaries where applicable
+Organizer/trip actions
+Preserve the existing distinction between the actual trip roster and the resort-level People intelligence link.
+Preserve existing behavior
+This is primarily an information-architecture/UI refactor.
+Preserve:
+BL-50 My dates behavior and validation;
+BL-51 effective participant attendance behavior;
+BL-53 compact My Setup;
+RSVP semantics and permissions;
+organizer participant controls;
+pending-invite sticky actions;
+invite flow;
+join requests;
+planning-board access;
+pass/equipment/lesson behavior;
+lodging/transportation/carpool functionality that currently exists;
+visibility/status/private-note behavior;
+leave/cancel confirmation flows;
+privacy and authorization;
+existing bottom-sheet architecture.
+Do not remove working functionality simply to make the page shorter.
+Progressive disclosure
+Prefer summary → detail.
+Keep essential trip identity and coordination information immediately scannable while moving secondary controls/details behind existing expansion or bottom-sheet patterns.
+Preserve accessible tap targets, keyboard behavior, aria-expanded where applicable, safe-area behavior, and mobile layout.
+Scope
+Do not:
+change schemas or create migrations;
+create new API families;
+create new RSVP or attendance semantics;
+redesign the planning board;
+redesign Home, Mountain Detail, Profile, Friend Profile, or My Trips;
+introduce new logistics/task/comment systems;
+undo BL-50, BL-51, or BL-53;
+touch production;
+change database configuration;
+touch push/OneSignal/APNs;
+Publish/deploy.
+If implementation reveals backend work beyond minor route-context preparation for existing data, stop and report it rather than silently expanding BL-52.
+Verification
+Add/update the focused regression coverage from the approved #329 plan.
+Verify at minimum:
+organizer;
+Going guest;
+Interested guest;
+Pending invitee;
+compact trip summary;
+What needs attention states;
+RSVP counts/disclosure;
+participant attendance labels;
+My dates;
+My Setup;
+planning;
+invites/join requests;
+organizer controls;
+leave/cancel;
+empty/conditional states;
+mobile layout;
+permission boundaries.
+Run the focused Trip Detail regressions and the full isolated regression suite.
+Restart only the development Flask workflow and verify the redesigned page against BaseLodge Dev at narrow mobile and desktop preview widths. Review development logs for errors.
+Commit
+If implementation and verification pass, commit using a message beginning:
+BL-52:
+Do not include unrelated/untracked prompt files.
+Stop before Publish.
+End with exactly:
+BL-52 READY FOR PRODUCTION PUBLISH
+or
+BL-52 BLOCKED: [reason]
