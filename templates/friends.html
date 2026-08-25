@@ -859,8 +859,8 @@
         <div class="fr-chips" id="fr-chips" style="display:none"></div>
 
         <p id="fr-search-hint" style="display:none; font-size:13px; color:var(--bl-color-text-muted); margin:6px 0 0;"></p>
-        <p id="fr-local-result-count" class="fr-result-count" style="display:none;"></p>
-        <p id="fr-global-result-count" class="fr-result-count" style="display:none;"></p>
+        <p id="fr-local-result-count" class="fr-result-count" style="display:none;" aria-live="polite"></p>
+        <p id="fr-global-result-count" class="fr-result-count" style="display:none;" aria-live="polite"></p>
 
         <p class="fr-no-results" id="fr-no-results" style="display: none;">
             No friends match &ldquo;<span id="fr-query-text"></span>&rdquo;.
@@ -1160,15 +1160,8 @@
         var localCountEl = document.getElementById('fr-local-result-count');
         var localSearchActive = Boolean(q || hasFilters);
         if (localCountEl) {
-            if (localSearchActive) {
-                localCountEl.textContent = totalVisible === 1
-                    ? '1 friend matching'
-                    : totalVisible + ' friends matching';
-                localCountEl.style.display = '';
-            } else {
-                localCountEl.textContent = '';
-                localCountEl.style.display = 'none';
-            }
+            localCountEl.textContent = _frLocalResultLabel(totalVisible, q, hasFilters);
+            localCountEl.style.display = '';
         }
 
         // Reset empty states
@@ -1591,6 +1584,29 @@
         advanced: 'Advanced', expert: 'Expert'
     };
 
+    function _frLocalResultLabel(totalVisible, query, hasFilters) {
+        var noun = totalVisible === 1 ? 'friend' : 'friends';
+        var count = totalVisible + ' ' + noun;
+        var q = (query || '').trim();
+        var passCount = _frActiveFilters.pass.size;
+        var profileFilterCount = _frActiveFilters.rider.size + _frActiveFilters.level.size;
+
+        if (!q && !hasFilters) return count;
+        if (q && hasFilters) return count + ' matching search and filters';
+        if (q) return count + ' matching search';
+        if (passCount === 1 && profileFilterCount === 0) {
+            var selectedPass = '';
+            _frActiveFilters.pass.forEach(function(val) {
+                selectedPass = val;
+            });
+            return count + ' with ' + (_frPassLabels[selectedPass] || selectedPass);
+        }
+        if (passCount > 1 && profileFilterCount === 0) {
+            return count + ' with selected passes';
+        }
+        return count + ' matching filters';
+    }
+
     // Applied filters vs. pending (being edited inside the sheet)
     var _frActiveFilters  = { pass: new Set(), rider: new Set(), level: new Set() };
     var _frPendingFilters = { pass: new Set(), rider: new Set(), level: new Set() };
@@ -1771,18 +1787,18 @@
     (function() {
         var params = new URLSearchParams(window.location.search);
         var rawPasses = params.get('pass');
-        if (!rawPasses) return;
-
-        rawPasses.split(',').forEach(function(slug) {
-            slug = slug.trim();
-            if (Object.prototype.hasOwnProperty.call(_frPassLabels, slug)) {
-                _frActiveFilters.pass.add(slug);
-            }
-        });
-        if (_frActiveFilters.pass.size === 0) return;
-
-        _frUpdateChips();
-        _frUpdateFilterBtn();
+        if (rawPasses) {
+            rawPasses.split(',').forEach(function(slug) {
+                slug = slug.trim();
+                if (Object.prototype.hasOwnProperty.call(_frPassLabels, slug)) {
+                    _frActiveFilters.pass.add(slug);
+                }
+            });
+        }
+        if (_frActiveFilters.pass.size > 0) {
+            _frUpdateChips();
+            _frUpdateFilterBtn();
+        }
         var inp = document.getElementById('fr-search');
         searchFriends(inp ? inp.value : '');
     })();

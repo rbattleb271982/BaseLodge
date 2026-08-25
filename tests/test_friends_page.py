@@ -636,7 +636,7 @@ class TestGlobalSearchFilterInteraction:
 
 
 class TestResultCountPresentation:
-    """Verify result-count hooks preserve local/global search separation."""
+    """Verify contextual local counts preserve global search separation."""
 
     @pytest.fixture(autouse=True)
     def setup(self, client):
@@ -653,27 +653,38 @@ class TestResultCountPresentation:
         assert response.status_code == 200
         return response.data.decode()
 
-    def test_local_result_count_starts_hidden_and_is_driven_by_visible_rows(self):
+    def test_local_result_count_is_driven_by_visible_rows_and_context(self):
         html = self._html()
 
-        assert 'id="fr-local-result-count" class="fr-result-count" style="display:none;"' in html
+        assert 'id="fr-local-result-count" class="fr-result-count" style="display:none;" aria-live="polite"' in html
         assert "var totalVisible  = 0;" in html
         assert "localCountEl.textContent" in html
-        assert "1 friend matching" in html
-        assert "friends matching" in html
+        assert "function _frLocalResultLabel" in html
+        assert "return count;" in html
+        assert "with ' + (_frPassLabels[selectedPass] || selectedPass)" in html
+        assert "with selected passes" in html
+        assert "matching filters" in html
+        assert "matching search" in html
+        assert "matching search and filters" in html
 
-    def test_local_count_is_hidden_when_search_and_filters_are_cleared(self):
+    def test_local_count_remains_visible_when_search_and_filters_are_cleared(self):
         html = self._html()
 
         assert "var localSearchActive = Boolean(q || hasFilters);" in html
-        assert "localCountEl.style.display = 'none';" in html
-        assert "frClearAll()" in html
+        assert "localCountEl.style.display = '';" in html
         assert "searchFriends(inp ? inp.value : '')" in html
+        assert "frClearAll()" in html
+
+    def test_home_deep_link_initializes_default_count_when_no_pass_is_present(self):
+        html = self._html()
+
+        assert "if (rawPasses) {" in html
+        assert "searchFriends(inp ? inp.value : '');" in html
 
     def test_global_count_uses_returned_array_and_preserves_empty_state(self):
         html = self._html()
 
-        assert 'id="fr-global-result-count" class="fr-result-count" style="display:none;"' in html
+        assert 'id="fr-global-result-count" class="fr-result-count" style="display:none;" aria-live="polite"' in html
         assert "var resultCount = Array.isArray(results) ? results.length : 0;" in html
         assert "Showing 1 member" in html
         assert "Showing ' + resultCount + ' members" in html

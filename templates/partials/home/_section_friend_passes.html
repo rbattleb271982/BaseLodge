@@ -12,7 +12,12 @@ Inputs:
 
 <section class="fp-card" aria-labelledby="fp-card-title">
     <h2 class="fp-card-title" id="fp-card-title">
-        Friends' Passes · {{ friend_count or 0 }} {{ 'friend' if (friend_count or 0) == 1 else 'friends' }}
+        Friends' Passes ·
+        <a class="fp-card-total-link"
+           href="{{ url_for('friends') }}"
+           aria-label="Show {{ friend_count or 0 }} {{ 'friend' if (friend_count or 0) == 1 else 'friends' }}">
+            {{ friend_count or 0 }} {{ 'friend' if (friend_count or 0) == 1 else 'friends' }} →
+        </a>
     </h2>
     <div class="fp-card-grid">
         <a class="fp-card-link" href="{{ url_for('friends') }}?pass=epic"
