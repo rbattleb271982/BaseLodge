@@ -1,0 +1,50 @@
+Perform Task #320 — Investigate False Publish Schema Diff now.
+Follow the approved #320 scope exactly.
+This is INVESTIGATION ONLY.
+Do not approve or publish anything.
+Do not apply the generated SQL.
+Do not run Alembic.
+Do not modify production schema/data.
+Do not change deployment/database configuration.
+Do not restart or redeploy production.
+Do not touch push tokens, OneSignal, APNs, MountainPageView, SkiDay, or BL-77.
+Key context
+Production has already been manually and successfully advanced to:
+bl317_startup_schema
+The Replit Publish UI is nevertheless proposing a generated SQL script that appears to recreate essentially the entire BaseLodge schema.
+We must determine why before allowing any publish action.
+Investigate
+Inspect the generated publish SQL and characterize it:
+full baseline/schema creation
+actual delta
+development-vs-production diff
+another Replit-managed migration artifact
+Compare it with:
+current repository Alembic head
+bl317_startup_schema
+development DB schema
+verified production DB schema/revision
+Determine whether clicking Approve and publish would execute the displayed generated SQL against production.
+Use current official Replit documentation and available workspace controls to determine whether there is a supported way to:
+skip database migration
+mark it already applied
+dismiss/acknowledge the diff
+publish application code only
+use another supported deployment path that does not touch the database
+Determine whether Replit is incorrectly treating the isolated Replit development database as the source of truth for the external Supabase production database.
+Determine whether the publishing/database association can be safely corrected without changing anything during this investigation.
+Identify the safest exact next action.
+Return
+Report:
+what the generated SQL actually represents
+why Replit generated it
+whether approval would execute it
+whether development/prod DB association is correct or wrong
+every supported code-only publish option found
+safest recommended method
+any remaining blocker
+End with exactly one:
+SAFE TO PUBLISH APPLICATION CODE ONLY USING: [exact method]
+or
+PUBLISH BLOCKED: [exact reason]
+Do not implement, approve, publish, migrate, restart, reconfigure, or commit anything during this investigation.
