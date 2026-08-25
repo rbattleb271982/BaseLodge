@@ -5756,7 +5756,10 @@ def create_trip():
 @login_required
 def update_trip_dates(trip_id):
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
+    # Both core-date and participant-date writes lock this parent row first so
+    # a guest range cannot race a shortened core range between validation and
+    # commit.
+    trip = SkiTrip.query.filter_by(id=trip_id).with_for_update().first_or_404()
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     data = request.get_json(silent=True) or {}
@@ -5781,6 +5784,23 @@ def update_trip_dates(trip_id):
     ).first()
     if overlapping:
         return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
+    conflicting_override = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip_id,
+        SkiTripParticipant.start_date.isnot(None),
+        SkiTripParticipant.end_date.isnot(None),
+        db.or_(
+            SkiTripParticipant.start_date < start_date,
+            SkiTripParticipant.end_date > end_date,
+        ),
+    ).first()
+    if conflicting_override:
+        return jsonify({
+            "success": False,
+            "error": (
+                "These dates would exclude one or more guests' attendance "
+                "dates. Ask them to clear or update their dates first."
+            ),
+        }), 409
     trip.start_date = start_date
     trip.end_date = end_date
     trip.trip_duration = SkiTrip.calculate_duration(start_date, end_date)
@@ -5816,6 +5836,112 @@ def update_trip_dates(trip_id):
         )
     nights = (end_date - start_date).days
     return jsonify({"success": True, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "nights": nights})
+
+
+@app.route("/api/trips/<int:trip_id>/participant/dates", methods=["POST"])
+@login_required
+def update_participant_dates(trip_id):
+    """Save the current Going guest's personal attendance range."""
+    validate_csrf_request()
+    # Lock the parent trip before validating the range. This uses the same lock
+    # order as update_trip_dates, which serializes concurrent core-date edits.
+    trip = SkiTrip.query.filter_by(id=trip_id).with_for_update().first_or_404()
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id,
+        user_id=current_user.id,
+    ).with_for_update().first()
+
+    if not participant:
+        return jsonify({
+            "success": False,
+            "error": "You must be a participant of this trip.",
+        }), 403
+    if trip.user_id == current_user.id or participant.role == ParticipantRole.OWNER:
+        return jsonify({
+            "success": False,
+            "error": "Only Going guests can set personal attendance dates.",
+        }), 403
+    if participant.status != GuestStatus.GOING:
+        return jsonify({
+            "success": False,
+            "error": "Only Going guests can set personal attendance dates.",
+        }), 403
+    if not trip.start_date or not trip.end_date:
+        return jsonify({
+            "success": False,
+            "error": "This trip does not have a complete date range.",
+        }), 409
+
+    data = request.get_json(silent=True) or {}
+    clear_requested = (
+        data.get("clear") is True
+        or data.get("full_trip") is True
+        or data.get("action") in ("clear", "full_trip")
+    )
+    if clear_requested:
+        participant.start_date = None
+        participant.end_date = None
+        db.session.commit()
+        return jsonify({
+            "success": True,
+            "start_date": None,
+            "end_date": None,
+            "full_trip": True,
+        })
+
+    start_date_str = data.get("start_date")
+    end_date_str = data.get("end_date")
+    if not start_date_str or not end_date_str:
+        return jsonify({
+            "success": False,
+            "error": "Both attendance dates are required, or choose Full trip.",
+        }), 400
+    if not isinstance(start_date_str, str) or not isinstance(end_date_str, str):
+        return jsonify({
+            "success": False,
+            "error": "Attendance dates must use YYYY-MM-DD format.",
+        }), 400
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "error": "Attendance dates must use YYYY-MM-DD format.",
+        }), 400
+    if start_date.isoformat() != start_date_str or end_date.isoformat() != end_date_str:
+        return jsonify({
+            "success": False,
+            "error": "Attendance dates must use YYYY-MM-DD format.",
+        }), 400
+    if end_date < start_date:
+        return jsonify({
+            "success": False,
+            "error": "Attendance end date cannot be before the start date.",
+        }), 400
+    if start_date < trip.start_date or end_date > trip.end_date:
+        return jsonify({
+            "success": False,
+            "error": "Attendance dates must fall within the trip dates.",
+        }), 400
+
+    participant.start_date = start_date
+    participant.end_date = end_date
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_participant_dates] error: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Failed to save attendance dates.",
+        }), 500
+    return jsonify({
+        "success": True,
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "full_trip": False,
+    })
 
 
 @app.route("/api/trip/<int:trip_id>/update-resort", methods=["POST"])
@@ -13377,6 +13503,11 @@ def trip_detail(trip_id):
 
     # My Setup: current user is editable only while actively participating.
     is_member = is_owner or is_guest
+    can_edit_attendance_dates = bool(
+        is_guest
+        and current_user_participant
+        and current_user_participant.status == GuestStatus.GOING
+    )
 
     # My Setup: effective pass display for current user.
     # Precedence: participant.pass_type → User.pass_type fallback → empty
@@ -13395,6 +13526,7 @@ def trip_detail(trip_id):
         is_guest=is_guest,
         is_invited=is_invited,
         is_member=is_member,
+        can_edit_attendance_dates=can_edit_attendance_dates,
         invited_participants=pending_participants,
         accepted_participants=active_participants,
         going_participants=going_participants,
@@ -13879,6 +14011,9 @@ def trip_invite_token_accept(token):
 
     was_pending = participant is not None and participant.status == GuestStatus.PENDING
     if participant:
+        if participant.status != GuestStatus.GOING or target_status != GuestStatus.GOING:
+            participant.start_date = None
+            participant.end_date = None
         participant.status = target_status
     else:
         participant = SkiTripParticipant(
@@ -13990,6 +14125,8 @@ def cancel_trip_invite(trip_id):
     ).first()
     
     if participant:
+        participant.start_date = None
+        participant.end_date = None
         participant.status = GuestStatus.REMOVED
         db.session.commit()
         flash("Invite cancelled.", "info")
@@ -14051,6 +14188,8 @@ def send_trip_invites(trip_id):
             newly_invited_user_ids.append(friend_id)
         elif existing.status in (GuestStatus.DECLINED, GuestStatus.REMOVED):
             existing.status = GuestStatus.PENDING
+            existing.start_date = None
+            existing.end_date = None
             emit_trip_invite_received_activity(trip, current_user.id, friend_id)
             invites_sent += 1
             newly_invited_user_ids.append(friend_id)
@@ -14187,14 +14326,14 @@ def respond_to_join_request(request_id):
             return jsonify({"success": False, "error": "Reinvite this person before accepting their request."}), 409
         if participant:
             participant.status = GuestStatus.INTERESTED
+            participant.start_date = None
+            participant.end_date = None
         else:
             participant = SkiTripParticipant(
                 trip_id=trip.id,
                 user_id=invitation.sender_id,
                 status=GuestStatus.INTERESTED,
                 role=ParticipantRole.GUEST,
-                start_date=trip.start_date,
-                end_date=trip.end_date
             )
             db.session.add(participant)
         
@@ -14270,6 +14409,12 @@ def respond_to_trip_invite(trip_id):
     # Repeated submissions are harmless. A stale decline submission also
     # remains a no-op rather than reactivating the relationship.
     if current_status == target_status:
+        if current_status != GuestStatus.GOING and (
+            participant.start_date is not None or participant.end_date is not None
+        ):
+            participant.start_date = None
+            participant.end_date = None
+            db.session.commit()
         message = _rsvp_confirmation_message(target_status)
         if request.is_json:
             return jsonify({"success": True, "message": message, "status": target_status.value})
@@ -14279,6 +14424,9 @@ def respond_to_trip_invite(trip_id):
     if current_status != GuestStatus.PENDING and not participant.is_active:
         return jsonify({"success": False, "error": "This RSVP can only be changed by the organizer."}), 409
 
+    if target_status != GuestStatus.GOING or current_status != GuestStatus.GOING:
+        participant.start_date = None
+        participant.end_date = None
     participant.status = target_status
 
     if target_status in ACTIVE_RSVP_STATUSES:
@@ -14393,6 +14541,9 @@ def update_own_trip_rsvp(trip_id):
         return jsonify({"success": False, "error": "Choose Going, Interested, or Leave trip."}), 400
 
     if participant.status != target_status:
+        if target_status != GuestStatus.GOING or participant.status != GuestStatus.GOING:
+            participant.start_date = None
+            participant.end_date = None
         participant.status = target_status
         db.session.commit()
 
@@ -14428,6 +14579,9 @@ def organizer_update_trip_rsvp(trip_id, user_id):
     if target_status not in (GuestStatus.GOING, GuestStatus.INTERESTED):
         return jsonify({"success": False, "error": "Organizers may set Going or Interested."}), 400
     if participant.status != target_status:
+        if target_status != GuestStatus.GOING or participant.status != GuestStatus.GOING:
+            participant.start_date = None
+            participant.end_date = None
         participant.status = target_status
         db.session.commit()
 
@@ -14461,6 +14615,8 @@ def organizer_remove_trip_participant(trip_id, user_id):
     if not participant:
         return jsonify({"success": False, "error": "Trip participant not found."}), 404
     if participant.status != GuestStatus.REMOVED:
+        participant.start_date = None
+        participant.end_date = None
         participant.status = GuestStatus.REMOVED
         db.session.commit()
 
@@ -14491,6 +14647,8 @@ def organizer_reinvite_trip_participant(trip_id, user_id):
         return jsonify({"success": False, "error": "Only Declined or Removed guests can be reinvited."}), 409
 
     participant.status = GuestStatus.PENDING
+    participant.start_date = None
+    participant.end_date = None
     if not trip.is_group_trip:
         trip.is_group_trip = True
     emit_trip_invite_received_activity(trip, current_user.id, user_id)
@@ -14684,6 +14842,8 @@ def leave_trip(trip_id):
     ]
     try:
         participant.status = GuestStatus.DECLINED
+        participant.start_date = None
+        participant.end_date = None
         db.session.commit()
         for _uid in _leave_notify_ids:
             emit_messaging_event(

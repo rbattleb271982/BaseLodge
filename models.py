@@ -841,6 +841,12 @@ class SkiTrip(db.Model):
             existing.status = status
             if role:
                 existing.role = role
+            # Attendance dates are only valid while a guest is Going. A
+            # reinvite or any other non-Going membership state must not carry
+            # a stale personal attendance override forward.
+            if status != GuestStatus.GOING:
+                existing.start_date = None
+                existing.end_date = None
             return existing
         participant = SkiTripParticipant(trip_id=self.id, user_id=user_id, status=status, role=role)
         db.session.add(participant)

@@ -1346,6 +1346,22 @@
 
         </div>
 
+        {% if can_edit_attendance_dates %}
+        <p class="td-section-label">Your attendance</p>
+        <div class="td-swg-card" style="margin-bottom: 20px;">
+            <button type="button" class="td-swg-row" onclick="openParticipantDateSheet()" aria-controls="td-participant-date-sheet">
+                <span class="td-swg-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                </span>
+                <span class="td-swg-text">
+                    <span class="td-swg-title">My dates</span>
+                    <span class="td-swg-sub" id="td-participant-date-display">{% if current_user_participant.start_date and current_user_participant.end_date %}{% if current_user_participant.start_date == current_user_participant.end_date %}{{ current_user_participant.start_date.strftime('%b %-d, %Y') }}{% elif current_user_participant.start_date.year == current_user_participant.end_date.year and current_user_participant.start_date.month == current_user_participant.end_date.month %}{{ current_user_participant.start_date.strftime('%b %-d') }}–{{ current_user_participant.end_date.strftime('%-d, %Y') }}{% else %}{{ current_user_participant.start_date.strftime('%b %-d, %Y') }}–{{ current_user_participant.end_date.strftime('%b %-d, %Y') }}{% endif %}{% else %}Full trip{% endif %}</span>
+                </span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;" aria-hidden="true"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+        {% endif %}
+
         <!-- My Setup -->
         <h2 class="td-setup-heading">My setup</h2>
         <div class="td-setup-card">
@@ -1743,6 +1759,28 @@
                 <input type="search" id="td-resort-search" class="td-resort-search-input" placeholder="Search resorts…" autocomplete="off" oninput="filterResortList(this.value)">
             </div>
             <div class="td-resort-list" id="td-resort-list"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if can_edit_attendance_dates %}
+    <div class="td-date-sheet-overlay" id="td-participant-date-sheet" onclick="if(event.target===this)closeParticipantDateSheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">My attendance dates</p>
+            <p class="td-pass-sheet-subtitle">Choose the days you’ll be there. Your trip runs {{ format_trip_dates(trip) }}.</p>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-participant-start-date">Start date</label>
+                <input type="date" id="td-participant-start-date" class="td-date-sheet-input" min="{{ trip.start_date.isoformat() if trip.start_date else '' }}" max="{{ trip.end_date.isoformat() if trip.end_date else '' }}">
+            </div>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-participant-end-date">End date</label>
+                <input type="date" id="td-participant-end-date" class="td-date-sheet-input" min="{{ trip.start_date.isoformat() if trip.start_date else '' }}" max="{{ trip.end_date.isoformat() if trip.end_date else '' }}">
+            </div>
+            <p class="td-date-sheet-error" id="td-participant-date-error"></p>
+            <button type="button" class="td-date-sheet-save" id="td-participant-date-save" onclick="saveParticipantDates()">Save dates</button>
+            <button type="button" class="td-date-sheet-cancel" id="td-participant-date-full-trip" onclick="clearParticipantDates()">Full trip</button>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeParticipantDateSheet()">Cancel</button>
         </div>
     </div>
     {% endif %}
@@ -2504,6 +2542,102 @@
                         r.checked = (r.value === _tdEquipCommitted);
                     });
                 }
+            };
+        })();
+        {% endif %}
+
+        // ── Participant attendance date sheet (Going guests only) ──
+        {% if can_edit_attendance_dates %}
+        (function() {
+            const _tdParticipantTripId = {{ trip.id }};
+            const _tdParticipantCsrf = {{ csrf_token() | tojson }};
+            const _tdTripStartISO = "{{ trip.start_date.isoformat() if trip.start_date else '' }}";
+            const _tdTripEndISO = "{{ trip.end_date.isoformat() if trip.end_date else '' }}";
+            let _tdParticipantStartISO = {{ current_user_participant.start_date.isoformat() | tojson if current_user_participant.start_date else 'null' }};
+            let _tdParticipantEndISO = {{ current_user_participant.end_date.isoformat() | tojson if current_user_participant.end_date else 'null' }};
+
+            function participantDateDisplay(startISO, endISO) {
+                if (!startISO || !endISO) return 'Full trip';
+                const start = new Date(startISO + 'T12:00:00');
+                const end = new Date(endISO + 'T12:00:00');
+                const options = { month: 'short', day: 'numeric' };
+                if (start.getFullYear() === end.getFullYear()) {
+                    if (start.getMonth() === end.getMonth()) {
+                        return start.toLocaleDateString(undefined, options)
+                            + (start.getDate() === end.getDate()
+                                ? `, ${start.getFullYear()}`
+                                : `–${end.getDate()}, ${end.getFullYear()}`);
+                    }
+                    return `${start.toLocaleDateString(undefined, options)}–${end.toLocaleDateString(undefined, options)}, ${end.getFullYear()}`;
+                }
+                return `${start.toLocaleDateString(undefined, { ...options, year: 'numeric' })}–${end.toLocaleDateString(undefined, { ...options, year: 'numeric' })}`;
+            }
+
+            function setParticipantDateError(message) {
+                const errorEl = document.getElementById('td-participant-date-error');
+                errorEl.textContent = message || '';
+                errorEl.classList.toggle('visible', !!message);
+            }
+
+            function updateParticipantDateDisplay(startISO, endISO) {
+                const displayEl = document.getElementById('td-participant-date-display');
+                if (displayEl) displayEl.textContent = participantDateDisplay(startISO, endISO);
+            }
+
+            window.openParticipantDateSheet = function() {
+                document.getElementById('td-participant-start-date').value = _tdParticipantStartISO || _tdTripStartISO;
+                document.getElementById('td-participant-end-date').value = _tdParticipantEndISO || _tdTripEndISO;
+                setParticipantDateError('');
+                document.getElementById('td-participant-date-sheet').classList.add('active');
+                document.body.style.overflow = 'hidden';
+            };
+            window.closeParticipantDateSheet = function() {
+                document.getElementById('td-participant-date-sheet').classList.remove('active');
+                document.body.style.overflow = '';
+            };
+            async function saveParticipantDatePayload(payload) {
+                const saveButton = document.getElementById('td-participant-date-save');
+                const fullTripButton = document.getElementById('td-participant-date-full-trip');
+                saveButton.disabled = true;
+                fullTripButton.disabled = true;
+                setParticipantDateError('');
+                try {
+                    const response = await fetch(`/api/trips/${_tdParticipantTripId}/participant/dates`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': _tdParticipantCsrf,
+                        },
+                        body: JSON.stringify(payload),
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        setParticipantDateError(data.error || 'Could not save your attendance dates.');
+                        return;
+                    }
+                    _tdParticipantStartISO = data.start_date || null;
+                    _tdParticipantEndISO = data.end_date || null;
+                    updateParticipantDateDisplay(_tdParticipantStartISO, _tdParticipantEndISO);
+                    window.closeParticipantDateSheet();
+                    blToast('Saved');
+                } catch (error) {
+                    setParticipantDateError('Network error. Please try again.');
+                } finally {
+                    saveButton.disabled = false;
+                    fullTripButton.disabled = false;
+                }
+            }
+            window.saveParticipantDates = function() {
+                const startDate = document.getElementById('td-participant-start-date').value;
+                const endDate = document.getElementById('td-participant-end-date').value;
+                if (!startDate || !endDate) {
+                    setParticipantDateError('Choose both dates, or select Full trip.');
+                    return;
+                }
+                saveParticipantDatePayload({ start_date: startDate, end_date: endDate });
+            };
+            window.clearParticipantDates = function() {
+                saveParticipantDatePayload({ clear: true });
             };
         })();
         {% endif %}
