@@ -1,0 +1,29 @@
+STOP. Do not approve, publish, apply, or modify anything yet.
+I expanded Replit’s “Generated migrations to apply to production database” section. It is proposing a large generated SQL migration containing CREATE TYPE, CREATE TABLE, ALTER TABLE ... ADD CONSTRAINT, and CREATE INDEX statements for essentially the entire BaseLodge schema.
+This generated migration must not be applied to production.
+Production has already been deliberately and independently migrated through:
+bl305_ski_day_foundation → bl306_mpv_fk_reconcile → bl317_startup_schema
+The current production database is already at bl317_startup_schema, and BL-306/BL-317 were verified successfully. The remaining #317 rollout step is application-code deployment only so production begins running the reviewed read-only startup code.
+Investigate, without making any changes:
+Why Replit’s publish flow believes these database changes need to be applied.
+Whether this generated SQL represents a baseline/full-schema diff rather than an actual unapplied BaseLodge migration.
+Whether Replit provides a supported way to acknowledge, skip, dismiss, mark as already applied, or otherwise bypass these generated database changes while still publishing the application code.
+Whether clicking Approve and publish would actually execute this SQL against the existing production database.
+Whether the deployment can instead be performed through another supported Replit deployment mechanism that publishes the current application revision without modifying the production database.
+Whether any Replit database/schema configuration is incorrectly associating the isolated development database with the external Supabase production database and causing this false migration detection.
+Do not:
+click Approve and publish;
+apply the generated SQL;
+create/drop/alter any production database object;
+run Alembic;
+change production data;
+change deployment/database configuration;
+restart or redeploy production;
+run legacy maintenance;
+touch push tokens, OneSignal, APNs, MountainPageView, SkiDay data, BL-77, or unrelated code.
+This is an investigation only.
+Report exactly what Replit is detecting, why it is detecting it, what would happen if the current approval were accepted, and the safest supported method to publish application code only now that production is already at bl317_startup_schema.
+End with either:
+SAFE TO PUBLISH APPLICATION CODE ONLY USING: [exact method]
+or
+PUBLISH BLOCKED: [exact reason]
