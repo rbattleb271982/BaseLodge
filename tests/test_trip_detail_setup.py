@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from app import app
 from models import (
     db,
@@ -105,6 +107,43 @@ def test_active_participant_gets_editable_setup_chips(client):
     )
     assert pass_response.status_code == 200
     assert pass_response.get_json()["pass_display"] == "Ikon"
+
+
+@pytest.mark.parametrize(
+    ("status", "label", "alternative", "alternative_value"),
+    [
+        (GuestStatus.INTERESTED, "Interested", "Going", "going"),
+        (GuestStatus.GOING, "Going", "Interested", "interested"),
+    ],
+)
+def test_active_guest_sees_explicit_rsvp_and_only_valid_alternative(
+    client, status, label, alternative, alternative_value
+):
+    with app.app_context():
+        _owner_id, trip_id, _owner_participant_id = _setup_trip()
+        trip = SkiTrip.query.get(trip_id)
+        guest = _make_user(f"trip-detail-{status.value}")
+        _add_participant(trip, guest, status)
+        guest_id = guest.id
+        db.session.commit()
+
+    html = _trip_html(client, guest_id, trip_id)
+    self_rsvp = html.split('id="td-self-rsvp"', 1)[1].split("</details>", 1)[0]
+
+    assert 'class="td-self-rsvp-label">Your RSVP</span>' in self_rsvp
+    assert f'class="td-self-rsvp-status">{label}</span>' in self_rsvp
+    assert f'aria-label="Your RSVP: {label}"' in self_rsvp
+    assert f'name="response" value="{alternative_value}"' in self_rsvp
+    assert f">{alternative}</button>" in self_rsvp
+    assert 'class="td-self-rsvp-option td-self-rsvp-option--leave"' in self_rsvp
+    assert "Not going" in self_rsvp
+
+    invalid_value = "interested" if alternative_value == "going" else "going"
+    assert f'name="response" value="{invalid_value}"' not in self_rsvp
+    if status == GuestStatus.GOING:
+        assert "td-participant-date-sheet" in html
+    else:
+        assert "td-participant-date-sheet" not in html
 
 
 def test_pending_invitee_gets_view_only_setup_chips(client):
@@ -251,6 +290,11 @@ def test_trip_detail_hub_keeps_pending_invitee_view_only_and_sticky_rsvp(client)
     assert 'id="td-planning-heading"' not in html
     assert 'id="td-edit-toggle-btn"' not in html
     assert 'onclick="openParticipantDateSheet()"' not in html
+    assert 'id="td-self-rsvp"' not in html
+    assert 'class="sticky-action-container visible"' in html
+    assert 'name="response" value="going"' in html
+    assert 'name="response" value="interested"' in html
+    assert 'name="response" value="decline"' in html
 
 
 def test_hub_attention_uses_profile_equipment_fallback(client):

@@ -530,6 +530,55 @@
         .td-rsvp-details { padding: 0 16px 10px; }
         .td-rsvp-details .td-person-status-tag { margin-left: 0 !important; }
         .td-rsvp-details .td-person-row { padding-left: 0; padding-right: 0; }
+        .td-self-rsvp-card { margin-bottom: 12px; }
+        .td-self-rsvp-summary { min-height: 54px; box-sizing: border-box; }
+        .td-self-rsvp-copy {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            flex: 1;
+            min-width: 0;
+        }
+        .td-self-rsvp-label {
+            margin: 0;
+            font-size: 13px;
+            color: var(--bl-color-text-muted);
+        }
+        .td-self-rsvp-status {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 650;
+            color: #1A1A1A;
+        }
+        .td-self-rsvp-change {
+            flex-shrink: 0;
+            color: #5C1219;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .td-self-rsvp-options {
+            padding: 4px 16px 10px;
+            border-top: 1px solid rgba(92,18,25,0.08);
+        }
+        .td-self-rsvp-option {
+            display: block;
+            width: 100%;
+            padding: 11px 0;
+            border: 0;
+            border-bottom: 1px solid rgba(92,18,25,0.08);
+            background: transparent;
+            color: #5C1219;
+            font: inherit;
+            font-size: 14px;
+            text-align: left;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-self-rsvp-option:last-child { border-bottom: 0; }
+        .td-self-rsvp-option:active { opacity: 0.6; }
+        .td-self-rsvp-option--leave { color: #8B4A52; }
         .td-action-group {
             margin-top: 22px;
             border-top: 1px solid rgba(92,18,25,0.08);
@@ -1463,6 +1512,33 @@
 
         <section class="td-hub-your-trip td-hub-section" aria-labelledby="td-your-trip-heading">
             <p class="td-section-label" id="td-your-trip-heading">Your trip</p>
+        {% if is_guest and current_user_participant and current_user_participant.status.value in ('going', 'interested') %}
+        <details class="td-swg-card td-self-rsvp-card" id="td-self-rsvp">
+            <summary class="td-rsvp-summary td-self-rsvp-summary" aria-label="Your RSVP: {{ 'Going' if current_user_participant.status.value == 'going' else 'Interested' }}">
+                <span class="td-self-rsvp-copy">
+                    <span class="td-self-rsvp-label">Your RSVP</span>
+                    <span class="td-self-rsvp-status">{{ 'Going' if current_user_participant.status.value == 'going' else 'Interested' }}</span>
+                </span>
+                <span class="td-self-rsvp-change">Change</span>
+            </summary>
+            <div class="td-self-rsvp-options" aria-label="Change your RSVP">
+                {% if current_user_participant.status.value == 'going' %}
+                <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="response" value="interested">
+                    <button type="submit" class="td-self-rsvp-option" data-loading-text="Saving…">Interested</button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="response" value="going">
+                    <button type="submit" class="td-self-rsvp-option" data-loading-text="Saving…">Going</button>
+                </form>
+                {% endif %}
+                <button type="button" class="td-self-rsvp-option td-self-rsvp-option--leave" onclick="openLeaveSheet()">Not going</button>
+            </div>
+        </details>
+        {% endif %}
         {% if can_edit_attendance_dates %}
         <div class="td-swg-card" style="margin-bottom: 12px;">
             <button type="button" class="td-swg-row" onclick="openParticipantDateSheet()" aria-controls="td-participant-date-sheet">
@@ -1732,29 +1808,6 @@
                 <input type="hidden" name="response" value="{{ 'interested' if current_user_participant.status.value == 'going' else 'going' }}">
                 <button type="submit" class="td-cancel-trip-link">Mark {{ 'Interested' if current_user_participant.status.value == 'going' else 'Going' }}</button>
             </form>
-        </div>
-        {% endif %}
-
-        {% if is_guest %}
-        <div class="td-cancel-trip-wrap" style="display:flex;gap:12px;justify-content:flex-start;">
-            {% if current_user_participant and current_user_participant.status.value == 'going' %}
-            <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="response" value="interested">
-                <button type="submit" class="td-cancel-trip-link">Mark interested</button>
-            </form>
-            {% else %}
-            <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="response" value="going">
-                <button type="submit" class="td-cancel-trip-link">Mark going</button>
-            </form>
-            {% endif %}
-        </div>
-        <div class="td-cancel-trip-wrap">
-            <button type="button" class="td-cancel-trip-link" onclick="openLeaveSheet()">
-                Leave trip
-            </button>
         </div>
         {% endif %}
 
