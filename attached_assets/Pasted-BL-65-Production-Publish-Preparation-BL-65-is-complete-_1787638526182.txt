@@ -1,0 +1,77 @@
+BL-65 — Production Publish Preparation
+BL-65 is complete and verified in BaseLodge Dev.
+Approved implementation:
+Commit: 7a99f36c8b23f146aa13e2e7af0cf2560554dab6
+Message: BL-65: refine Profile gear display
+Full isolated suite: 700 passed
+We now need to prepare for the production publish, but do not publish yet.
+Objective
+Safely retire/detach the old Replit-managed development database integration now that BaseLodge development is successfully running against the dedicated external BaseLodge Dev Supabase database.
+The purpose is to ensure Replit Publish no longer proposes provisioning or synchronizing a Replit-managed production database.
+1. Verify current development runtime first
+Before changing anything, verify:
+development runtime uses BASELODGE_DEVELOPMENT_DATABASE_URL;
+that target is the external BaseLodge Dev Supabase project;
+it is distinct from production;
+Alembic revision is bl317_startup_schema;
+/health is healthy;
+695 resorts and 245 resort/pass mappings remain present;
+richard@example.test remains present.
+2. Verify BaseLodge no longer depends on Replit DATABASE_URL
+Inspect the current runtime/configuration paths and establish whether removing the Replit-managed Database integration can safely remove or invalidate its managed DATABASE_URL.
+Confirm that:
+development uses the explicit BaseLodge development URL;
+production continues to use the existing explicit Supabase production selection;
+removal of the Replit-managed database will not silently redirect either runtime to another database.
+If any active BaseLodge path still requires the Replit-managed DATABASE_URL, STOP and report it.
+3. Retire the old Replit-managed development database
+If and only if the above checks pass, use the supported Replit mechanism to remove/detach the old Replit-managed Database integration from this project.
+This is the obsolete development database that BaseLodge no longer uses.
+Do not touch either Supabase project.
+If removal requires a user action in the Replit UI, STOP and tell me the exact control/path to use rather than guessing or deleting anything through an unsupported mechanism.
+4. Post-removal development verification
+After the Replit-managed database is detached:
+restart only the development Flask workflow if required;
+verify the runtime still resolves to BaseLodge Dev Supabase;
+verify /health;
+verify /auth;
+verify authenticated /home, /profile, and /mountains;
+confirm BL-65 still renders correctly;
+review logs for database/configuration errors.
+Do not modify application data beyond ordinary login/activity timestamps required by verification.
+5. Inspect Publish — do not approve it
+Open/inspect the Replit Publish flow only far enough to determine whether the previous database warning is gone.
+We specifically need to confirm there is now:
+no Development database changes detected;
+no generated full-schema SQL;
+no request to create/provision a Replit production database;
+no managed database schema synchronization requirement.
+Do not click final Publish/Approve.
+6. Release-diff review
+Before publishing, identify what application commits/code changes will actually be included compared with the currently deployed production revision.
+Confirm that the release includes the reviewed #317 read-only startup changes and BL-65, and flag any other code changes that would also be deployed.
+Do not assume BL-65 is the only unpublished change.
+Hard boundaries
+Do not:
+publish or deploy;
+modify production Supabase;
+run production migrations;
+restart production;
+change Supabase secrets;
+delete either Supabase project;
+copy production data;
+run legacy maintenance;
+touch push tokens, OneSignal, or APNs;
+resume BL-77.
+Return
+Report:
+old Replit DB removal/detachment status;
+effect on DATABASE_URL;
+BaseLodge Dev runtime verification;
+Publish UI/database-sync status;
+exact code/commit delta that would be released;
+any remaining blocker to a code-only production publish.
+End with exactly:
+CODE-ONLY PUBLISH GATE CLEAR — READY FOR PRODUCTION PUBLISH
+or
+PRODUCTION PUBLISH BLOCKED: [reason]
