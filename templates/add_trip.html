@@ -797,6 +797,7 @@
         selectedWrap.style.display  = 'block';
         const hint = document.getElementById('mountain-search-hint');
         if (hint) hint.style.display = 'none';
+        updateSubmitCTA();
     }
 
     function clearMountain() {
@@ -807,6 +808,7 @@
         selectedWrap.style.display = 'none';
         const hint = document.getElementById('mountain-search-hint');
         if (hint) hint.style.display = '';
+        updateSubmitCTA();
         searchInput.focus();
     }
 
@@ -1047,7 +1049,7 @@
         const btn = document.getElementById('submit-btn');
         if (!btn || IS_GROUP_FLOW) return;
         const n = stagedRanges.length;
-        btn.disabled = (n === 0);
+        btn.disabled = (n === 0 || !selResortId);
         btn.textContent = n > 1 ? `Save ${n} dates` : 'Save trip';
     }
 

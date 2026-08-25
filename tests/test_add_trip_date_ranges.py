@@ -33,6 +33,23 @@ def test_auto_staging_reuses_existing_range_lifecycle():
     assert "updateRangeSummary();" in confirm_body
 
 
+def test_standard_cta_requires_staged_range_and_mountain():
+    cta_start = ADD_TRIP_TEMPLATE.index("function updateSubmitCTA()")
+    cta_end = ADD_TRIP_TEMPLATE.index("function updateRangeSummary()", cta_start)
+    cta_body = ADD_TRIP_TEMPLATE[cta_start:cta_end]
+
+    assert "btn.disabled = (n === 0 || !selResortId);" in cta_body
+
+    select_start = ADD_TRIP_TEMPLATE.index("function selectMountain(")
+    clear_start = ADD_TRIP_TEMPLATE.index("function clearMountain(", select_start)
+    calendar_start = ADD_TRIP_TEMPLATE.index("// ── Calendar helpers", clear_start)
+    select_body = ADD_TRIP_TEMPLATE[select_start:clear_start]
+    clear_body = ADD_TRIP_TEMPLATE[clear_start:calendar_start]
+
+    assert "updateSubmitCTA();" in select_body
+    assert "updateSubmitCTA();" in clear_body
+
+
 def test_multi_range_remove_validation_and_save_contracts_remain():
     assert "function removeRange(idx)" in ADD_TRIP_TEMPLATE
     assert "removeRange(${i})" in ADD_TRIP_TEMPLATE
