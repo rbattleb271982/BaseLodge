@@ -1,0 +1,129 @@
+BL-51 — Propagate Participant-Specific Dates Across BaseLodge
+Create the implementation plan for BL-51 — Propagate participant-specific dates across BaseLodge.
+Plan only. Do not implement anything yet.
+Context
+BL-50 is complete and committed as:
+e0ce661 — BL-50 add participant attendance dates
+BL-50 established the participant attendance source of truth:
+Going guests can save their own start_date / end_date.
+null/null means Full trip.
+Explicit participant dates must fall within the organizer's core trip dates.
+Only Going guests may retain an override.
+Organizer/core dates remain the shared trip dates.
+Participant-specific dates represent when that guest is actually present.
+BL-51 should now make BaseLodge consistently use those effective participant dates anywhere it represents that guest's presence.
+Core rule
+Establish or reuse a single shared concept of an effective participant attendance range:
+complete participant start_date/end_date override when present;
+otherwise the parent SkiTrip.start_date/end_date.
+Do not duplicate slightly different fallback logic throughout the application if a safe shared helper can provide one source of truth.
+Plan the following surfaces
+Audit the current post-BL-50 code and create the exact implementation plan for:
+My Trips
+For trips where the current user is a Going participant, determine where their effective participant dates should replace organizer dates for:
+displayed attendance dates;
+upcoming/current/past classification;
+filtering;
+ordering;
+counts.
+Preserve organizer behavior using the organizer's core dates.
+Season Snapshot
+Determine where active guest trips currently use parent dates and how Going participant-specific dates should affect the current user's personal season representation.
+Home / Happening / Ideas
+Identify every place where BaseLodge represents a Going guest's presence using the organizer's full range.
+Plan changes so a friend is not represented as being at a mountain on dates outside that person's actual attendance range.
+Be careful to distinguish:
+shared trip existence;
+RSVP status;
+actual physical presence.
+Participant dates should change the last category, not silently change trip ownership or RSVP semantics.
+Mountain Detail
+BL-49 found that the availability-overlap helper was already participant-date aware before BL-50.
+Preserve that behavior and determine what other Mountain Detail surfaces still use parent dates, including current-intent rows and friend/trip presentation.
+Overlap intelligence
+Audit and plan changes for:
+friend trip overlaps;
+participant overlaps;
+generic trip overlap helpers;
+carpool overlap;
+availability overlap;
+any other feature that determines whether two people will be at the same mountain at the same time.
+The overlap should use each person's actual effective attendance window, not automatically assume every participant attends the organizer's entire trip.
+Activity/feed intelligence
+Audit date-driven:
+activity generation;
+Happening;
+Ideas;
+trip intelligence;
+availability activity;
+overlap activity;
+notification/feed copy where actual participant presence is represented.
+Identify which need changes and which are legitimately based on the shared trip's core dates.
+Trip Detail / People
+Determine the smallest appropriate organizer-facing representation of a Going guest's attendance dates.
+For example:
+Richard · Going · Jan 12–14
+Do not broadly redesign Trip Detail. BL-52 remains a separate future task.
+Profile
+Determine whether trip presence shown on another user's Profile should use that participant's effective attendance dates.
+Preserve privacy and existing trip-visibility rules.
+Interested users
+Pay special attention to Interested.
+BL-50 intentionally permits attendance overrides only for Going guests.
+Do not make Interested users appear Going or invent actual attendance dates for them.
+Identify where organizer/core dates remain appropriate for an Interested person's trip intent versus where the concept of actual attendance should apply only to Going participants.
+Notifications
+Audit existing notification logic but do not broaden BL-51 unnecessarily.
+Distinguish:
+notifications based on trip creation/invitation/RSVP state, which may appropriately use core trip dates;
+notifications/intelligence claiming that people overlap or will physically be somewhere on particular dates, which may need effective participant dates.
+Do not redesign the notification system.
+Historical/current behavior
+Determine how participant-specific dates affect:
+a trip becoming current;
+a trip becoming past;
+historical trip presentation;
+any visited/mountain-history behavior.
+Do not introduce new ski-day or visit semantics unless required for consistency.
+Tests
+Build a focused BL-51 test plan covering at minimum:
+Going guest with no override behaves as Full trip;
+Going guest with a subrange appears only for that subrange where actual presence matters;
+organizer continues using core dates;
+Interested guest retains existing intent semantics;
+overlaps occur only on actual shared attendance dates;
+false overlaps caused by organizer core dates disappear;
+My Trips classification/display uses the current user's effective dates appropriately;
+Mountain Detail behavior remains correct;
+Home/activity behavior does not claim presence outside the participant's range;
+Profile visibility/privacy remains intact;
+Trip Detail organizer-facing attendance display, if included;
+BL-50 persistence and validation remain unchanged.
+Scope discipline
+BL-51 is a propagation/consistency task, not a new participant-date feature.
+Do not plan:
+schema changes unless absolutely required;
+a new attendance model;
+multiple participant date ranges;
+separate trips;
+changes to BL-50 editing/validation unless a genuine defect is discovered;
+broad Trip Detail redesign;
+BL-52 implementation;
+unrelated Home redesign;
+unrelated notification redesign.
+Required output
+Produce a concrete implementation plan that:
+identifies every affected current consumer;
+states exactly how its behavior should change;
+identifies reusable/shared helper logic;
+separates actual-presence logic from trip-intent/core-date logic;
+identifies relevant files/functions/templates;
+defines focused regression coverage;
+flags any genuine product decisions required before implementation;
+identifies anything discovered that should be a separate future task rather than expanding BL-51.
+Do not modify code, tests, data, configuration, workflows, databases, or deployment.
+Do not Publish.
+End with:
+BL-51 PLAN READY FOR REVIEW
+or
+BL-51 PLAN BLOCKED: [reason]
