@@ -1145,9 +1145,11 @@ class SkiTripParticipant(db.Model):
             }
             return labels.get(self.equipment_status, "Not set")
         if self.user and self.user.equipment_status:
-            if self.user.equipment_status == EquipmentStatus.HAVE_OWN_EQUIPMENT:
+            # User.equipment_status is a legacy string column, unlike the
+            # participant-level enum above.
+            if self.user.equipment_status == EquipmentStatus.HAVE_OWN_EQUIPMENT.value:
                 return "Bringing own"
-            elif self.user.equipment_status == EquipmentStatus.NEEDS_RENTALS:
+            elif self.user.equipment_status == EquipmentStatus.NEEDS_RENTALS.value:
                 return "Renting"
         return "Not set"
     

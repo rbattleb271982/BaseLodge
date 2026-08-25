@@ -294,8 +294,83 @@
             background: #FFFFFF;
             border: 1px solid #E5DFD0;
             border-radius: 14px;
-            overflow: hidden;
+            padding: 12px;
             margin-bottom: 20px;
+        }
+        .td-setup-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .td-setup-chip {
+            box-sizing: border-box;
+            display: flex;
+            flex: 1 1 100px;
+            min-width: 0;
+            max-width: 100%;
+            min-height: 52px;
+            flex-direction: column;
+            justify-content: center;
+            gap: 3px;
+            padding: 9px 11px;
+            border: 1px solid #E5DFD0;
+            border-radius: 12px;
+            background: #FFFFFF;
+            color: var(--bl-color-text);
+            text-align: left;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        button.td-setup-chip {
+            cursor: pointer;
+        }
+        button.td-setup-chip:active {
+            background: #F5F1E8;
+        }
+        .td-setup-chip--readonly {
+            cursor: default;
+            background: #FAF9F6;
+        }
+        .td-setup-chip-label {
+            color: var(--bl-color-text-muted);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.65px;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+        .td-setup-chip-value {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+            color: #5C1219;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+        .td-setup-chip-value--soft {
+            color: var(--bl-color-text-muted);
+        }
+        .td-setup-chip .chevron-icon {
+            flex-shrink: 0;
+        }
+        .td-setup-editors {
+            margin-top: 8px;
+        }
+        .td-setup-editor {
+            display: none;
+            border-top: 1px solid #E5DFD0;
+            padding: 10px 4px 0;
+        }
+        .td-setup-editor.expanded {
+            display: block;
+        }
+        .td-equipment-source {
+            margin: 0 0 6px;
+            color: var(--bl-color-text-muted);
+            font-size: 12px;
         }
         .td-pass-row {
             display: flex;
@@ -873,7 +948,7 @@
         }
         .transport-options-inline, .lesson-options-inline {
             display: none;
-            padding: 4px 16px 14px 16px;
+            padding: 0;
         }
         .transport-options-inline.expanded, .lesson-options-inline.expanded {
             display: block;
@@ -1274,99 +1349,112 @@
         <!-- My Setup -->
         <h2 class="td-setup-heading">My setup</h2>
         <div class="td-setup-card">
+        <div class="td-setup-chips">
+            {# Pass — still opens the existing pass sheet for editable members. #}
+            {% if is_member %}
+            <button type="button" class="td-setup-chip" onclick="openPassSheet()" aria-label="Edit pass type">
+            {% else %}
+            <div class="td-setup-chip td-setup-chip--readonly" aria-label="Pass">
+            {% endif %}
+                <span class="td-setup-chip-label">Pass</span>
+                <span class="td-setup-chip-value {% if not my_pass_display %}td-setup-chip-value--soft{% endif %}">
+                    <span id="td-pass-display-text">{{ my_pass_display or 'No pass' }}</span>
+                </span>
+            {% if is_member %}
+            </button>
+            {% else %}
+            </div>
+            {% endif %}
+
+            {# Equipment — trip-level status with profile fallback. #}
+            {% if is_member %}
+            <button type="button" class="td-setup-chip" id="equipmentHeader" aria-controls="equipmentOverrideOptions" aria-expanded="false" onclick="toggleEquipmentOverride()">
+            {% else %}
+            <div class="td-setup-chip td-setup-chip--readonly" id="equipmentHeader" aria-label="Equipment">
+            {% endif %}
+                <span class="td-setup-chip-label">Equipment</span>
+                <span class="td-setup-chip-value {% if not is_member %}td-setup-chip-value--soft{% endif %}">
+                    <span id="equipmentSummaryText">
+                        {% if current_user_participant %}{{ current_user_participant.get_display_equipment() }}{% else %}Not set{% endif %}
+                    </span>
+                    {% if is_member %}
+                    <svg class="chevron-icon" id="equipmentChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    {% endif %}
+                </span>
+            {% if is_member %}
+            </button>
+            {% else %}
+            </div>
+            {% endif %}
+
+            {# Lessons — trip-level status with the existing inline editor. #}
+            {% if is_member %}
+            <button type="button" class="td-setup-chip" id="lessonHeader" aria-controls="lesson-options-inline" aria-expanded="false" onclick="toggleLessonEditor()">
+            {% else %}
+            <div class="td-setup-chip td-setup-chip--readonly" id="lessonHeader" aria-label="Lessons">
+            {% endif %}
+                <span class="td-setup-chip-label">Lessons</span>
+                <span class="td-setup-chip-value {% if not is_member %}td-setup-chip-value--soft{% endif %}">
+                    <span id="lesson-summary-text">
+                        {% if current_user_participant and current_user_participant.taking_lesson %}
+                            {% if current_user_participant.taking_lesson.value == 'yes' %}Taking a lesson{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering a lesson{% else %}No lesson{% endif %}
+                        {% else %}No lesson{% endif %}
+                    </span>
+                    {% if is_member %}
+                    <svg class="chevron-icon" id="lessonChevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                    {% endif %}
+                </span>
+            {% if is_member %}
+            </button>
+            {% else %}
+            </div>
+            {% endif %}
+        </div>
+
         {% if is_member %}
-        <button type="button" class="td-pass-row" onclick="openPassSheet()" aria-label="Edit pass type" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;">
-            <span class="td-pass-label">Pass</span>
-            <span class="td-pass-value {% if not my_pass_display %}td-pass-value--soft{% endif %}">
-                <span id="td-pass-display-text">{{ my_pass_display or 'No pass' }}</span>
-            </span>
-        </button>
-        {% else %}
-        <div class="td-pass-row" style="cursor: default;">
-            <span class="td-pass-label">Pass</span>
-            <span class="td-pass-value" style="color: var(--bl-color-text-muted);">{{ my_pass_display or 'No pass' }}</span>
+        <div class="td-setup-editors">
+            <div class="td-setup-editor lesson-options-inline" id="equipmentOverrideOptions">
+                <p class="td-equipment-source" id="equipmentSourceText">
+                    {% if current_user_participant and current_user_participant.equipment_status %}For this trip{% else %}From profile{% endif %}
+                </p>
+                <div class="lesson-radio-group">
+                    <label class="lesson-radio-label">
+                        <input type="radio" name="equipment_status" value="" {% if not current_user_participant or not current_user_participant.equipment_status %}checked{% endif %} onchange="updateEquipmentPersonal('')">
+                        <span>From profile</span>
+                    </label>
+                    <label class="lesson-radio-label">
+                        <input type="radio" name="equipment_status" value="own" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value == 'own' %}checked{% endif %} onchange="updateEquipmentPersonal('own')">
+                        <span>Have own equipment</span>
+                    </label>
+                    <label class="lesson-radio-label">
+                        <input type="radio" name="equipment_status" value="renting" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value in ('renting', 'needs_rentals') %}checked{% endif %} onchange="updateEquipmentPersonal('renting')">
+                        <span>Renting equipment</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="td-setup-editor lesson-options-inline" id="lesson-options-inline">
+                <div class="lesson-radio-group">
+                    <label class="lesson-radio-label">
+                        <input type="radio" name="taking_lesson" value="no" {% if not current_user_participant or not current_user_participant.taking_lesson or current_user_participant.taking_lesson.value == 'no' %}checked{% endif %} onchange="saveLesson(this.value)">
+                        <span>No lesson</span>
+                    </label>
+                    <label class="lesson-radio-label">
+                        <input type="radio" name="taking_lesson" value="yes" {% if current_user_participant and current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'yes' %}checked{% endif %} onchange="saveLesson(this.value)">
+                        <span>Taking a lesson</span>
+                    </label>
+                    <label class="lesson-radio-label">
+                        <input type="radio" name="taking_lesson" value="maybe" {% if current_user_participant and current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'maybe' %}checked{% endif %} onchange="saveLesson(this.value)">
+                        <span>Considering a lesson</span>
+                    </label>
+                </div>
+            </div>
         </div>
         {% endif %}
-        <div class="your-trip-details-section">
-
-            {# Equipment — personal to current user (SkiTripParticipant.equipment_status) #}
-            <div class="lesson-editor-container">
-                <div class="lesson-row-header" id="equipmentHeader" {% if is_member %}aria-expanded="false"{% endif %} onclick="{% if is_member %}toggleEquipmentOverride(){% endif %}">
-                    <div style="display: flex; flex-direction: column;">
-                        <span class="td-accordion-label">Equipment</span>
-                        <span style="font-size: 11px; color: var(--bl-color-text-muted); margin-top: 1px;">
-                            {% if current_user_participant and current_user_participant.equipment_status %}For this trip{% else %}From profile{% endif %}
-                        </span>
-                    </div>
-                    <span class="lesson-summary" style="{% if not is_member %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
-                        <span id="equipmentSummaryText">
-                            {% if current_user_participant %}{{ current_user_participant.get_display_equipment() }}{% else %}Not set{% endif %}
-                        </span>
-                        {% if is_member %}
-                        <svg class="chevron-icon" id="equipmentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                        {% endif %}
-                    </span>
-                </div>
-                {% if is_member %}
-                <div class="lesson-options-inline" id="equipmentOverrideOptions">
-                    <div class="lesson-radio-group">
-                        <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_status" value="" {% if not current_user_participant or not current_user_participant.equipment_status %}checked{% endif %} onchange="updateEquipmentPersonal('')">
-                            <span>From profile</span>
-                        </label>
-                        <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_status" value="own" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value == 'own' %}checked{% endif %} onchange="updateEquipmentPersonal('own')">
-                            <span>Have own equipment</span>
-                        </label>
-                        <label class="lesson-radio-label">
-                            <input type="radio" name="equipment_status" value="renting" {% if current_user_participant and current_user_participant.equipment_status and current_user_participant.equipment_status.value in ('renting', 'needs_rentals') %}checked{% endif %} onchange="updateEquipmentPersonal('renting')">
-                            <span>Renting equipment</span>
-                        </label>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-            {# Lessons — personal to current user (SkiTripParticipant.taking_lesson) #}
-            <div class="lesson-editor-container">
-                <div class="lesson-row-header" id="lessonHeader" {% if is_member %}aria-expanded="false"{% endif %} onclick="{% if is_member %}toggleLessonEditor(){% endif %}">
-                    <span class="td-accordion-label">Lessons</span>
-                    <span class="lesson-summary" style="{% if not is_member %}color: var(--bl-color-text-muted); cursor: default;{% endif %}">
-                        <span id="lesson-summary-text">
-                            {% if current_user_participant and current_user_participant.taking_lesson %}
-                                {% if current_user_participant.taking_lesson.value == 'yes' %}Taking a lesson{% elif current_user_participant.taking_lesson.value == 'maybe' %}Considering a lesson{% else %}No lesson{% endif %}
-                            {% else %}No lesson{% endif %}
-                        </span>
-                        {% if is_member %}
-                        <svg class="chevron-icon" id="lessonChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                        {% endif %}
-                    </span>
-                </div>
-                {% if is_member %}
-                <div class="lesson-options-inline" id="lesson-options-inline">
-                    <div class="lesson-radio-group">
-                        <label class="lesson-radio-label">
-                            <input type="radio" name="taking_lesson" value="no" {% if not current_user_participant or not current_user_participant.taking_lesson or current_user_participant.taking_lesson.value == 'no' %}checked{% endif %} onchange="saveLesson(this.value)">
-                            <span>No lesson</span>
-                        </label>
-                        <label class="lesson-radio-label">
-                            <input type="radio" name="taking_lesson" value="yes" {% if current_user_participant and current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'yes' %}checked{% endif %} onchange="saveLesson(this.value)">
-                            <span>Taking a lesson</span>
-                        </label>
-                        <label class="lesson-radio-label">
-                            <input type="radio" name="taking_lesson" value="maybe" {% if current_user_participant and current_user_participant.taking_lesson and current_user_participant.taking_lesson.value == 'maybe' %}checked{% endif %} onchange="saveLesson(this.value)">
-                            <span>Considering a lesson</span>
-                        </label>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-
-        </div><!-- /your-trip-details-section -->
         </div><!-- /td-setup-card -->
 
         <!-- Trip Planning -->
@@ -1657,8 +1745,10 @@
             <div class="td-resort-list" id="td-resort-list"></div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- Pass edit bottom sheet (owner only) -->
+    <!-- Pass edit bottom sheet (owner and active participants) -->
+    {% if is_member %}
     <div class="td-pass-sheet-overlay" id="td-pass-sheet" onclick="if(event.target===this)closePassSheet()">
         <div class="td-pass-sheet">
             <div class="td-pass-sheet-handle"></div>
@@ -2396,8 +2486,8 @@
                         _tdEquipCommitted = value;
                         const displayEl = document.getElementById('equipmentSummaryText');
                         if (displayEl) displayEl.textContent = data.equipment_display || labels[value] || 'Not set';
-                        const subtextEl = document.querySelector('#equipmentHeader [style*="font-size: 11px"]');
-                        if (subtextEl) subtextEl.textContent = value ? 'For this trip' : 'From profile';
+                        const sourceEl = document.getElementById('equipmentSourceText');
+                        if (sourceEl) sourceEl.textContent = value ? 'For this trip' : 'From profile';
                         toggleEquipmentOverride();
                         blToast('Saved');
                     } else {
