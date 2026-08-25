@@ -1,0 +1,142 @@
+BL-53 — Make My Setup Compact on Trip Detail
+Implement BL-53 — Make My Setup compact on Trip Detail based on the completed investigation and approved product decisions.
+Goal
+Reduce the vertical footprint of the existing My setup section on Trip Detail while preserving the current trip-level meaning and behavior.
+BL-53 should remain status-only. Do not introduce Profile-style physical gear details into Trip Detail.
+Approved product decisions
+Use a compact chip treatment for the three existing controls:
+Pass
+Equipment
+Lessons
+Example:
+My setup
+[Ikon] [Bringing own] [No lesson]
+Preserve the heading My setup.
+Pass behavior
+The Pass chip should:
+display the existing effective pass value;
+preserve current owner/active-guest editability;
+open the existing pass bottom sheet;
+remain non-editable for pending invitees.
+Do not change pass persistence or APIs.
+Equipment behavior
+The Equipment chip should display the existing trip-level equipment status:
+Bringing own
+Renting
+Not set
+Preserve the existing precedence:
+Trip-specific participant override;
+Profile-level equipment status;
+Not set.
+Tapping the chip for an editable participant should open/reveal the existing equipment choices:
+From profile
+Have own equipment
+Renting equipment
+Preserve the existing /api/trips/<trip_id>/participant/signals behavior.
+Equipment source indicator
+Remove the permanent second-line For this trip / From profile text from the collapsed My setup view.
+Show the source context inside the equipment editor/open state instead, so the information remains available without consuming vertical space when collapsed.
+Keep the wording consistent with the existing terminology unless there is an obvious shorter equivalent that preserves meaning.
+Lessons behavior
+The Lessons chip should display the existing status:
+No lesson
+Taking a lesson
+Considering a lesson
+Tapping it for an editable participant should preserve the existing lesson editing behavior and existing persistence/API flow.
+Interaction behavior
+Preserve the current single-open interaction rule:
+opening Equipment closes Lessons;
+opening Lessons closes Equipment.
+Do not create new modals or new APIs.
+Access behavior
+Preserve existing permissions:
+owner: editable;
+active participant: editable;
+pending invitee: view-only.
+The compact treatment must not accidentally make pending invitees editable.
+Explicitly preserve current meaning
+Trip Detail My setup is a trip coordination surface, not the user’s physical gear inventory.
+Do not add:
+ski brand/model;
+snowboard brand/model;
+boots;
+bindings;
+ski length;
+board length/width;
+discipline-specific EquipmentSetup selection;
+BL-65 Profile logic.
+Dual Skier + Snowboarder users should continue to see the same single trip-level equipment status.
+Do not alter EquipmentSetup, is_primary, or Profile/Home gear behavior.
+Visual requirements
+Make the collapsed My setup section materially shorter than the current ~170–200px footprint.
+Use the existing BaseLodge visual language.
+Chips should be compact, readable, and clearly tappable where editable.
+Ensure long values do not break the mobile layout.
+Preserve spacing consistency with neighboring Trip Detail sections.
+Avoid introducing excessive new CSS if existing utility/classes can be reused.
+Testing
+Add focused BL-53 coverage for at minimum:
+owner sees Pass, Equipment, and Lessons chips;
+active participant sees the same;
+pending invitee sees view-only chips;
+profile fallback have_own_equipment → Bringing own;
+profile fallback needs_rentals → Renting;
+no status → Not set;
+trip-specific own override beats profile rental;
+trip-specific rental override beats profile own;
+clearing trip override restores profile fallback;
+Equipment editor still saves through the existing participant-signals endpoint;
+Lessons editing remains functional;
+Pass chip still opens the existing pass control;
+From profile / For this trip is no longer permanently visible in the collapsed state but remains available in the opened equipment editor;
+single-open Equipment/Lessons behavior remains intact;
+pending invitees cannot edit;
+BL-65 Profile behavior remains unchanged;
+Home gear behavior remains unchanged;
+group equipment aggregation continues using the same participant equipment-status values.
+Run:
+Focused BL-53/Trip Detail tests.
+Relevant Profile/Home non-regression tests.
+Full isolated regression suite.
+Development verification
+Restart only the development Flask workflow and verify the compact My setup experience against BaseLodge Dev.
+Visually verify:
+owner/editable state;
+active participant state where practical;
+pending/view-only state where practical;
+Equipment editor expansion;
+Lessons editor expansion;
+pass interaction;
+compact mobile layout.
+Review development logs for unexpected application/database errors.
+Hard boundaries
+Do not:
+modify equipment schema;
+modify EquipmentSetup.is_primary;
+modify Profile or Home gear behavior;
+modify production;
+run migrations;
+change database configuration;
+Publish/deploy;
+touch push/OneSignal/APNs;
+work on BL-49/50/51/52.
+Commit
+If implementation and verification pass, commit using a message beginning:
+BL-53:
+Do not include unrelated changes.
+Completion report
+Report:
+exact UI/behavior implemented;
+files changed;
+focused test results;
+relevant non-regression results;
+full regression-suite result;
+development visual verification;
+any unexpected behavior;
+commit hash;
+commit message;
+confirmation that production and Publish were untouched.
+End with exactly:
+BL-53 READY FOR PRODUCTION PUBLISH
+or
+BL-53 BLOCKED: [reason]
