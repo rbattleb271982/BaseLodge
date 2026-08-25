@@ -164,6 +164,67 @@ def test_home_dismissal_reconciles_final_sections_without_reload():
     assert "fallback.hidden = hasVisibleActivity;" in HOME_TEMPLATE
     assert "if (card.parentNode) card.remove();" in HOME_TEMPLATE
     assert "syncHomeActivityEmptyState();" in HOME_TEMPLATE
+    assert "var homeCsrfToken = {{ csrf_token() | tojson }};" in HOME_TEMPLATE
+    assert "fd.append('csrf_token', homeCsrfToken);" in HOME_TEMPLATE
+
+
+def test_home_dismissal_persists_with_valid_csrf_and_survives_reload(client):
+    with app.app_context():
+        viewer_id, friend_id = _setup_viewer_and_friend()
+
+    _login(client, viewer_id)
+    card_key = f"friend_trip:{friend_id}:2026-01-15"
+    response = client.post(
+        "/dismiss-insight-card",
+        data={
+            "card_type": "opportunity",
+            "card_key": card_key,
+            "csrf_token": "test-csrf-fixed-value-baselodge-regression",
+        },
+    )
+    assert response.status_code == 204
+
+    with app.app_context():
+        row = DismissedInsightCard.query.filter_by(
+            user_id=viewer_id,
+            card_type="opportunity",
+            card_key=card_key,
+        ).first()
+    assert row is not None
+
+    html = _get_home(client, viewer_id, feed=[_feed_row(friend_id)])
+    assert 'id="section-opportunities"' not in html
+    assert "hidden" not in _fallback_tag(html)
+
+
+def test_home_dismissal_is_idempotent_for_happening_and_opportunity(client):
+    with app.app_context():
+        viewer_id, _friend_id = _setup_viewer_and_friend()
+
+    _login(client, viewer_id)
+    dismissals = [
+        ("happening", "happening:123"),
+        ("opportunity", "friend_trip:123:2026-01-15"),
+    ]
+    for card_type, card_key in dismissals:
+        for _ in range(2):
+            response = client.post(
+                "/dismiss-insight-card",
+                data={
+                    "card_type": card_type,
+                    "card_key": card_key,
+                    "csrf_token": "test-csrf-fixed-value-baselodge-regression",
+                },
+            )
+            assert response.status_code == 204
+
+    with app.app_context():
+        for card_type, card_key in dismissals:
+            assert DismissedInsightCard.query.filter_by(
+                user_id=viewer_id,
+                card_type=card_type,
+                card_key=card_key,
+            ).count() == 1
 
 
 def test_home_header_variants_use_compact_identity_and_preserve_stat_contracts():
