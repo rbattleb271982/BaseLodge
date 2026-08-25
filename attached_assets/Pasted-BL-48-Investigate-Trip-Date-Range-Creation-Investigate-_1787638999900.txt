@@ -1,0 +1,73 @@
+BL-48 — Investigate Trip Date-Range Creation
+Investigate BL-48 — Simplify trip date-range creation before implementing anything.
+Existing task requirements
+The approved BL-48 requirements are:
+Remove the extra Add this range confirmation step.
+After a start date and end date are selected, automatically commit the completed range.
+Show the committed range below the calendar using the existing remove/X affordance.
+If multi-range trip creation is currently supported, preserve it and clearly allow another range to be selected.
+Preserve trip status/visibility controls and existing validation.
+Save Trip should become actionable once the required trip information is valid.
+Do not silently collapse supported multi-range trips.
+Investigation only
+Do not implement BL-48 yet.
+Trace the current trip creation/editing flow and report:
+Current date-picker UX
+Exact templates/components/JS responsible for start/end date selection.
+What the user currently does after choosing start and end.
+Where Add this range appears and what code handles it.
+How committed ranges are rendered and removed.
+Current data model
+How trip dates are stored.
+Whether multiple date ranges per trip are genuinely supported today.
+Relevant models/tables/JSON fields/relationships.
+How ranges are ordered, validated, deduplicated, or normalized.
+Create vs edit behavior
+Whether new-trip creation and existing-trip editing use the same logic.
+Any behavioral differences that BL-48 would need to account for.
+Validation
+Existing required fields.
+Start/end ordering rules.
+Overlapping or adjacent ranges.
+Duplicate ranges.
+Single-day trips.
+Past dates, if relevant.
+When Save Trip becomes enabled/actionable.
+Multi-range flow
+Show exactly how a user currently creates a second or third range.
+Determine what should happen immediately after a range auto-commits.
+Identify whether the picker resets cleanly for another range.
+Downstream dependencies
+Identify every active feature that reads these trip ranges, especially:
+Trip Detail;
+participant-specific dates;
+mountain overlap/availability;
+Home;
+notifications;
+trip editing.
+Flag anything that assumes the current interaction pattern rather than just the stored data.
+Tests
+Identify existing tests around trip creation, date ranges, editing, multi-range trips, validation, and removal.
+State exactly what test coverage BL-48 would need.
+Implementation assessment
+Identify the smallest safe code change to remove Add this range and auto-commit the end-date selection.
+Explain how multi-range creation can remain obvious after auto-commit.
+Flag any product decision or ambiguity that should be resolved before implementation.
+Hard boundaries
+This is investigation only.
+Do not:
+modify code or tests;
+modify development data;
+run migrations;
+alter database schema;
+touch production;
+Publish/deploy;
+restart production;
+change database configuration;
+touch push/OneSignal/APNs;
+resume BL-77.
+Base findings on the current codebase, not assumptions from the task description.
+End with exactly:
+BL-48 INVESTIGATION COMPLETE — READY FOR PRODUCT DECISIONS
+or
+BL-48 INVESTIGATION BLOCKED: [reason]
