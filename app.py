@@ -13504,6 +13504,27 @@ def can_access_trip_planning(trip, user):
     return is_active_trip_member(trip, user)
 
 
+PLANNING_CATEGORY_ORDER = (
+    "Lodging",
+    "Transportation",
+    "Activities",
+    "Food & Drink",
+    "Lessons",
+    "Other",
+)
+
+
+def _planning_post_date_label(dt, today=None):
+    """Return the established compact date label used by planning posts."""
+    today = today or date.today()
+    post_date = dt.date() if hasattr(dt, "date") else dt
+    if post_date == today:
+        return "Today"
+    if post_date == today - timedelta(days=1):
+        return "Yesterday"
+    return dt.strftime("%b %-d")
+
+
 _RSVP_ACTION_TO_STATUS = {
     "going": GuestStatus.GOING,
     "interested": GuestStatus.INTERESTED,
@@ -13725,10 +13746,23 @@ def trip_detail(trip_id):
 
     # Planning board access + post count
     can_plan = can_access_trip_planning(trip, current_user)
+    planning_preview_posts = []
     planning_post_count = (
         SkiTripPlanningPost.query.filter_by(trip_id=trip_id).count()
         if can_plan else 0
     )
+    if can_plan:
+        planning_preview_posts = (
+            SkiTripPlanningPost.query
+            .filter_by(trip_id=trip_id)
+            .order_by(SkiTripPlanningPost.created_at.desc())
+            .limit(3)
+            .all()
+        )
+        for planning_post in planning_preview_posts:
+            planning_post.date_label = _planning_post_date_label(
+                planning_post.created_at
+            )
 
     # My Setup: current user is editable only while actively participating.
     is_member = is_owner or is_guest
@@ -13821,6 +13855,8 @@ def trip_detail(trip_id):
         resorts_json=resorts_json,
         can_plan=can_plan,
         planning_post_count=planning_post_count,
+        planning_preview_posts=planning_preview_posts,
+        planning_categories=PLANNING_CATEGORY_ORDER,
         my_pass_str=my_pass_str,
         my_pass_display=my_pass_display,
         is_overnight=is_overnight,
@@ -13849,24 +13885,9 @@ def trip_planning(trip_id):
         .all()
     )
 
-    # Annotate date labels server-side: Today / Yesterday / Mon DD
-    _today = date.today()
-    _yesterday = _today - timedelta(days=1)
-
-    def _date_label_str(dt):
-        d = dt.date() if hasattr(dt, 'date') else dt
-        if d == _today:
-            return 'Today'
-        elif d == _yesterday:
-            return 'Yesterday'
-        else:
-            return dt.strftime('%b %-d')
-
     for post in posts:
-        post.date_label = _date_label_str(post.created_at)
+        post.date_label = _planning_post_date_label(post.created_at)
         post._date_key = post.created_at.date()
-
-    _ordered_cats = ['Lodging', 'Transportation', 'Activities', 'Food & Drink', 'Lessons', 'Other']
 
     night_count = None
     if trip.start_date and trip.end_date:
@@ -13883,7 +13904,7 @@ def trip_planning(trip_id):
         trip=trip,
         is_owner=is_owner,
         posts=posts,
-        categories=_ordered_cats,
+        categories=PLANNING_CATEGORY_ORDER,
         night_count=night_count,
         state_abbr=state_abbr,
     )
@@ -14089,6 +14110,8 @@ def planning_posts_update(trip_id, post_id):
     """Edit a planning post. Author only."""
     validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
+    if not can_access_trip_planning(trip, current_user):
+        return jsonify({"error": "Access denied"}), 403
     post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
 
     if post.user_id != current_user.id:
@@ -14123,6 +14146,8 @@ def planning_posts_delete(trip_id, post_id):
     """Delete a planning post. Author or trip owner."""
     validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
+    if not can_access_trip_planning(trip, current_user):
+        return jsonify({"error": "Access denied"}), 403
     post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
 
     if post.user_id != current_user.id and trip.user_id != current_user.id:

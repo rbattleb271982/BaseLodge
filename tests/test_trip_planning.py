@@ -7,7 +7,7 @@ Setup context is CLOSED before yield; assertions use their own
 import unittest.mock
 import pytest
 from app import app
-from models import db, SkiTripPlanningPost, GuestStatus
+from models import db, SkiTripParticipant, SkiTripPlanningPost, GuestStatus
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
     _login, json_post, json_patch, json_delete,
@@ -168,6 +168,32 @@ def test_invited_member_cannot_delete_any_post(client, planning_setup):
     _login(client, planning_setup["invited_id"])
     rv = json_delete(client, f"/api/trip/{planning_setup['trip_id']}/planning-posts/{post_id}")
     assert rv.status_code == 403
+
+
+def test_former_member_cannot_edit_or_delete_own_planning_post(client, planning_setup):
+    with app.app_context():
+        post_id = _insert_post(planning_setup["trip_id"], planning_setup["member_id"])
+        member = SkiTripParticipant.query.filter_by(
+            trip_id=planning_setup["trip_id"],
+            user_id=planning_setup["member_id"],
+        ).one()
+        member.status = GuestStatus.REMOVED
+        db.session.commit()
+
+    _login(client, planning_setup["member_id"])
+    patch_response = json_patch(
+        client,
+        f"/api/trip/{planning_setup['trip_id']}/planning-posts/{post_id}",
+        {"category": "Other", "body": "Former member edit"},
+    )
+    delete_response = json_delete(
+        client, f"/api/trip/{planning_setup['trip_id']}/planning-posts/{post_id}"
+    )
+
+    assert patch_response.status_code == 403
+    assert delete_response.status_code == 403
+    with app.app_context():
+        assert SkiTripPlanningPost.query.get(post_id).body == "Original body"
 
 
 # ── Link URL security ─────────────────────────────────────────────────────────
