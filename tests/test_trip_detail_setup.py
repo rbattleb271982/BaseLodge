@@ -261,7 +261,7 @@ def test_trip_detail_hub_has_summary_attention_and_progressive_rsvp_sections(cli
     assert 'id="td-setup-card"' in html
     assert 'id="td-rsvp-section"' in html
     assert 'class="td-rsvp-summary"' in html
-    assert "Who's going" in html
+    assert "Trip participants" in html
     assert html.index('<section class="td-hub-attention') < html.index(
         '<div class="td-setup-card" id="td-setup-card"'
     )
@@ -307,4 +307,92 @@ def test_hub_attention_uses_profile_equipment_fallback(client):
 
     assert "Bringing own" in html
     assert "Set equipment" not in html
-    assert '<section class="td-hub-people td-hub-section" aria-label="Who\'s going">' in html
+    assert '<section class="td-hub-people td-hub-section" aria-label="Trip participants">' in html
+
+
+def test_trip_detail_people_uses_product_labels_counts_and_alpha_groups(client):
+    with app.app_context():
+        resort = _make_resort("Aspen")
+        owner = _make_user("trip-detail-people-owner")
+        owner.first_name = "Owner"
+        owner.last_name = "Organizer"
+        trip = _make_trip(owner, resort=resort)
+
+        going_late = _make_user("trip-detail-people-zoe")
+        going_late.first_name = "Zoe"
+        going_late.last_name = "Zed"
+        _add_participant(trip, going_late, GuestStatus.GOING)
+
+        going_early = _make_user("trip-detail-people-anna")
+        going_early.first_name = "Anna"
+        going_early.last_name = "Alpha"
+        _add_participant(trip, going_early, GuestStatus.GOING)
+
+        pending = _make_user("trip-detail-people-pending")
+        pending.first_name = "Mia"
+        pending.last_name = "Pending"
+        _add_participant(trip, pending, GuestStatus.PENDING)
+
+        declined = _make_user("trip-detail-people-declined")
+        declined.first_name = "Riley"
+        declined.last_name = "Declined"
+        _add_participant(trip, declined, GuestStatus.DECLINED)
+
+        owner_id, trip_id = owner.id, trip.id
+        db.session.commit()
+
+    html = _trip_html(client, owner_id, trip_id)
+    summary = html.split('id="td-rsvp-section"', 1)[1].split("</summary>", 1)[0]
+
+    assert "Friends at this mountain" in html
+    assert "See your friends' trips at Aspen." in html
+    assert "Trip participants" in summary
+    assert "2 Going · 1 Interested · 1 Pending · 1 Declined" in summary
+    assert 'aria-controls="td-rsvp-details"' in summary
+    assert 'id="td-rsvp-details"' in html
+
+    heading_positions = [
+        html.index('class="td-person-status-tag td-person-status-heading">Going'),
+        html.index('class="td-person-status-tag td-person-status-heading">Interested'),
+        html.index('class="td-person-status-tag td-person-status-heading">Pending'),
+        html.index('class="td-person-status-tag td-person-status-heading">Declined'),
+    ]
+    assert heading_positions == sorted(heading_positions)
+    assert html.index("Anna Alpha") < html.index("Zoe Zed")
+    assert "Attending full trip" in html
+
+
+def test_trip_detail_people_hides_zero_declined_count(client):
+    with app.app_context():
+        owner_id, trip_id, _participant_id = _setup_trip()
+
+    html = _trip_html(client, owner_id, trip_id)
+    summary = html.split('id="td-rsvp-section"', 1)[1].split("</summary>", 1)[0]
+
+    assert "1 Interested" in summary
+    assert "Declined" not in summary
+
+
+def test_trip_detail_people_keeps_attendance_dates_owner_only(client):
+    with app.app_context():
+        owner_id, trip_id, _owner_participant_id = _setup_trip()
+        trip = SkiTrip.query.get(trip_id)
+        guest = _make_user("trip-detail-people-going")
+        guest.first_name = "Going"
+        guest.last_name = "Guest"
+        _add_participant(trip, guest, GuestStatus.GOING)
+        guest_id = guest.id
+        db.session.commit()
+
+    owner_html = _trip_html(client, owner_id, trip_id)
+    guest_html = _trip_html(client, guest_id, trip_id)
+
+    assert "Attending full trip" in owner_html
+    assert 'data-attendance-dates="true"' in owner_html
+    assert 'data-attendance-dates="true"' not in guest_html
+
+
+def test_trip_detail_people_rows_use_mobile_safe_wrapping():
+    assert "overflow-wrap: anywhere" in TRIP_DETAIL_TEMPLATE
+    assert "flex-wrap: wrap" in TRIP_DETAIL_TEMPLATE
+    assert ".td-person-actions" in TRIP_DETAIL_TEMPLATE

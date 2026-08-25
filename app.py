@@ -478,6 +478,20 @@ def display_name_filter(user, current_user_id=None):
         return "Friend"
 
 
+def _trip_participant_display_sort_key(participant):
+    """Return a stable, display-name-based key for Trip Detail roster rows."""
+    user = getattr(participant, "user", None)
+    first = (getattr(user, "first_name", "") or "").strip()
+    last = (getattr(user, "last_name", "") or "").strip()
+    display_name = f"{first} {last}".strip()
+    return (
+        (display_name or "Friend").casefold(),
+        first.casefold(),
+        last.casefold(),
+        getattr(participant, "user_id", 0) or 0,
+    )
+
+
 def format_passes_display(pass_type):
     """
     Format a pass_type string for user-facing display.
@@ -13564,6 +13578,7 @@ def trip_detail(trip_id):
     going_participants = [
         p for p in participant_rows if p.status == GuestStatus.GOING
     ]
+    going_participants.sort(key=_trip_participant_display_sort_key)
     for _participant in going_participants:
         _participant.attendance_start_date, _participant.attendance_end_date = (
             effective_attendance_dates(trip, _participant)
@@ -13571,12 +13586,15 @@ def trip_detail(trip_id):
     interested_participants = [
         p for p in participant_rows if p.status == GuestStatus.INTERESTED
     ]
+    interested_participants.sort(key=_trip_participant_display_sort_key)
     pending_participants = [
         p for p in participant_rows if p.status == GuestStatus.PENDING
     ]
+    pending_participants.sort(key=_trip_participant_display_sort_key)
     declined_participants = [
         p for p in participant_rows if p.status == GuestStatus.DECLINED
     ]
+    declined_participants.sort(key=_trip_participant_display_sort_key)
     active_participants = [
         p for p in participant_rows if p.is_active
     ]
