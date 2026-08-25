@@ -213,6 +213,67 @@
             color: var(--bl-color-text-muted);
             margin: 0 0 8px;
         }
+        /* ── Friend trip overlap heads-up ── */
+        .td-overlap-headsup {
+            margin: 14px 0 8px;
+            padding: 14px 15px;
+            border: 1px solid #E5DFD0;
+            border-radius: 14px;
+            background: #FCFAF6;
+        }
+        .td-overlap-eyebrow {
+            margin: 0 0 8px;
+            color: #5C1219;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        .td-overlap-row {
+            display: block;
+            min-width: 0;
+            padding: 10px 0;
+            color: inherit;
+            text-decoration: none;
+            border-top: 1px solid #EAE4D8;
+        }
+        .td-overlap-row:first-of-type { border-top: 0; padding-top: 0; }
+        .td-overlap-row:last-child { padding-bottom: 0; }
+        .td-overlap-row--link:active { opacity: 0.68; }
+        .td-overlap-name,
+        .td-overlap-detail {
+            display: block;
+            overflow-wrap: anywhere;
+        }
+        .td-overlap-name {
+            color: #1A1A1A;
+            font-size: 14px;
+            font-weight: 650;
+            line-height: 1.35;
+        }
+        .td-overlap-detail {
+            margin-top: 2px;
+            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        .td-overlap-detail--emphasis {
+            color: #5C1219;
+            font-weight: 500;
+        }
+        .td-overlap-all {
+            margin-top: 4px;
+        }
+        .td-overlap-all > summary {
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            color: #5C1219;
+            font-size: 13px;
+            font-weight: 650;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-overlap-all[open] > summary { border-bottom: 1px solid #EAE4D8; }
         .td-header-dates {
             font-family: var(--bl-font-serif);
             font-size: 24px;
@@ -1821,6 +1882,40 @@
             {% endif %}
 
         </div>
+
+        {% if trip_friend_overlaps %}
+        {% macro trip_overlap_row(item) -%}
+            {% if item.friend_trip_linkable %}
+            <a class="td-overlap-row td-overlap-row--link" href="{{ url_for('friend_trip_details', trip_id=item.friend_trip_id) }}">
+            {% else %}
+            <div class="td-overlap-row">
+            {% endif %}
+                <span class="td-overlap-name">{{ item.friend_name }}{% if trip_friend_overlaps|length == 1 %} will also be at {{ mountain_name }} {{ item.friend_trip_dates }}.{% endif %}</span>
+                {% if trip_friend_overlaps|length > 1 %}
+                <span class="td-overlap-detail">At {{ mountain_name }} {{ item.friend_trip_dates }}</span>
+                {% endif %}
+                <span class="td-overlap-detail td-overlap-detail--emphasis">{% if trip_friend_overlaps|length == 1 %}Your trips overlap{% if item.overlap_start == item.overlap_end %} on {{ item.overlap_dates }}{% else %} {{ item.overlap_dates }}{% endif %}.{% else %}Overlap: {{ item.overlap_dates }}{% endif %}</span>
+            {% if item.friend_trip_linkable %}
+            </a>
+            {% else %}
+            </div>
+            {% endif %}
+        {%- endmacro %}
+        <section class="td-overlap-headsup" id="td-friend-trip-overlaps" aria-labelledby="td-overlap-heading">
+            <p class="td-overlap-eyebrow" id="td-overlap-heading">{% if trip_friend_overlaps|length == 1 %}Hey! Just so you know…{% else %}Friends at {{ mountain_name }} during your trip{% endif %}</p>
+            {% for item in trip_friend_overlaps[:3] %}
+                {{ trip_overlap_row(item) }}
+            {% endfor %}
+            {% if trip_friend_overlaps|length > 3 %}
+            <details class="td-overlap-all">
+                <summary>See all overlaps</summary>
+                {% for item in trip_friend_overlaps[3:] %}
+                    {{ trip_overlap_row(item) }}
+                {% endfor %}
+            </details>
+            {% endif %}
+        </section>
+        {% endif %}
 
         {% if attention_items %}
         <section class="td-hub-attention td-hub-section" aria-labelledby="td-attention-heading">
