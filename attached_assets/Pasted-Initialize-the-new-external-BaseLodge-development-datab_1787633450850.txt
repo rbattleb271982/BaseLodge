@@ -1,0 +1,94 @@
+Initialize the new external BaseLodge development database using the secret:
+BASELODGE_NEW_DEVELOPMENT_DATABASE_URL
+This is a controlled setup of the new BaseLodge Dev Supabase database only.
+Critical boundaries
+Do not change:
+BASELODGE_DEVELOPMENT_DATABASE_URL
+BASELODGE_MIGRATION_DATABASE_URL
+DATABASE_URL
+SUPABASE_DATABASE_URL
+Do not switch the running development app yet.
+Do not modify or delete the current Replit-managed development database.
+Do not touch production Supabase.
+Do not publish or redeploy.
+Do not restart production.
+Do not run legacy maintenance.
+Do not touch push tokens, OneSignal, APNs, or BL-77.
+1. Verify the new target
+Resolve BASELODGE_NEW_DEVELOPMENT_DATABASE_URL side-effect-free and report only a credential-safe identity.
+Verify:
+PostgreSQL target is reachable
+target identity differs from protected production
+target identity differs from the current Replit development DB
+target public schema is empty
+no alembic_version exists
+If any of those checks fail, STOP.
+2. Bootstrap schema
+Use the existing #311 guarded bootstrap tooling against only BASELODGE_NEW_DEVELOPMENT_DATABASE_URL.
+Temporarily map the one-shot bootstrap/migration target variables to that same URL for this operation only.
+Execute:
+BL-60 reviewed bootstrap
+stamp bl60_mtn_filter_edu
+standalone Alembic through:
+bl305_ski_day_foundation
+bl306_mpv_fk_reconcile
+bl317_startup_schema
+Do not import app.py.
+Do not use Flask startup for migration.
+Final revision must be exactly:
+bl317_startup_schema
+3. Verify schema
+Confirm:
+expected public tables exist
+SkiDay exists with correct FKs
+MountainPageView has the BL-306 FKs
+BL-317 schema/index objects exist
+no application data exists yet outside migration/version metadata
+4. Load canonical reference data
+Run #313 dry-run against the reviewed workbook.
+Require exactly:
+695 resorts
+245 resort/pass mappings
+212 mapped resorts
+483 resorts without major-pass mappings
+If any count differs, STOP.
+Then apply the reference data to the new BaseLodge Dev database only.
+Verify:
+resort rows = 695
+resort_pass rows = 245
+duplicate resort slugs = 0
+duplicate resort/pass mappings = 0
+orphan mappings = 0
+users = 0
+trips = 0
+SkiDays = 0
+push tokens = 0
+MountainPageViews = 0
+5. Prepare development user
+After schema and reference data pass, prepare #315 against the new BaseLodge Dev DB using:
+Richard
+Battle-Baxter
+richard@example.test
+Skier
+no_pass_yet
+Advanced
+Colorado
+Do not copy the existing development password hash.
+If secure getpass requires interactive Shell input, STOP and give me the exact one-line command with the new DB secret mapped ephemerally.
+6. Stop point
+Do not switch BaseLodge development over yet.
+Do not remove Replit Database yet.
+Do not approve Publish.
+Report:
+credential-safe new DB identity
+final Alembic revision
+schema verification
+resort/reference counts
+development-user creation status
+confirmation current Replit dev DB unchanged
+confirmation production untouched
+exact next cutover step
+End with exactly:
+EXTERNAL DEVELOPMENT DATABASE READY — SAFE FOR CONTROLLED DEVELOPMENT CUTOVER
+or
+EXTERNAL DEVELOPMENT DATABASE SETUP BLOCKED: [reason]
