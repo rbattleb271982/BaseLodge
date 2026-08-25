@@ -1,0 +1,130 @@
+BL-50 / #325 — Let Going Guests Set Their Actual Attendance Dates
+Implement BL-50 — Persist and validate participant-specific trip dates, using the BL-49 investigation and approved product decisions.
+Goal
+Allow a Going guest on a shared trip to set the dates they will actually attend within the organizer’s core trip dates.
+Do not create separate trips for participant date differences.
+Approved product rules
+Only Going guests may set participant-specific attendance dates.
+Interested, Pending, Declined, and Removed guests may not set or retain attendance dates.
+The organizer’s own attendance continues to be represented by the trip’s core dates.
+A participant may edit only their own attendance dates.
+The organizer may not edit another guest’s participant-specific dates.
+One contiguous inclusive range per participant per shared trip.
+Both participant dates null = Full trip.
+Participant dates must remain within the organizer’s core trip dates.
+Same-day attendance is allowed.
+For in-progress trips, Going guests may still edit their attendance dates, including dates earlier in the trip that have already passed, as long as the range remains within the trip’s core dates.
+Organizer core-date changes
+If the organizer tries to change the trip’s core dates in a way that would make any existing participant-specific attendance range invalid:
+Block the organizer’s date change.
+Do not clamp, clear, or rewrite the guest’s attendance dates automatically.
+Return a clear validation message explaining that one or more participant attendance ranges would fall outside the proposed new trip dates.
+Persistence
+Reuse the existing nullable:
+SkiTripParticipant.start_date
+SkiTripParticipant.end_date
+Do not add a new table or redesign the schema unless the current code makes that unavoidable.
+Normalize existing participant creation behavior so a guest with no explicit attendance override uses:
+start_date = NULL
+end_date = NULL
+rather than unnecessarily copying the organizer’s full trip dates.
+This includes reconciling the current join-request path that materializes the parent range.
+API / permissions
+Add the smallest focused current-user endpoint needed for attendance-date updates.
+It must:
+require authenticated membership on the trip;
+require guest Going status;
+allow changing only the caller’s own participant row;
+accept either:
+a complete valid start_date + end_date, or
+an explicit clear/full-trip action that sets both to null;
+reject partial pairs;
+reject malformed dates;
+reject reversed ranges;
+reject dates outside the organizer’s trip range.
+Preserve existing RSVP and participant authorization behavior.
+Minimal Trip Detail UI
+For a Going guest, add a compact My dates control on Trip Detail.
+Behavior:
+No participant override → display Full trip
+Override present → display the participant’s actual date range
+Tapping/editing opens a simple date-selection surface bounded by the organizer’s trip dates
+Include an explicit Full trip action that clears both participant dates
+Do not redesign Trip Detail broadly.
+Do not add this control for Interested, Pending, Declined, Removed, or organizer rows.
+RSVP transitions
+If a participant moves from Going to a state that is not eligible for attendance dates, clear both participant date fields so stale attendance overrides cannot remain.
+Preserve existing RSVP semantics otherwise.
+Validation for organizer date edits
+Before committing a core trip date change, verify that every complete participant override would still fit inside the proposed new core range.
+If any would not fit:
+reject the organizer update;
+leave the trip and participant dates unchanged;
+return/display a clear validation message.
+Do not implement BL-51 yet
+BL-50 establishes the source of truth only.
+Do not broadly update:
+My Trips
+Home/Happening/Ideas
+Mountain Detail current-intent display
+overlap calculations
+availability activities
+feed copy
+organizer-facing People date labels
+Those downstream consistency changes belong to BL-51 / #326.
+Preserve Mountain Detail’s existing participant-date-aware availability behavior.
+Tests
+Add focused coverage for at minimum:
+Going guest sets a valid subrange
+Going guest sets same-day attendance
+Going guest selects full organizer range
+Full trip action clears both fields
+null/null means full trip
+partial date pair rejected
+malformed dates rejected
+reversed dates rejected
+start before organizer start rejected
+end after organizer end rejected
+Interested guest rejected
+Pending guest rejected
+Declined guest rejected
+Removed guest rejected
+organizer cannot create a participant override for self
+guest cannot edit another guest’s dates
+organizer cannot edit another guest’s dates
+Going → non-Going transition clears stored attendance dates
+organizer core-date change succeeds when all overrides still fit
+organizer core-date change is blocked when an override would fall outside the new range
+blocked organizer edit leaves all dates unchanged
+direct-invite and join-request participant creation both default to null/null rather than materialized full-range copies
+in-progress trip attendance edits are permitted when still inside the core range
+existing Mountain Detail participant-date-aware behavior remains green
+Run focused BL-50 tests and the full isolated regression suite.
+Development verification
+Restart only the development Flask workflow.
+Verify against BaseLodge Dev:
+Going guest sees My dates
+Full trip state
+valid subrange save
+clear back to Full trip
+unauthorized RSVP states cannot edit
+organizer core-date conflict is blocked
+Review development logs for errors.
+Hard boundaries
+Do not:
+implement BL-51;
+redesign Trip Detail beyond the minimal My dates control;
+change unrelated RSVP behavior;
+touch production;
+publish/deploy;
+run production migrations;
+change database configuration;
+touch push/OneSignal/APNs.
+Commit
+If implementation and verification pass, commit with:
+BL-50:
+Do not include unrelated changes.
+End with exactly:
+BL-50 READY FOR PRODUCTION PUBLISH
+or
+BL-50 BLOCKED: [reason]
