@@ -1,0 +1,125 @@
+Perform the production rollout review and controlled rollout for Task #317 — Make routine app startup database read-only.
+Task #317 has already been implemented, tested, and committed:
+Commit: 62bf1dde13b2a7b20fd2f606fd86cf017dbe230b
+Message: #317: Make routine app startup database read-only
+Production has now successfully completed the prerequisite:
+bl305_ski_day_foundation → bl306_mpv_fk_reconcile
+Production is currently exactly at:
+bl306_mpv_fk_reconcile
+Goal
+Safely advance production through the #317 schema prerequisite and then verify that the deployed BaseLodge application can start normally without performing persistent database migrations, schema changes, historical backfills, push-token maintenance, or other legacy startup DML.
+Phase 1 — Read-only production preflight
+Before changing anything, verify:
+Production DB identity matches BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH.
+Alembic revision is exactly bl306_mpv_fk_reconcile.
+bl317_startup_schema directly descends from BL-306.
+Alembic has a single expected head: bl317_startup_schema.
+The #317 migration contains only the schema/index behavior approved by #317 and no historical maintenance DML.
+MountainPageView remains:
+48 rows
+0 resort orphans
+0 non-null user orphans
+correct CASCADE/SET NULL FKs
+SkiDay remains structurally intact.
+A current production recovery point/backup is available.
+If any prerequisite differs, STOP before writing anything.
+Phase 2 — Apply BL-317 schema migration
+Run a standalone Alembic migration explicitly to:
+bl317_startup_schema
+Do not use application startup to migrate.
+Do not import app.py.
+Use:
+BASELODGE_RUNTIME_ENV=production
+BASELODGE_MIGRATION_MODE=1
+explicit verified production migration target
+protected production identity verification
+singleton migration locking
+Target bl317_startup_schema explicitly rather than relying on upgrade head.
+Phase 3 — Post-migration database verification
+Before restarting/redeploying anything, verify:
+Alembic revision = bl317_startup_schema
+every schema/index object owned by BL-317 exists as expected
+MountainPageView remains at 48 rows with zero orphans
+its two BL-306 FKs remain correct
+SkiDay remains intact
+no historical maintenance DML occurred
+no push-token state changed
+no unrelated application data changed
+If database verification fails, STOP before application rollout.
+Phase 4 — Production application rollout
+Determine whether the currently deployed production code already contains commit 62bf1dde....
+If it does not, deploy the reviewed #317 code using the normal existing BaseLodge production deployment mechanism.
+Do not introduce unrelated commits or changes.
+The production application should now use the #317 behavior:
+no startup schema migrations
+no startup backfills
+no startup cleanup DML
+no startup push-token mutation
+no db.create_all()
+no automatic Alembic execution
+Preserve legitimate runtime behavior such as read-only diagnostics, cache/service initialization, and request-time last_active_at.
+Phase 5 — Production startup verification
+After rollout, verify the production application starts successfully.
+Inspect startup logs specifically for evidence that the retired legacy routines did not execute.
+Verify normal startup performs no persistent:
+CREATE
+ALTER
+DROP
+INSERT
+UPDATE
+DELETE
+from the retired startup-maintenance path.
+Also verify:
+no push-token maintenance occurred
+no OneSignal/APNs calls occurred merely because the app started
+no migration ran during application startup
+no legacy migration/backfill messages appear
+Phase 6 — Basic live smoke test
+Perform only non-destructive verification that does not require production credentials:
+/auth responds successfully
+unauthenticated protected routes redirect appropriately
+no new application/server errors appear
+no missing-table/schema errors occur
+Do not create users or modify production user data for testing.
+BL-77
+Do not resume or implement BL-77 yet.
+Once #317 is successfully deployed, report whether the infrastructure prerequisites for revisiting BL-77 are now satisfied.
+We will separately review the final FK graph and account-deletion behavior before BL-77 resumes.
+Push/maintenance restrictions
+Do not execute scripts/run_legacy_maintenance.py.
+Do not:
+deactivate push tokens
+change APNs environment
+change notification preferences
+change OneSignal IDs
+invoke OneSignal/APNs
+#317 is about removing those operations from startup, not running them now.
+Safety
+If implementation/deployment requires a code change beyond the already-reviewed #317 commit, STOP and report why.
+Do not opportunistically fix unrelated issues.
+Return
+Report:
+production identity preflight
+recovery/backup confirmation
+starting Alembic revision
+BL-317 migration review
+exact migration command used with credentials redacted
+final Alembic revision
+BL-317 schema verification
+MountainPageView verification
+SkiDay verification
+confirmation no maintenance DML ran
+confirmation push-token state was untouched
+whether #317 code required deployment
+deployment/restart result
+production startup-log verification
+/auth smoke-test result
+any production errors
+confirmation OneSignal/APNs were untouched
+whether #317 is now fully rolled out
+whether the infrastructure prerequisite for BL-77 review is now satisfied
+BL-77 remains unmodified
+End with exactly one:
+#317 PRODUCTION ROLLOUT COMPLETE — READY FOR BL-77 SAFETY REVIEW
+or
+#317 PRODUCTION ROLLOUT BLOCKED: [reason]
