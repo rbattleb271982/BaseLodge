@@ -1,0 +1,135 @@
+BL-49 — Investigate Participant-Specific Dates for Shared Trips
+Investigate BL-49 — Add participant-specific dates to shared trips.
+Important task identity
+BL-49 is an umbrella/reference product task.
+Do not implement BL-49 directly.
+The approved implementation is already decomposed into:
+BL-50 — Persist and validate participant-specific trip dates
+BL-51 — Propagate participant-specific dates across BaseLodge
+This investigation should validate the BL-49 product model against the current codebase and identify any product decisions that need to be resolved before BL-50 begins.
+Approved BL-49 product model
+One shared trip retains the organizer’s core start/end dates.
+A participant who is Going can store the dates they will actually be there within the organizer’s core trip dates.
+Participant date differences must not create separate trips.
+Once participant-specific dates exist, those dates should eventually become the source used anywhere BaseLodge represents that participant’s actual presence.
+Investigation
+Trace the current codebase and report:
+1. Existing participant date model
+Confirm whether SkiTripParticipant already has participant-level start_date / end_date or equivalent fields.
+Show their current nullability, types, defaults, and relationships.
+Identify whether anything currently writes to them.
+Identify whether anything currently reads them.
+Determine whether they are active product behavior, dormant capability, or partially implemented.
+2. Current shared-trip model
+Trace how:
+organizer/core trip dates are stored;
+organizer participation is represented;
+invited users become Pending / Interested / Going / Declined;
+active participants are distinguished from pending invitees;
+participant removal works.
+Identify exactly which RSVP states should logically be allowed to have participant-specific attendance dates under the existing system.
+3. Permissions
+Determine who can currently modify a participant row and through which routes/APIs.
+Assess the intended BL-49 permission model:
+Can a Going participant edit only their own attendance dates?
+Can the trip creator also edit someone else’s dates?
+What happens if the creator changes the trip’s core dates?
+What happens if a participant changes from Going to Interested/Declined?
+What happens if a participant is removed?
+Do not decide these silently; identify what current behavior supports and what requires a product decision.
+4. Date validation
+Determine the safest rules for participant dates given the existing model.
+Investigate:
+participant start before organizer start;
+participant end after organizer end;
+end before start;
+single-day attendance;
+participant selecting the organizer’s full range;
+organizer subsequently shortening or moving the trip;
+past dates;
+existing trip multi-range behavior.
+The current BL-49 product intent is that participant attendance dates live within the organizer’s core dates.
+Confirm whether that is compatible with the current schema and validation architecture.
+5. Multi-range clarification
+BL-48 established that standard “multi-range” creation currently creates multiple independent SkiTrip records, not discontinuous ranges on one trip.
+Determine exactly what that means for BL-49.
+Confirm whether participant-specific dates should remain one contiguous start_date / end_date range per shared SkiTrip record.
+Do not redesign multi-range trips or introduce a participant-range child model unless the current architecture makes the approved BL-49 model impossible.
+6. Current UI opportunities
+Identify where a Going participant would most naturally set/edit their dates using the current product:
+Trip Detail;
+RSVP interaction;
+People section;
+invitation acceptance;
+another existing surface.
+Show the current relevant UI and recommend the smallest, most understandable interaction.
+Do not implement it.
+7. Organizer experience
+Determine how participant-specific dates could eventually be visible to the organizer.
+For example, whether the People section could show:
+Richard · Going · Jan 12–14
+rather than simply:
+Richard · Going
+Identify what already exists versus what belongs later in BL-52/other Trip Detail work.
+8. Downstream consumer audit
+Inventory every meaningful current feature that assumes a Going participant is present for the organizer’s entire trip.
+At minimum inspect:
+Trips/My Trips;
+Profile;
+Home/Happening/Ideas;
+Mountain Detail;
+friend availability;
+trip overlap calculations;
+participant overlap calculations;
+invitations;
+notifications;
+attendance helpers;
+activity generation;
+group signals;
+any trip intelligence.
+Categorize each consumer as:
+already participant-date aware;
+organizer-date only and must be changed in BL-51;
+not affected.
+9. Existing implementation evidence
+Search for any partial/dormant participant-specific date implementation already in the codebase.
+Identify:
+existing helpers;
+model methods;
+APIs;
+template fragments;
+tests;
+comments/TODOs.
+We want to avoid rebuilding something that already exists.
+10. BL-50 boundary
+Based on the investigation, define the smallest safe persistence/validation slice for BL-50.
+BL-50 should ideally establish:
+persistence;
+permissions;
+validation;
+a minimal way for the participant to set/edit their dates;
+focused tests.
+It should not need to update every downstream BaseLodge surface; that belongs to BL-51.
+State precisely where you recommend drawing that boundary.
+11. BL-51 boundary
+Define what should explicitly remain for BL-51 — Propagate participant-specific dates across BaseLodge.
+Provide a checklist of downstream consumers that BL-51 will need to reconcile once BL-50 provides a reliable source of truth.
+12. Product decisions needed
+End the investigation by identifying only the decisions that genuinely need product input before BL-50 can be safely implemented.
+Do not manufacture questions where existing BaseLodge behavior already provides an obvious answer.
+Hard boundaries
+Investigation only.
+Do not:
+modify code or tests;
+create migrations;
+modify development data;
+modify production;
+Publish/deploy;
+change database configuration;
+touch push/OneSignal/APNs;
+implement BL-50 or BL-51 yet.
+Base the report on the current codebase, not assumptions from the Notion task.
+End with exactly:
+BL-49 INVESTIGATION COMPLETE — READY FOR PRODUCT DECISIONS
+or
+BL-49 INVESTIGATION BLOCKED: [reason]
