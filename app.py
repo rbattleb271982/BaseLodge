@@ -3512,7 +3512,7 @@ def group_resorts_for_display(resorts):
     
     return sorted_groups
 
-def format_trip_dates(trip):
+def format_trip_dates(trip, start_date=None, end_date=None):
     """
     Simplified trip date display logic.
     
@@ -3527,10 +3527,11 @@ def format_trip_dates(trip):
         if not trip:
             return ""
         
-        # Attendance-specific presentation callers attach these transient fields.
-        # Core-trip callers never do, so organizer/planning dates stay unchanged.
-        start = getattr(trip, 'attendance_start_date', None) or getattr(trip, 'start_date', None)
-        end = getattr(trip, 'attendance_end_date', None) or getattr(trip, 'end_date', None)
+        # Attendance-specific presentation callers may provide an explicit
+        # effective range or attach transient fields. Core-trip callers do
+        # neither, so organizer/planning dates stay unchanged.
+        start = start_date or getattr(trip, 'attendance_start_date', None) or getattr(trip, 'start_date', None)
+        end = end_date or getattr(trip, 'attendance_end_date', None) or getattr(trip, 'end_date', None)
         
         if start and hasattr(start, 'date'):
             start = start.date()
@@ -4837,6 +4838,7 @@ def my_trips():
     # Friends' upcoming trips (wrapped for production safety)
     _t = time.perf_counter()
     friend_trips = []
+    friend_going_participations = []
     try:
         if friend_ids:
             friend_trips = SkiTrip.query.options(
@@ -4846,8 +4848,29 @@ def my_trips():
                 SkiTrip.end_date >= today,
                 SkiTrip.is_public == True
             ).order_by(SkiTrip.start_date.asc()).all() or []
+            # The Friends' Trips list is a person-presence surface. Include
+            # direct friends who are Going guests on another direct friend's
+            # public shared trip, carrying their participant row so the row
+            # can use the canonical effective attendance window.
+            friend_going_participations = (
+                SkiTripParticipant.query
+                .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+                .options(
+                    db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort)
+                )
+                .filter(
+                    SkiTripParticipant.user_id.in_(friend_ids),
+                    SkiTripParticipant.status == GuestStatus.GOING,
+                    SkiTripParticipant.user_id != SkiTrip.user_id,
+                    SkiTrip.user_id.in_(friend_ids),
+                    SkiTrip.is_public == True,
+                    SkiTrip.end_date >= today,
+                )
+                .all()
+            )
     except Exception:
         friend_trips = []
+        friend_going_participations = []
     if app.debug:
         print(f"[ROUTE_PERF] my_trips.friend_trips={time.perf_counter()-_t:.4f}s count={len(friend_trips)}")
 
@@ -4858,33 +4881,54 @@ def my_trips():
     try:
         from collections import OrderedDict as _ODt_mt, defaultdict as _dd_mt
         _friend_map_mt = {f.id: f for f in friends}
+        _friend_trip_entries_mt = [
+            (trip, None, trip.user_id) for trip in friend_trips
+        ]
+        for _participation in friend_going_participations:
+            _trip = _participation.trip
+            if not _trip:
+                continue
+            _attendance_start, _attendance_end = effective_attendance_dates(
+                _trip, _participation
+            )
+            if _attendance_end and _attendance_end >= today:
+                _friend_trip_entries_mt.append(
+                    (_trip, _participation, _participation.user_id)
+                )
         _raw_rows_mt = []
-        for _trip in friend_trips:
-            _owner = _friend_map_mt.get(_trip.user_id)
-            if not _owner:
+        for _trip, _attendance_participant, _friend_id in _friend_trip_entries_mt:
+            _friend = _friend_map_mt.get(_friend_id)
+            if not _friend:
                 continue
             _dest = _trip.resort.name if _trip.resort else (_trip.mountain or 'TBD')
             _status = _trip.trip_status or 'planning'
             _is_new = bool(_trip.created_at and _trip.created_at >= seven_days_ago_mt)
-            _fmt_date = format_trip_dates(_trip)
-            if _trip.start_date:
-                _mkey = _trip.start_date.strftime('%Y-%m')
-                _mlabel = _trip.start_date.strftime('%B %Y')
+            _attendance_start, _attendance_end = effective_attendance_dates(
+                _trip, _attendance_participant
+            )
+            _fmt_date = format_trip_dates(
+                _trip,
+                start_date=_attendance_start,
+                end_date=_attendance_end,
+            )
+            if _attendance_start:
+                _mkey = _attendance_start.strftime('%Y-%m')
+                _mlabel = _attendance_start.strftime('%B %Y')
             else:
                 _mkey = '9999-99'
                 _mlabel = 'Dates TBD'
             _raw_rows_mt.append({
                 'destination': _dest,
-                'friend_name': f"{_owner.first_name or ''} {_owner.last_name or ''}".strip() or 'Friend',
-                'friend_id': _owner.id,
+                'friend_name': f"{_friend.first_name or ''} {_friend.last_name or ''}".strip() or 'Friend',
+                'friend_id': _friend.id,
                 'status': _status,
                 'is_new': _is_new,
                 'formatted_date': _fmt_date,
                 'month_key': _mkey,
                 'month_label': _mlabel,
                 'trip_id': _trip.id,
-                'trip_start': _trip.start_date,
-                'trip_end': _trip.end_date,
+                'trip_start': _attendance_start,
+                'trip_end': _attendance_end,
             })
         _tab_groups_mt = _dd_mt(list)
         for _row in _raw_rows_mt:
@@ -10458,32 +10502,99 @@ def build_trip_overlap_today_card(user, today, friend_ids):
     if not friend_ids:
         return None
 
-    # Find user's active trip(s) today
-    user_active = SkiTrip.query.filter(
+    # Owned trips always use their core dates. Going guests need their
+    # participant row evaluated with the canonical effective-date helper.
+    user_active_contexts = [
+        (trip, None)
+        for trip in SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
         SkiTrip.resort_id.isnot(None),
         SkiTrip.start_date <= today,
         SkiTrip.end_date >= today,
-    ).order_by(SkiTrip.start_date.asc()).first()
-
-    if not user_active:
+        ).order_by(SkiTrip.start_date.asc()).all()
+    ]
+    user_going_participations = (
+        SkiTripParticipant.query
+        .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == GuestStatus.GOING,
+            SkiTripParticipant.user_id != SkiTrip.user_id,
+            SkiTrip.resort_id.isnot(None),
+            # This is only a SQL superset. The effective window below is the
+            # deciding physical-presence check.
+            SkiTrip.start_date <= today,
+            SkiTrip.end_date >= today,
+        )
+        .all()
+    )
+    user_active_contexts.extend(
+        (participation.trip, participation)
+        for participation in user_going_participations
+        if participation.trip
+    )
+    user_active_contexts = [
+        (trip, participation)
+        for trip, participation in user_active_contexts
+        if (
+            effective_attendance_dates(trip, participation)[0] <= today
+            and effective_attendance_dates(trip, participation)[1] >= today
+        )
+    ]
+    if not user_active_contexts:
         return None
 
+    user_active, _user_participation = min(
+        user_active_contexts,
+        key=lambda context: effective_attendance_dates(*context)[0],
+    )
     resort_id = user_active.resort_id
 
     # Find friends who are ALSO at the same resort today
-    friend_trips_today = SkiTrip.query.filter(
+    friend_trip_contexts = [
+        (trip, None, trip.user_id)
+        for trip in SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
         SkiTrip.resort_id == resort_id,
         SkiTrip.start_date <= today,
         SkiTrip.end_date >= today,
-    ).all()
-
-    if not friend_trips_today:
+        ).all()
+    ]
+    friend_going_participations = (
+        SkiTripParticipant.query
+        .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id.in_(friend_ids),
+            SkiTripParticipant.status == GuestStatus.GOING,
+            SkiTripParticipant.user_id != SkiTrip.user_id,
+            SkiTrip.resort_id == resort_id,
+            # Do not disclose a friend's attendance on a private shared trip.
+            SkiTrip.is_public == True,
+            # This is only a SQL superset. The effective window below is the
+            # deciding physical-presence check.
+            SkiTrip.start_date <= today,
+            SkiTrip.end_date >= today,
+        )
+        .all()
+    )
+    friend_trip_contexts.extend(
+        (participation.trip, participation, participation.user_id)
+        for participation in friend_going_participations
+        if participation.trip
+    )
+    qualifying_friend_ids = {
+        attendee_id
+        for trip, participation, attendee_id in friend_trip_contexts
+        if (
+            effective_attendance_dates(trip, participation)[0] <= today
+            and effective_attendance_dates(trip, participation)[1] >= today
+        )
+    }
+    if not qualifying_friend_ids:
         return None
 
     # Distinct qualifying friend IDs
-    qualifying_friend_ids = list({t.user_id for t in friend_trips_today})
+    qualifying_friend_ids = list(qualifying_friend_ids)
     friend_count = len(qualifying_friend_ids)
 
     # Check dismissal scoped to user + mountain + date
@@ -10538,16 +10649,47 @@ def build_friend_at_mountain_card(user, today, friend_ids):
     # AND where at least one friend has a past trip to that resort
     target_trip = None
     target_resort_id = None
-    past_friend_trips = []
-    for trip in SkiTrip.query.filter(
+    target_trip_contexts = [
+        (trip, None)
+        for trip in SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
         SkiTrip.resort_id.isnot(None),
         SkiTrip.start_date >= today
-    ).order_by(SkiTrip.start_date.asc()).all():
+        ).order_by(SkiTrip.start_date.asc()).all()
+    ]
+    user_going_participations = (
+        SkiTripParticipant.query
+        .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id == user.id,
+            SkiTripParticipant.status == GuestStatus.GOING,
+            SkiTripParticipant.user_id != SkiTrip.user_id,
+            SkiTrip.resort_id.isnot(None),
+            SkiTrip.end_date >= today,
+        )
+        .all()
+    )
+    target_trip_contexts.extend(
+        (participation.trip, participation)
+        for participation in user_going_participations
+        if participation.trip
+    )
+    target_trip_contexts = sorted(
+        (
+            (trip, participation)
+            for trip, participation in target_trip_contexts
+            if effective_attendance_dates(trip, participation)[0] >= today
+        ),
+        key=lambda context: effective_attendance_dates(*context)[0],
+    )
+    past_friend_trip_contexts = []
+    for trip, _participation in target_trip_contexts:
         if trip.resort_id not in wishlist_set:
             continue
-        candidate_trips = (
-            SkiTrip.query
+        candidate_contexts = [
+            (candidate, None, candidate.user_id)
+            for candidate in (
+                SkiTrip.query
             .filter(
                 SkiTrip.user_id.in_(friend_ids),
                 SkiTrip.resort_id == trip.resort_id,
@@ -10555,22 +10697,50 @@ def build_friend_at_mountain_card(user, today, friend_ids):
             )
             .order_by(SkiTrip.end_date.desc())
             .all()
+            )
+        ]
+        friend_going_participations = (
+            SkiTripParticipant.query
+            .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+            .filter(
+                SkiTripParticipant.user_id.in_(friend_ids),
+                SkiTripParticipant.status == GuestStatus.GOING,
+                SkiTripParticipant.user_id != SkiTrip.user_id,
+                SkiTrip.resort_id == trip.resort_id,
+                # Do not disclose a friend's attendance on a private shared trip.
+                SkiTrip.is_public == True,
+                # A guest may be personally past while the shared trip has
+                # not ended, so raw core end dates cannot be the decision.
+                SkiTrip.start_date <= today,
+            )
+            .all()
         )
-        if candidate_trips:
+        candidate_contexts.extend(
+            (participation.trip, participation, participation.user_id)
+            for participation in friend_going_participations
+            if participation.trip
+        )
+        past_friend_trip_contexts = [
+            (candidate, participation, attendee_id)
+            for candidate, participation, attendee_id in candidate_contexts
+            if effective_attendance_dates(candidate, participation)[1] < today
+        ]
+        if past_friend_trip_contexts:
             target_trip = trip
             target_resort_id = trip.resort_id
-            past_friend_trips = candidate_trips
             break
 
-    if not target_trip or not past_friend_trips:
+    if not target_trip or not past_friend_trip_contexts:
         return None
 
     # Build a ranked list: most recent trip → earliest friendship → alphabetical name
-    # Collect best trip per friend (already sorted by desc end_date)
+    # Collect each friend's most-recent effective attendance window.
     seen_friends = {}
-    for pt in past_friend_trips:
-        if pt.user_id not in seen_friends:
-            seen_friends[pt.user_id] = pt  # most recent trip
+    for pt, participation, attendee_id in past_friend_trip_contexts:
+        effective_end = effective_attendance_dates(pt, participation)[1]
+        current_best = seen_friends.get(attendee_id)
+        if current_best is None or effective_end > current_best[1]:
+            seen_friends[attendee_id] = (pt, effective_end)
 
     # Load friend records for tie-breaking
     friend_rows = {
@@ -10588,11 +10758,11 @@ def build_friend_at_mountain_card(user, today, friend_ids):
     }
 
     def sort_key(fid):
-        trip = seen_friends[fid]
+        trip, effective_end = seen_friends[fid]
         fu = friend_users.get(fid)
         fr = friend_rows.get(fid)
         # 1. Most recent past trip (negate date for descending)
-        recency = -(trip.end_date.toordinal()) if trip.end_date else 0
+        recency = -(effective_end.toordinal()) if effective_end else 0
         # 2. Earliest friendship record
         friendship_age = fr.created_at.toordinal() if fr and fr.created_at else 999999999
         # 3. Alphabetical by full name
@@ -11398,18 +11568,38 @@ def friend_trip_details(trip_id):
     if trip.user_id != current_user.id and not trip.is_public:
         abort(404)
 
-    # Calculate overlapping days with current user's trips at the same resort
-    your_trips = SkiTrip.query.filter_by(user_id=current_user.id).all()
+    # Calculate overlapping days with current user's trips at the same resort.
+    # Owned trips use core dates; Going guest trips carry their participant row
+    # so individual physical-presence claims use effective attendance dates.
+    your_trip_contexts = [
+        (user_trip, None)
+        for user_trip in SkiTrip.query.filter_by(user_id=current_user.id).all()
+    ]
+    your_going_participations = (
+        SkiTripParticipant.query
+        .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id == current_user.id,
+            SkiTripParticipant.status == GuestStatus.GOING,
+            SkiTripParticipant.user_id != SkiTrip.user_id,
+        )
+        .all()
+    )
+    your_trip_contexts.extend(
+        (participation.trip, participation)
+        for participation in your_going_participations
+        if participation.trip
+    )
     
     # Filter for same mountain/resort
     # Note: Resort ID is preferred if both trips have it, otherwise fallback to mountain string
     matching_trips = []
-    for yt in your_trips:
+    for yt, _attendance_participant in your_trip_contexts:
         if trip.resort_id and yt.resort_id:
             if trip.resort_id == yt.resort_id:
-                matching_trips.append(yt)
+                matching_trips.append((yt, _attendance_participant))
         elif yt.mountain == trip.mountain:
-            matching_trips.append(yt)
+            matching_trips.append((yt, _attendance_participant))
 
     def overlapping_days(a_start, a_end, b_start, b_end):
         latest_start = max(a_start, b_start)
@@ -11420,12 +11610,16 @@ def friend_trip_details(trip_id):
     your_overlap_days = 0
     your_overlap_ranges = []
 
-    for yt in matching_trips:
+    trip_start, trip_end = effective_attendance_dates(trip)
+    for yt, _attendance_participant in matching_trips:
+        your_start, your_end = effective_attendance_dates(
+            yt, _attendance_participant
+        )
         days = overlapping_days(
-            trip.start_date,
-            trip.end_date,
-            yt.start_date,
-            yt.end_date
+            trip_start,
+            trip_end,
+            your_start,
+            your_end,
         )
         if days > 0:
             your_overlap_days += days
@@ -13457,86 +13651,43 @@ def trip_detail(trip_id):
             trip_id=trip_id, user_id=current_user.id, role=ParticipantRole.OWNER
         ).first()
     
-    # Calculate participant overlaps (for "You and X overlap for Y days" display)
+    # Calculate physical-presence overlaps between the current member and
+    # other Going participants. Shared-trip dates remain the organizer's
+    # planning window; each guest uses the canonical effective date range.
     _t = time.perf_counter()
     participant_overlaps = []
     today = date.today()
-    if trip.start_date and trip.end_date and (is_owner or is_guest):
-        trip_dates = set()
-        d = trip.start_date
-        while d <= trip.end_date:
-            trip_dates.add(d)
-            d += timedelta(days=1)
-        
-        # Get other participants' confirmed trips at the same resort during the same period
-        other_user_ids = [p.user_id for p in all_participants if p.user_id != current_user.id]
-        if other_user_ids:
-            # Batch-load all participant users before loop — avoids N+1 (1 query replaces N).
+    viewer_start, viewer_end = effective_attendance_dates(
+        trip, current_user_participant
+    )
+    if (
+        viewer_start and viewer_end
+        and viewer_end >= today
+        and (is_owner or is_guest)
+    ):
+        other_going_participants = [
+            p for p in going_participants if p.user_id != current_user.id
+        ]
+        if other_going_participants:
             _participant_users_map = {
-                u.id: u for u in User.query.filter(User.id.in_(other_user_ids)).all()
+                u.id: u for u in User.query.filter(
+                    User.id.in_([p.user_id for p in other_going_participants])
+                ).all()
             }
-            # Batch-load ALL overlapping trips for all participants in one query —
-            # replaces the previous 1-query-per-participant N+1 pattern.
-            # Preserves the same resort_id / mountain fallback matching logic.
-            if trip.resort_id and trip.mountain:
-                _all_other_trips = SkiTrip.query.filter(
-                    SkiTrip.user_id.in_(other_user_ids),
-                    db.or_(
-                        SkiTrip.resort_id == trip.resort_id,
-                        db.and_(
-                            SkiTrip.resort_id.is_(None),
-                            SkiTrip.mountain == trip.mountain
-                        )
-                    ),
-                    SkiTrip.start_date <= trip.end_date,
-                    SkiTrip.end_date >= trip.start_date,
-                    SkiTrip.end_date >= today
-                ).all()
-            elif trip.resort_id:
-                _all_other_trips = SkiTrip.query.filter(
-                    SkiTrip.user_id.in_(other_user_ids),
-                    SkiTrip.resort_id == trip.resort_id,
-                    SkiTrip.start_date <= trip.end_date,
-                    SkiTrip.end_date >= trip.start_date,
-                    SkiTrip.end_date >= today
-                ).all()
-            elif trip.mountain:
-                _all_other_trips = SkiTrip.query.filter(
-                    SkiTrip.user_id.in_(other_user_ids),
-                    SkiTrip.mountain == trip.mountain,
-                    SkiTrip.start_date <= trip.end_date,
-                    SkiTrip.end_date >= trip.start_date,
-                    SkiTrip.end_date >= today
-                ).all()
-            else:
-                _all_other_trips = []
-
-            # Group trips by owner user_id for per-participant overlap calculation
-            _other_trips_by_user: dict = {}
-            for _ot in _all_other_trips:
-                _other_trips_by_user.setdefault(_ot.user_id, []).append(_ot)
-
-            for user_id in other_user_ids:
-                other_user = _participant_users_map.get(user_id)
-                if not other_user:
+            for _participant in other_going_participants:
+                other_start, other_end = effective_attendance_dates(
+                    trip, _participant
+                )
+                if not other_start or not other_end or other_end < today:
                     continue
-
-                other_trips = _other_trips_by_user.get(user_id, [])
-                if other_trips:
-                    # Calculate overlap days using a SET to avoid double-counting
-                    overlap_day_set = set()
-                    for ot in other_trips:
-                        if ot.start_date and ot.end_date:
-                            ot_d = ot.start_date
-                            while ot_d <= ot.end_date:
-                                if ot_d in trip_dates:
-                                    overlap_day_set.add(ot_d)
-                                ot_d += timedelta(days=1)
-
-                    if overlap_day_set:
+                overlap_start = max(viewer_start, other_start)
+                overlap_end = min(viewer_end, other_end)
+                if overlap_start <= overlap_end:
+                    other_user = _participant_users_map.get(_participant.user_id)
+                    if other_user:
                         participant_overlaps.append({
                             'name': other_user.first_name,
-                            'days': len(overlap_day_set)
+                            'days': (overlap_end - overlap_start).days + 1,
                         })
     
     if app.debug:
