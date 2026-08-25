@@ -18,8 +18,8 @@ jobs:
           TASK_ID=$(printf '%s' "$COMMIT_MESSAGE" | grep -oE 'BL-[0-9]+' | head -1 || true)
 
           if [ -z "$TASK_ID" ]; then
-            echo "ERROR: No BL task ID found in commit message."
-            exit 1
+            echo "No BL task ID found; skipping Notion sync."
+            echo "found=false" >> "$GITHUB_OUTPUT"
           else
             echo "Found task: $TASK_ID"
             echo "found=true" >> "$GITHUB_OUTPUT"
@@ -27,6 +27,7 @@ jobs:
           fi
 
       - name: Sync task to Notion
+        if: steps.task.outputs.found == 'true'
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_TASKS_DATABASE_ID }}
