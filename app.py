@@ -102,6 +102,11 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
 from models import db, User, SkiTrip, SkiDay, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from services.trip_attendance import (
+    effective_attendance_dates,
+    participant_is_going,
+    set_effective_attendance_dates,
+)
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
@@ -403,16 +408,17 @@ def get_upcoming_trip_count(user):
         ).all()
     }
 
-    # 2. IDs of trips where the user is an active RSVP participant.
-    participant_ids = {
-        row[0] for row in db.session.query(SkiTrip.id)
-        .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
-        .filter(
+    # 2. Active participant trips use personal physical dates for Going guests.
+    participant_rows = db.session.query(SkiTrip, SkiTripParticipant).join(
+        SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id
+    ).filter(
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.active_status_filter(),
             SkiTrip.end_date >= today
-        )
-        .all()
+    ).all()
+    participant_ids = {
+        trip.id for trip, participant in participant_rows
+        if effective_attendance_dates(trip, participant)[1] >= today
     }
 
     # Deduplicate via set union and return the count
@@ -3521,8 +3527,10 @@ def format_trip_dates(trip):
         if not trip:
             return ""
         
-        start = getattr(trip, 'start_date', None)
-        end = getattr(trip, 'end_date', None)
+        # Attendance-specific presentation callers attach these transient fields.
+        # Core-trip callers never do, so organizer/planning dates stay unchanged.
+        start = getattr(trip, 'attendance_start_date', None) or getattr(trip, 'start_date', None)
+        end = getattr(trip, 'attendance_end_date', None) or getattr(trip, 'end_date', None)
         
         if start and hasattr(start, 'date'):
             start = start.date()
@@ -4669,8 +4677,16 @@ def compute_trip_overlaps(user_trips, friend_trips):
     """
     overlaps = []
     for my in user_trips:
+        my_start, my_end = effective_attendance_dates(
+            my, getattr(my, "_attendance_participant", None)
+        )
         for ft in friend_trips:
-            if my.id == ft.id:
+            ft_start, ft_end = effective_attendance_dates(
+                ft, getattr(ft, "_attendance_participant", None)
+            )
+            my_attendee_id = getattr(my, "attendance_user_id", my.user_id)
+            friend_attendee_id = getattr(ft, "attendance_user_id", ft.user_id)
+            if my.id == ft.id and my_attendee_id == friend_attendee_id:
                 continue
             # Resort match
             if my.resort_id and ft.resort_id:
@@ -4681,19 +4697,19 @@ def compute_trip_overlaps(user_trips, friend_trips):
                 same_resort = bool(my_mtn and ft_mtn and my_mtn == ft_mtn)
             if not same_resort:
                 continue
-            if not (my.start_date and my.end_date and ft.start_date and ft.end_date):
+            if not (my_start and my_end and ft_start and ft_end):
                 continue
-            if not date_ranges_overlap(my.start_date, my.end_date, ft.start_date, ft.end_date):
+            if not date_ranges_overlap(my_start, my_end, ft_start, ft_end):
                 continue
             resort = my.resort or ft.resort
             mtn_str = my.mountain or (my.resort.name if my.resort else ft.mountain or (ft.resort.name if ft.resort else None))
-            friend_user = ft.user
+            friend_user = getattr(ft, "attendance_user", None) or ft.user
             friend_first = friend_user.first_name if friend_user else "Friend"
             overlaps.append({
                 "type": "trip",
                 "my_trip_id": my.id,
                 "friend_trip_id": ft.id,
-                "friend_id": ft.user_id,
+                "friend_id": friend_attendee_id,
                 "friend_name": friend_first,
                 "friend_first_name": friend_first,
                 "mountain": resort.name if resort else mtn_str,
@@ -4701,8 +4717,8 @@ def compute_trip_overlaps(user_trips, friend_trips):
                 "brand": resort.brand if resort else None,
                 "resort_id": resort.id if resort else None,
                 "resort": resort,
-                "start_date": max(my.start_date, ft.start_date),
-                "end_date": min(my.end_date, ft.end_date),
+                "start_date": max(my_start, ft_start),
+                "end_date": min(my_end, ft_end),
             })
     return overlaps
 
@@ -4726,6 +4742,7 @@ def my_trips():
             .order_by(SkiTrip.start_date.asc())
             .all()
         ) or []
+        upcoming_trips = [set_effective_attendance_dates(trip) for trip in upcoming_trips]
     except Exception:
         upcoming_trips = []
     if app.debug:
@@ -4779,7 +4796,8 @@ def my_trips():
             SkiTripParticipant.user_id == current_user.id,
             SkiTripParticipant.active_status_filter()
         ).all()
-        accepted_trip_ids = [p.trip_id for p in accepted_participations]
+        accepted_by_trip_id = {p.trip_id: p for p in accepted_participations}
+        accepted_trip_ids = list(accepted_by_trip_id)
         if accepted_trip_ids:
             # Exclude trips the user owns (they're already in upcoming_trips)
             accepted_guest_trips = SkiTrip.query.options(
@@ -4788,7 +4806,15 @@ def my_trips():
                 SkiTrip.id.in_(accepted_trip_ids),
                 SkiTrip.user_id != current_user.id,
                 SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).all() or []
+            ).all() or []
+            accepted_guest_trips = [
+                set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
+                for trip in accepted_guest_trips
+                if effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[1] >= today
+            ]
+            accepted_guest_trips.sort(
+                key=lambda trip: trip.attendance_start_date or date.max
+            )
     except Exception:
         accepted_guest_trips = []
 
@@ -4968,7 +4994,8 @@ def season_snapshot():
             SkiTripParticipant.user_id == current_user.id,
             SkiTripParticipant.active_status_filter()
         ).all()
-        accepted_trip_ids = [p.trip_id for p in accepted_participations]
+        accepted_by_trip_id = {p.trip_id: p for p in accepted_participations}
+        accepted_trip_ids = list(accepted_by_trip_id)
         if accepted_trip_ids:
             guest_trips = (
                 SkiTrip.query
@@ -4979,9 +5006,18 @@ def season_snapshot():
                     SkiTrip.start_date >= season_start,
                     SkiTrip.start_date <= season_end,
                 )
-                .order_by(SkiTrip.start_date.asc())
                 .all()
             ) or []
+            guest_trips = [
+                set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
+                for trip in guest_trips
+                if (
+                    (effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[0] or date.max)
+                    >= season_start
+                    and (effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[0] or date.max)
+                    <= season_end
+                )
+            ]
         else:
             guest_trips = []
     except Exception:
@@ -4991,8 +5027,9 @@ def season_snapshot():
     seen_ids: set = set()
     all_trips = []
     for t in sorted(owned + guest_trips,
-                    key=lambda t: t.start_date if t.start_date else date.max):
-        if t.id not in seen_ids and t.start_date is not None:
+                    key=lambda t: getattr(t, "attendance_start_date", t.start_date) or date.max):
+        display_start = getattr(t, "attendance_start_date", t.start_date)
+        if t.id not in seen_ids and display_start is not None:
             seen_ids.add(t.id)
             all_trips.append(t)
 
@@ -5027,7 +5064,8 @@ def season_snapshot():
     month_dict: dict = {}
     month_order: list = []
     for trip in all_trips:
-        full_name = trip.start_date.strftime('%B')
+        display_start = getattr(trip, "attendance_start_date", trip.start_date)
+        full_name = display_start.strftime('%B')
         abbrev = _MONTH_ABBREVS.get(full_name, full_name[:3].upper())
         dest = (
             _resort_display_name(trip.resort, AMBIGUOUS_RESORT_NAMES)
@@ -9417,7 +9455,20 @@ def friend_profile(friend_id):
                 SkiTrip.user_id != user.id,
                 SkiTrip.end_date >= today
             ).all()
-            user_trips = user_trips + _fp_guest_trips
+            _fp_participants = SkiTripParticipant.query.filter(
+                SkiTripParticipant.user_id == user.id,
+                SkiTripParticipant.trip_id.in_([trip.id for trip in _fp_guest_trips]),
+                SkiTripParticipant.active_status_filter(),
+            ).all()
+            _fp_by_trip = {participant.trip_id: participant for participant in _fp_participants}
+            user_trips = user_trips + [
+                set_effective_attendance_dates(trip, _fp_by_trip[trip.id])
+                for trip in _fp_guest_trips
+                if (
+                    trip.id in _fp_by_trip
+                    and effective_attendance_dates(trip, _fp_by_trip[trip.id])[1] >= today
+                )
+            ]
     except Exception:
         pass
     if app.debug:
@@ -10710,6 +10761,7 @@ def home():
             SkiTrip.user_id == user.id,
             SkiTrip.end_date >= today
         ).order_by(SkiTrip.start_date.asc()).all()
+        my_trips = [set_effective_attendance_dates(trip) for trip in my_trips]
         if app.debug:
             print(f"[HOME_PERF] my_trips_query={time.perf_counter()-_hp_t0:.4f}s count={len(my_trips)}")
     except Exception:
@@ -10724,14 +10776,20 @@ def home():
         ).all()
         if app.debug:
             print(f"[HOME_PERF] accepted_participations={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_participations)}")
-        accepted_trip_ids = [p.trip_id for p in accepted_participations]
+        accepted_by_trip_id = {p.trip_id: p for p in accepted_participations}
+        accepted_trip_ids = list(accepted_by_trip_id)
         if accepted_trip_ids:
             _hp_t0 = time.perf_counter()
             accepted_guest_trips = SkiTrip.query.filter(
                 SkiTrip.id.in_(accepted_trip_ids),
                 SkiTrip.user_id != user.id,
                 SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).all()
+            ).all()
+            accepted_guest_trips = [
+                set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
+                for trip in accepted_guest_trips
+                if effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[1] >= today
+            ]
             if app.debug:
                 print(f"[HOME_PERF] accepted_guest_trips={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_guest_trips)}")
         else:
@@ -10740,7 +10798,10 @@ def home():
         db.session.rollback()
         accepted_guest_trips = []
 
-    all_upcoming = sorted(my_trips + accepted_guest_trips, key=lambda t: t.start_date)
+    all_upcoming = sorted(
+        my_trips + accepted_guest_trips,
+        key=lambda trip: getattr(trip, "attendance_start_date", trip.start_date) or date.max,
+    )
     next_trip = all_upcoming[0] if all_upcoming else None
     # --- Friends (single join query: IDs + objects in one round trip) ---
     try:
@@ -10852,7 +10913,7 @@ def home():
             _resort_map = get_all_active_resorts_map()
             _raw_feed, _ideas_engine_diag, _engine_friend_trips = _build_home_feed(
                 user, all_friends, user_avail_dates=_user_avail_home,
-                user_trips=my_trips, resort_map=_resort_map
+                user_trips=all_upcoming, resort_map=_resort_map
             )
             if app.debug:
                 print(f"[HOME_PERF] build_destination_feed={time.perf_counter() - _hp_t0:.4f}s raw_count={len(_raw_feed)}")
@@ -10921,15 +10982,16 @@ def home():
                 reverse=True,
             )
             for ft in _sorted_friend_trips:
-                ft_user = _ft_users_map.get(ft.user_id)
+                ft_user = _ft_users_map.get(getattr(ft, 'attendance_user_id', ft.user_id))
                 if not ft_user:
                     continue
-                if ft.user_id in _hap_seen_users:
+                attendance_user_id = getattr(ft, 'attendance_user_id', ft.user_id)
+                if attendance_user_id in _hap_seen_users:
                     continue
-                _hap_seen_users.add(ft.user_id)
+                _hap_seen_users.add(attendance_user_id)
                 ft_resort = ft.resort
                 ft_mountain = ft_resort.name if ft_resort else ft.mountain
-                status = ft.trip_status or 'planning'
+                status = getattr(ft, 'attendance_status', ft.trip_status or 'planning')
                 full_name = (
                     f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
                 ) if ft_user else 'A friend'
@@ -10975,7 +11037,7 @@ def home():
                     'action_line': action_line,
                     'action_verb': _action_verb,   # "Planning" / "Going to" / "Heading to" / None
                     'mountain': _mtn,              # resort name string or None
-                    'friend_id': ft.user_id,
+                    'friend_id': attendance_user_id,
                     'recency_label': recency_label,
                     'trip_id': ft.id,
                     '_card_key': f"happening:{ft.id}",
@@ -12149,16 +12211,7 @@ def _build_mountain_availability_overlaps(
 
     effective_windows = set()
     for trip, participant in own_trip_rows:
-        if (
-            participant
-            and participant.start_date
-            and participant.end_date
-        ):
-            start_date = participant.start_date
-            end_date = participant.end_date
-        else:
-            start_date = trip.start_date
-            end_date = trip.end_date
+        start_date, end_date = effective_attendance_dates(trip, participant)
 
         if start_date and end_date and start_date <= end_date:
             effective_windows.add((start_date, end_date))
@@ -12315,6 +12368,9 @@ def mountain_detail(slug):
         )
         if status_value not in _intent_candidates:
             continue
+        attendance_start, attendance_end = effective_attendance_dates(trip, participant)
+        if status_value == GuestStatus.GOING.value and attendance_end < today:
+            continue
 
         friend = friends_by_id.get(participant.user_id)
         if not friend:
@@ -12328,12 +12384,12 @@ def mountain_detail(slug):
                 friend.skill_level,
                 friend.pass_type,
             ),
-            'start_date': trip.start_date,
-            'end_date': trip.end_date,
+            'start_date': attendance_start,
+            'end_date': attendance_end,
             'status_label': 'Going' if status_value == GuestStatus.GOING.value else 'Interested',
             'trip_id': trip.id,
         }
-        candidate_sort_key = (trip.start_date, trip.end_date, trip.id)
+        candidate_sort_key = (candidate['start_date'], candidate['end_date'], trip.id)
         existing = _intent_candidates[status_value].get(friend.id)
         if not existing or candidate_sort_key < (
             existing['start_date'],
@@ -13314,6 +13370,10 @@ def trip_detail(trip_id):
     going_participants = [
         p for p in participant_rows if p.status == GuestStatus.GOING
     ]
+    for _participant in going_participants:
+        _participant.attendance_start_date, _participant.attendance_end_date = (
+            effective_attendance_dates(trip, _participant)
+        )
     interested_participants = [
         p for p in participant_rows if p.status == GuestStatus.INTERESTED
     ]

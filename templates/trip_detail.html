@@ -1538,6 +1538,11 @@
                 <div class="td-person-info">
                     <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight:400;color:var(--bl-color-text-muted);font-size:12px;">(Organizer)</span>{% endif %}</p>
                     <p class="td-person-meta">{{ p.user|identity_line }}</p>
+                    {% if is_owner and label == 'Going' and p.user_id != current_user.id %}
+                    <p class="td-person-meta" data-attendance-dates="true" style="margin-top:2px;">
+                        Attending {% if p.attendance_start_date == trip.start_date and p.attendance_end_date == trip.end_date %}full trip{% elif p.attendance_start_date == p.attendance_end_date %}{{ p.attendance_start_date.strftime('%b %-d') }}{% elif p.attendance_start_date.month == p.attendance_end_date.month %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%-d') }}{% else %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%b %-d') }}{% endif %}
+                    </p>
+                    {% endif %}
                 </div>
                 {% if is_owner and p.user_id != current_user.id %}
                 <div class="td-person-actions">

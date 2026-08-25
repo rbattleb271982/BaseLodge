@@ -425,3 +425,27 @@ def test_trip_detail_attendance_sheet_sends_the_page_csrf_token(client):
     html = client.get(f"/trips/{trip_id}").get_data(as_text=True)
     assert "const _tdParticipantCsrf =" in html
     assert "'X-CSRF-Token': _tdParticipantCsrf" in html
+
+
+def test_effective_attendance_window_requires_a_complete_going_override(client):
+    """BL-51: only a complete Going override changes physical-presence dates."""
+    from services.trip_attendance import effective_attendance_dates
+
+    with app.app_context():
+        _owner_id, _guest_id, trip_id, participant_id = _setup_trip()
+        trip, participant = _trip_and_participant(trip_id, participant_id)
+        core = (trip.start_date, trip.end_date)
+
+        assert effective_attendance_dates(trip, participant) == core
+
+        participant.start_date = trip.start_date + timedelta(days=1)
+        assert effective_attendance_dates(trip, participant) == core
+
+        participant.end_date = trip.end_date - timedelta(days=1)
+        assert effective_attendance_dates(trip, participant) == (
+            trip.start_date + timedelta(days=1),
+            trip.end_date - timedelta(days=1),
+        )
+
+        participant.status = GuestStatus.INTERESTED
+        assert effective_attendance_dates(trip, participant) == core

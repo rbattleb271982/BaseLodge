@@ -16,7 +16,8 @@ from collections import Counter
 from datetime import date, timedelta
 from flask import url_for
 from utils.formatting import format_name
-from models import db, Resort, SkiTrip
+from models import db, Resort, SkiTrip, SkiTripParticipant
+from services.trip_attendance import effective_attendance_dates, set_effective_attendance_dates
 
 from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_label, passes_match as _passes_match
 
@@ -896,6 +897,46 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
         .order_by(SkiTrip.start_date.asc())
         .all()
     )
+    # A shared public trip may represent a direct friend's attendance even when
+    # that friend is not the organizer.  Preserve organizer rows, then add
+    # active participant rows with their own effective physical window.
+    participant_rows = (
+        db.session.query(SkiTrip, SkiTripParticipant)
+        .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
+        .filter(
+            SkiTripParticipant.user_id.in_(friend_ids),
+            SkiTripParticipant.active_status_filter(),
+            SkiTrip.user_id != SkiTripParticipant.user_id,
+            SkiTrip.end_date >= today,
+            SkiTrip.is_public == True,
+            SkiTrip.resort_id.isnot(None),
+        )
+        .options(db.joinedload(SkiTrip.resort))
+        .all()
+    )
+    for trip in friend_trips:
+        set_effective_attendance_dates(trip)
+        trip.attendance_user_id = trip.user_id
+        trip.attendance_status = trip.trip_status or "planning"
+    for trip, participant in participant_rows:
+        attendance_start, attendance_end = effective_attendance_dates(trip, participant)
+        if attendance_end < today:
+            continue
+        # The same ORM trip can be shared by many guests; use a lightweight
+        # proxy so each friend's personal window remains independent.
+        from types import SimpleNamespace
+        attendance_trip = SimpleNamespace(**{
+            column.name: getattr(trip, column.name)
+            for column in SkiTrip.__table__.columns
+        })
+        attendance_trip.resort = trip.resort
+        set_effective_attendance_dates(attendance_trip, participant)
+        attendance_trip.attendance_user_id = participant.user_id
+        attendance_trip.attendance_status = (
+            "going" if getattr(participant.status, "value", participant.status) == "going"
+            else "planning"
+        )
+        friend_trips.append(attendance_trip)
     print(f"[IDEAS_PERF] friend_trips_query={time.perf_counter()-_ip_t0:.4f}s count={len(friend_trips)}")
 
     # Group by resort, then find best date window per resort
@@ -904,16 +945,19 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
         rid = trip.resort_id
         if rid not in resort_trip_data:
             resort_trip_data[rid] = {"resort": trip.resort, "date_windows": {}}
-        key = (trip.start_date, trip.end_date)
+        start_d = getattr(trip, "attendance_start_date", trip.start_date)
+        end_d = getattr(trip, "attendance_end_date", trip.end_date)
+        key = (start_d, end_d)
         dw = resort_trip_data[rid]["date_windows"]
         if key not in dw:
             dw[key] = {"going": 0, "considering": 0, "friend_count": 0,
                        "going_names": [], "considering_names": [],
                        "trip_id": trip.id, "friend_ids_in_window": []}
         dw[key]["friend_count"] += 1
-        dw[key]["friend_ids_in_window"].append(trip.user_id)
-        first_name = getattr(friend_by_id.get(trip.user_id), "first_name", None) or "Friend"
-        if (trip.trip_status or "planning") == "going":
+        attendance_user_id = getattr(trip, "attendance_user_id", trip.user_id)
+        dw[key]["friend_ids_in_window"].append(attendance_user_id)
+        first_name = getattr(friend_by_id.get(attendance_user_id), "first_name", None) or "Friend"
+        if getattr(trip, "attendance_status", trip.trip_status or "planning") == "going":
             dw[key]["going"] += 1
             dw[key]["going_names"].append(first_name)
         else:
