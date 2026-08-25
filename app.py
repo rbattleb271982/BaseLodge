@@ -13737,6 +13737,11 @@ def trip_detail(trip_id):
         and current_user_participant
         and current_user_participant.status == GuestStatus.GOING
     )
+    is_overnight = bool(
+        trip.start_date
+        and trip.end_date
+        and trip.end_date > trip.start_date
+    )
 
     # My Setup: effective pass display for current user.
     # Precedence: participant.pass_type → User.pass_type fallback → empty
@@ -13818,6 +13823,7 @@ def trip_detail(trip_id):
         planning_post_count=planning_post_count,
         my_pass_str=my_pass_str,
         my_pass_display=my_pass_display,
+        is_overnight=is_overnight,
         attention_items=attention_items,
     )
 
@@ -13901,6 +13907,112 @@ def _validate_planning_link_url(raw):
     if parsed.scheme.lower() in ("http", "https") and parsed.netloc:
         return url, None
     return None, "Link must start with http:// or https://"
+
+
+@app.route("/api/trip/<int:trip_id>/stay", methods=["POST"])
+@login_required
+def update_trip_stay(trip_id):
+    """Create, edit, or clear the organizer's shared overnight Stay."""
+    validate_csrf_request()
+    trip = db.session.get(SkiTrip, trip_id)
+    if not trip:
+        return jsonify({"success": False, "error": "Trip not found."}), 404
+    if trip.user_id != current_user.id:
+        return jsonify({
+            "success": False,
+            "error": "Only the trip organizer can manage the Stay.",
+        }), 403
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
+
+    clear_requested = (
+        data.get("clear") is True
+        or data.get("action") == "clear"
+    )
+    if clear_requested:
+        trip.stay_name = None
+        trip.stay_description = None
+        trip.accommodation_link = None
+        trip.updated_at = datetime.utcnow()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"[update_trip_stay] clear error: {e}")
+            return jsonify({"success": False, "error": "Failed to clear Stay."}), 500
+        return jsonify({
+            "success": True,
+            "stay_name": None,
+            "stay_description": None,
+            "accommodation_link": None,
+        })
+
+    if not (
+        trip.start_date
+        and trip.end_date
+        and trip.end_date > trip.start_date
+    ):
+        return jsonify({
+            "success": False,
+            "error": "Stay information is only available for overnight trips.",
+        }), 409
+
+    raw_name = data.get("stay_name")
+    raw_description = data.get("stay_description")
+    raw_link = data.get("accommodation_link")
+    if not isinstance(raw_name, str):
+        return jsonify({"success": False, "error": "Stay name is required."}), 400
+    if raw_description is not None and not isinstance(raw_description, str):
+        return jsonify({
+            "success": False,
+            "error": "Stay description must be text.",
+        }), 400
+    if raw_link is not None and not isinstance(raw_link, str):
+        return jsonify({
+            "success": False,
+            "error": "Property link must be a URL.",
+        }), 400
+
+    stay_name = raw_name.strip()
+    stay_description = (raw_description or "").strip()
+    accommodation_link, link_error = _validate_planning_link_url(raw_link or "")
+    if not stay_name:
+        return jsonify({"success": False, "error": "Stay name is required."}), 400
+    if len(stay_name) > 200:
+        return jsonify({
+            "success": False,
+            "error": "Stay name cannot exceed 200 characters.",
+        }), 400
+    if len(stay_description) > 500:
+        return jsonify({
+            "success": False,
+            "error": "Stay description cannot exceed 500 characters.",
+        }), 400
+    if link_error:
+        return jsonify({"success": False, "error": link_error}), 400
+
+    # Assign only after every field has passed validation so invalid input
+    # cannot partially persist a Stay.
+    trip.stay_name = stay_name
+    trip.stay_description = stay_description or None
+    trip.accommodation_link = accommodation_link
+    trip.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_stay] save error: {e}")
+        return jsonify({"success": False, "error": "Failed to save Stay."}), 500
+
+    # BL-52 Stay changes are intentionally silent.
+    return jsonify({
+        "success": True,
+        "stay_name": trip.stay_name,
+        "stay_description": trip.stay_description,
+        "accommodation_link": trip.accommodation_link,
+    })
 
 
 @app.route("/api/trip/<int:trip_id>/planning-posts", methods=["POST"])
@@ -14095,7 +14207,12 @@ def trip_invite_detail(trip_id):
 @app.route("/api/trip/<int:trip_id>/accommodation", methods=["POST"])
 @login_required
 def update_trip_accommodation(trip_id):
-    """Update accommodation status (owner-only)."""
+    """Update legacy accommodation status (owner-only).
+
+    Named BL-52 Stay records own accommodation_link. This legacy endpoint
+    remains available for status-only legacy trips, but must not bypass Stay
+    URL validation or notification-silence guarantees.
+    """
     validate_csrf_request()
     trip = db.session.get(SkiTrip, trip_id)
     if not trip:
@@ -14104,9 +14221,28 @@ def update_trip_accommodation(trip_id):
     if trip.user_id != current_user.id:
         return jsonify({"status": "error", "message": "Only the trip organizer can manage accommodations"}), 403
 
-    data = request.json
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
     status = data.get("status")
-    link = data.get("link")
+    raw_link = data.get("link")
+    if raw_link is not None and not isinstance(raw_link, str):
+        return jsonify({
+            "status": "error",
+            "message": "Accommodation link must be a URL.",
+        }), 400
+    link, link_error = _validate_planning_link_url(raw_link or "")
+    if link_error:
+        return jsonify({"status": "error", "message": link_error}), 400
+
+    # The shared property link belongs to the named Stay once it exists.
+    # Reject this legacy mutation path so it cannot alter Stay information or
+    # emit the legacy accommodation-update notification for a Stay change.
+    if trip.stay_name:
+        return jsonify({
+            "status": "error",
+            "message": "Manage this trip's Stay from Trip Detail.",
+        }), 409
 
     # Capture original values for change detection
     _orig_accom_status = trip.accommodation_status

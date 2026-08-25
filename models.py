@@ -689,6 +689,8 @@ class SkiTrip(db.Model):
     equipment_override = db.Column(db.String(20), nullable=True)  # use_default, have_own_equipment, renting
     accommodation_status = db.Column(db.String(20), nullable=True)  # none_yet, hotel, airbnb, other
     accommodation_link = db.Column(db.String(500), nullable=True)  # URL to accommodation booking
+    stay_name = db.Column(db.String(200), nullable=True)  # Shared overnight stay name
+    stay_description = db.Column(db.String(500), nullable=True)  # Optional shared stay details
     max_participants = db.Column(db.Integer, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True)

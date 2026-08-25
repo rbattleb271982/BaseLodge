@@ -453,6 +453,83 @@
         .td-swg-title { font-size: 17px; font-weight: 600; color: #1A1A1A; margin: 0 0 2px; }
         .td-swg-sub { display: block; font-size: 13px; color: var(--bl-color-text-muted, #8A857A); margin: 0; }
         .td-swg-wishlist { font-size: 12px; color: #5C1219; margin: 0; font-weight: 500; }
+        .td-stay-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            padding: 14px 16px;
+            background: #FFFFFF;
+            border: 1px solid #E5DFD0;
+            border-radius: 14px;
+        }
+        .td-stay-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(92,18,25,0.07);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #5C1219;
+        }
+        .td-stay-copy { flex: 1; min-width: 0; }
+        .td-stay-name {
+            margin: 0;
+            color: #1A1A1A;
+            font-size: 16px;
+            font-weight: 650;
+            overflow-wrap: anywhere;
+        }
+        .td-stay-description {
+            margin: 4px 0 0;
+            color: var(--bl-color-text-muted, #8A857A);
+            font-size: 13px;
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+        .td-stay-link {
+            display: inline-block;
+            margin-top: 8px;
+            color: #5C1219;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .td-stay-link:active { opacity: 0.65; }
+        .td-stay-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+        .td-stay-action {
+            padding: 2px 0;
+            border: 0;
+            background: transparent;
+            color: #5C1219;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .td-stay-action--clear { color: #8B4A52; }
+        .td-stay-add {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 5px 0;
+            border: 0;
+            background: transparent;
+            color: #5C1219;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .td-stay-add:active, .td-stay-action:active { opacity: 0.65; }
         .td-hub-section {
             margin: 18px 0 22px;
         }
@@ -595,10 +672,11 @@
         .td-hub-block { order: 1; }
         .td-hub-attention { order: 2; }
         .td-hub-your-trip { order: 3; }
-        .td-hub-people { order: 4; }
-        .td-hub-planning { order: 5; }
-        .td-hub-invite { order: 6; }
-        .td-hub-actions { order: 7; }
+        .td-hub-stay { order: 4; }
+        .td-hub-people { order: 5; }
+        .td-hub-planning { order: 6; }
+        .td-hub-invite { order: 7; }
+        .td-hub-actions { order: 8; }
         .td-cancel-trip-wrap {
             border-top: 1px solid rgba(92,18,25,0.08);
             padding: 36px 0 calc(20px + env(safe-area-inset-bottom, 0px));
@@ -1737,6 +1815,38 @@
         </div><!-- /td-setup-card -->
         </section><!-- /td-hub-your-trip -->
 
+        {% if is_overnight and (is_owner or is_guest) and (trip.stay_name or is_owner) %}
+        <section class="td-hub-stay td-hub-section" aria-labelledby="td-stay-heading">
+            <p class="td-section-label" id="td-stay-heading">Stay</p>
+            {% if trip.stay_name %}
+            <div class="td-stay-card">
+                <span class="td-stay-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v16"></path><path d="M3 17h18"></path><path d="M7 17v4"></path><path d="M17 17v4"></path><path d="M7 8h3"></path><path d="M14 8h3"></path><path d="M7 12h3"></path><path d="M14 12h3"></path></svg>
+                </span>
+                <div class="td-stay-copy">
+                    <p class="td-stay-name">{{ trip.stay_name }}</p>
+                    {% if trip.stay_description %}
+                    <p class="td-stay-description">{{ trip.stay_description }}</p>
+                    {% endif %}
+                    {% if trip.accommodation_link %}
+                    <a class="td-stay-link" href="{{ trip.accommodation_link }}" target="_blank" rel="noopener noreferrer">View property <span aria-hidden="true">›</span></a>
+                    {% endif %}
+                </div>
+                {% if is_owner %}
+                <div class="td-stay-actions">
+                    <button type="button" class="td-stay-action" onclick="openStaySheet()">Edit</button>
+                    <button type="button" class="td-stay-action td-stay-action--clear" onclick="clearTripStay()">Clear</button>
+                </div>
+                {% endif %}
+            </div>
+            {% elif is_owner %}
+            <button type="button" class="td-stay-add" onclick="openStaySheet()" aria-controls="td-stay-sheet">
+                <span aria-hidden="true">＋</span> Add Stay
+            </button>
+            {% endif %}
+        </section>
+        {% endif %}
+
         <!-- People -->
         <section class="td-hub-people td-hub-section" aria-label="Trip participants">
         {% if trip.resort and trip.resort.slug %}
@@ -2074,6 +2184,31 @@
             <button type="button" class="td-pass-pill" data-val="other" onclick="tdPassToggle(this)">Other pass<span class="td-pass-pill-check"><svg class="td-pass-check-svg" width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
 
             <button type="button" class="td-pass-sheet-cancel" onclick="closePassSheet()">Cancel</button>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if is_owner and is_overnight %}
+    <!-- Shared Stay edit bottom sheet (owner only) -->
+    <div class="td-date-sheet-overlay" id="td-stay-sheet" onclick="if(event.target===this)closeStaySheet()">
+        <div class="td-date-sheet" role="dialog" aria-modal="true" aria-labelledby="td-stay-sheet-title">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title" id="td-stay-sheet-title">Stay</p>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-stay-name">Where are you staying?</label>
+                <input type="text" id="td-stay-name" class="td-date-sheet-input" maxlength="200" value="{{ (trip.stay_name or '')|e }}" placeholder="Hotel, rental, condo, or home">
+            </div>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-stay-description">Details <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <textarea id="td-stay-description" class="td-note-textarea" maxlength="500" placeholder="Add any helpful details">{{ trip.stay_description or '' }}</textarea>
+            </div>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-stay-link">Property link <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+                <input type="url" id="td-stay-link" class="td-date-sheet-input" maxlength="500" value="{{ ((trip.accommodation_link if trip.stay_name else '') or '')|e }}" placeholder="https://…">
+            </div>
+            <p class="td-date-sheet-error" id="td-stay-error"></p>
+            <button type="button" class="td-date-sheet-save" id="td-stay-save" onclick="saveTripStay()">Save Stay</button>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeStaySheet()">Cancel</button>
         </div>
     </div>
     {% endif %}
@@ -2466,6 +2601,98 @@
                 var pc = document.querySelector('.page-container');
                 if (pc) pc.classList.remove('td-edit-mode');
             }
+
+            // ── Shared Stay — organizer-only, silent ──
+            {% if is_overnight %}
+            const _tdStayCsrf = {{ csrf_token() | tojson }};
+            window.openStaySheet = function() {
+                var error = document.getElementById('td-stay-error');
+                if (error) {
+                    error.textContent = '';
+                    error.classList.remove('visible');
+                }
+                _openSheet('td-stay-sheet');
+                setTimeout(function() {
+                    var name = document.getElementById('td-stay-name');
+                    if (name) name.focus();
+                }, 320);
+            };
+            window.closeStaySheet = function() { _closeSheet('td-stay-sheet'); };
+            window.saveTripStay = async function() {
+                var nameEl = document.getElementById('td-stay-name');
+                var descriptionEl = document.getElementById('td-stay-description');
+                var linkEl = document.getElementById('td-stay-link');
+                var errorEl = document.getElementById('td-stay-error');
+                var saveBtn = document.getElementById('td-stay-save');
+                var name = nameEl ? nameEl.value.trim() : '';
+                var description = descriptionEl ? descriptionEl.value.trim() : '';
+                var link = linkEl ? linkEl.value.trim() : '';
+                function showError(message) {
+                    if (errorEl) {
+                        errorEl.textContent = message;
+                        errorEl.classList.add('visible');
+                    }
+                }
+                if (!name) {
+                    showError('Stay name is required.');
+                    return;
+                }
+                if (name.length > 200) {
+                    showError('Stay name cannot exceed 200 characters.');
+                    return;
+                }
+                if (description.length > 500) {
+                    showError('Stay details cannot exceed 500 characters.');
+                    return;
+                }
+                if (saveBtn) saveBtn.disabled = true;
+                try {
+                    const res = await fetch(`/api/trip/{{ trip.id }}/stay`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': _tdStayCsrf
+                        },
+                        body: JSON.stringify({
+                            stay_name: name,
+                            stay_description: description,
+                            accommodation_link: link
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        showError(data.error || 'Could not save Stay.');
+                    }
+                } catch(e) {
+                    showError('Network error. Please try again.');
+                } finally {
+                    if (saveBtn) saveBtn.disabled = false;
+                }
+            };
+            window.clearTripStay = async function() {
+                if (!window.confirm('Clear this Stay from the trip?')) return;
+                try {
+                    const res = await fetch(`/api/trip/{{ trip.id }}/stay`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': _tdStayCsrf
+                        },
+                        body: JSON.stringify({ clear: true })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        window.location.reload();
+                    } else {
+                        blToast(data.error || 'Could not clear Stay.');
+                    }
+                } catch(e) {
+                    blToast('Network error. Please try again.');
+                }
+            };
+            {% endif %}
 
             // ── Note counter ──
             window.tdNoteOnInput = function() { _tdSyncNoteUI(); };
