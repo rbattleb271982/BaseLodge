@@ -1,0 +1,197 @@
+BL-52 — Redesign Trip Detail as the Trip Hub
+Create the implementation plan for BL-52 — Redesign Trip Detail as the Trip Hub.
+Plan only. Do not implement anything yet.
+Context
+Trip Detail has evolved substantially through recent work, including:
+BL-53 — compact My Setup
+BL-50 — participant-specific attendance-date editing
+BL-51 — propagation of participant attendance dates and compact organizer-facing attendance labels
+existing RSVP, participant, planning, overlap, lodging, transportation, lessons, equipment, pass, and trip-management behavior
+Before redesigning anything, inspect Trip Detail exactly as it exists now. Do not rely on an older task description or assumptions about the page.
+Goal
+Turn Trip Detail into the clear hub for coordinating a BaseLodge trip.
+This should primarily improve:
+information hierarchy;
+scanability;
+coordination;
+prioritization of what matters now;
+distinction between personal setup and group/trip information;
+mobile usability;
+reduction of unnecessary vertical length and clutter.
+This is primarily a Trip Detail information-architecture and UX task, not an excuse to create new product systems.
+1. Audit the current page
+Inventory the current Trip Detail from top to bottom.
+For every current section/component report:
+what it contains;
+who sees it;
+whether it is editable;
+what data/API it uses;
+approximate visual footprint;
+whether it is always visible or conditional;
+whether it duplicates information elsewhere on the page;
+whether it is essential for trip coordination.
+Include empty states and organizer/participant/pending differences.
+2. Identify the jobs Trip Detail performs
+Categorize the current functionality into user jobs such as:
+Trip basics — mountain, dates, organizer, status
+Who's going — Going/Interested/Pending/etc.
+My attendance — BL-50 My dates
+My setup — pass/equipment/lessons
+Group coordination
+Lodging
+Transportation/carpool
+Planning
+Availability/overlap intelligence
+Invitations/RSVP
+Organizer controls
+Identify anything that doesn't fit a meaningful Trip Detail job.
+3. Diagnose the current UX
+Identify:
+sections consuming disproportionate space;
+duplicated information;
+controls that visually overpower more important information;
+excessive cards/containers/headings;
+information that should be summarized before being expanded;
+things users need immediately versus things they need only when coordinating;
+organizer-only controls that can be less prominent;
+differences between organizer and participant needs.
+4. Propose the hub hierarchy
+Recommend the ideal top-to-bottom hierarchy for Trip Detail.
+The design should answer these questions quickly:
+Where and when are we going?
+Who's going?
+When am I actually going?
+What do I personally need for this trip?
+What has the group figured out?
+What still needs to be figured out?
+Consider whether the page should have a compact summary/header followed by coordination sections.
+5. Progressive disclosure
+Identify which information should:
+always be visible;
+appear as compact summaries;
+expand inline;
+use the existing bottom-sheet pattern;
+remain behind an existing action.
+Prefer summary → detail over showing every control and piece of information simultaneously.
+Do not propose an entirely new navigation architecture unless the current page genuinely requires it.
+6. People / RSVP
+Evaluate the current People/RSVP presentation after BL-51.
+Determine the best compact way to communicate:
+Going;
+Interested;
+Pending;
+participant attendance dates;
+organizer identity;
+organizer controls.
+Do not change RSVP semantics.
+7. My dates + My Setup
+BL-50 and BL-53 intentionally created compact personal controls.
+Determine how My dates and My setup should fit together within the new hierarchy.
+Do not undo their recently implemented behavior or turn them back into large sections.
+8. Group coordination
+Inspect all existing group-level information and actions.
+Determine whether lodging, transportation/carpool, lessons, planning, overlap intelligence, and other coordination information should:
+remain separate;
+be grouped;
+be represented through compact status summaries;
+surface unresolved items more prominently.
+Base recommendations on functionality that actually exists.
+9. “What needs attention?”
+Determine whether existing data already allows Trip Detail to surface useful unresolved coordination states, such as:
+lodging not set;
+transportation not set;
+participant hasn't set something;
+pending invitations;
+other existing incomplete planning states.
+Do not invent a new task-management system.
+If a lightweight coordination-summary concept can be built entirely from existing state, include it as an option and explain the tradeoff.
+10. Organizer vs participant experience
+Determine what should differ for:
+organizer;
+Going participant;
+Interested participant;
+Pending invitee/view-only state.
+Avoid creating four completely different pages. Prefer one coherent hierarchy with permission-aware controls.
+11. Mobile-first layout
+BaseLodge Trip Detail should work particularly well on a phone.
+Recommend:
+section spacing;
+chip/summary use;
+collapsible behavior;
+button placement;
+sticky behavior only if genuinely useful;
+handling of long mountain names, dates, participant names, and statuses.
+12. Preserve existing systems
+The redesign should reuse existing:
+APIs;
+participant model;
+RSVP system;
+BL-50 attendance dates;
+BL-51 effective attendance behavior;
+BL-53 My Setup;
+planning functionality;
+lodging functionality;
+transportation/carpool functionality;
+pass/equipment/lesson behavior;
+privacy/permissions.
+Identify where a proposed design would unexpectedly require backend work.
+13. Implementation decomposition
+Determine whether BL-52 can safely be implemented as one task or whether the current page makes it sensible to split into smaller implementation slices.
+Only recommend decomposition if it materially reduces risk or avoids an oversized implementation.
+If splitting is recommended, specify:
+exact slices;
+dependencies;
+what remains under BL-52;
+suggested order.
+14. Tests
+Identify existing Trip Detail tests and the regression coverage the redesign needs.
+At minimum account for:
+organizer;
+Going guest;
+Interested guest;
+Pending invitee;
+My dates;
+My Setup;
+RSVP;
+People;
+attendance labels;
+planning;
+lodging;
+transportation/carpool;
+empty states;
+permission boundaries.
+15. Product decisions
+End with only the genuine product decisions I need to make before implementation.
+For each decision:
+explain the options;
+recommend one;
+explain why.
+Do not ask me to decide things where the existing product or obvious UX convention already provides the answer.
+Hard boundaries
+Do not:
+modify code or tests;
+modify development data;
+create migrations;
+change APIs or schemas;
+implement new coordination systems;
+change RSVP semantics;
+undo BL-50/51/53;
+touch production;
+Publish/deploy;
+change database configuration;
+touch push/OneSignal/APNs.
+Required output
+Produce:
+current Trip Detail audit;
+UX diagnosis;
+proposed new hierarchy;
+organizer/participant state differences;
+compact/progressive-disclosure recommendations;
+implementation scope and relevant files;
+test strategy;
+any recommended task decomposition;
+product decisions requiring approval.
+End with exactly:
+BL-52 PLAN READY FOR REVIEW
+or
+BL-52 PLAN BLOCKED: [reason]
