@@ -1,0 +1,247 @@
+# BL-13 Investigation Prompt — Home Activity Empty States
+
+Investigate **BL-13: Home Activity Empty States** in the BaseLodge codebase.
+
+## Objective
+
+Determine the current behavior, implementation, edge cases, and safest change path for the **Happening** and **Ideas** sections on Home before making any code changes.
+
+This is an **investigation only**. Do **not** modify code, commit changes, deploy, migrate data, or publish anything yet.
+
+## Desired Product Behavior
+
+The intended BL-13 behavior is:
+
+* If **Happening** has no content, hide the Happening heading/section entirely.
+* If **Ideas** has no content, hide the Ideas heading/section entirely.
+* Do not leave awkward or unnecessary blank spacing where an empty section would otherwise appear.
+* If **both Happening and Ideas are empty**, show a single appropriate Home fallback/availability empty state rather than two empty sections.
+* If a user dismisses an item, the UI should reconcile immediately:
+
+  * remove the dismissed item;
+  * remove the section heading if that was the last item in the section;
+  * collapse the resulting spacing;
+  * if the dismissal leaves both sections empty, show the single fallback state immediately.
+* Preserve the existing dismissal persistence behavior.
+* Do not change unrelated Home behavior.
+* This should remain a contained web change and should not require a new iOS or Android build unless the investigation proves otherwise.
+
+## Investigation Required
+
+### 1. Current Home rendering
+
+Identify:
+
+* where the Home page is rendered;
+* which backend/controller logic prepares Happening data;
+* which backend/controller logic prepares Ideas data;
+* which templates/components render each section;
+* the exact condition currently used to show or hide:
+
+  * Happening heading;
+  * Happening content;
+  * Ideas heading;
+  * Ideas content;
+  * any existing empty/fallback state.
+
+Explain the current rendering flow clearly.
+
+### 2. Happening and Ideas population logic
+
+Determine:
+
+* what types of items can appear in Happening;
+* what types of items can appear in Ideas;
+* where those items come from;
+* whether the sections are pre-filtered server-side or filtered in the template/client;
+* whether dismissed items are removed before rendering or only hidden afterward;
+* whether there are any cases where a section technically contains data but renders no visible cards.
+
+Flag any logic that could make an apparently “empty” section behave differently from a truly empty one.
+
+### 3. Dismissal behavior
+
+Trace the full dismissal flow.
+
+Identify:
+
+* the dismissal UI/action;
+* the route/API involved;
+* how dismissal is persisted;
+* whether dismissal is optimistic or waits for a server response;
+* what DOM/client-side changes occur after dismissal;
+* whether the section container remains after the final card is dismissed;
+* whether the heading remains;
+* whether spacing remains;
+* whether the page must currently be refreshed before the correct empty state appears.
+
+Verify this separately for Happening and Ideas if their implementations differ.
+
+### 4. One-section-empty states
+
+Explicitly verify current behavior for:
+
+#### Case A
+
+Happening has items; Ideas is empty.
+
+#### Case B
+
+Ideas has items; Happening is empty.
+
+For each case, report:
+
+* which headings render;
+* whether any empty container renders;
+* whether unnecessary spacing appears;
+* whether an empty-state message currently appears.
+
+### 5. Both-sections-empty state
+
+Determine what happens today when:
+
+* Happening is empty;
+* Ideas is empty.
+
+Identify:
+
+* whether an existing Home fallback state already exists;
+* where it is implemented;
+* what determines whether it renders;
+* whether BL-13 should reuse that existing state or requires new markup/logic.
+
+Do not invent new copy or design unless there is no existing appropriate state. Flag that as a product decision if necessary.
+
+### 6. Immediate reconciliation after dismissal
+
+Investigate what would be required for this flow:
+
+1. User dismisses the final Happening item.
+2. Happening heading disappears immediately.
+3. Remaining Home content moves up without stale spacing.
+4. If Ideas still contains items, Ideas remains normally.
+5. If Ideas is also empty, the single fallback state appears immediately.
+
+Repeat conceptually for dismissing the final Ideas item.
+
+Determine whether this can be handled safely through:
+
+* existing JavaScript;
+* template structure;
+* CSS;
+* server response changes;
+* or some combination.
+
+Prefer the smallest reliable change.
+
+### 7. Existing fallback/availability state
+
+Locate any existing Home empty/fallback/availability component or copy that could serve BL-13.
+
+Report:
+
+* file/location;
+* current copy;
+* current conditions;
+* whether it is suitable for reuse;
+* whether reusing it creates any unintended behavior elsewhere.
+
+### 8. Web-only verification
+
+Confirm whether BL-13 can be completed without:
+
+* iOS changes;
+* Android changes;
+* API contract changes affecting native clients;
+* database migrations;
+* production configuration changes.
+
+If any of those would be required, explain exactly why.
+
+### 9. Regression risk
+
+Identify any nearby Home behavior that could be unintentionally affected, including:
+
+* activity feeds;
+* suggested friends;
+* trip cards;
+* mountain recommendations;
+* dismissal persistence;
+* personalized content ordering;
+* authenticated vs unauthenticated Home behavior;
+* mobile-responsive web rendering.
+
+Call out any shared partials/components or JavaScript used elsewhere.
+
+### 10. Test coverage
+
+Identify existing tests covering:
+
+* Home;
+* Happening;
+* Ideas;
+* dismissals;
+* empty states.
+
+Recommend the specific tests that should be added or updated if BL-13 is implemented.
+
+At minimum, future implementation tests should cover:
+
+* Happening present / Ideas empty;
+* Ideas present / Happening empty;
+* both present;
+* both empty;
+* final Happening item dismissed;
+* final Ideas item dismissed;
+* dismissal causing both sections to become empty;
+* dismissal persistence still works after refresh;
+* unrelated Home content remains unchanged.
+
+## Investigation Output
+
+Return a concise but complete report containing:
+
+### Current implementation
+
+How Happening, Ideas, dismissal, and fallback states work today.
+
+### Root cause
+
+Why empty headings, stale spacing, or delayed reconciliation occur, if they occur.
+
+### Recommended implementation
+
+The smallest and safest way to achieve the desired BL-13 behavior.
+
+### Files likely affected
+
+List the exact files that would need modification.
+
+### Tests to add/update
+
+List exact test files and scenarios.
+
+### Risks / ambiguities
+
+Anything that needs a product decision before implementation.
+
+### Mobile/build impact
+
+Explicitly state whether a new iOS or Android build would be required.
+
+## Important Constraints
+
+* Investigation only.
+* Do not modify any files.
+* Do not commit.
+* Do not deploy.
+* Do not run migrations.
+* Do not touch production data or production configuration.
+* Preserve all unrelated Home behavior.
+* Prefer existing components and patterns over introducing new architecture.
+
+## Future Commit Message
+
+If the investigation concludes the change is safe and implementation is later approved, use the commit message:
+
+`BL-13: improve Home activity empty states`
