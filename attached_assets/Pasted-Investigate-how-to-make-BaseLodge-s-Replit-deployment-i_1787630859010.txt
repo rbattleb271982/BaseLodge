@@ -1,0 +1,60 @@
+Investigate how to make BaseLodge’s Replit deployment ignore/decouple the Replit-managed production database path while preserving the existing Replit development database.
+INVESTIGATION ONLY. DO NOT CHANGE CONFIGURATION YET.
+Current state
+BaseLodge uses:
+Development DB: Replit-managed PostgreSQL
+Production DB: external Supabase PostgreSQL
+Production Supabase is already at:
+bl317_startup_schema
+Replit Publish currently detects the managed development database and, because no Replit-managed production database exists, proposes provisioning one and applying a full-schema baseline.
+We do not want a second production database.
+Goal
+Determine the safest supported way to keep:
+Replit managed DB for development
+Supabase for production
+while allowing Replit to deploy application code without provisioning or synchronizing a Replit-managed production database.
+Investigate
+Using current official Replit documentation and available workspace/deployment settings, determine:
+Whether the managed Development Database can be detached from Publishing while remaining available to the development workspace.
+Whether the deployment can be configured so Replit no longer treats the managed development DB as a schema source for production.
+Whether there is a supported distinction between:
+workspace development database integration
+deployment production database integration
+Whether removing a database integration from the deployment would:
+delete the development DB,
+remove DATABASE_URL,
+affect data,
+or merely stop Publish schema synchronization.
+Whether the deployment can rely solely on application secrets such as SUPABASE_DATABASE_URL / BaseLodge runtime config at runtime.
+Whether creating a new deployment configuration without a managed production database is supported.
+Whether an existing deployment can be converted safely, or whether a fresh deployment must be created.
+Whether any deployment setting under Manage, Settings, Databases, or Integrations controls this behavior.
+Critical constraints
+Do not:
+delete or detach anything yet
+delete the Replit development database
+modify DATABASE_URL
+modify Supabase secrets
+create a new production database
+approve Publish
+publish/redeploy
+run migrations
+modify production schema/data
+restart production
+touch push/OneSignal/APNs
+resume BL-77
+Return
+Report:
+exact Replit feature/settings causing the managed DB publish behavior
+whether dev DB can remain while production DB sync is disabled
+exact supported configuration change needed
+whether the existing deployment can be reused
+whether any data/secrets would be affected
+exact UI path or supported command to make the change
+rollback path if the configuration change is wrong
+whether, after that change, normal Publish would deploy application code only
+End with exactly:
+SAFE TO DECOUPLE REPLIT MANAGED DB FROM PRODUCTION PUBLISH USING: [exact method]
+or
+DECOUPLING BLOCKED: [exact reason]
+Do not implement anything during this investigation.
