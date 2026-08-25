@@ -1,0 +1,84 @@
+Proceed with the first execution stage of the approved external-development-database migration plan.
+The reviewed workbook dataset of 695 resorts and 245 resort/pass mappings is approved as the canonical development reference dataset.
+Objective
+Provision and fully prepare a new dedicated Supabase development database for BaseLodge, but:
+do not switch BaseLodge development to it yet;
+do not remove or modify the existing Replit-managed development DB;
+do not touch production;
+do not approve Publish.
+1. Create Supabase development project
+Create a dedicated new Supabase project if an authorized supported mechanism is available.
+Name it clearly:
+BaseLodge Dev
+Do not:
+reuse BaseLodge Prod
+clone production
+reuse a recovery project
+If project creation requires me to use the Supabase UI, STOP and tell me exactly what to click and enter.
+2. Verify identity
+Once it exists:
+establish its credential-safe database identity;
+confirm it differs from production;
+verify Replit can connect to it;
+verify SSL/pooler behavior.
+3. Build schema
+Confirm the new DB is empty.
+Then use the existing guarded tooling:
+#311 BL-60 bootstrap
+stamp bl60_mtn_filter_edu
+migrate through:
+bl305_ski_day_foundation
+bl306_mpv_fk_reconcile
+bl317_startup_schema
+Final revision must be:
+bl317_startup_schema
+4. Load canonical reference data
+Run #313 dry-run first.
+Require exactly:
+695 resorts
+245 resort/pass mappings
+212 mapped resorts
+483 resorts without major-pass mappings
+If the counts match, apply the reference data to the new Supabase development DB only.
+5. Prepare development user
+Use the #315 development-user creator with:
+Richard
+Battle-Baxter
+richard@example.test
+Skier
+no_pass_yet
+Advanced
+Colorado
+Do not copy any existing password hash.
+If secure password entry requires me to use Shell, STOP and give me the exact command.
+Hard boundaries
+Do not:
+change BASELODGE_DEVELOPMENT_DATABASE_URL
+switch the running dev app
+delete/modify Replit DB
+change DATABASE_URL
+detach Replit Database
+approve Publish
+publish/redeploy
+touch production Supabase
+copy production data
+restart production
+run legacy maintenance
+touch push/OneSignal/APNs
+resume BL-77
+Stop point
+Do not cut development over yet.
+Once the new external development DB is fully built and validated, STOP and report:
+new DB identity, credential-safe only
+final Alembic revision
+schema validation
+resort count
+resort/pass count
+development-user status
+confirmation current Replit dev DB is unchanged
+confirmation production is untouched
+exact next step for cutover
+End with:
+EXTERNAL DEVELOPMENT DATABASE READY — SAFE FOR CONTROLLED DEVELOPMENT CUTOVER
+or
+EXTERNAL DEVELOPMENT DATABASE SETUP BLOCKED: [reason]
