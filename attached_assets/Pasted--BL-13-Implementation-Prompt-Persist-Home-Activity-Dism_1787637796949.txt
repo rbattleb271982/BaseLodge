@@ -1,0 +1,258 @@
+# BL-13 Implementation Prompt — Persist Home Activity Dismissals
+
+Implement **BL-13: Home Activity Empty States** based on the completed investigation.
+
+## Objective
+
+Fix the Home activity dismissal persistence bug while preserving the existing empty-state and immediate UI reconciliation behavior.
+
+The investigation confirmed that most BL-13 behavior already works correctly:
+
+* Empty Happening sections do not render.
+* Empty Ideas sections do not render.
+* No stale section spacing remains.
+* If both sections are empty, the existing single fallback appears.
+* Dismissing the final card in a section immediately removes the heading/container.
+* If both sections become empty after dismissal, the fallback appears immediately.
+
+The actual defect is:
+
+> Home activity dismissals are removed optimistically in the browser, but the POST to `/dismiss-insight-card` does not include a valid CSRF token, so the dismissal may not persist. After refresh, the card can return.
+
+Fix that defect without redesigning the existing Home activity system.
+
+## Required implementation
+
+### 1. Add CSRF to Home dismissal requests
+
+Update the existing Home dismissal flow so `dismissInsightCard(...)` sends the valid session CSRF token with the request to:
+
+`/dismiss-insight-card`
+
+Use the application's existing CSRF mechanism and patterns.
+
+Do not:
+
+* weaken CSRF protection;
+* exempt the route from CSRF;
+* create a second dismissal endpoint;
+* introduce a new authentication mechanism.
+
+Prefer exposing the existing CSRF token to the Home JavaScript and including it in the existing `FormData`.
+
+### 2. Preserve existing optimistic behavior
+
+Keep the current UX:
+
+1. User dismisses a Happening or Ideas card.
+2. Card fades/removes immediately.
+3. If it was the final card in the section:
+
+   * remove the section wrapper;
+   * remove the heading;
+   * collapse section spacing.
+4. If both Happening and Ideas are now empty:
+
+   * reveal the existing `home-activity-fallback`.
+
+Do not redesign this interaction.
+
+### 3. Preserve existing server-side filtering
+
+The existing persisted `DismissedInsightCard` logic is already correct.
+
+Do not change the underlying data model or filtering behavior unless a failing test proves a server-side defect.
+
+The expected behavior after this fix is:
+
+**Dismiss card → persistence succeeds → reload Home → dismissed card remains absent.**
+
+### 4. Preserve existing fallback
+
+Reuse the current fallback exactly as-is.
+
+Do not introduce new copy or another empty-state component.
+
+Current intended fallback behavior:
+
+* With availability:
+
+  * show existing availability ranges;
+  * retain **Edit availability**.
+* Without availability:
+
+  * retain **Add dates to unlock trip ideas**;
+  * retain **Add availability**.
+
+### 5. Do not expand scope
+
+Keep these existing behaviors out of BL-13:
+
+* The Ideas pill may still target a missing Ideas section when there are no Ideas.
+* No rollback/error UI is required if a network request fails after optimistic removal.
+* Do not redesign Happening.
+* Do not redesign Ideas.
+* Do not change Home content ordering.
+* Do not change Home recommendations.
+* Do not change gear, Friends' Passes, requests, availability, or unrelated Home surfaces.
+
+If you identify a serious regression risk outside scope, report it rather than expanding the task.
+
+## Tests
+
+Update or add focused coverage in:
+
+`tests/test_home_empty_states.py`
+
+At minimum verify:
+
+### Initial states
+
+1. **Happening present / Ideas empty**
+
+   * Happening renders.
+   * Ideas heading/container does not render.
+   * fallback remains hidden.
+
+2. **Ideas present / Happening empty**
+
+   * Ideas renders.
+   * Happening heading/container does not render.
+   * fallback remains hidden.
+
+3. **Both present**
+
+   * both sections render once;
+   * fallback remains hidden;
+   * existing ordering remains unchanged.
+
+4. **Both empty**
+
+   * neither section renders;
+   * exactly one fallback renders;
+   * verify both:
+
+     * user has availability;
+     * user has no availability.
+
+### Dismissal behavior
+
+5. **Final Happening card dismissed**
+
+   * dismissal request includes valid CSRF;
+   * persisted dismissal record is created;
+   * Happening disappears;
+   * Ideas remains if populated.
+
+6. **Final Ideas card dismissed**
+
+   * equivalent behavior for Ideas.
+
+7. **Dismissal leaves both sections empty**
+
+   * final card disappears;
+   * final section wrapper disappears;
+   * existing fallback becomes visible.
+
+### Persistence
+
+8. After a successful dismissal:
+
+   * `DismissedInsightCard` exists;
+   * reload `/home`;
+   * dismissed card does not return.
+
+9. Repeated dismissal requests remain safe/idempotent.
+
+### Regression
+
+Run existing Home/profile/activity tests relevant to:
+
+* Happening;
+* Ideas;
+* dismissals;
+* Home fallback;
+* Home activity ordering.
+
+Then run the full isolated regression suite.
+
+## Development verification
+
+After tests pass:
+
+1. Restart only the appropriate development workflow if needed.
+2. Verify `/health`.
+3. Verify authenticated Home in development for:
+
+   * Happening-only state;
+   * Ideas-only state;
+   * both populated;
+   * both empty;
+   * final-card dismissal;
+   * page refresh after dismissal.
+4. Confirm the dismissed card remains absent after refresh.
+5. Confirm no application/database errors appear in development logs.
+
+Temporary development-only data may be used for verification if needed, but restore it afterward.
+
+## Production safety
+
+Do not:
+
+* deploy;
+* publish;
+* touch production data;
+* touch production configuration;
+* run a production migration;
+* modify native iOS or Android code.
+
+This should remain a web/template/JavaScript-only change unless implementation discovers an unexpected blocker.
+
+## Files expected to change
+
+Likely:
+
+* `templates/home.html`
+* `tests/test_home_empty_states.py`
+
+Only change `app.py` if a verified defect requires it. The investigation indicates the existing endpoint is already correct.
+
+## Completion report
+
+Return:
+
+### Behavior implemented
+
+Describe exactly what changed.
+
+### Files changed
+
+List all files.
+
+### Tests
+
+Include focused and full-suite results.
+
+### Development verification
+
+Report Home states tested and persistence-after-refresh verification.
+
+### Architecture / regression review
+
+Flag any concerns.
+
+### Commit
+
+Commit the completed implementation using exactly:
+
+`BL-13: improve Home activity empty states`
+
+Include the commit hash.
+
+### Remaining ambiguity
+
+State any unresolved issue explicitly.
+
+If everything passes and no blocker remains, end with:
+
+**BL-13 READY FOR PRODUCTION PUBLISH**
