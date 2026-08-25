@@ -1,0 +1,71 @@
+BL-53 — Investigate “Make My Setup compact on Trip Detail”
+Investigate BL-53 — Make My Setup compact on Trip Detail before implementing anything.
+Goal
+Understand exactly how My Setup currently appears on Trip Detail, what gear data it uses, what editing behavior already exists, and what the smallest safe UI refinement would be to make it more compact.
+Investigation only
+Do not implement BL-53 yet.
+Trace and report:
+Current Trip Detail My Setup UI
+Exact template/component responsible for the section.
+Current layout, labels, spacing, and visual hierarchy.
+What information is shown today.
+Whether the section differs for skier, snowboarder, or dual-discipline users.
+Data source
+Which equipment/setup fields feed My Setup.
+How the setup is selected.
+Whether it uses the same primary/fallback logic as Profile or Home.
+How rental gear, missing gear, and incomplete setups are handled.
+Editing behavior
+What happens when a user taps/clicks the displayed setup.
+Whether it deep-links to /settings/equipment or a setup-specific hash.
+Whether any Trip-specific gear editing exists.
+Relationship to BL-65
+Compare current Trip Detail gear behavior with the recently completed BL-65 Profile gear logic.
+Identify logic/components that can be reused.
+Flag any inconsistency that BL-53 should or should not resolve.
+Current footprint
+How much vertical space My Setup uses on Trip Detail.
+Which rows/details are the main cause of expansion.
+Whether boots, bindings, length, or other details are currently broken into separate rows.
+Compact-display options
+Based on the current code and data, show 2–3 realistic compact presentation options.
+Include examples for:
+skier with gear;
+snowboarder with gear;
+dual rider;
+rental gear;
+no gear;
+incomplete gear.
+Trip-specific context
+Determine whether My Setup is purely informational or whether it affects any Trip Detail behavior.
+Flag any downstream assumptions in trip participants, planning, notifications, or other logic.
+Tests
+Identify existing tests around Trip Detail gear/My Setup.
+Identify the focused test coverage BL-53 would need.
+Implementation assessment
+Identify the smallest safe implementation.
+State whether this is template-only or requires route/context changes.
+Flag any product decision I should make before implementation.
+Preserve
+Do not change:
+equipment schema;
+EquipmentSetup.is_primary;
+Profile/Home behavior;
+equipment APIs/editor;
+production database/configuration;
+push/OneSignal/APNs;
+BL-49/50/51/52.
+Hard boundaries
+Do not:
+modify code or tests;
+run migrations;
+modify development data;
+touch production;
+Publish/deploy;
+restart production;
+change database configuration.
+Base findings on the current codebase, not assumptions from the task description.
+End with exactly:
+BL-53 INVESTIGATION COMPLETE — READY FOR PRODUCT DECISIONS
+or
+BL-53 INVESTIGATION BLOCKED: [reason]
