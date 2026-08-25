@@ -1,0 +1,31 @@
+Approved. Implement Replit task #328 as BaseLodge task BL-51 — Propagate Participant-Specific Dates Across BaseLodge exactly as planned.
+Confirmed product decision
+If a Going guest’s effective attendance range has ended while the organizer’s core trip is still upcoming/current:
+classify that guest’s attendance as past;
+remove it from that guest’s upcoming/current personal-trip surfaces;
+do not claim that guest is still physically present;
+retain it only where BaseLodge already represents historical participation, such as Season Snapshot;
+do not introduce a new My Trips past-attendance UI as part of BL-51.
+The organizer’s trip and other participants remain governed by their own applicable core/effective ranges.
+Implementation
+Follow the approved #328 plan:
+establish one shared, status-aware effective participant attendance-range policy;
+propagate that range through My Trips, Season Snapshot, Home/Happening/Ideas, Mountain Detail, overlaps, carpool, availability, profile/friend-profile presence, and other actual-presence consumers identified in the plan;
+preserve organizer core-date behavior;
+preserve Interested as trip intent rather than actual attendance;
+preserve invitation/RSVP semantics and non-presence notifications;
+add only the minimal organizer-facing Going-participant attendance label on Trip Detail;
+preserve BL-50 editing/validation behavior;
+do not implement BL-52 or broaden Trip Detail;
+do not introduce schema changes, multi-range participant attendance, historical backfills, or new ski-day/visited-mountain semantics.
+Add the focused BL-51 regression coverage from the approved plan and run the full isolated regression suite.
+Restart only the development Flask workflow and verify the affected behavior against BaseLodge Dev.
+Review development logs for errors.
+Do not touch production, run production migrations, change database configuration, Publish/deploy, or modify push/OneSignal/APNs.
+If implementation and verification pass, commit with a message beginning:
+BL-51:
+Stop before Publish.
+End with exactly:
+BL-51 READY FOR PRODUCTION PUBLISH
+or
+BL-51 BLOCKED: [reason]
