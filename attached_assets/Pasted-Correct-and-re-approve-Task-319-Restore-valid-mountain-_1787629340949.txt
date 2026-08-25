@@ -1,0 +1,132 @@
+Correct and re-approve Task #319 — Restore valid mountain analytics before the next database update using the verified production total of 51 MountainPageView rows, not 151.
+This is a controlled production repair followed by BL-306 only.
+The previous execution correctly stopped before any write because the reviewed total was wrong.
+Corrected reviewed production state
+Require all of the following before any production write:
+Production identity matches the protected Supabase production identity.
+Current Alembic revision is exactly bl305_ski_day_foundation.
+mountain_page_view contains exactly 51 rows.
+Resort orphan IDs are exactly:
+1
+2
+4
+Those three rows still have:
+resort_id = 1
+user_id = 1
+the exact previously reviewed timestamps
+no session key
+Page-view ID 43 still has:
+resort_id = 8
+user_id = 105
+viewed_at = 2026-08-11 05:06:37.928351
+session key present
+Resort ID 1 does not exist.
+Resort ID 8 exists.
+User ID 105 does not exist.
+Exactly 3 resort orphans exist.
+Exactly 1 non-null user orphan exists.
+MountainPageView has no foreign keys.
+idx_mpv_resort_time exists.
+If any other value differs, STOP without writing.
+Recovery protection
+Confirm a current provider-managed Supabase backup/recovery point exists before modifying production.
+Do not restore anything.
+If recovery coverage cannot be confirmed, STOP.
+Approved repair
+Execute the same exact row-level repair approved in #318:
+DELETE MountainPageView IDs 1, 2, 4
+UPDATE MountainPageView ID 43 to set user_id = NULL
+Preserve ID 43 itself.
+Do not remap or recreate Aspen Snowmass.
+Do not modify any other row or table.
+Correct the fail-closed transaction counts
+The prior transaction design must be corrected from:
+pre-repair total 151
+post-repair total 148
+to:
+pre-repair total 51
+post-repair total 48
+All other assertions from #318 remain unchanged:
+serializable transaction
+reviewed table locks
+lock timeout
+statement timeout
+exact revision assertion
+exact column/nullability/index/FK state
+exact row IDs
+exact timestamps
+session-key presence/absence
+exact orphan totals
+exact affected-row counts
+full rollback on any drift
+Verify repair before migration
+After commit, verify:
+MountainPageView rows = 48
+IDs 1, 2, 4 are absent
+ID 43 remains
+ID 43.user_id IS NULL
+resort orphans = 0
+non-null user orphans = 0
+Alembic remains bl305_ski_day_foundation
+If any check fails, STOP before BL-306.
+Apply BL-306 only
+Run one standalone Alembic migration:
+bl305_ski_day_foundation → bl306_mpv_fk_reconcile
+Do not run upgrade head.
+Do not apply bl317_startup_schema.
+Use:
+production runtime
+explicit migration mode
+securely supplied production migration URL
+protected production identity validation
+singleton locking
+Do not import app.py, start Flask/Gunicorn, or use normal app startup for migration.
+Post-BL-306 verification
+Verify:
+Alembic revision = bl306_mpv_fk_reconcile
+MountainPageView rows = 48
+no resort or user orphans
+ID 43 remains with user_id = NULL
+idx_mpv_resort_time remains
+FK:
+resort_id → resort.id ON DELETE CASCADE
+FK:
+user_id → user.id ON DELETE SET NULL
+SkiDay schema remains intact
+STOP
+Stop immediately after BL-306 verification.
+Do not:
+apply BL-317
+deploy #317
+restart/redeploy production
+run maintenance commands
+modify push tokens
+invoke OneSignal/APNs
+resume BL-77
+change code
+create a commit
+Return
+Report:
+corrected production preflight
+backup/recovery confirmation
+pre-repair count
+orphan inventory
+repair result
+rows deleted
+user references nulled
+post-repair count
+orphan counts after repair
+exact BL-306 migration command with credentials redacted
+final Alembic revision
+both FK definitions/actions
+SkiDay verification
+confirmation BL-317 was not applied
+confirmation production was not restarted/redeployed
+confirmation no unrelated data changed
+confirmation push/OneSignal/APNs were untouched
+#317 rollout status
+BL-77 status
+End with exactly:
+BL-306 COMPLETE — PRODUCTION READY FOR #317 ROLLOUT REVIEW
+or
+BL-306 BLOCKED: [reason]
