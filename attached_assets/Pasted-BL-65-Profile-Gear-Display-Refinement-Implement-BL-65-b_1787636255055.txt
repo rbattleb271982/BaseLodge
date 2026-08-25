@@ -1,0 +1,147 @@
+BL-65 — Profile Gear Display Refinement
+Implement BL-65 based on the completed Profile Gear investigation and the product decisions made from that investigation.
+This is the next BaseLodge feature to complete before the upcoming production publish.
+Goal
+Improve the existing Profile gear display rather than creating a new gear system.
+The current Profile already surfaces equipment. BL-65 should refine that existing behavior, particularly for dual Skier + Snowboarder users and direct editing.
+Scope
+Profile only for this implementation. Do not change Home behavior.
+Preserve the existing Profile identity-row layout and reuse the existing equipment model, equipment settings experience, routes, APIs, and styling wherever possible.
+1. Single-discipline users
+Preserve the existing Profile behavior for users who are only a Skier or only a Snowboarder.
+Display the selected setup in the Profile identity area.
+Continue displaying the existing brand/model information.
+Continue displaying boots and bindings in their existing rows when populated.
+Continue using the existing global is_primary=True setup when appropriate, with the existing deterministic fallback.
+If there are no meaningful gear details, continue showing Add your gear →.
+Do not unnecessarily redesign behavior that already works.
+2. Dual Skier + Snowboarder users
+Change Profile so a user who identifies as both Skier and Snowboarder can surface one setup for each discipline.
+For example:
+Skis — Blizzard Rustler 10
+Snowboard — Burton Custom
+Do not show every saved equipment setup on Profile. Profile remains a summary.
+For each discipline:
+If the user's global primary setup matches that discipline, use it.
+Otherwise select the appropriate matching setup using the existing deterministic fallback behavior.
+Do not use a ski setup as the fallback for Snowboard or vice versa.
+Reuse or align with Home's existing discipline-aware selection logic where practical, but do not change Home as part of BL-65.
+3. Do not change primary-setup schema
+The investigation confirmed that EquipmentSetup.is_primary is currently global per user rather than primary-per-discipline.
+Do not change that data model as part of BL-65.
+Do not add:
+discipline-specific primary columns;
+new equipment tables;
+migrations;
+duplicate gear-storage logic.
+BL-65 should achieve the Profile behavior through discipline-aware selection of the existing equipment records.
+4. Dual rider missing one discipline
+If a dual rider has meaningful equipment for only one discipline, keep that populated setup visible and provide a discipline-specific add action for the missing discipline.
+Example:
+Skis — Blizzard Rustler 10
+Snowboard — Add your gear →
+And conversely:
+Skis — Add your gear →
+Snowboard — Burton Custom
+The UI should make it clear which discipline is missing gear.
+Reuse the existing equipment settings/add flow rather than creating a new editor.
+5. No meaningful gear
+Preserve the existing concept of meaningful gear details.
+A blank or partially initialized EquipmentSetup record should not automatically make Profile appear as though the user has completed their gear.
+If meaningful equipment details are absent, continue showing the appropriate:
+Add your gear →
+Do not introduce Setup saved into the Profile identity area merely because an empty setup record exists.
+Handle partially completed records gracefully without blank labels, awkward separators, or empty equipment rows.
+6. Rental gear
+Preserve the existing Rental gear behavior and its current precedence.
+If the user's existing equipment status dictates Rental gear, BL-65 should not override that behavior merely because an equipment record exists.
+Do not redesign rental handling in this task.
+7. Direct editing links
+Improve the Profile's existing populated gear links so tapping a specific displayed setup opens that setup directly in the existing equipment editor.
+Use the already-supported deep-link structure:
+/settings/equipment#setup-<id>
+For example, clicking the displayed setup represented by equipment setup ID 123 should navigate to:
+/settings/equipment#setup-123
+The investigation confirmed that the existing settings page already safely supports these hashes.
+Do not redesign /settings/equipment.
+Add-gear actions without an existing relevant setup should continue using the appropriate existing equipment settings/add flow.
+8. Preserve existing Profile presentation
+Keep the current stacked Profile identity-row treatment.
+Do not force the equipment information into a new single-line design if doing so conflicts with the existing Profile presentation.
+Preserve existing useful information such as boots and bindings where Profile already displays them.
+BL-65 should feel like a refinement of the existing Profile rather than a new component bolted onto it.
+Explicitly out of scope
+Do not change:
+Home gear behavior;
+equipment database schema;
+EquipmentSetup.is_primary semantics;
+equipment save/delete APIs;
+the existing equipment editor architecture;
+production database configuration;
+development/production database identity guards;
+push notifications;
+OneSignal;
+APNs;
+BL-77;
+unrelated BaseLodge functionality.
+Do not run a production migration.
+Do not Publish or deploy yet.
+Testing requirements
+Add focused Profile coverage for at minimum:
+Skier with no meaningful gear;
+Snowboarder with no meaningful gear;
+Skier with a complete ski setup;
+Snowboarder with a complete snowboard setup;
+global-primary setup selection;
+deterministic fallback when the primary does not apply;
+dual rider with both ski and snowboard setups;
+dual rider with ski gear only;
+dual rider with snowboard gear only;
+dual rider where the global primary belongs to only one discipline;
+prevention of cross-discipline fallback;
+blank/incomplete saved setup;
+rental state;
+populated setup links containing the correct /settings/equipment#setup-<id> target;
+missing-discipline add actions going to the existing equipment flow.
+Run:
+The focused BL-65/Profile/equipment tests.
+The full isolated regression suite.
+Development verification
+After automated tests pass:
+Restart only the development Flask workflow.
+Verify BL-65 against the dedicated BaseLodge Dev Supabase environment.
+Use only development/test accounts and development data.
+Verify the relevant Profile states visually, including the dual-discipline presentation and direct editing links.
+Review development logs for unexpected application/database errors.
+Do not copy production users, trips, gear, or activity into development for testing.
+Production boundary
+Stop before Publish.
+Production publishing will be a separate explicitly approved step after BL-65 passes development verification.
+During BL-65 implementation:
+Do not connect to or modify production.
+Do not migrate production.
+Do not restart production.
+Do not Publish or deploy.
+Do not change production secrets or database configuration.
+Commit
+If implementation and verification pass, commit the completed feature using a commit message beginning with:
+BL-65:
+Do not include unrelated changes in the commit.
+Completion report
+Report:
+exact BL-65 behavior implemented;
+files changed;
+tests added or modified;
+focused test results;
+full regression-suite result;
+development visual verification results;
+development log review;
+any unexpected behavior or remaining ambiguity;
+commit hash;
+commit message;
+confirmation that production and Publish were untouched.
+Stop after development implementation, verification, and commit.
+End with exactly one of:
+BL-65 READY FOR PRODUCTION PUBLISH
+or
+BL-65 BLOCKED: [reason]
