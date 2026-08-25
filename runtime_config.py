@@ -12,11 +12,15 @@ import hashlib
 import os
 import re
 from typing import Mapping
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 
 _VALID_RUNTIME_ENVS = frozenset({"development", "test", "production"})
 _HASH_PATTERN = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$", re.IGNORECASE)
+_SUPABASE_POOLER_HOST_PATTERN = re.compile(
+    r"^[a-z0-9-]+\.pooler\.supabase\.com$"
+)
+_SUPABASE_PROJECT_REF_PATTERN = re.compile(r"^[a-z0-9]{20}$")
 
 
 class RuntimeConfigurationError(RuntimeError):
@@ -70,6 +74,11 @@ def _normalize_url(database_url: str) -> str:
     return normalized
 
 
+def _canonical_hostname(hostname: str) -> str:
+    """Normalize a DNS hostname without changing its endpoint semantics."""
+    return hostname.lower().removesuffix(".")
+
+
 def database_identity(database_url: str) -> str:
     """Return a credential-free canonical connection identity."""
     parsed = urlsplit(_normalize_url(database_url))
@@ -82,10 +91,37 @@ def database_identity(database_url: str) -> str:
         raise RuntimeConfigurationError(
             "Configured database URL is invalid; a host and database name are required."
         )
-    host = parsed.hostname.lower()
+    host = _canonical_hostname(parsed.hostname)
     port = parsed.port or (5432 if scheme.startswith("postgres") else 0)
     database_name = parsed.path.lstrip("/").split("/")[0]
-    return f"{scheme}://{host}:{port}/{database_name}"
+    identity = f"{scheme}://{host}:{port}/{database_name}"
+    project_ref_hash = _supabase_pooler_project_ref_hash(parsed)
+    if project_ref_hash:
+        return f"{identity}?supabase_project_ref_sha256={project_ref_hash}"
+    return identity
+
+
+def _supabase_pooler_project_ref_hash(parsed) -> str | None:
+    host = _canonical_hostname(parsed.hostname or "")
+    if not _SUPABASE_POOLER_HOST_PATTERN.fullmatch(host):
+        return None
+
+    username = unquote(parsed.username or "")
+    if "." not in username:
+        raise RuntimeConfigurationError(
+            "Supabase pooler database username must include a valid project reference."
+        )
+    role, project_ref = username.rsplit(".", 1)
+    if not role or not _SUPABASE_PROJECT_REF_PATTERN.fullmatch(project_ref):
+        raise RuntimeConfigurationError(
+            "Supabase pooler database username must include a valid project reference."
+        )
+    return hashlib.sha256(project_ref.encode("utf-8")).hexdigest()
+
+
+def supabase_pooler_project_ref_hash(database_url: str) -> str | None:
+    """Return only the non-reversible project-reference hash for a pooler URL."""
+    return _supabase_pooler_project_ref_hash(urlsplit(_normalize_url(database_url)))
 
 
 def database_identity_hash(database_url: str) -> str:
@@ -102,8 +138,35 @@ def _expected_production_hash(environ: Mapping[str, str]) -> str:
     return configured_hash.split(":", 1)[-1].lower()
 
 
+def _expected_production_supabase_project_ref_hash(
+    environ: Mapping[str, str],
+) -> str:
+    configured_hash = _value(
+        environ, "BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH"
+    )
+    if not configured_hash or not _HASH_PATTERN.fullmatch(configured_hash):
+        raise RuntimeConfigurationError(
+            "BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH must be configured "
+            "for shared Supabase pooler safety."
+        )
+    return configured_hash.split(":", 1)[-1].lower()
+
+
+def _matches_protected_production_identity(
+    database_url: str, environ: Mapping[str, str]
+) -> bool:
+    expected_database_hash = _expected_production_hash(environ)
+    project_ref_hash = supabase_pooler_project_ref_hash(database_url)
+    if project_ref_hash is not None:
+        return (
+            project_ref_hash
+            == _expected_production_supabase_project_ref_hash(environ)
+        )
+    return database_identity_hash(database_url) == expected_database_hash
+
+
 def _reject_production_identity(database_url: str, environ: Mapping[str, str]) -> None:
-    if database_identity_hash(database_url) == _expected_production_hash(environ):
+    if _matches_protected_production_identity(database_url, environ):
         raise RuntimeConfigurationError(
             "Configured database matches the protected production database identity and is not allowed here."
         )
@@ -199,7 +262,7 @@ def resolve_maintenance_database_config(
         )
 
     if runtime_env == "production":
-        if database_identity_hash(database_url) != _expected_production_hash(environment):
+        if not _matches_protected_production_identity(database_url, environment):
             raise RuntimeConfigurationError(
                 "Production maintenance target must match the protected production "
                 "database identity."

@@ -1,5 +1,6 @@
 """Safety coverage for side-effect-free BaseLodge database configuration."""
 
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -9,10 +10,15 @@ import pytest
 
 from runtime_config import (
     RuntimeConfigurationError,
+    database_identity,
     database_identity_hash,
     resolve_application_database_config,
+    resolve_bootstrap_database_config,
+    resolve_development_user_database_config,
     resolve_maintenance_database_config,
     resolve_migration_database_config,
+    resolve_reference_import_database_config,
+    supabase_pooler_project_ref_hash,
 )
 
 
@@ -23,6 +29,27 @@ PRODUCTION_URL_ALTERNATE_ROLE = (
 DEVELOPMENT_URL = "postgresql://dev_user:never-log@dev.db.example:6543/baselodge"
 TEST_URL = "sqlite:///:memory:"
 PRODUCTION_HASH = database_identity_hash(PRODUCTION_URL)
+SUPABASE_POOLER_HOST = "aws-0-us-east-2.pooler.supabase.com"
+PRODUCTION_PROJECT_REF = "abcdefghijklmnopqrst"
+DEVELOPMENT_PROJECT_REF = "tsrqponmlkjihgfedcba"
+PRODUCTION_POOLER_URL = (
+    f"postgresql://postgres.{PRODUCTION_PROJECT_REF}:first-password"
+    f"@{SUPABASE_POOLER_HOST}:5432/postgres"
+)
+PRODUCTION_POOLER_ALTERNATE_ROLE_URL = (
+    f"postgresql://readonly.{PRODUCTION_PROJECT_REF}:second-password"
+    f"@{SUPABASE_POOLER_HOST}:5432/postgres"
+)
+DEVELOPMENT_POOLER_URL = (
+    f"postgresql://postgres.{DEVELOPMENT_PROJECT_REF}:dev-password"
+    f"@{SUPABASE_POOLER_HOST}:5432/postgres"
+)
+LEGACY_POOLER_ENDPOINT_HASH = hashlib.sha256(
+    f"postgresql://{SUPABASE_POOLER_HOST}:5432/postgres".encode()
+).hexdigest()
+PRODUCTION_PROJECT_REF_HASH = hashlib.sha256(
+    PRODUCTION_PROJECT_REF.encode()
+).hexdigest()
 
 
 def _environment(**overrides):
@@ -32,6 +59,237 @@ def _environment(**overrides):
     }
     environment.update(overrides)
     return environment
+
+
+def _pooler_environment(**overrides):
+    environment = {
+        "BASELODGE_RUNTIME_ENV": "development",
+        "BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH": (
+            LEGACY_POOLER_ENDPOINT_HASH
+        ),
+        "BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH": (
+            PRODUCTION_PROJECT_REF_HASH
+        ),
+    }
+    environment.update(overrides)
+    return environment
+
+
+def test_supabase_pooler_identity_ignores_password_and_role_for_same_project():
+    assert database_identity(PRODUCTION_POOLER_URL) == database_identity(
+        PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+    )
+    identity = database_identity(PRODUCTION_POOLER_URL)
+    assert PRODUCTION_PROJECT_REF not in identity
+    assert "://postgres." not in identity
+    assert "://readonly." not in identity
+    assert "password" not in identity
+    assert PRODUCTION_PROJECT_REF_HASH in identity
+
+
+def test_supabase_pooler_identity_distinguishes_projects_on_same_endpoint():
+    assert database_identity(PRODUCTION_POOLER_URL) != database_identity(
+        DEVELOPMENT_POOLER_URL
+    )
+
+
+def test_supabase_pooler_identity_canonicalizes_terminal_dns_dot():
+    trailing_dot_url = PRODUCTION_POOLER_URL.replace(
+        f"@{SUPABASE_POOLER_HOST}:",
+        f"@{SUPABASE_POOLER_HOST}.:",
+    )
+    assert database_identity(trailing_dot_url) == database_identity(
+        PRODUCTION_POOLER_URL
+    )
+    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+        resolve_application_database_config(
+            _pooler_environment(
+                BASELODGE_DEVELOPMENT_DATABASE_URL=trailing_dot_url
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        "postgres",
+        "postgres.",
+        ".abcdefghijklmnopqrst",
+        "postgres.too-short",
+        "postgres.ABCDEFGHIJKLMNOPQRST",
+    ],
+)
+def test_supabase_pooler_identity_rejects_malformed_project_reference(username):
+    with pytest.raises(RuntimeConfigurationError, match="project reference"):
+        database_identity(
+            f"postgresql://{username}:secret@{SUPABASE_POOLER_HOST}:5432/postgres"
+        )
+
+
+def test_supabase_pooler_project_hash_exposes_no_project_reference():
+    assert (
+        supabase_pooler_project_ref_hash(PRODUCTION_POOLER_URL)
+        == PRODUCTION_PROJECT_REF_HASH
+    )
+
+
+def test_direct_supabase_hostname_retains_existing_identity_behavior():
+    direct_url = (
+        f"postgresql://postgres:secret@db.{DEVELOPMENT_PROJECT_REF}"
+        ".supabase.co:5432/postgres"
+    )
+    assert database_identity(direct_url) == (
+        f"postgresql://db.{DEVELOPMENT_PROJECT_REF}.supabase.co:5432/postgres"
+    )
+    assert supabase_pooler_project_ref_hash(direct_url) is None
+
+
+def test_pooler_guard_requires_explicit_production_project_hash():
+    with pytest.raises(
+        RuntimeConfigurationError,
+        match="PRODUCTION_SUPABASE_PROJECT_REF_HASH",
+    ):
+        resolve_application_database_config(
+            {
+                "BASELODGE_RUNTIME_ENV": "development",
+                "BASELODGE_DEVELOPMENT_DATABASE_URL": DEVELOPMENT_POOLER_URL,
+                "BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH": (
+                    LEGACY_POOLER_ENDPOINT_HASH
+                ),
+            }
+        )
+
+
+def test_development_rejects_production_pooler_with_alternate_role():
+    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+        resolve_application_database_config(
+            _pooler_environment(
+                BASELODGE_DEVELOPMENT_DATABASE_URL=(
+                    PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+                )
+            )
+        )
+
+
+def test_migration_rejects_production_pooler_with_alternate_role():
+    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+        resolve_migration_database_config(
+            _pooler_environment(
+                BASELODGE_MIGRATION_MODE="1",
+                BASELODGE_MIGRATION_DATABASE_URL=(
+                    PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+                ),
+            )
+        )
+
+
+def test_development_maintenance_rejects_production_pooler():
+    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+        resolve_maintenance_database_config(
+            _pooler_environment(
+                BASELODGE_MAINTENANCE_MODE="1",
+                BASELODGE_MAINTENANCE_DATABASE_URL=(
+                    PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+                ),
+                BASELODGE_DEVELOPMENT_DATABASE_URL=DEVELOPMENT_POOLER_URL,
+            )
+        )
+
+
+def test_production_maintenance_accepts_protected_pooler_across_roles():
+    configuration = resolve_maintenance_database_config(
+        _pooler_environment(
+            BASELODGE_RUNTIME_ENV="production",
+            BASELODGE_MAINTENANCE_MODE="1",
+            BASELODGE_MAINTENANCE_DATABASE_URL=(
+                PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+            ),
+        )
+    )
+    assert configuration.database_url == PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+
+
+def test_development_accepts_different_project_on_same_pooler():
+    configuration = resolve_application_database_config(
+        _pooler_environment(
+            BASELODGE_DEVELOPMENT_DATABASE_URL=DEVELOPMENT_POOLER_URL
+        )
+    )
+    assert configuration.database_url == DEVELOPMENT_POOLER_URL
+
+
+@pytest.mark.parametrize(
+    "resolver,mode_key,target_key",
+    [
+        (
+            resolve_bootstrap_database_config,
+            "BASELODGE_BOOTSTRAP_MODE",
+            "BASELODGE_BOOTSTRAP_DATABASE_URL",
+        ),
+        (
+            resolve_reference_import_database_config,
+            "BASELODGE_REFERENCE_IMPORT_MODE",
+            "BASELODGE_REFERENCE_IMPORT_DATABASE_URL",
+        ),
+        (
+            resolve_development_user_database_config,
+            "BASELODGE_DEVELOPMENT_USER_MODE",
+            "BASELODGE_DEVELOPMENT_USER_DATABASE_URL",
+        ),
+    ],
+)
+def test_pooler_guards_accept_same_dev_project_across_roles(
+    resolver, mode_key, target_key
+):
+    alternate_dev_role = DEVELOPMENT_POOLER_URL.replace(
+        f"postgres.{DEVELOPMENT_PROJECT_REF}:dev-password",
+        f"migration.{DEVELOPMENT_PROJECT_REF}:another-password",
+    )
+    configuration = resolver(
+        _pooler_environment(
+            **{
+                "BASELODGE_DEVELOPMENT_DATABASE_URL": DEVELOPMENT_POOLER_URL,
+                mode_key: "1",
+                target_key: alternate_dev_role,
+            }
+        )
+    )
+    assert configuration.database_url == alternate_dev_role
+
+
+@pytest.mark.parametrize(
+    "resolver,mode_key,target_key",
+    [
+        (
+            resolve_bootstrap_database_config,
+            "BASELODGE_BOOTSTRAP_MODE",
+            "BASELODGE_BOOTSTRAP_DATABASE_URL",
+        ),
+        (
+            resolve_reference_import_database_config,
+            "BASELODGE_REFERENCE_IMPORT_MODE",
+            "BASELODGE_REFERENCE_IMPORT_DATABASE_URL",
+        ),
+        (
+            resolve_development_user_database_config,
+            "BASELODGE_DEVELOPMENT_USER_MODE",
+            "BASELODGE_DEVELOPMENT_USER_DATABASE_URL",
+        ),
+    ],
+)
+def test_pooler_guards_reject_production_project(
+    resolver, mode_key, target_key
+):
+    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+        resolver(
+            _pooler_environment(
+                **{
+                    "BASELODGE_DEVELOPMENT_DATABASE_URL": DEVELOPMENT_POOLER_URL,
+                    mode_key: "1",
+                    target_key: PRODUCTION_POOLER_ALTERNATE_ROLE_URL,
+                }
+            )
+        )
 
 
 def test_development_requires_its_own_database_url():
