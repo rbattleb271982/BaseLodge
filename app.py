@@ -13576,6 +13576,47 @@ def trip_detail(trip_id):
     my_pass_str = _participant_pass or _profile_pass
     my_pass_display = format_passes_for_display(my_pass_str) if my_pass_str else ""
 
+    # Lightweight attention summary: derived only from existing trip state and
+    # links to an existing row, sheet, or planning page.  This is intentionally
+    # not persisted and does not introduce a task-management system.
+    attention_items = []
+    if is_owner and pending_requests:
+        attention_items.append({
+            "title": "Review join requests",
+            "detail": f"{len(pending_requests)} request{'s' if len(pending_requests) != 1 else ''} waiting",
+            "target": "#td-join-requests",
+        })
+    if is_owner and pending_participants:
+        attention_items.append({
+            "title": "Follow up on invitations",
+            "detail": f"{len(pending_participants)} invite{'s' if len(pending_participants) != 1 else ''} pending",
+            "target": "#td-rsvp-section",
+        })
+    if can_plan and planning_post_count == 0:
+        attention_items.append({
+            "title": "Start planning together",
+            "detail": "Share the first idea with the group",
+            "target": url_for("trip_planning", trip_id=trip.id),
+        })
+    if is_member:
+        setup_missing = []
+        if not my_pass_display:
+            setup_missing.append("pass")
+        effective_equipment = (
+            current_user_participant.get_display_equipment()
+            if current_user_participant else "Not set"
+        )
+        if effective_equipment == "Not set":
+            setup_missing.append("equipment")
+        if not current_user_participant or not current_user_participant.taking_lesson:
+            setup_missing.append("lessons")
+        if setup_missing:
+            attention_items.append({
+                "title": "Finish your setup",
+                "detail": "Set " + ", ".join(setup_missing),
+                "target": "#td-setup-card",
+            })
+
     if app.debug:
         print(f"[ROUTE_PERF] route=trip_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
@@ -13608,6 +13649,7 @@ def trip_detail(trip_id):
         planning_post_count=planning_post_count,
         my_pass_str=my_pass_str,
         my_pass_display=my_pass_display,
+        attention_items=attention_items,
     )
 
 

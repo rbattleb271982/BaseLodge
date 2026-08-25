@@ -451,6 +451,100 @@
         .td-swg-title { font-size: 17px; font-weight: 600; color: #1A1A1A; margin: 0 0 2px; }
         .td-swg-sub { display: block; font-size: 13px; color: var(--bl-color-text-muted, #8A857A); margin: 0; }
         .td-swg-wishlist { font-size: 12px; color: #5C1219; margin: 0; font-weight: 500; }
+        .td-hub-section {
+            margin: 18px 0 22px;
+        }
+        .td-hub-section > .td-section-label {
+            margin-top: 0;
+        }
+        .td-attention-card {
+            background: #FBF6F0;
+            border: 1px solid #E8D8C8;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .td-attention-header {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 13px 16px 9px;
+            color: #5C1219;
+        }
+        .td-attention-header h2 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 700;
+        }
+        .td-attention-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 11px 16px;
+            border: 0;
+            border-top: 1px solid rgba(232,216,200,0.8);
+            background: transparent;
+            color: inherit;
+            text-decoration: none;
+            text-align: left;
+            box-sizing: border-box;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .td-attention-item:active { background: rgba(92,18,25,0.04); }
+        .td-attention-copy { flex: 1; min-width: 0; }
+        .td-attention-title {
+            display: block;
+            color: #3E2525;
+            font-size: 14px;
+            font-weight: 650;
+        }
+        .td-attention-detail {
+            display: block;
+            margin-top: 2px;
+            color: #806C62;
+            font-size: 12px;
+        }
+        .td-attention-chevron { color: #9A7B6A; flex-shrink: 0; }
+        .td-rsvp-summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 16px;
+            cursor: pointer;
+            list-style: none;
+        }
+        .td-rsvp-summary::-webkit-details-marker { display: none; }
+        .td-rsvp-summary::after {
+            content: '›';
+            color: #B5AFA5;
+            font-size: 22px;
+            line-height: 1;
+            transform: rotate(90deg);
+            transition: transform 160ms ease;
+        }
+        details[open] > .td-rsvp-summary::after { transform: rotate(-90deg); }
+        .td-rsvp-summary-title { margin: 0; font-size: 15px; font-weight: 650; color: #1A1A1A; }
+        .td-rsvp-summary-counts { margin: 3px 0 0; font-size: 12px; color: var(--bl-color-text-muted); }
+        .td-rsvp-details { padding: 0 16px 10px; }
+        .td-rsvp-details .td-person-status-tag { margin-left: 0 !important; }
+        .td-rsvp-details .td-person-row { padding-left: 0; padding-right: 0; }
+        .td-action-group {
+            margin-top: 22px;
+            border-top: 1px solid rgba(92,18,25,0.08);
+        }
+        .td-hub-page {
+            display: flex;
+            flex-direction: column;
+        }
+        .td-hub-block { order: 1; }
+        .td-hub-attention { order: 2; }
+        .td-hub-your-trip { order: 3; }
+        .td-hub-people { order: 4; }
+        .td-hub-planning { order: 5; }
+        .td-hub-invite { order: 6; }
+        .td-hub-actions { order: 7; }
         .td-cancel-trip-wrap {
             border-top: 1px solid rgba(92,18,25,0.08);
             padding: 36px 0 calc(20px + env(safe-area-inset-bottom, 0px));
@@ -1265,7 +1359,7 @@
     </div>
     {% endif %}
 
-    <div class="page-container{% if is_invited %} page-container-with-sticky{% endif %}">
+    <div class="page-container td-hub-page{% if is_invited %} page-container-with-sticky{% endif %}">
 
 
         <!-- Trip header -->
@@ -1274,7 +1368,7 @@
         {% set people = all_participants|length if all_participants else 0 %}
         {% set ts = trip.trip_status or 'planning' %}
 
-        <div class="td-header">
+        <div class="td-header td-hub-block">
             <div class="td-mountain-header">
                 {% if mountain_name %}
                 <button type="button" class="td-mountain-name td-location-btn" onclick="tdLocationTap()" id="td-location-btn">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}<span class="td-location-caret"> ›</span></button>
@@ -1346,9 +1440,31 @@
 
         </div>
 
+        {% if attention_items %}
+        <section class="td-hub-attention td-hub-section" aria-labelledby="td-attention-heading">
+            <p class="td-section-label">What needs attention</p>
+            <div class="td-attention-card">
+                <div class="td-attention-header">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    <h2 id="td-attention-heading">A few things to review</h2>
+                </div>
+                {% for item in attention_items %}
+                <a class="td-attention-item" href="{{ item.target }}">
+                    <span class="td-attention-copy">
+                        <span class="td-attention-title">{{ item.title }}</span>
+                        <span class="td-attention-detail">{{ item.detail }}</span>
+                    </span>
+                    <span class="td-attention-chevron" aria-hidden="true">›</span>
+                </a>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="td-hub-your-trip td-hub-section" aria-labelledby="td-your-trip-heading">
+            <p class="td-section-label" id="td-your-trip-heading">Your trip</p>
         {% if can_edit_attendance_dates %}
-        <p class="td-section-label">Your attendance</p>
-        <div class="td-swg-card" style="margin-bottom: 20px;">
+        <div class="td-swg-card" style="margin-bottom: 12px;">
             <button type="button" class="td-swg-row" onclick="openParticipantDateSheet()" aria-controls="td-participant-date-sheet">
                 <span class="td-swg-icon" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
@@ -1364,7 +1480,7 @@
 
         <!-- My Setup -->
         <h2 class="td-setup-heading">My setup</h2>
-        <div class="td-setup-card">
+        <div class="td-setup-card" id="td-setup-card">
         <div class="td-setup-chips">
             {# Pass — still opens the existing pass sheet for editable members. #}
             {% if is_member %}
@@ -1472,41 +1588,10 @@
         </div>
         {% endif %}
         </div><!-- /td-setup-card -->
-
-        <!-- Trip Planning -->
-        {% if can_plan %}
-        <p class="td-section-label">Trip planning</p>
-        <div class="td-swg-card" style="margin-bottom: 20px;">
-            <a href="{{ url_for('trip_planning', trip_id=trip.id) }}" class="td-swg-row">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Plan this trip together</p>
-                    <p class="td-swg-sub">Share ideas and links with everyone going.</p>
-                    <p class="td-swg-wishlist" style="margin-top:3px;">{% if planning_post_count > 0 %}{{ planning_post_count }} post{{ 's' if planning_post_count != 1 else '' }}{% else %}No posts yet{% endif %}</p>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </a>
-        </div>
-        {% endif %}
-
-        <!-- Invite Friends -->
-        {% if is_owner %}
-        <div class="td-swg-card">
-            <button type="button" class="td-swg-row" onclick="openInviteModal()">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Invite friends to this trip</p>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
-        </div>
-        {% endif %}
+        </section><!-- /td-hub-your-trip -->
 
         <!-- People -->
+        <section class="td-hub-people td-hub-section" aria-label="Who's going">
         {% if trip.resort and trip.resort.slug %}
         <p class="td-section-label">People</p>
         <div class="td-swg-card">
@@ -1525,10 +1610,15 @@
 
         <!-- RSVP summary and groups -->
         {% if going_participants or interested_participants or pending_participants or declined_participants %}
-        <p class="td-section-label">RSVP</p>
-        <p class="td-person-meta" style="margin: -6px 0 10px;">
-            {{ going_participants|length }} Going · {{ interested_participants|length }} Interested · {{ pending_participants|length }} Pending
-        </p>
+        {% set _rsvp_total = (going_participants|length) + (interested_participants|length) + (pending_participants|length) + (declined_participants|length) %}
+        <details class="td-swg-card" id="td-rsvp-section" {% if _rsvp_total <= 3 %}open{% endif %}>
+            <summary class="td-rsvp-summary">
+                <span>
+                    <span class="td-rsvp-summary-title">Who's going</span>
+                    <span class="td-rsvp-summary-counts">{{ going_participants|length }} Going · {{ interested_participants|length }} Interested · {{ pending_participants|length }} Pending</span>
+                </span>
+            </summary>
+            <div class="td-rsvp-details">
 
         {% for label, people in [('Going', going_participants), ('Interested', interested_participants), ('Pending', pending_participants), ('Declined', declined_participants)] %}
             {% if people %}
@@ -1575,11 +1665,49 @@
             {% endfor %}
             {% endif %}
         {% endfor %}
+            </div>
+        </details>
+        {% endif %}
+        </section><!-- /td-hub-people -->
+
+        <!-- Trip Planning -->
+        {% if can_plan %}
+        <section class="td-hub-planning td-hub-section" aria-labelledby="td-planning-heading">
+        <p class="td-section-label" id="td-planning-heading">Trip planning</p>
+        <div class="td-swg-card" style="margin-bottom: 20px;">
+            <a href="{{ url_for('trip_planning', trip_id=trip.id) }}" class="td-swg-row">
+                <span class="td-swg-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                </span>
+                <div class="td-swg-text">
+                    <p class="td-swg-title">Plan this trip together</p>
+                    <p class="td-swg-sub">Share ideas and links with everyone going.</p>
+                    <p class="td-swg-wishlist" style="margin-top:3px;">{% if planning_post_count > 0 %}{{ planning_post_count }} post{{ 's' if planning_post_count != 1 else '' }}{% else %}No posts yet{% endif %}</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </a>
+        </div>
+        </section>
         {% endif %}
 
         <!-- Join requests remain separate from RSVP groups. -->
+        <section class="td-hub-actions td-hub-section" aria-label="Trip actions">
+        {% if is_owner %}
+        <div class="td-swg-card td-hub-invite">
+            <button type="button" class="td-swg-row" onclick="openInviteModal()">
+                <span class="td-swg-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+                </span>
+                <div class="td-swg-text">
+                    <p class="td-swg-title">Invite friends to this trip</p>
+                    <p class="td-swg-sub">Bring more people into the plan.</p>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+        </div>
+        {% endif %}
         {% if is_owner and pending_requests %}
-        <p class="td-section-label">Join requests</p>
+        <p class="td-section-label" id="td-join-requests">Join requests</p>
         <div>
             {% for req in pending_requests %}
             <div class="td-person-row">
@@ -1638,6 +1766,7 @@
         </div>
         {% endif %}
 
+        </section><!-- /td-hub-actions -->
     </div><!-- /page-container -->
 
     <!-- Sticky action bar (for invited guests viewing this page) -->

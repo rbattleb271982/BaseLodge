@@ -11,6 +11,7 @@ from models import (
     ParticipantEquipment,
     SkiTrip,
     SkiTripParticipant,
+    User,
 )
 from tests.conftest import (
     _add_participant,
@@ -207,3 +208,59 @@ def test_setup_chips_keep_single_open_editor_contract():
     assert "function toggleEquipmentOverride()" in TRIP_DETAIL_TEMPLATE
     assert "function toggleLessonEditor()" in TRIP_DETAIL_TEMPLATE
     assert "sourceEl.textContent = value ? 'For this trip' : 'From profile';" in TRIP_DETAIL_TEMPLATE
+
+
+def test_trip_detail_hub_has_summary_attention_and_progressive_rsvp_sections(client):
+    with app.app_context():
+        owner_id, trip_id, _participant_id = _setup_trip()
+
+    html = _trip_html(client, owner_id, trip_id)
+
+    assert 'class="page-container td-hub-page' in html
+    assert 'id="td-attention-heading"' in html
+    assert "Start planning together" in html
+    assert 'id="td-setup-card"' in html
+    assert 'id="td-rsvp-section"' in html
+    assert 'class="td-rsvp-summary"' in html
+    assert "Who's going" in html
+    assert html.index('<section class="td-hub-attention') < html.index(
+        '<div class="td-setup-card" id="td-setup-card"'
+    )
+    assert html.index('<div class="td-setup-card" id="td-setup-card"') < html.index(
+        '<details class="td-swg-card" id="td-rsvp-section"'
+    )
+    assert html.index('<details class="td-swg-card" id="td-rsvp-section"') < html.index(
+        'id="td-planning-heading"'
+    )
+
+
+def test_trip_detail_hub_keeps_pending_invitee_view_only_and_sticky_rsvp(client):
+    with app.app_context():
+        _owner_id, trip_id, _owner_participant_id = _setup_trip()
+        invited = _make_user("trip-detail-hub-pending")
+        trip = SkiTrip.query.get(trip_id)
+        _add_participant(trip, invited, GuestStatus.PENDING)
+        invited_id = invited.id
+        db.session.commit()
+
+    html = _trip_html(client, invited_id, trip_id)
+
+    assert 'class="page-container td-hub-page page-container-with-sticky' in html
+    assert 'class="sticky-action-container visible"' in html
+    assert 'id="td-attention-heading"' not in html
+    assert 'id="td-planning-heading"' not in html
+    assert 'id="td-edit-toggle-btn"' not in html
+    assert 'onclick="openParticipantDateSheet()"' not in html
+
+
+def test_hub_attention_uses_profile_equipment_fallback(client):
+    with app.app_context():
+        owner_id, trip_id, _participant_id = _setup_trip(
+            owner_equipment=EquipmentStatus.HAVE_OWN_EQUIPMENT.value
+        )
+
+    html = _trip_html(client, owner_id, trip_id)
+
+    assert "Bringing own" in html
+    assert "Set equipment" not in html
+    assert '<section class="td-hub-people td-hub-section" aria-label="Who\'s going">' in html
