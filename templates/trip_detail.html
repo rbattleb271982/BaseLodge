@@ -1127,6 +1127,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            gap: 12px;
             padding: 12px 0;
             border-bottom: 1px solid #E5DFD0;
         }
@@ -1152,6 +1153,9 @@
             gap: 8px;
             flex-shrink: 0;
             margin-left: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
         .td-person-btn-accept {
             background: #5C1219;
@@ -1178,6 +1182,28 @@
             font-weight: 600;
             color: #5C1219;
         }
+        .td-person-status-chip {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: rgba(92,18,25,0.07);
+            color: #5C1219;
+            font-size: 11px;
+            font-weight: 650;
+            line-height: 1.2;
+        }
+        .td-person-status-chip--pending {
+            background: #F4EFE3;
+            color: #806C62;
+        }
+        .td-person-status-chip--declined {
+            background: #F7EDEE;
+            color: #8B4A52;
+        }
+        .td-person-row .td-cancel-link {
+            white-space: nowrap;
+        }
         .td-cancel-link {
             background: transparent;
             border: none;
@@ -1185,6 +1211,21 @@
             font-size: 14px;
             cursor: pointer;
             padding: 4px 0;
+        }
+        @media (max-width: 560px) {
+            .td-person-row { align-items: flex-start; }
+            .td-person-actions {
+                gap: 4px;
+                margin-left: 4px;
+                max-width: 42%;
+            }
+            .td-person-actions form { max-width: 100%; }
+            .td-person-actions .td-cancel-link,
+            .td-person-actions .td-person-btn-accept {
+                max-width: 100%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
         }
 
         /* ── Sticky action bar (for is_invited on trip_detail) ── */
@@ -1700,10 +1741,11 @@
             {% if people %}
             <p class="td-person-status-tag" style="margin: 12px 0 4px;">{{ label }}</p>
             {% for p in people %}
-            <div class="td-person-row">
+            <div class="td-person-row" data-participant-user-id="{{ p.user_id }}" data-participant-status="{{ label|lower }}">
                 <div class="td-person-info">
                     <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight:400;color:var(--bl-color-text-muted);font-size:12px;">(Organizer)</span>{% endif %}</p>
                     <p class="td-person-meta">{{ p.user|identity_line }}</p>
+                    <span class="td-person-status-chip td-person-status-chip--{{ label|lower }}">{{ label }}</span>
                     {% if is_owner and label == 'Going' and p.user_id != current_user.id %}
                     <p class="td-person-meta" data-attendance-dates="true" style="margin-top:2px;">
                         Attending {% if p.attendance_start_date == trip.start_date and p.attendance_end_date == trip.end_date %}full trip{% elif p.attendance_start_date == p.attendance_end_date %}{{ p.attendance_start_date.strftime('%b %-d') }}{% elif p.attendance_start_date.month == p.attendance_end_date.month %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%-d') }}{% else %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%b %-d') }}{% endif %}
@@ -1716,7 +1758,7 @@
                     <form method="POST" action="{{ url_for('organizer_update_trip_rsvp', trip_id=trip.id, user_id=p.user_id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="response" value="{{ 'interested' if label == 'Going' else 'going' }}">
-                        <button type="submit" class="td-cancel-link">Mark {{ 'Interested' if label == 'Going' else 'Going' }}</button>
+                        <button type="submit" class="td-cancel-link">Change to {{ 'Interested' if label == 'Going' else 'Going' }}</button>
                     </form>
                     <form method="POST" action="{{ url_for('organizer_remove_trip_participant', trip_id=trip.id, user_id=p.user_id) }}" onsubmit="return confirm('Remove this participant from the trip?');">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1727,7 +1769,7 @@
                     <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="user_id" value="{{ p.user_id }}">
-                        <button type="submit" class="td-cancel-link">Cancel</button>
+                        <button type="submit" class="td-cancel-link">Cancel invite</button>
                     </form>
                     {% else %}
                     <form method="POST" action="{{ url_for('organizer_reinvite_trip_participant', trip_id=trip.id, user_id=p.user_id) }}">
