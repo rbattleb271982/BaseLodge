@@ -145,12 +145,7 @@
             {%- set _rt_val   = current_user.display_rider_type or 'Add rider type' -%}
             {%- set _sl_val   = current_user.skill_level or 'Add skill level' -%}
             {%- set _pass_val = (current_user.pass_type | pass_display) if current_user.pass_type else 'No pass yet' -%}
-            {%- set _has_gear     = primary_equipment and (primary_equipment.brand or primary_equipment.model) -%}
-            {%- set _has_boots    = primary_equipment and (primary_equipment.boot_brand or primary_equipment.boot_model) -%}
-            {%- set _has_bindings = primary_equipment and (primary_equipment.binding_brand or primary_equipment.binding_model) -%}
             {%- set _is_renting   = current_user.equipment_status == 'needs_rentals' -%}
-            {%- set _primary_rt   = (current_user.rider_types or [''])[0] -%}
-            {%- set _gear_label   = 'Snowboard' if _primary_rt == 'Snowboarder' else ('Skis' if _primary_rt in ['Skier', 'Telemark'] else 'Equipment') -%}
             <div class="hc-identity">
                 <div class="hc-identity-row">
                     <span class="hc-identity-label">Rider Type:</span>
@@ -169,30 +164,42 @@
                     <span class="hc-identity-meta">Joined BaseLodge · {{ current_user.created_at.strftime('%B %Y') }}</span>
                 </div>
                 {% endif %}
-                {%- if _has_gear or _has_boots or _has_bindings %}
+                {%- if _is_renting %}
+                <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link">Rental gear</a>
+                {%- elif profile_gear_disciplines %}
+                {%- for discipline in profile_gear_disciplines %}
+                {%- set _setup = profile_gear_by_discipline.get(discipline) -%}
+                {%- set _gear_label = 'Snowboard' if discipline == 'snowboarder' else 'Skis' -%}
+                {%- set _has_gear = _setup and (_setup.brand or _setup.model) -%}
+                {%- set _has_boots = _setup and (_setup.boot_brand or _setup.boot_model) -%}
+                {%- set _has_bindings = _setup and (_setup.binding_brand or _setup.binding_model) -%}
                 {%- if _has_gear -%}
-                {%- set _g = ([primary_equipment.brand, primary_equipment.model] | select | join(' ')) -%}
+                {%- set _g = ([_setup.brand, _setup.model] | select | join(' ')) -%}
                 <div class="hc-identity-row">
                     <span class="hc-identity-label">{{ _gear_label }}:</span>
-                    <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link">{{ _g }}</a>
+                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}" class="hc-identity-link">{{ _g }}</a>
+                </div>
+                {%- else -%}
+                <div class="hc-identity-row">
+                    <span class="hc-identity-label">{{ _gear_label }}:</span>
+                    <a href="{{ url_for('settings_equipment') }}{% if _setup %}#setup-{{ _setup.id }}{% endif %}" class="hc-profile-cta">Add your gear →</a>
                 </div>
                 {%- endif -%}
                 {%- if _has_boots -%}
-                {%- set _b = ([primary_equipment.boot_brand, primary_equipment.boot_model] | select | join(' ')) -%}
+                {%- set _b = ([_setup.boot_brand, _setup.boot_model] | select | join(' ')) -%}
                 <div class="hc-identity-row">
                     <span class="hc-identity-label">Boots:</span>
-                    <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link">{{ _b }}</a>
+                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}" class="hc-identity-link">{{ _b }}</a>
                 </div>
                 {%- endif -%}
                 {%- if _has_bindings -%}
-                {%- set _bn = ([primary_equipment.binding_brand, primary_equipment.binding_model] | select | join(' ')) -%}
+                {%- set _bn = ([_setup.binding_brand, _setup.binding_model] | select | join(' ')) -%}
                 <div class="hc-identity-row">
                     <span class="hc-identity-label">Bindings:</span>
-                    <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link">{{ _bn }}</a>
+                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}" class="hc-identity-link">{{ _bn }}</a>
                 </div>
                 {%- endif -%}
-                {%- elif _is_renting %}
-                <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link">Rental gear</a>
+                {%- endfor -%}
                 {%- else %}
                 <a href="{{ url_for('settings_equipment') }}" class="hc-profile-cta">Add your gear →</a>
                 {%- endif %}

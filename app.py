@@ -11403,6 +11403,35 @@ def profile():
             parts.append("Bindings: " + " ".join(binding_parts))
         equipment_summary = " · ".join(parts) if parts else "Setup saved"
 
+    # BL-65: Profile shows one setup per declared discipline for dual riders.
+    # EquipmentSetup.is_primary remains global per user, so the same ordering
+    # prefers a matching global primary and then falls back to the oldest
+    # matching setup without allowing one discipline to stand in for another.
+    profile_gear_disciplines = _home_gear_disciplines(current_user)
+    if not profile_gear_disciplines and primary_equipment and primary_equipment.discipline:
+        # Preserve useful legacy behavior for accounts without rider_types by
+        # deriving the display discipline from their existing setup.
+        profile_gear_disciplines = [primary_equipment.discipline.value]
+
+    profile_gear_by_discipline = {}
+    if profile_gear_disciplines:
+        profile_setup_rows = (
+            EquipmentSetup.query
+            .filter(
+                EquipmentSetup.user_id == current_user.id,
+                EquipmentSetup.discipline.in_(profile_gear_disciplines),
+            )
+            .order_by(
+                db.case((EquipmentSetup.is_primary == True, 0), else_=1),
+                EquipmentSetup.created_at.asc().nullsfirst(),
+                EquipmentSetup.id.asc(),
+            )
+            .all()
+        )
+        for setup in profile_setup_rows:
+            if setup.discipline and setup.discipline.value not in profile_gear_by_discipline:
+                profile_gear_by_discipline[setup.discipline.value] = setup
+
     # Wish list data
     wish_list_ids = current_user.wish_list_resorts or []
     wish_list_count = len(wish_list_ids)
@@ -11421,6 +11450,8 @@ def profile():
                            wish_list_resorts=wish_list_resorts,
                            upcoming_trips_count=upcoming_trips_count,
                            primary_equipment=primary_equipment,
+                           profile_gear_disciplines=profile_gear_disciplines,
+                           profile_gear_by_discipline=profile_gear_by_discipline,
                            ski_day_count=SkiDay.query.filter_by(
                                user_id=current_user.id
                            ).count())
