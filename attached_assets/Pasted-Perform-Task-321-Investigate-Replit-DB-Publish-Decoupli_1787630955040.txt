@@ -1,0 +1,53 @@
+Perform Task #321 — Investigate Replit DB Publish Decoupling now.
+Follow the approved #321 scope exactly.
+This is INVESTIGATION ONLY.
+Do not detach, delete, modify, publish, approve, redeploy, migrate, restart, or change any database/deployment/secret configuration.
+Current state
+Development uses the Replit-managed PostgreSQL database.
+Production uses external Supabase.
+Supabase production is already at bl317_startup_schema.
+Replit Publish is still trying to provision/sync a separate managed production database because it sees the managed development DB.
+Investigate
+Use current official Replit documentation and read-only workspace metadata to identify the exact feature/association that causes Publish to treat the managed development DB as needing a production counterpart.
+Determine whether the development DB can remain attached to the workspace while production DB synchronization is disabled.
+Determine whether the existing deployment can be reused or whether a new deployment configuration is required.
+Determine the exact effect of detaching/removing any DB integration on:
+Replit development DB contents
+DATABASE_URL
+development runtime
+production deployment
+custom domains
+secrets
+Determine whether production can rely only on the BaseLodge/Supabase runtime secrets after the managed production DB association is removed.
+Identify the exact UI path or supported command for the safe configuration change.
+Identify the rollback path.
+State whether normal Publish would become application-code-only after the change.
+Do not
+remove any integration
+delete the development DB
+change DATABASE_URL
+change Supabase secrets
+create a managed production DB
+approve Publish
+publish/redeploy
+run migrations
+touch production data/schema
+restart production
+touch push/OneSignal/APNs
+resume BL-77
+Return
+Report:
+exact root cause
+whether development DB can stay
+exact supported configuration change
+whether existing deployment can stay
+effects on data/secrets/domains
+exact UI or command path
+rollback method
+whether Publish becomes code-only afterward
+any remaining blocker
+End with exactly one:
+SAFE TO DECOUPLE REPLIT MANAGED DB FROM PRODUCTION PUBLISH USING: [exact method]
+or
+DECOUPLING BLOCKED: [exact reason]
+Do not implement anything during this investigation.
