@@ -1,0 +1,41 @@
+Investigate the BaseLodge Trip Stay schema mismatch and produce a safe implementation plan. Do not modify code, database schema, secrets, deployment configuration, Git state, or Production. Do not run migrations yet.
+
+Context from the release audit:
+
+* Current source expects Alembic revision `bl52_trip_stay`.
+* Development and Production were both observed at `bl317_startup_schema`.
+* `bl52_trip_stay` adds two nullable columns to `ski_trip`:
+
+  * `stay_name`
+  * `stay_description`
+* Current application code reads/writes those fields.
+* Republish does not automatically run Alembic.
+* The migration was previously assessed as additive and non-destructive.
+
+I need you to independently verify all of that and then give me the safest path to resolve it.
+
+Specifically:
+
+1. Inspect the Alembic chain from `bl317_startup_schema` to `bl52_trip_stay`.
+2. Show exactly what `bl52_trip_stay` changes.
+3. Confirm whether there are any other pending migrations between the current database revision and source head.
+4. Confirm Development's current Alembic revision and whether the two Stay columns exist.
+5. Confirm Production's current Alembic revision and whether the two Stay columns exist, using read-only inspection only.
+6. Verify which database URL/configuration would be targeted by any migration command before proposing one.
+7. Determine whether applying `bl52_trip_stay` to Development first is the safest sequence.
+8. Define the exact validation steps after applying it to Development, including:
+
+   * Alembic revision check
+   * schema/column check
+   * relevant automated tests
+   * application smoke tests
+9. Then define the separate Production migration procedure, but DO NOT execute it.
+10. Include rollback considerations even though the migration is additive.
+11. Identify any reason we should not apply this migration.
+12. End with a clear recommendation:
+
+* SAFE TO APPLY TO DEVELOPMENT FIRST
+* NOT SAFE TO APPLY
+* CANNOT DETERMINE
+
+Do not implement anything. Do not run `alembic upgrade`, do not republish, and do not touch Production. Stop after the investigation and plan.
