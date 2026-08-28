@@ -1,0 +1,731 @@
+# BaseLodge Full Performance Audit
+
+You are acting as a senior performance and systems engineer from a company with the engineering standards of **Strava, Apple, or Google**.
+
+Your only objective is:
+
+> **Make BaseLodge feel as fast as possible for users across web, mobile web, and app-like mobile usage.**
+
+This is a **READ-ONLY performance audit**.
+
+Do not fix anything yet.
+
+Do not:
+
+* edit code
+* commit
+* push
+* publish
+* deploy
+* run migrations
+* change database schema
+* change secrets
+* mutate production data
+* alter infrastructure configuration
+
+The output of this audit will be converted into engineering tasks later.
+
+---
+
+# Primary goal
+
+Find every meaningful source of slowness in BaseLodge and rank the findings by:
+
+> **Expected impact on user-perceived speed, from largest improvement opportunity to smallest.**
+
+Do not rank by how easy the fix is.
+
+Do not rank by code cleanliness.
+
+Do not rank by theoretical elegance.
+
+Rank by the amount of real user latency, waiting, jank, or perceived sluggishness the issue likely causes.
+
+---
+
+# Performance philosophy
+
+Think like an engineer responsible for a consumer product used at scale.
+
+Prioritize:
+
+1. Time before useful content appears.
+2. Time before the user can interact.
+3. Backend response time.
+4. Database query time.
+5. Avoidable repeated work.
+6. Network payload size.
+7. Browser rendering cost.
+8. Mobile responsiveness.
+9. Cache correctness and efficiency.
+10. Background work occurring on user-critical request paths.
+11. Slow third-party dependencies.
+12. N+1 and fan-out behavior.
+13. Unbounded or poorly indexed queries.
+14. Work that scales badly with number of friends, trips, mountains, notifications, or historical records.
+
+A technically slow function that is never on a user path matters less than 200 ms added to every Home request.
+
+---
+
+# Required methodology
+
+Use both:
+
+## A. Runtime / request-path profiling
+
+Exercise the running application where safe.
+
+Measure representative requests for major pages and APIs.
+
+Capture where feasible:
+
+* total response time
+* server processing time
+* database query count
+* database query duration
+* number of network requests
+* API payload sizes
+* rendered HTML size
+* JavaScript/CSS asset sizes
+* browser render/interaction delays
+* console warnings or long tasks
+* duplicate requests
+* cache hit/miss behavior
+
+Run repeated requests where appropriate so you can distinguish:
+
+* cold behavior
+* warm behavior
+* cached behavior
+
+Do not rely only on one request timing.
+
+---
+
+## B. Static code-path investigation
+
+Trace slow or high-risk areas through:
+
+* Flask routes
+* ORM/database queries
+* model properties
+* service calls
+* templates
+* JavaScript
+* API endpoints
+* caching
+* notification logic
+* PostHog or other analytics calls
+* third-party API calls
+* file/static asset loading
+
+Look specifically for work that becomes more expensive as the dataset grows.
+
+---
+
+# Major areas to profile
+
+At minimum inspect:
+
+## 1. Home
+
+Measure the entire `/home` request path.
+
+Identify:
+
+* number of queries
+* friend/network scans
+* trip scans
+* availability logic
+* Happening generation
+* Ideas generation
+* pass calculations
+* gear calculations
+* notification/request counts
+* repeated queries for the same entities
+* template rendering cost
+
+Home is a top priority because it is likely one of the highest-frequency routes.
+
+---
+
+## 2. Mountains list
+
+Profile:
+
+* `/mountains`
+* `/api/mountains-data`
+* filtering
+* search
+* friend-count calculation
+* pass calculation
+* wishlist state
+* caching
+
+Look for:
+
+* fetching too many mountains at once
+* recalculating friend counts for every mountain
+* repeated joins
+* Python-side loops over large datasets
+* stale caches being used to compensate for expensive queries
+
+---
+
+## 3. Mountain detail
+
+Profile multiple mountain pages with:
+
+* no friend activity
+* moderate friend activity
+* many relevant friends
+* trips
+* wishlists
+* visited history
+* availability overlap
+
+Inspect the cost of:
+
+* Going This Winter
+* Interested
+* Availability overlap
+* Been Here
+* Want to Go
+* friend summaries
+* pass context
+* nearby mountain logic
+
+Look for repeated friend-list scans and repeated DB access.
+
+---
+
+## 4. Trips
+
+Profile:
+
+* My Trips
+* Trip Detail
+* Trip create
+* Trip edit
+* RSVP update
+* participant list rendering
+
+Inspect:
+
+* participant effective-date calculations
+* organizer/guest state
+* friend intelligence
+* trip grouping
+* permissions
+* repeated participant queries
+
+---
+
+## 5. Friends
+
+Profile:
+
+* Friends list
+* Suggested Friends
+* search/filtering
+* friend profiles
+* request states
+
+Look for expensive social-graph computation and repeated relationship lookups.
+
+---
+
+## 6. Profile
+
+Profile:
+
+* own profile
+* friend profile
+* gear
+* passes
+* wishlist
+* visited mountains
+* Ski Days
+
+Look for repeated aggregation or loading of data the page does not immediately need.
+
+---
+
+## 7. Ski Day / history features
+
+Inspect existing Ski Day model and downstream reads.
+
+Assess how performance will scale as each user accumulates:
+
+* 100 Ski Days
+* 500 Ski Days
+* several seasons of history
+
+Look for queries that will become progressively slower.
+
+---
+
+## 8. Wishlist and social-intelligence calculations
+
+Inspect any endpoint that repeatedly:
+
+* parses JSON ID arrays
+* loops through friends
+* loops through mountains
+* loops through trips
+* calculates social summaries in Python
+
+Identify opportunities where indexed relational queries or precomputed data would materially reduce latency.
+
+Do not recommend schema changes unless they provide meaningful performance benefit.
+
+---
+
+## 9. Notifications / messaging
+
+Identify user-facing requests that synchronously perform:
+
+* notification generation
+* push-provider calls
+* email calls
+* event logging
+* analytics calls
+
+Anything external or nonessential running on a request-critical path should be called out.
+
+---
+
+## 10. Analytics
+
+Inspect:
+
+* PostHog server events
+* browser analytics
+* event payload generation
+* synchronous vs asynchronous calls
+
+Determine whether analytics materially delay page loads or API responses.
+
+---
+
+## 11. Templates
+
+Inspect major Jinja templates.
+
+Look for:
+
+* heavy server-side loops
+* model-property access that triggers DB calls
+* repeated partial calculations
+* very large HTML output
+* rendering expensive sections users may not immediately see
+
+---
+
+## 12. JavaScript
+
+Inspect frontend JavaScript for:
+
+* render-blocking scripts
+* duplicated event handlers
+* repeated DOM scans
+* unnecessary full-page reloads
+* synchronous operations
+* repeated API calls
+* polling
+* expensive DOM updates
+* excessive client-side work
+
+---
+
+## 13. CSS / static assets
+
+Inspect:
+
+* CSS size
+* unused/duplicated styles
+* blocking stylesheets
+* images
+* icons
+* fonts
+* third-party assets
+
+Flag large assets or unnecessary dependencies that materially affect first render.
+
+Do not spend time micro-optimizing tiny files unless they have measurable impact.
+
+---
+
+## 14. Database queries
+
+This section is extremely important.
+
+Inspect the highest-traffic routes for:
+
+* N+1 queries
+* full-table scans
+* `.all()` where filtering could happen earlier
+* repeated queries for the same user/friend/trip
+* queries without useful indexes
+* large `IN (...)` clauses
+* Python filtering after broad DB fetches
+* expensive joins
+* repeated JSON parsing
+* count queries that fetch full rows
+* unnecessary ordering
+* relationship lazy-loading inside loops
+
+Where possible, report query counts for each major request.
+
+---
+
+# Scale analysis
+
+Do not judge only against the current tiny dataset.
+
+For major algorithms, estimate behavior at:
+
+* 10 friends
+* 100 friends
+* 500 friends
+
+and:
+
+* 10 trips
+* 100 trips
+* 1,000 historical trips
+
+and:
+
+* 100 users
+* 10,000 users
+* 100,000 users
+
+You do not need fake precision.
+
+Flag algorithms that appear roughly:
+
+* O(1)
+* O(n)
+* O(n log n)
+* O(n²)
+
+where relevant.
+
+Focus especially on anything involving the social graph.
+
+---
+
+# Mobile performance
+
+Test representative mobile widths.
+
+Assess:
+
+* first meaningful render
+* tap responsiveness
+* scrolling smoothness
+* layout shifts
+* large DOM size
+* unnecessary images/assets
+* network dependency
+* slow modal/sheet interactions
+* repeated server reloads that could feel sluggish
+
+The goal is not just benchmark speed.
+
+The app should **feel immediate**.
+
+---
+
+# Perceived-performance opportunities
+
+Also identify opportunities where the true backend duration may not change much but user experience could feel materially faster.
+
+Examples:
+
+* showing useful content before secondary intelligence is calculated
+* skeleton/loading states
+* lazy loading secondary sections
+* progressively loading social intelligence
+* avoiding blocking the entire page on one expensive section
+
+Separate these from actual computational improvements.
+
+---
+
+# Cache analysis
+
+Audit all major caches.
+
+For each cache identify:
+
+* what it contains
+* TTL
+* cache key
+* whether it is user-specific
+* invalidation triggers
+* approximate cost when cache misses
+* potential privacy risks
+* whether caching is masking a fundamentally expensive query
+
+Recommend caching only where it improves meaningful latency without creating correctness/privacy risk.
+
+---
+
+# Measurement standards
+
+For every finding, include actual measurements where practical.
+
+Use:
+
+* milliseconds
+* request counts
+* query counts
+* payload KB/MB
+* asset sizes
+* approximate algorithmic scaling
+
+If exact measurement is not available, clearly label the estimate.
+
+Do not invent measurements.
+
+---
+
+# Impact classification
+
+Rank every recommendation using:
+
+## Impact: Very High
+
+Likely to materially improve one or more of:
+
+* app startup
+* Home
+* Mountains
+* Trip Detail
+* other high-frequency core paths
+
+or removes major scaling bottlenecks.
+
+## Impact: High
+
+Noticeable latency reduction on important flows or significant future scaling benefit.
+
+## Impact: Medium
+
+Useful improvement but not likely transformative.
+
+## Impact: Low
+
+Small latency or perceived-performance gain.
+
+---
+
+# Effort classification
+
+Separately estimate implementation effort:
+
+* Small
+* Medium
+* Large
+
+Impact and effort must remain separate.
+
+A large-effort/very-high-impact item should still rank above a tiny cosmetic optimization.
+
+---
+
+# Evidence required for each performance finding
+
+For every finding provide:
+
+1. **Performance ID**
+2. **Rank**
+3. **Impact**
+4. **Area**
+5. **Observed behavior**
+6. **Measured evidence**
+7. **Likely root cause**
+8. **Relevant route/functions/files**
+9. **Expected speed improvement**
+
+   * quantitative estimate if defensible
+   * otherwise qualitative range
+10. **Scaling risk**
+11. **Recommended technical direction**
+12. **Implementation effort**
+13. **Confidence**
+
+* Confirmed
+* High
+* Medium
+* Suspected
+
+---
+
+# Final output
+
+Return the report in this exact order.
+
+## 1. Executive summary
+
+Include:
+
+* current overall performance assessment
+* slowest major user surfaces
+* biggest architectural bottleneck
+* biggest database bottleneck
+* biggest frontend bottleneck
+* biggest scaling risk
+
+---
+
+## 2. Ranked performance improvements
+
+This is the most important section.
+
+Sort **strictly from the change expected to produce the largest user-perceived speed improvement to the smallest**.
+
+Do not group by area first.
+
+Use a table:
+
+| Rank | ID | Impact | Area | Problem | Expected improvement | Effort |
+
+The first row should be the single change you believe would make BaseLodge faster than any other individual change.
+
+---
+
+## 3. Detailed findings
+
+Full evidence for every ranked item.
+
+---
+
+## 4. Route performance table
+
+Include representative timings/query counts for major routes where measurable:
+
+* Home
+* Mountains
+* Mountains API
+* Mountain Detail
+* My Trips
+* Trip Detail
+* Friends
+* Profile
+
+---
+
+## 5. Database performance findings
+
+Include:
+
+* N+1 patterns
+* missing indexes
+* full scans
+* repeated queries
+* expensive aggregations
+* future scaling concerns
+
+---
+
+## 6. Frontend/mobile findings
+
+Include:
+
+* page weight
+* render-blocking work
+* JS cost
+* CSS/assets
+* mobile rendering issues
+* duplicate calls
+
+---
+
+## 7. Cache findings
+
+Include both performance benefit and correctness/privacy risk.
+
+---
+
+## 8. Quick wins
+
+List changes with:
+
+* Medium/High/Very High impact
+* Small implementation effort
+
+Do not let this section override the main impact ranking.
+
+---
+
+## 9. Scaling risks
+
+Identify issues that may be acceptable today but become severe as BaseLodge grows.
+
+---
+
+## 10. Suggested engineering tasks
+
+Translate each meaningful finding into a suggested BaseLodge task.
+
+Do not create tasks.
+
+For each suggested task include:
+
+* proposed task title
+* priority
+* scope
+* dependencies
+* whether schema/migration is required
+* whether native app rebuild is required
+
+Keep separate issues separate unless they truly share one root cause.
+
+---
+
+# Critical ranking rule
+
+The final recommendation list must be ranked by:
+
+> **largest expected reduction in real or perceived user latency → smallest expected reduction**
+
+Do not rank by:
+
+* severity
+* implementation simplicity
+* engineering elegance
+* personal preference
+* code cleanliness
+
+The purpose of the output is to tell BaseLodge exactly where engineering effort will make the application feel fastest.
+
+---
+
+# Git and environment safety
+
+This audit must leave the system unchanged.
+
+Do not:
+
+* commit
+* push
+* pull
+* merge
+* rebase
+* reset
+* create/delete branches
+* publish
+* deploy
+* run migrations
+* alter schema
+* change secrets
+* mutate Production
+* send real notifications
+
+Temporary local profiling/testing is allowed only if it does not persist application or production state.
+
+Return findings only.
