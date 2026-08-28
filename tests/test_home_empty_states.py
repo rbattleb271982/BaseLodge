@@ -12,7 +12,10 @@ from models import DismissedInsightCard, Friend, db
 HOME_TEMPLATE = Path("templates/home.html").read_text()
 POPULATED_HEADER_TEMPLATE = Path("templates/partials/home/_header.html").read_text()
 EMPTY_HEADER_TEMPLATE = Path("templates/partials/home/_header_empty.html").read_text()
+HAPPENING_TEMPLATE = Path("templates/partials/home/_section_happening.html").read_text()
+OPPORTUNITIES_TEMPLATE = Path("templates/partials/home/_section_opportunities.html").read_text()
 PILLS_TEMPLATE = Path("templates/partials/home/_section_pills.html").read_text()
+REQUESTS_TEMPLATE = Path("templates/partials/home/_section_requests.html").read_text()
 
 
 def _fallback_tag(html):
@@ -246,6 +249,46 @@ def test_home_header_variants_include_editable_gear_summary_and_pass_summary():
         assert "partials/home/_gear_summary.html" in header_template
         assert "Boots:" not in header_template
         assert "Bindings:" not in header_template
+
+
+def test_home_uses_scoped_compact_summary_treatment_without_changing_hierarchy():
+    assert '<div class="page-container home-page-container">' in HOME_TEMPLATE
+    assert ".home-page-container > .hc-card" in HOME_TEMPLATE
+    assert ".home-page-container .hc-gear-summary" in HOME_TEMPLATE
+    assert ".home-page-container .hc-stat-band" in HOME_TEMPLATE
+    assert ".home-page-container .fp-card" in HOME_TEMPLATE
+
+    # The Home-specific treatment must preserve the behavior-critical section
+    # IDs used by pill focus, dismissal, and fallback synchronization.
+    for section_id in (
+        "section-happening",
+        "section-opportunities",
+        "section-pills",
+        "section-requests",
+        "home-activity-fallback",
+    ):
+        section_source = {
+            "section-happening": HAPPENING_TEMPLATE,
+            "section-opportunities": OPPORTUNITIES_TEMPLATE,
+            "section-pills": PILLS_TEMPLATE,
+            "section-requests": REQUESTS_TEMPLATE,
+            "home-activity-fallback": OPPORTUNITIES_TEMPLATE,
+        }[section_id]
+        assert f'id="{section_id}"' in section_source
+
+    # The summary remains before primary activity, with controls afterward.
+    assert HOME_TEMPLATE.index("partials/home/_header.html") < HOME_TEMPLATE.index(
+        "partials/home/_section_happening.html"
+    )
+    assert HOME_TEMPLATE.index("partials/home/_header_empty.html") < HOME_TEMPLATE.index(
+        "partials/home/_section_happening.html"
+    )
+    assert HOME_TEMPLATE.index("partials/home/_section_happening.html") < HOME_TEMPLATE.index(
+        "partials/home/_section_opportunities.html"
+    )
+    assert HOME_TEMPLATE.index("partials/home/_section_opportunities.html") < HOME_TEMPLATE.index(
+        "partials/home/_section_pills.html"
+    )
 
 
 def test_home_keeps_availability_semantics_as_a_lighter_secondary_action():
