@@ -163,9 +163,12 @@ def test_my_trips_friend_grouping_uses_going_guest_effective_dates(client, monke
     assert len(rows) == 1
     assert rows[0]["trip_start"] == today + timedelta(days=3)
     assert rows[0]["trip_end"] == today + timedelta(days=4)
+    trip_start = today + timedelta(days=3)
+    trip_end = today + timedelta(days=4)
+    end_format = "%b %-d" if trip_start.month != trip_end.month else "%-d"
     assert rows[0]["formatted_date"] == (
-        f"{(today + timedelta(days=3)).strftime('%b %-d')}–"
-        f"{(today + timedelta(days=4)).strftime('%-d')}"
+        f"{trip_start.strftime('%b %-d')}–"
+        f"{trip_end.strftime(end_format)}"
     )
 
 
