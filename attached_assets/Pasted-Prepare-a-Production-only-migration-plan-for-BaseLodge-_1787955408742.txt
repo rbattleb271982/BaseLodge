@@ -1,0 +1,63 @@
+Prepare a Production-only migration plan for BaseLodge to bring the actual Production database from:
+
+`bl317_startup_schema`
+
+to:
+
+`bl52_trip_stay`
+
+Do not modify Production yet. Do not run Alembic. Do not republish. Do not change secrets, configuration, code, or Git state.
+
+Current known state:
+
+* Development has already been migrated successfully to `bl52_trip_stay`.
+* Development validation passed.
+* Full automated test suite is green: `828 passed`.
+* The test-only fix has been committed.
+* Working tree is clean.
+* Current local commit includes the reviewed test correction.
+* Production is still expected to be at `bl317_startup_schema` and missing:
+
+  * `ski_trip.stay_name`
+  * `ski_trip.stay_description`
+* `bl52_trip_stay` is the only pending migration and is additive:
+
+  * `stay_name VARCHAR(200) NULL`
+  * `stay_description VARCHAR(500) NULL`
+* Republish does not automatically run Alembic.
+
+Your job is to independently verify the current Production state and produce the exact safest Production migration procedure.
+
+Please:
+
+1. Confirm the actual Production database identity without exposing credentials.
+2. Confirm the Production Alembic revision.
+3. Confirm whether `ski_trip.stay_name` and `ski_trip.stay_description` are absent.
+4. Confirm that `bl52_trip_stay` is still the only pending migration.
+5. Show exactly what the upgrade will do.
+6. Verify that the proposed migration target:
+
+   * equals the protected Production database,
+   * does not equal Development,
+   * does not equal the separate migration database.
+7. Determine the safest way to point Alembic at Production using a process-local override only, with no persistent secret/configuration change.
+8. Define the exact migration command you would use.
+9. Define the backup/snapshot requirement before migration.
+10. Define post-migration validation:
+
+    * Alembic revision
+    * both column definitions
+    * existing trip row integrity
+    * application DB connectivity
+    * `/health`
+    * key authenticated smoke tests
+    * missing-column log check
+11. Define rollback posture. Prefer forward repair and leaving additive nullable columns in place rather than dropping them unless explicitly necessary.
+12. Identify any reason Production should not be migrated.
+13. End with one of:
+
+    * SAFE TO MIGRATE PRODUCTION
+    * NOT SAFE TO MIGRATE PRODUCTION
+    * CANNOT DETERMINE
+
+Do not execute the migration. Stop after the investigation and plan.
