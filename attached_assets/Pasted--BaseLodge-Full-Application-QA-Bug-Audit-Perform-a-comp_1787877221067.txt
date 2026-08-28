@@ -1,0 +1,787 @@
+# BaseLodge Full Application QA + Bug Audit
+
+Perform a comprehensive **READ-ONLY bug audit of the entire BaseLodge application**.
+
+## Mode
+
+Use the strongest available application-testing and code-inspection capabilities.
+
+This is an audit only.
+
+Do **not** fix bugs, edit code, commit, push, publish, deploy, run migrations, change schema, change secrets, or mutate production data.
+
+The purpose is to identify real defects, regressions, broken states, inconsistent behavior, privacy issues, and user-experience failures across the application.
+
+---
+
+# Primary objective
+
+Test BaseLodge as a real user would use it and identify anything that:
+
+* does not work
+* behaves incorrectly
+* contradicts another part of the product
+* produces broken or misleading UI
+* exposes data it should not
+* hides data it should show
+* fails in an empty or edge state
+* breaks navigation
+* produces a server error
+* produces a browser console error
+* produces an incorrect count
+* produces stale or inconsistent state
+* has a broken mobile interaction
+* fails after refresh
+* fails when a user has little or no data
+* fails when a user has a lot of data
+* appears to be implemented in code but is functionally broken
+
+Do not spend the audit proposing new features. Focus on defects in existing behavior.
+
+---
+
+# Audit methodology
+
+Use both:
+
+## A. Application testing
+
+Exercise the actual running BaseLodge application in the browser.
+
+Test authenticated flows wherever test credentials / existing development users permit.
+
+Use mobile-width testing as well as desktop-width testing.
+
+Capture:
+
+* UI failures
+* navigation failures
+* rendering issues
+* console errors
+* failed network requests
+* server errors
+* unexpected redirects
+* state inconsistencies
+
+## B. Code-level verification
+
+For every bug or suspicious behavior found in the browser:
+
+* trace it into the relevant route
+* template
+* helper
+* model
+* JavaScript
+* service
+* test coverage
+
+Also inspect code for meaningful bugs that may be difficult to trigger manually.
+
+Do not report theoretical style problems as bugs unless they have a plausible user-visible or data-integrity consequence.
+
+---
+
+# Areas to test
+
+## 1. Authentication and account state
+
+Test:
+
+* sign up
+* login
+* logout
+* invalid login
+* session persistence
+* authenticated redirects
+* unauthenticated redirects
+* Google auth if available in development
+* duplicate account/email handling
+* account states with incomplete onboarding
+
+Look for:
+
+* loops
+* bad redirects
+* inaccessible pages
+* missing profile state
+* wrong user context
+* session leakage
+
+---
+
+## 2. Onboarding
+
+Test all existing onboarding steps.
+
+Include:
+
+* rider type
+* skill level
+* pass selection
+* home mountain / location if applicable
+* wishlist
+* profile completion
+* skipping optional fields
+* going backward
+* refreshing mid-flow
+* returning after incomplete onboarding
+
+Check that saved state appears correctly elsewhere in the product.
+
+---
+
+## 3. Home
+
+Test Home with as many states as possible:
+
+* new user
+* no friends
+* friends but no trips
+* upcoming trip
+* gear complete
+* gear incomplete
+* skier
+* snowboarder
+* dual discipline
+* zero Happening
+* Happening only
+* Ideas only
+* both Happening and Ideas
+* all activity dismissed
+* availability present
+* no availability
+* requests present
+* no requests
+
+Verify:
+
+* counts
+* links
+* dismissal persistence
+* fallback behavior
+* gear links
+* Friends' Passes
+* network stats
+* Home hierarchy
+* mobile layout
+* tap targets
+
+---
+
+## 4. Friends
+
+Test:
+
+* friend list
+* suggested friends
+* search
+* filters
+* profile preview
+* friend profile
+* connect/request flow
+* pending requests
+* accept
+* decline
+* remove connection if supported
+
+Verify that friend-only data is actually friend-only.
+
+Check:
+
+* pass filtering
+* result counts
+* profile links
+* duplicate relationships
+* stale requests
+* self-results
+* blocked/inaccessible users if such states exist
+
+---
+
+## 5. User profiles
+
+Test:
+
+* own profile
+* friend profile
+* nonfriend profile where reachable
+* editing profile
+* rider type
+* level
+* passes
+* gear
+* visited mountains
+* wishlist
+* privacy-sensitive information
+
+Look for mismatches between:
+
+* Home
+* Profile
+* Friends
+* Mountain pages
+* Trip pages
+
+---
+
+## 6. Gear
+
+Test:
+
+* skier setup
+* snowboard setup
+* dual setup
+* primary setup
+* missing setup
+* rental gear
+* add/edit/delete if supported
+* legacy user states
+
+Verify gear appears only where intended and links to the correct edit surface.
+
+---
+
+## 7. Mountains list
+
+Test:
+
+* initial state
+* filters
+* state filter
+* pass filter
+* search
+* clearing filters
+* first-time filter education
+* no-results state
+* returning to the page
+* mobile behavior
+
+Check for incorrect retained filter state or confusing defaults.
+
+---
+
+## 8. Mountain detail
+
+Test mountain pages across mountains with different data.
+
+Verify:
+
+* mountain metadata
+* pass access
+* statistics
+* Plan a trip
+* wishlist add/remove
+* Going This Winter
+* Friends Interested
+* availability overlaps
+* Been Here
+* Want to Go
+* social section empty behavior
+* nearby mountains
+* friend-profile tap-through
+* counts and overflow
+
+Test privacy carefully:
+
+* private trips
+* nonfriends
+* friends-of-friends
+* trip guests whose host is not the viewer's friend
+
+---
+
+## 9. Wishlist
+
+Test:
+
+* add from mountain
+* remove from mountain
+* settings management
+* maximum count behavior
+* duplicate add
+* stale/invalid IDs if testable
+* friend wishlist read-only view
+
+Verify all wishlist counts update consistently across:
+
+* Home
+* Profile/settings
+* Mountain detail
+* Ideas
+
+---
+
+## 10. Trips list
+
+Test:
+
+* My Trips
+* owned trips
+* guest trips
+* friend trips if surfaced
+* upcoming
+* past
+* empty state
+* month grouping
+* mountain grouping if applicable
+
+Check date formatting and ordering.
+
+---
+
+## 11. Create Trip
+
+Test all supported combinations:
+
+* single date
+* date range
+* different mountains
+* public
+* private
+* invitees
+* no invitees
+* edge dates
+* invalid dates
+* past dates
+* end before start
+* duplicate/repeated submission
+
+Verify resulting trip appears everywhere it should.
+
+---
+
+## 12. Trip Detail
+
+Test organizer and participant perspectives.
+
+Include:
+
+* organizer
+* invited friend
+* Going
+* Interested / Maybe
+* Pending
+* Declined
+* removed participant
+* public trip
+* private trip
+* participant-specific attendance dates
+* friend overlap intelligence
+* setup summary
+* lodging if present
+* invitations
+* edits
+* cancellations/deletions if supported
+
+Verify permissions aggressively.
+
+A participant should not be able to perform organizer-only actions.
+
+A nonparticipant should not see private-trip information.
+
+---
+
+## 13. Trip RSVP
+
+Test:
+
+* Going
+* Interested
+* Declined
+* changing response
+* participant-specific dates
+* refresh after response
+* organizer view after response
+* duplicate requests
+
+Verify effective attendance propagates correctly into:
+
+* Trip Detail
+* My Trips
+* Home
+* Mountain Going This Winter
+* overlap intelligence
+
+---
+
+## 14. Availability
+
+Test:
+
+* add dates
+* edit dates
+* delete dates
+* overlapping ranges
+* adjacent ranges
+* invalid ranges
+* past dates
+* empty state
+
+Verify availability affects existing Ideas / overlap intelligence correctly without leaking exact availability where privacy rules do not permit it.
+
+---
+
+## 15. Visited mountains / Ski Days
+
+Test whatever currently exists for:
+
+* visited mountains
+* adding/removing visit state
+* Ski Day records
+* trip-derived state if applicable
+
+Check consistency with mountain-page Been Here intelligence.
+
+Do not assume a trip equals a confirmed visit unless current product logic explicitly says so.
+
+---
+
+## 16. Notifications
+
+Inspect and test existing notification flows where feasible.
+
+Look for:
+
+* duplicate notifications
+* wrong recipients
+* notifications for private content
+* broken deep links
+* stale links
+* incorrect message content
+* timing problems visible in current implementation
+
+Do not send real external notifications to production users.
+
+---
+
+## 17. Email / push / messaging infrastructure
+
+Inspect existing implementation for obvious runtime bugs or privacy problems.
+
+Do not trigger uncontrolled outbound communication.
+
+Verify:
+
+* templates
+* recipient resolution
+* deep links
+* event conditions
+* private/public trip conditions
+
+---
+
+## 18. Navigation
+
+Test every major bottom-nav/top-nav route.
+
+Look for:
+
+* dead links
+* wrong active nav state
+* browser back issues
+* redirects to incorrect pages
+* inaccessible screens
+* links that work only from one state
+
+---
+
+## 19. Mobile layout
+
+Test major screens at representative iPhone widths.
+
+Look specifically for:
+
+* overflow
+* clipped text
+* overlapping buttons
+* fixed nav covering content
+* impossible tap targets
+* horizontally scrolling pages
+* modals/sheets that cannot be dismissed
+* keyboard/input issues
+* long names
+* long mountain names
+* empty states
+
+---
+
+## 20. Error handling
+
+Deliberately exercise safe invalid states:
+
+* invalid mountain slug
+* invalid user ID
+* invalid trip ID
+* inaccessible private trip
+* deleted/missing relationship
+* malformed query parameters
+* invalid filter parameters
+
+Verify appropriate 404/403/redirect behavior rather than 500s.
+
+---
+
+## 21. Privacy and authorization audit
+
+This is especially important.
+
+Verify that users cannot access:
+
+* private trips they should not see
+* private profile information
+* private availability
+* private pass history
+* another user's settings/edit endpoints
+* organizer-only controls
+* arbitrary user data by changing IDs in URLs
+
+For every concerning access path, identify the exact route and authorization check.
+
+---
+
+## 22. Data consistency
+
+Cross-check key facts across surfaces.
+
+Examples:
+
+* friend counts
+* pass counts
+* trip counts
+* wishlist counts
+* visited counts
+* RSVP state
+* effective attendance dates
+* public/private trip state
+* friend relationship state
+
+Report cases where the same underlying fact appears differently in different places.
+
+---
+
+## 23. Browser and server errors
+
+During testing collect:
+
+* browser console errors
+* JavaScript exceptions
+* failed HTTP calls
+* Flask exceptions
+* 500 responses
+* database exceptions
+* template rendering errors
+
+Do not dismiss an error merely because the page appears usable.
+
+---
+
+## 24. Existing tests
+
+Run the full automated test suite if it is safe in the development environment.
+
+Report:
+
+* total tests
+* passed
+* failed
+* skipped/deselected
+* flaky behavior
+* duration if available
+
+For each failure:
+
+* identify whether it is a genuine application bug
+* stale/bad test
+* environment issue
+* unrelated infrastructure issue
+
+Do not change failing tests during this audit.
+
+---
+
+# Bug severity
+
+Classify findings:
+
+## P0 — Critical
+
+Examples:
+
+* data corruption
+* cross-user data exposure
+* destructive action affecting wrong user/data
+* widespread inability to use the app
+
+## P1 — High
+
+Examples:
+
+* major core flow broken
+* serious privacy/authorization issue
+* incorrect trip/RSVP state
+* major feature unusable
+
+## P2 — Medium
+
+Examples:
+
+* incorrect counts
+* broken secondary flow
+* meaningful UI/state inconsistency
+* persistent interaction failure
+
+## P3 — Low
+
+Examples:
+
+* minor rendering bug
+* copy mismatch that causes confusion
+* small mobile layout problem
+* edge-case UX defect
+
+Do not inflate severity.
+
+---
+
+# Evidence required for every bug
+
+For each confirmed bug include:
+
+1. **Bug ID**
+2. **Severity**
+3. **Area**
+4. **User scenario**
+5. **Steps to reproduce**
+6. **Expected behavior**
+7. **Actual behavior**
+8. **Evidence**
+
+   * screenshot / browser observation
+   * console/network/server output where available
+9. **Likely root cause**
+10. **Exact relevant files/functions**
+11. **Existing test coverage**
+12. **Recommended fix direction**
+13. **Confidence**
+
+* Confirmed
+* High
+* Medium
+* Suspected
+
+Do not call something a confirmed bug without reproducible evidence.
+
+---
+
+# Separate findings into four groups
+
+## A. Confirmed bugs
+
+Reproduced and supported by evidence.
+
+## B. High-confidence code defects
+
+Not fully reproducible in available test data but clearly wrong from code inspection.
+
+## C. Test failures / technical debt
+
+Broken or stale automated tests, warnings, dead code, inconsistent comments, or infrastructure issues.
+
+## D. Product ambiguities
+
+Behavior that may be intentional but appears inconsistent.
+
+Do not classify product ambiguity as a bug.
+
+---
+
+# Final deliverable
+
+Produce:
+
+## 1. Executive summary
+
+Include:
+
+* total confirmed bugs
+* P0 count
+* P1 count
+* P2 count
+* P3 count
+* major affected areas
+* overall application health assessment
+
+## 2. Prioritized bug table
+
+Sorted:
+
+P0 → P1 → P2 → P3
+
+Include concise columns for:
+
+* Bug ID
+* Severity
+* Area
+* Summary
+* Reproducible?
+* Recommended action
+
+## 3. Full bug details
+
+Using the evidence format above.
+
+## 4. Automated test results
+
+Full-suite results and failure classification.
+
+## 5. Privacy/security findings
+
+Separate section even if there are zero confirmed issues.
+
+## 6. Mobile-specific findings
+
+Separate section.
+
+## 7. Data-consistency findings
+
+Separate section.
+
+## 8. Product ambiguities
+
+Things requiring product decisions rather than bug fixes.
+
+## 9. Recommended repair order
+
+Tell me exactly which bugs should be fixed first and why.
+
+## 10. Suggested task decomposition
+
+Recommend separate BL tasks for confirmed bugs where appropriate.
+
+Do not create the tasks yet.
+
+---
+
+# Git / environment safety
+
+Do not:
+
+* commit
+* push
+* pull
+* merge
+* rebase
+* reset
+* create/delete branches
+* publish
+* deploy
+* change database schema
+* run migrations
+* change secrets
+* mutate production data
+
+If App Testing requires creating temporary development-only test data, first determine whether it can be safely isolated.
+
+Do not send messages, emails, push notifications, or invitations to real users as part of testing.
+
+This audit should leave the repository and production application unchanged.
