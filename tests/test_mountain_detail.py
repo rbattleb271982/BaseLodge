@@ -286,6 +286,7 @@ def test_mountain_page_with_no_going_friends_keeps_interested_separate(client):
     html = _page(client, resort_slug).get_data(as_text=True)
 
     assert "Going This Winter" not in html
+    assert "Want to go" not in html
     assert "Friends Interested · 1 friend" in html
 
 
@@ -497,7 +498,7 @@ def test_mountain_page_wishlist_has_exact_total_truncated_names_and_tap_throughs
     _login(client, viewer_id)
     html = _page(client, resort_slug).get_data(as_text=True)
 
-    assert "4 friends have this mountain on their wishlist" in html
+    assert "Want to go · 4 friends" in html
     assert "Alpha Friend" in html
     assert "Bravo Friend" in html
     assert "Charlie Friend" in html
@@ -505,6 +506,25 @@ def test_mountain_page_wishlist_has_exact_total_truncated_names_and_tap_throughs
     assert "+1 more" in html
     assert f'href="/friends/{alpha_id}"' in html
     assert f'href="/friends/{delta_id}"' not in html
+
+
+def test_mountain_page_wishlist_uses_singular_want_to_go_label(client):
+    with app.app_context():
+        viewer = _make_user("singular-wishlist-viewer")
+        friend = _friend("singular-wishlist", "Singular")
+        resort = _make_resort("Singular Wishlist Peak")
+        resort_slug = resort.slug
+        friend.wish_list_resorts = [resort.id]
+        _connect(viewer, friend)
+        db.session.commit()
+        viewer_id = viewer.id
+        friend_id = friend.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Want to go · 1 friend" in html
+    assert f'href="/friends/{friend_id}"' in html
 
 
 def test_mountain_page_recorded_visit_name_links_to_visited_mountains(client):
