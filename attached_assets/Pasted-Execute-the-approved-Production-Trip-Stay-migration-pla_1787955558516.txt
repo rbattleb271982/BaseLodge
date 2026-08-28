@@ -1,0 +1,62 @@
+Execute the approved Production Trip Stay migration plan exactly as written.
+
+This is a Production database operation. Do not proceed unless every safeguard below passes.
+
+Before any write:
+
+1. Reconfirm that the target is exactly the protected BaseLodge Production database.
+2. Confirm the target is NOT Development.
+3. Confirm the target is NOT the separate migration database.
+4. Confirm Production is exactly at `bl317_startup_schema`.
+5. Confirm `stay_name` and `stay_description` are currently absent.
+6. Confirm `bl52_trip_stay` is the only migration to be applied.
+7. Confirm a real, recoverable Production database backup or provider snapshot exists and record its identifier or sufficient evidence that it can be restored.
+
+If you cannot verify the backup/snapshot, STOP. Do not migrate.
+
+If all safeguards pass:
+
+* Capture the pre-migration Production trip-row count and ID fingerprint.
+* Use only the existing repository Alembic migration.
+* Use a process-local Production targeting override only.
+* Run:
+
+`python -m alembic -c migrations/alembic.ini upgrade head`
+
+with:
+
+* `BASELODGE_RUNTIME_ENV=production`
+* `BASELODGE_MIGRATION_MODE=1`
+* `BASELODGE_MIGRATION_DATABASE_URL` set process-locally to the already-verified Production database URL.
+
+Do not persist or change secrets.
+Do not use custom SQL.
+Do not edit the migration.
+Do not modify code or Git.
+Do not republish.
+
+After migration, verify:
+
+1. Production Alembic revision is `bl52_trip_stay`.
+2. `ski_trip.stay_name` is nullable `VARCHAR(200)`.
+3. `ski_trip.stay_description` is nullable `VARCHAR(500)`.
+4. Production trip-row count and ID fingerprint match the pre-migration values.
+5. Application database connectivity succeeds.
+6. `/health` returns healthy and identifies Production.
+7. Authenticated Home, My Trips, Friends, Trip Detail, and Stay-related loading paths work.
+8. Current logs contain no missing-column errors.
+
+Prefer forward repair if validation reveals an issue. Do not downgrade or drop the new columns without separate approval.
+
+At the end report exactly:
+
+* backup/snapshot evidence,
+* preflight results,
+* migration result,
+* schema validation,
+* row-integrity validation,
+* application smoke-test results,
+* log check,
+* whether Production is now ready for a separate republish decision.
+
+Do not republish.
