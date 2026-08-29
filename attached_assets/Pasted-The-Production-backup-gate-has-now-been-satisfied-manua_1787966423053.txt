@@ -1,0 +1,59 @@
+The Production backup gate has now been satisfied manually in the Supabase dashboard.
+
+Verified Production backup:
+
+* Supabase managed scheduled backup
+* Type: PHYSICAL
+* Timestamp: `28 Aug 2026 11:58:02 (+0000)`
+* Supabase dashboard presents a Restore action for this backup.
+* This backup belongs to the BaseLodge Production project.
+
+Proceed with the previously approved Production Trip Stay migration plan.
+
+Before any write, independently rerun all database targeting and schema safeguards:
+
+1. Target equals the protected BaseLodge Production database.
+2. Target does NOT equal Development.
+3. Target does NOT equal the separate migration database.
+4. Production is exactly at `bl317_startup_schema`.
+5. `stay_name` and `stay_description` are absent.
+6. `bl52_trip_stay` is the only migration to be applied.
+7. Capture the current Production trip-row count and ID fingerprint.
+
+If any of these checks fail or differ from the previous investigation, STOP.
+
+If all checks pass:
+
+Run only the existing repository migration from `bl317_startup_schema` to `bl52_trip_stay` using:
+
+`python -m alembic -c migrations/alembic.ini upgrade head`
+
+Use:
+
+* `BASELODGE_RUNTIME_ENV=production`
+* `BASELODGE_MIGRATION_MODE=1`
+* a process-local `BASELODGE_MIGRATION_DATABASE_URL` pointing to the independently verified Production database.
+
+Do not persist or modify secrets.
+Do not use custom SQL.
+Do not edit migrations.
+Do not modify application code.
+Do not modify Git.
+Do not republish.
+
+After migration, verify:
+
+1. Production Alembic revision is `bl52_trip_stay`.
+2. `ski_trip.stay_name` is nullable `VARCHAR(200)`.
+3. `ski_trip.stay_description` is nullable `VARCHAR(500)`.
+4. Production trip-row count and ID fingerprint are unchanged.
+5. Application database connectivity succeeds.
+6. `/health` reports healthy, connected, and Production.
+7. Authenticated Home, My Trips, Friends, Trip Detail, and Stay-related loading paths work without missing-column errors.
+8. Current logs contain no missing-column errors.
+
+If post-migration validation finds a problem, STOP and report it. Do not downgrade automatically. Prefer leaving the additive nullable columns in place pending review.
+
+At the end, report whether the Production schema migration was successful and whether any blockers remain before we make a separate republish decision.
+
+DO NOT REPUBLISH.
