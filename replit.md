@@ -70,6 +70,12 @@ To prevent regressions, profile data (equipment setup, rider preferences, pass i
 -   **Narrative Continuity:** Four narrative states dynamically adjust UI copy.
 -   **Next Best Action (NBA) System:** Prioritizes a single primary CTA per screen.
 
+### Release Identity
+-   **Canonical source identity:** A deployed build uses the exact 40-character Git commit SHA as its release identity; no separate release ID is required.
+-   **Runtime verification:** In Production, `build/release.sha` is the only identity source. The read-only `/health` response includes only `release_sha` and `release_identity_status` for this contract. Missing, unreadable, empty, or malformed metadata is reported as `UNVERIFIED` while normal runtime health remains independent. Development may fall back to a clean local Git checkout when generated metadata is absent.
+-   **Publish build handoff:** Replit does not document an automatic immutable Git-SHA deployment variable, so the Autoscale build configuration clears `build/release.sha`, then writes the source checkout's Git `HEAD` only when the checkout is clean. If either check fails, the running process remains honest and reports `UNVERIFIED` rather than claiming a valid release.
+-   **Release gating:** A release preflight must treat `UNVERIFIED` as a blocking release condition; this identity feature does not implement that gate.
+
 ## External Dependencies
 
 -   **Flask:** Python web framework.

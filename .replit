@@ -41,6 +41,7 @@ externalPort = 3000
 [deployment]
 deploymentTarget = "autoscale"
 run = ["env", "BASELODGE_RUNTIME_ENV=production", "gunicorn", "--bind=0.0.0.0:5000", "--reuse-port", "--workers=2", "app:app"]
+build = ["bash", "-c", "mkdir -p build && : > build/release.sha && if test -z \"$(git status --porcelain)\"; then git rev-parse --verify HEAD^{commit} > build/release.sha 2>/dev/null || :; fi"]
 
 [userenv]
 

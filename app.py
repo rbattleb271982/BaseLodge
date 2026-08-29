@@ -30,6 +30,7 @@ from runtime_config import (
     RuntimeConfigurationError,
     resolve_application_database_config,
 )
+from release_identity import resolve_release_identity
 from services.pass_utils import (
     normalize_pass, display_pass_label, normalize_passes_string,
     format_passes_for_display, passes_match, is_real_pass,
@@ -174,6 +175,9 @@ except RuntimeConfigurationError as exc:
     raise RuntimeError(f"BaseLodge runtime configuration error: {exc}") from exc
 
 is_production = database_configuration.runtime_env == "production"
+RELEASE_IDENTITY = resolve_release_identity(
+    runtime_env=database_configuration.runtime_env,
+)
 
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
@@ -368,6 +372,7 @@ def normalize_country_code(code):
 @app.route("/health")
 def health_check():
     """Health check endpoint for production probes. Returns JSON status and DB connectivity check."""
+    identity_fields = RELEASE_IDENTITY.as_health_fields()
     try:
         # Lightweight query to verify DB connectivity
         db.session.execute(sa.text("SELECT 1")).fetchone()
@@ -375,6 +380,7 @@ def health_check():
             "status": "healthy",
             "database": "connected",
             "environment": database_configuration.runtime_env,
+            **identity_fields,
             "timestamp": datetime.utcnow().isoformat()
         }), 200
     except Exception as e:
@@ -382,6 +388,7 @@ def health_check():
         return jsonify({
             "status": "unhealthy",
             "database": "disconnected",
+            **identity_fields,
             "error": str(e) if not is_production else "Internal Server Error"
         }), 500
 
