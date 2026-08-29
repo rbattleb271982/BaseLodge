@@ -1,0 +1,247 @@
+# BL-134 — Guard database target selection and expose environment identity
+
+This is a CRITICAL database-safety task.
+
+PLAN / INVESTIGATION ONLY.
+
+Do not modify code.
+Do not run any migration.
+Do not write to any database.
+Do not change secrets or environment variables.
+Do not alter Supabase Development or Production.
+
+## Goal
+
+Make it impossible to mistake these database targets during migration work:
+
+1. Replit PostgreSQL
+2. Supabase Development
+3. Supabase Production
+
+The system must eventually support:
+- explicit migration target selection
+- safe environment/database identity diagnostics
+- fail-closed migration commands
+- no generic fallback that could accidentally select Development or Production
+
+BL-134 is only the safety/targeting layer.
+
+NO migration execution belongs in this task.
+
+## Investigate the current repository
+
+Trace exactly how database URLs and migration targets are resolved today.
+
+Inspect at minimum:
+- Flask / SQLAlchemy database configuration
+- Alembic / Flask-Migrate configuration
+- env var loading
+- DATABASE_URL usage
+- any SUPABASE or POSTGRES-specific variables
+- Replit environment/secrets conventions in this repo
+- migration scripts and helper scripts
+- deployment/startup scripts
+- any shell commands/documentation currently used for migrations
+- test database configuration
+- any fallback logic that chooses a database URL implicitly
+
+Do not expose secret values in your response.
+
+Redact credentials and tokens.
+
+## A. Current target resolution
+
+Document the exact current resolution chain.
+
+For each database-related environment variable or config value, explain:
+- where it is read
+- its precedence
+- whether it has a fallback
+- what environment it normally points to
+- whether a migration command uses the same resolution as the running app
+- whether the target can be inferred accidentally
+
+Cite exact files/functions/lines.
+
+## B. Identify the three environments safely
+
+Determine what non-secret attributes can reliably distinguish:
+
+### Replit PostgreSQL
+### Supabase Development
+### Supabase Production
+
+Possible identity signals to evaluate:
+- hostname
+- database name
+- Supabase project ref
+- configured environment label
+- explicit target enum
+- server/database metadata queried read-only
+- other stable identifiers already available
+
+Do not recommend printing:
+- passwords
+- full connection strings
+- API keys
+- tokens
+- credentials
+
+The diagnostic should show enough identity for a human to know exactly what target is selected without revealing secrets.
+
+## C. Explicit target-selection design
+
+Recommend a fail-closed target-selection mechanism.
+
+I want an operator to explicitly choose something equivalent to:
+
+- replit
+- supabase-development
+- supabase-production
+
+Evaluate the best mechanism for this repository, such as:
+- a dedicated MIGRATION_TARGET variable
+- explicit wrapper commands/scripts
+- environment-specific config variables
+- another safer existing pattern
+
+The important requirement is:
+
+Development and Production must NEVER be inferred merely because a generic DATABASE_URL happens to contain one of them.
+
+If the target is not explicitly selected, migration commands should refuse to proceed.
+
+## D. Target/URL mismatch protection
+
+Design how to detect and reject cases like:
+
+- MIGRATION_TARGET=supabase-development but URL points to Production
+- MIGRATION_TARGET=supabase-production but URL points to Development
+- MIGRATION_TARGET=replit but URL points to Supabase
+- unknown target
+- missing target
+- missing target-specific URL
+- malformed database URL
+
+The system should fail closed before Alembic performs migration work.
+
+Explain where this check should live.
+
+## E. Diagnostic command
+
+Design a safe diagnostic that an operator can run before migration work.
+
+It should clearly report something like:
+
+Migration target: Supabase Development
+Database host: [safe host]
+Database name: [safe name]
+Environment identity: [safe project/environment identifier]
+Migration revision: [if safely/read-only obtainable]
+Target verification: PASS
+
+or FAIL with a clear reason.
+
+Determine whether querying current Alembic revision is appropriate and safe here.
+
+No writes.
+
+## F. Manual command paths
+
+The Notion task requires exact manual command/path documentation for each environment.
+
+Recommend the intended operator flow for:
+
+### Replit PostgreSQL
+
+### Supabase Development
+
+### Supabase Production
+
+The commands should make target choice obvious.
+
+Do not execute them.
+
+Prefer commands that are difficult to copy/paste against the wrong environment accidentally.
+
+## G. Relationship to BL-135 and BL-136
+
+BL-135 will validate Supabase Development backup, schema diff, dry run, and rollback.
+
+BL-136 will apply/verify Supabase Development schema alignment.
+
+BL-134 must establish the safety boundary those later tasks depend on.
+
+Identify exactly what BL-134 must provide before BL-135 can safely start.
+
+Do not absorb BL-135 or BL-136 into this task.
+
+## H. Proposed implementation
+
+Recommend the smallest robust implementation.
+
+List:
+- files expected to change
+- any new script/module if needed
+- config changes
+- tests
+- documentation changes
+
+Prefer a centralized guard rather than duplicating environment logic across commands.
+
+Do not introduce unnecessary infrastructure.
+
+## I. Tests
+
+Specify tests for at least:
+
+- explicit Replit target with matching URL passes
+- explicit Development target with matching URL passes
+- explicit Production target with matching URL passes
+- missing target fails
+- unknown target fails
+- Development label + Production URL fails
+- Production label + Development URL fails
+- Replit label + Supabase URL fails
+- malformed URL fails
+- diagnostic output contains no credentials
+- generic DATABASE_URL alone cannot authorize a Supabase migration
+- migration command cannot proceed when identity verification fails
+
+Also identify how to test this without connecting to real Production.
+
+## J. Safety review
+
+Call out any remaining ways an operator could accidentally target the wrong database after the proposed design.
+
+Pay particular attention to:
+- shell environment inheritance
+- stale secrets
+- Replit deployment vs workspace secrets
+- fallback URLs
+- Alembic env.py behavior
+- direct raw Alembic commands that could bypass a wrapper
+- tests accidentally using real databases
+
+## Output
+
+Return:
+
+1. Current database target architecture
+2. Specific risks found
+3. Recommended explicit target contract
+4. Safe identity-verification design
+5. Proposed file-level implementation
+6. Test plan
+7. Exact non-executed command examples for each environment
+8. Any decisions I need to make
+
+End with either:
+
+READY TO IMPLEMENT BL-134 AS WRITTEN
+
+or
+
+BL-134 NEEDS A DECISION BEFORE IMPLEMENTATION
+
+Do not make changes until I approve the plan.
