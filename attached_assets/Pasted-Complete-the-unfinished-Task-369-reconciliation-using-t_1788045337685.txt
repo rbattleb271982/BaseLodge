@@ -1,0 +1,88 @@
+Complete the unfinished Task #369 reconciliation using the evidence already produced by its executed technical commands and the findings from Task #373.
+
+This is a BUILD task because the investigation already ran. The goal is to complete the missing reconciliation report and task disposition, not to create another plan.
+
+Do not connect to Supabase Development.
+Do not connect to Supabase Production.
+Do not run new database queries.
+Do not run diagnostics.
+Do not run pg_dump.
+Do not run Alembic or migrations.
+Do not perform App Storage operations.
+Do not execute Task #370.
+Do not modify application code, migrations, secrets, environment variables, or runtime configuration.
+
+Use only:
+- Task #369 execution outputs
+- Task #373 audit findings
+- repository/Git evidence
+- existing local task records
+- already-recorded schema comparison and aggregate results
+
+First determine whether the retained #369 evidence is sufficient to support each of these conclusions:
+
+1. Guarded Supabase Development identity passed.
+2. Development revision was exactly `bl52_trip_stay`.
+3. Development access was explicitly read-only.
+4. `public.ski_trip` contained the expected Stay columns:
+   - `stay_name` VARCHAR(200), nullable
+   - `stay_description` VARCHAR(500), nullable
+5. Stay usage was checked using aggregate counts only.
+6. A disposable local PostgreSQL database was migrated exactly through `bl52_trip_stay`, not `head`.
+7. Actual Development schema was compared with canonical local `bl52_trip_stay`.
+8. All substantive schema differences were classified as expected, known unrelated drift, or unexplained drift.
+9. Repository/Git evidence was reviewed for how Development could have reached `bl52_trip_stay`, without inventing who or when.
+10. Recovery implications were assessed, including:
+   - a true pre-`bl52_trip_stay` backup can no longer be created now
+   - a current-state Development backup is still possible but is not equivalent to a pre-migration backup
+   - downgrade is not a safe substitute if Stay data exists because the downgrade drops the two columns
+11. BL-135 disposition is stated explicitly.
+12. BL-136 disposition is stated explicitly.
+
+If existing evidence does NOT support any mandatory point above, stop and report exactly which evidence is missing. Do not rerun the technical operation.
+
+If existing evidence IS sufficient, produce the missing final Task #369 report with:
+
+## DEVELOPMENT RECONCILIATION RESULT
+
+- Guarded identity:
+- Actual revision:
+- Read-only status:
+- Stay column metadata:
+- Aggregate Stay usage:
+- Local canonical revision:
+- Schema comparison:
+- Drift classification:
+- Repository/Git evidence:
+- Recovery assessment:
+
+## BL-135 DISPOSITION
+
+State whether BL-135 can be considered complete, complete-with-caveat, or still requires one distinct follow-up action.
+
+Be explicit that its original “validate before Development write” objective cannot literally be recreated after Development is already at `bl52_trip_stay`.
+
+## BL-136 DISPOSITION
+
+State whether BL-136:
+- is no longer required because Development is already correctly aligned,
+- must remain blocked because unexplained drift exists,
+- or requires another explicit decision.
+
+Do not execute BL-136.
+
+## NEXT SAFE ACTION
+
+Name exactly one next action.
+
+If the only remaining recovery gap is a current-state Development logical backup, say so explicitly and identify Task #370 as that separate action, but do not execute it.
+
+End with exactly one of:
+
+DEVELOPMENT ALREADY ALIGNED — BL-136 NOT REQUIRED
+
+DEVELOPMENT STATE REQUIRES FURTHER DECISION
+
+DEVELOPMENT DRIFT FOUND — BL-136 NO-GO
+
+Then close only the task used to complete this report if its completion criteria are satisfied. Do not alter #366, #367, #369, #370, BL-135, or BL-136 task states unless the task explicitly requires a status update and the evidence fully supports it.
