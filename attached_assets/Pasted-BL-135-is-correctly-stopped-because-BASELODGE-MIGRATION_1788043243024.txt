@@ -1,0 +1,78 @@
+BL-135 is correctly stopped because:
+
+BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH
+
+is not configured.
+
+Perform ONLY the identity-establishment preparation for Supabase Development.
+
+Do not connect to any database.
+Do not run the BL-135 diagnostic with --check-revision yet.
+Do not run pg_dump.
+Do not run Alembic.
+Do not modify secrets or environment variables.
+Do not connect to Supabase Production.
+Do not print any database URL, password, credential, or connection string.
+
+## Goal
+
+Prepare the exact SHA-256 identity hash required by BL-134 for the currently configured:
+
+BASELODGE_DEVELOPMENT_DATABASE_URL
+
+using the repository's existing database_identity_hash() contract.
+
+This computation must be entirely local and credential-safe.
+
+## 1. Verify the contract
+
+Inspect the existing BL-134 implementation and confirm exactly what database_identity_hash() hashes.
+
+Do not change it.
+
+Confirm that the identity is based only on the intended credential-free database identity fields and does not incorporate passwords or other secrets.
+
+## 2. Compute the candidate Development identity hash
+
+Using the existing BASELODGE_DEVELOPMENT_DATABASE_URL from the environment:
+
+- compute the SHA-256 identity hash locally
+- do not open a database connection
+- do not print the URL
+- do not print credentials
+- do not mutate anything
+
+Return the candidate hash only.
+
+## 3. Provide independent-verification guidance
+
+Because the same URL must not be allowed to authorize itself without operator verification, tell me exactly which NON-SECRET database identity attributes I should independently confirm in the Supabase Development project before I install this hash.
+
+For example, use only the fields actually used by database_identity_hash().
+
+Do not expose Production information.
+
+If it is safe and necessary, provide a credential-free identity summary sufficient for comparison, but do not print passwords, full URLs, or other credentials.
+
+## 4. Do not configure the hash
+
+Do NOT add:
+
+BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH
+
+yet.
+
+I will independently verify the Development identity first and then explicitly authorize setting the hash.
+
+Return:
+
+- database_identity_hash contract
+- candidate SHA-256 Development identity hash
+- exact non-secret attributes I must independently verify
+- where in Supabase I should verify them
+- confirmation no database connection occurred
+- confirmation no secret/env/code changes occurred
+
+End with:
+
+DEVELOPMENT IDENTITY HASH READY FOR OPERATOR VERIFICATION
