@@ -1,0 +1,333 @@
+Execute the approved BL-135 validation plan.
+
+BL-134 is complete and its database-target safeguards MUST remain in force.
+
+This task may now:
+
+- connect READ-ONLY to Supabase Development
+- verify Development identity and Alembic revision
+- inspect Development schema/server metadata read-only
+- create a logical backup from Development
+- create offline migration SQL
+- create/use LOCAL DISPOSABLE PostgreSQL databases
+- restore the Development backup into LOCAL DISPOSABLE PostgreSQL
+- run upgrade/downgrade/re-upgrade against LOCAL DISPOSABLE PostgreSQL only
+
+This task MUST NOT:
+
+- modify Supabase Development
+- execute Alembic upgrade/downgrade/stamp/revision against Supabase Development
+- connect to Supabase Production
+- modify Supabase Production
+- change application data in Development
+- change schema in Development
+- change secrets
+- weaken or bypass BL-134 safeguards
+- commit code unless an unexpected defect requires a separately reviewed change
+
+## 1. Verify Development target first
+
+Before any live Development operation, use the BL-134 guard.
+
+Explicitly remove potentially conflicting Production/generic variables as designed.
+
+Run the approved Development diagnostic with the optional read-only revision check.
+
+Required:
+
+Migration target: supabase-development
+Target verification: PASS
+Alembic revision: bl317_startup_schema
+
+STOP immediately if:
+
+- identity verification fails
+- revision differs from bl317_startup_schema
+- Production appears anywhere in target resolution
+- the diagnostic cannot guarantee read-only behavior
+
+Do not continue to backup or disposable testing after a failed gate.
+
+## 2. Perform Development read-only preflight
+
+Use read-only transaction enforcement.
+
+Verify:
+
+- transaction_read_only = on
+- Development PostgreSQL server version
+- client pg_dump/pg_restore/psql versions
+- client/server backup compatibility
+- alembic_version = bl317_startup_schema
+- public.ski_trip exists
+- stay_name does NOT exist
+- stay_description does NOT exist
+- ski_trip row count
+- ski_trip relation size
+
+Do not retrieve or print user/trip row contents.
+
+Record only the minimum metadata needed for validation.
+
+STOP on any unexpected schema state.
+
+## 3. Create the Development logical backup
+
+Create the approved full logical custom-format dump of the Development public schema + data.
+
+The backup must include:
+
+- schema
+- BaseLodge data
+- alembic_version
+- ski_trip
+
+The backup MUST be stored only in the approved encrypted private storage location outside the repository.
+
+Do not place it in:
+
+- repository
+- Git
+- attached_assets
+- public storage
+- ordinary persistent workspace storage
+
+Before executing pg_dump, verify the configured destination satisfies the approved custody requirement.
+
+If approved encrypted storage has NOT actually been provisioned or its destination is ambiguous:
+
+STOP.
+
+Do not substitute another location.
+
+Report:
+
+BACKUP STORAGE NOT READY
+
+and tell me exactly what must be configured.
+
+If storage is ready:
+
+- use umask 077
+- create the custom-format dump
+- verify nonzero size
+- generate SHA-256
+- run pg_restore --list
+- verify alembic_version and ski_trip are present
+
+Never print the database URL or credentials.
+
+## 4. Record Supabase-native recovery availability
+
+Read-only/manual inspection only.
+
+If the current Development project exposes an identifiable native backup/PITR restore point, record:
+
+- whether available
+- timestamp where safely visible
+- recovery mechanism available
+
+Treat this only as secondary recovery.
+
+Do not initiate a restore.
+
+Do not make BL-135 fail solely because native backup/PITR is unavailable, provided the logical backup passes all mandatory gates.
+
+## 5. Generate offline Alembic SQL
+
+Generate SQL ONLY for:
+
+bl317_startup_schema:bl52_trip_stay
+
+No database connection should occur for this step.
+
+Review the generated SQL.
+
+Expected effective schema change:
+
+- add ski_trip.stay_name VARCHAR(200) NULL
+- add ski_trip.stay_description VARCHAR(500) NULL
+- advance Alembic revision appropriately
+
+STOP if the SQL contains unexpected:
+
+- DROP operations
+- DELETE/UPDATE/INSERT against application data
+- unrelated table changes
+- unrelated columns
+- constraints
+- indexes
+- additional migration revisions
+
+Keep the SQL artifact with the secure BL-135 validation artifacts, not in Git.
+
+## 6. Restore backup into LOCAL DISPOSABLE PostgreSQL
+
+This is WRITE-CAPABLE but ONLY against a newly created local disposable PostgreSQL database.
+
+Before restoring, prove:
+
+- BASELODGE_MIGRATION_TARGET=replit
+- DATABASE_URL points to the disposable local PostgreSQL database
+- URL is not Supabase
+- matching disposable identity hash is configured
+- no Supabase target is selected
+
+If there is any ambiguity about the target, STOP.
+
+Restore the verified Development backup.
+
+Verify restored:
+
+- alembic_version = bl317_startup_schema
+- expected ski_trip row count matches Development
+
+Do not expose row contents.
+
+## 7. Drift check
+
+Compare:
+
+A. restored actual Development schema at bl317
+B. canonical repository-generated schema at bl317_startup_schema
+
+Use equivalent schema-only dumps and normalize only nondeterministic/environment-specific metadata where necessary.
+
+Every substantive difference must be explained.
+
+Any unexplained schema drift is:
+
+NO-GO FOR BL-136
+
+Do not dismiss unexplained drift as harmless.
+
+## 8. Capture disposable baseline
+
+Before upgrading the restored disposable database:
+
+- capture schema-only dump
+- capture ski_trip row count
+- calculate the approved content-integrity checksum excluding future Stay fields
+
+Do not print customer/trip content.
+
+## 9. Disposable upgrade
+
+WRITE CAPABLE — LOCAL DISPOSABLE POSTGRESQL ONLY.
+
+Run exactly:
+
+upgrade bl52_trip_stay
+
+Do NOT use head.
+
+Verify:
+
+- revision = bl52_trip_stay
+- stay_name exists
+- stay_name = VARCHAR(200), nullable
+- stay_description exists
+- stay_description = VARCHAR(500), nullable
+- no unexpected schema objects changed
+- ski_trip row count unchanged
+- preexisting ski_trip content checksum unchanged
+
+Capture post-upgrade schema and compare it with the baseline.
+
+The substantive schema diff must be limited to the approved migration and Alembic revision state.
+
+## 10. Relevant application tests against migrated disposable DB
+
+Run the relevant migration/model/Stay/application regression tests against the migrated disposable PostgreSQL database where supported.
+
+At minimum include:
+
+- migration tests
+- SkiTrip model/schema behavior
+- Stay API behavior
+- trip query paths likely to select all SkiTrip columns
+- startup/read-only regressions
+- database-target safety tests
+
+Report exact tests and results.
+
+Do not point application tests at Supabase Development.
+
+## 11. Disposable downgrade proof
+
+WRITE CAPABLE — LOCAL DISPOSABLE POSTGRESQL ONLY.
+
+Downgrade exactly to:
+
+bl317_startup_schema
+
+Verify:
+
+- revision returns to bl317_startup_schema
+- Stay columns disappear
+- ski_trip row count remains unchanged
+- preexisting content checksum remains unchanged
+- normalized schema returns to the pre-upgrade baseline
+
+Any unexplained difference is NO-GO.
+
+## 12. Disposable deterministic re-upgrade
+
+Upgrade the same disposable database again exactly to:
+
+bl52_trip_stay
+
+Verify the same final revision/schema/data-integrity results.
+
+This proves deterministic reapplication.
+
+## 13. Recovery assessment
+
+Based on the real backup and disposable restore proof, explicitly determine whether recovery is operationally viable.
+
+Do NOT treat Alembic downgrade as the canonical recovery mechanism once Stay data could exist.
+
+Canonical recovery should remain the verified logical backup/restore path.
+
+Report whether:
+
+- backup creation succeeded
+- archive verification succeeded
+- restore succeeded
+- restored revision matched
+- restored row counts matched
+- disposable migration succeeded
+- disposable downgrade succeeded
+- disposable re-upgrade succeeded
+
+## 14. BL-136 GO / NO-GO
+
+Return a gate table for every mandatory BL-135 condition.
+
+Give exactly one final recommendation:
+
+BL-136: GO
+
+or
+
+BL-136: NO-GO
+
+Do not execute BL-136 even if every gate passes.
+
+## 15. Safety confirmation
+
+At the end explicitly confirm:
+
+- whether Supabase Development was connected to
+- every operation performed against Development was read-only
+- no Development schema/data write occurred
+- no Supabase Production connection occurred
+- no migration executed against Development
+- all write-capable migration validation occurred only on local disposable PostgreSQL
+- backup location remained outside repository/Git/attached_assets
+- no credentials or raw project refs were printed
+- no code changes were made
+
+Do not commit anything.
+
+If execution encounters any unexpected architecture, permissions, storage, database-version, identity, schema-drift, backup, restore, or migration behavior, STOP rather than improvising around the safety gate.
