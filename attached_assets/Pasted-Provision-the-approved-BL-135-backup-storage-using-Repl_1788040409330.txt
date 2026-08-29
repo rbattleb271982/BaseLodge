@@ -1,0 +1,118 @@
+Provision the approved BL-135 backup storage using Replit App Storage.
+
+This task is STORAGE SETUP ONLY.
+
+Do not connect to Supabase Development.
+Do not connect to Supabase Production.
+Do not run pg_dump.
+Do not run any migration.
+Do not change database configuration.
+Do not add API keys or credential secrets.
+Do not resume BL-135 database validation yet.
+
+## Approved storage
+
+Use Replit App Storage.
+
+Create/provision one private App Storage bucket appropriate for BaseLodge.
+
+Designate this prefix exclusively for the current migration-validation work:
+
+bl135/development/
+
+The bucket must:
+
+- remain private
+- use Replit-managed authentication
+- have encryption at rest
+- not expose anonymous/public reads
+- reside outside the repository and workspace filesystem
+- be accessible from this BaseLodge Replit environment
+
+Do not create a public URL for the bucket or objects.
+
+## Harmless storage verification
+
+Using synthetic non-sensitive test content only:
+
+1. Upload a small test object under:
+
+   bl135/development/storage-verification-test.txt
+
+2. Calculate and retain its local checksum.
+
+3. Verify the object exists/listing succeeds.
+
+4. Download/read the object through the authenticated storage interface.
+
+5. Verify the downloaded content/checksum matches.
+
+6. Verify there is no public or anonymous access.
+
+7. Delete the test object.
+
+8. Verify the test object no longer exists.
+
+No database-derived information may be used for this test.
+
+## BL-135 storage contract
+
+If verification succeeds, establish App Storage as the approved BL-135 backup custody location.
+
+Expected future object structure:
+
+bl135/development/baselodge-development-YYYYMMDDTHHMMSSZ.dump
+bl135/development/baselodge-development-YYYYMMDDTHHMMSSZ.dump.sha256
+bl135/development/baselodge-development-YYYYMMDDTHHMMSSZ.dump.list
+bl135/development/bl317-to-bl52.sql
+
+Prefer streaming the future pg_dump directly into App Storage if the available tooling provides a reliable and verifiable implementation.
+
+If streaming cannot be done safely, /tmp may be used only as transient staging provided:
+
+- the dump is uploaded immediately
+- the uploaded object is checksum-verified
+- the temporary file is removed immediately afterward
+- /tmp is never treated as the recovery copy
+
+Do not use:
+
+- repository directories
+- attached_assets
+- Git
+- ordinary persistent workspace storage
+
+## Important
+
+The previous BL135_SECURE_BACKUP_DIR filesystem requirement should NOT cause us to weaken the storage design.
+
+For the upcoming BL-135 validation, App Storage + the approved prefix becomes the custody contract.
+
+Do not modify BL-134's migration-target security architecture merely to support object storage.
+
+If code/config changes are actually required to make BL-135 validation use App Storage, STOP and report exactly what is required before changing code.
+
+## Return
+
+Report:
+
+1. bucket provisioned
+2. privacy/access status
+3. encryption-at-rest status
+4. test upload result
+5. authenticated read/download result
+6. checksum verification result
+7. deletion result
+8. confirmation test object is gone
+9. whether any new secret was required
+10. whether future pg_dump can be streamed directly or requires /tmp staging
+11. exact bucket/prefix identifier needed by the next BL-135 step, without exposing credentials
+12. confirmation neither Supabase database was contacted
+
+End with exactly one:
+
+BL-135 BACKUP STORAGE READY
+
+or
+
+BL-135 BACKUP STORAGE NOT READY
