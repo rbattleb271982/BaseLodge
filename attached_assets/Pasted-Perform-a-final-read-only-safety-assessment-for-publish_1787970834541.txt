@@ -1,0 +1,41 @@
+Perform a final read-only safety assessment for publishing BaseLodge while leaving the Replit-managed Helium database attached.
+
+Do not publish.
+Do not change code, secrets, databases, Git, deployment settings, or Supabase.
+
+We can no longer rely on removing the Helium Development Database because the current Replit UI does not expose a verified removal control.
+
+We are considering this fallback architecture:
+
+- Leave the Replit-managed Helium Development Database attached.
+- Allow Replit Publish to create and migrate its own separate Replit-managed Production Database.
+- Treat both Replit-managed databases as unused platform infrastructure.
+- Continue using external Supabase Development and Production databases as the only databases used by BaseLodge runtime.
+- Never use generic DATABASE_URL in BaseLodge application runtime or migration tooling.
+- Alembic migrations continue to use process-local explicit Supabase targets only.
+
+Verify all of the following:
+
+1. The generated Publish migration is targeted only at the Replit-managed Production Database and cannot modify external Supabase Production.
+2. Production BaseLodge runtime will continue resolving its application database from SUPABASE_DATABASE_URL / BASELODGE_PRODUCTION_DATABASE_URL rather than DATABASE_URL after publish.
+3. Replit injecting a Production DATABASE_URL will not override or alter BaseLodge's runtime resolver.
+4. No startup code, ORM initialization, migration code, maintenance tool, or fallback path will use DATABASE_URL after deployment.
+5. No Alembic command is automatically run by .replit, Gunicorn startup, or Publish against Supabase.
+6. The generated full-schema SQL contains only operations against the Replit-managed database and no external connection or Supabase reference.
+7. Whether approving that migration could have any side effect on the existing live BaseLodge deployment other than creation/update of the unused Replit Production Database.
+8. Whether the Replit Production Database could generate meaningful ongoing charges if BaseLodge never connects to it.
+9. Whether there is any reason this fallback should still be considered unsafe.
+
+Return a clear verdict:
+
+SAFE TO PUBLISH WITH UNUSED REPLIT DATABASE: YES/NO
+
+Then report:
+- DATABASE TARGET
+- BASELODGE PRODUCTION RUNTIME TARGET
+- SUPABASE RISK
+- DATABASE_URL OVERRIDE RISK
+- BILLING/INFRASTRUCTURE CONSEQUENCE
+- POST-PUBLISH CHECKS REQUIRED
+
+Do not publish.
