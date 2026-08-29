@@ -1,0 +1,55 @@
+Execute Task #370 now.
+
+Create the current-state logical backup of the already-verified Supabase Development database.
+
+This is execution, not planning. Do not create another plan or another task.
+
+Requirements:
+
+- Target Supabase Development only.
+- Never connect to Supabase Production.
+- Use the existing BL-134 database-target and identity safeguards.
+- Reconfirm Development identity before proceeding.
+- Reconfirm the Development revision is exactly `bl52_trip_stay`.
+- If either check fails, STOP without creating the backup.
+- Create a logical backup of the CURRENT Development state.
+- This is NOT a pre-migration backup and must never be described as one.
+- Stream the backup directly to the existing private Replit App Storage bucket:
+  `baselodge-migration-backups`
+- Store it under:
+  `bl135/development/`
+- Name it clearly as a current-state Development backup and include `bl52_trip_stay` and a timestamp.
+- Do not persist the database dump in the Git repository or workspace.
+- Verify the uploaded backup exists, has non-zero size, and record its SHA-256 checksum.
+- Do not expose database contents, credentials, URLs, or secrets.
+- Do not run any migration, upgrade, downgrade, schema write, or data write.
+- Do not execute BL-136.
+- Do not modify application code, migrations, secrets, environment variables, or runtime configuration.
+- If execution requires any unexpected code/configuration change, STOP and report the blocker instead.
+
+When finished, report:
+
+CURRENT-STATE DEVELOPMENT BACKUP
+
+- Guarded identity:
+- Revision:
+- Backup timestamp:
+- Storage bucket:
+- Object path:
+- Object size:
+- SHA-256:
+- Direct-stream status:
+- Verification:
+- Production contacted:
+- Development writes performed:
+
+Then state explicitly:
+
+1. The verified current Development state is preserved.
+2. This is a post-migration current-state recovery backup.
+3. It does not replace or retroactively satisfy the missing pre-`bl52_trip_stay` backup.
+4. BL-136 remains unnecessary and must not be executed.
+
+End with exactly:
+
+CURRENT DEVELOPMENT RECOVERY POINT PRESERVED
