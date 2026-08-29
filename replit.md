@@ -75,6 +75,7 @@ To prevent regressions, profile data (equipment setup, rider preferences, pass i
 -   **Runtime verification:** In Production, `build/release.sha` is the only identity source. The read-only `/health` response includes only `release_sha` and `release_identity_status` for this contract. Missing, unreadable, empty, or malformed metadata is reported as `UNVERIFIED` while normal runtime health remains independent. Development may fall back to a clean local Git checkout when generated metadata is absent.
 -   **Publish build handoff:** Replit does not document an automatic immutable Git-SHA deployment variable, so the Autoscale build configuration clears `build/release.sha`, then writes the source checkout's Git `HEAD` only when the checkout is clean. If either check fails, the running process remains honest and reports `UNVERIFIED` rather than claiming a valid release.
 -   **Release gating:** A release preflight must treat `UNVERIFIED` as a blocking release condition; this identity feature does not implement that gate.
+-   **Release preflight:** Run `python -m release_preflight` before a release candidate is approved. It is read-only, reports one PASS/FAIL result, validates the resolved environment and database identity, checks the current Alembic head and live schema, and never migrates, repairs, or changes data. BL-139 will later define when this command is required in the rollout process.
 
 ## External Dependencies
 
