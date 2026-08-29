@@ -1,0 +1,164 @@
+# BL-121 — Restrict trip invites to eligible confirmed friends
+
+Work on BaseLodge task BL-121.
+
+This is a CRITICAL authorization/privacy bug.
+
+Start with investigation and planning only. Do not modify code yet.
+
+## Problem
+
+`POST /api/trip/create` currently accepts arbitrary account IDs as invitees.
+
+That allows an authenticated user to create:
+- a pending trip participant record
+- and an invite notification
+
+for someone who is not actually eligible to be invited under BaseLodge's current friendship rules.
+
+A prior QA audit reproduced a successful 200 response and pending participant for two users with no friendship.
+
+## Required behavior
+
+Every supplied `friend_id` must be validated server-side before any participant or notification side effect occurs.
+
+Invitees must:
+- exist
+- be eligible confirmed friends under BaseLodge's CURRENT invitation rules
+- not be the trip creator themselves
+
+These must be rejected safely:
+- non-friends
+- self-invites
+- nonexistent user IDs
+- malformed IDs
+- any user who does not satisfy the current confirmed-friend eligibility rules
+
+Rejected invitees must not produce:
+- a participant row
+- a notification
+- any other invite side effect
+
+## Important scope constraint
+
+Do not invent a new friendship policy.
+
+First determine exactly what BaseLodge currently means by an eligible confirmed friend for trip invitations.
+
+Inspect:
+- friendship models and statuses
+- friend request / confirmation flows
+- existing helpers used elsewhere to determine confirmed friends
+- current trip invitation UI filtering
+- trip create endpoint behavior
+- notification creation
+- transaction boundaries / rollback behavior
+- any existing tests around trip creation and invites
+
+## Investigation questions
+
+### A. Root cause
+Trace `POST /api/trip/create` end to end.
+
+Show exactly:
+- how `friend_ids` enter the request
+- how they are parsed
+- whether they are currently validated
+- where participant rows are created
+- where notifications are created
+- why arbitrary account IDs currently succeed
+
+Cite exact files/functions/lines.
+
+### B. Canonical friendship eligibility
+Determine the current authoritative rule for an "eligible confirmed friend."
+
+Answer:
+- Is friendship directional or mutual in storage?
+- What state/status means confirmed?
+- Are there legacy states that should or should not qualify?
+- Does the current UI already filter to eligible friends?
+- Is there an existing helper/query we should reuse?
+
+Do not assume. Derive it from current code.
+
+### C. Failure behavior
+Determine the safest API behavior when one or more supplied invitee IDs are invalid or unauthorized.
+
+Specifically evaluate:
+- reject the entire request
+- ignore only invalid invitees
+- return 400 vs 403 vs another existing BaseLodge pattern
+
+Prefer consistency with existing API behavior and atomicity.
+
+Do not make the product decision silently if current code does not establish one.
+
+### D. Side-effect ordering
+Verify whether validation can happen before:
+- SkiTripParticipant creation
+- notification creation
+- database commit
+
+We need to guarantee rejected invitees produce no side effects.
+
+### E. Behavior matrix
+Provide expected behavior for at least:
+
+- confirmed eligible friend
+- non-friend
+- pending friend request
+- declined/removed friendship if applicable
+- self invite
+- nonexistent numeric ID
+- malformed string ID
+- duplicate friend ID
+- mix of valid + invalid IDs in one request
+
+If any case is ambiguous, flag it as a decision rather than inventing a rule.
+
+### F. Proposed fix
+Recommend the smallest safe server-side fix.
+
+Prefer:
+- existing confirmed-friend helper/query reuse
+- validation before writes
+- no schema changes
+- no redesign of invitation UI
+- no unrelated friendship refactor
+
+### G. Tests
+Specify regression tests proving:
+1. confirmed eligible friend can still be invited
+2. non-friend is rejected
+3. self invite is rejected
+4. nonexistent ID is rejected
+5. malformed ID is rejected safely
+6. rejected invite creates no participant row
+7. rejected invite emits no notification
+8. any current valid trip creation behavior remains unchanged
+
+Also include duplicate and mixed valid/invalid IDs if relevant to current endpoint semantics.
+
+### H. Files to change
+List the exact minimal files expected to change.
+
+### I. Risk
+Call out:
+- authorization risk
+- partial-write / transaction risk
+- notification side-effect risk
+- regression risk to normal trip creation
+- performance risk if any
+
+No schema or migration work should be needed.
+
+End with either:
+
+READY TO IMPLEMENT BL-121 AS WRITTEN
+
+or
+
+BL-121 NEEDS A DECISION BEFORE IMPLEMENTATION
+
+Do not implement until I explicitly approve the plan.
