@@ -1,0 +1,44 @@
+Perform a final read-only BaseLodge republish readiness audit against the CURRENT workspace state.
+
+Do not modify code, Git, database schema, secrets, deployment configuration, or Production. Do not republish.
+
+Current known state:
+
+* Development is at Alembic head `bl52_trip_stay`.
+* Production is at Alembic head `bl52_trip_stay`.
+* Production Stay migration completed successfully and validated.
+* Full automated test suite most recently passed: `828 passed`.
+* Production smoke tests passed after the schema migration.
+* Working tree was clean after the test-only fix was committed.
+* Local `main` was reported as 4 commits ahead of `origin/main`.
+* Exact currently live Production source revision was previously not traceable.
+
+Please independently verify the current state and answer one question:
+
+**Is it safe to click Republish now?**
+
+Check:
+
+1. Current workspace branch, HEAD commit, Git tree, and working-tree cleanliness.
+2. Current relationship between local `main` and `origin/main`.
+3. Exactly which commit/tree Replit Republish would deploy right now.
+4. Whether any uncommitted or untracked release-relevant files exist.
+5. Whether release-critical runtime files differ between current workspace and `origin/main`.
+6. Current Development and Production Alembic revisions.
+7. Current Production database connectivity and `/health`.
+8. Re-run the complete automated test suite.
+9. Confirm whether the known Stay schema blocker is fully resolved.
+10. Check current startup/deployment configuration for any new blocker.
+11. Check recent logs for startup failures or application errors that would make republishing unsafe.
+12. Confirm Republish will not attempt to run migrations automatically.
+13. Reassess whether the unknown exact live source revision creates any remaining practical blocker now that schema and tests are aligned.
+
+End with exactly one classification:
+
+* SAFE TO REPUBLISH
+* NOT SAFE TO REPUBLISH
+* CANNOT DETERMINE
+
+For any non-safe classification, list the exact blockers.
+
+Do not fix anything. Do not republish. Stop after the audit.
