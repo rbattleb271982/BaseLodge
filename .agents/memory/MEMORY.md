@@ -13,3 +13,4 @@
 - [Participant presence privacy](participant-presence-privacy.md) — friend attendance on guest rows is a location signal and must honor shared-trip visibility before surfacing it.
 - [Mountains private-trip privacy](mountains-private-trip-privacy.md) — private trips never contribute to Mountains friend counts or social proof, regardless of viewer relationship.
 - [Production backup client compatibility](production-backup-client-compatibility.md) — verify pg_dump matches the database major version before relying on a local logical backup.
+- [Migration backup custody](migration-backup-custody.md) — BL-135 backups use private Replit App Storage with authenticated direct streaming and post-upload checksum verification.

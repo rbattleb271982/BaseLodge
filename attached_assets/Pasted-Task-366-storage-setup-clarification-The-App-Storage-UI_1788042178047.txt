@@ -1,0 +1,85 @@
+Task #366 storage setup clarification:
+
+The App Storage UI confirms the bucket exists in this BaseLodge project:
+
+baselodge-migration-backups
+
+The App Storage Commands screen shows that runtime access requires the official package:
+
+@replit/object-storage
+
+Proceed with the minimum runtime-enablement change needed to verify the bucket.
+
+Allowed:
+
+- install the official @replit/object-storage package
+- use it only for the synthetic App Storage verification
+- update the appropriate package manifest/lockfile only if installation requires it
+
+Do NOT:
+
+- connect to Supabase Development
+- connect to Supabase Production
+- run pg_dump
+- run Alembic
+- run migrations
+- change database configuration
+- add or modify secrets
+- add custom storage credentials
+- create public URLs
+- make unrelated code changes
+
+After installing the official package, verify access to:
+
+Bucket:
+baselodge-migration-backups
+
+Prefix:
+bl135/development/
+
+Then perform the previously approved synthetic test:
+
+1. Upload harmless synthetic content to:
+   bl135/development/storage-verification-test.txt
+
+2. Compute its checksum.
+
+3. Verify authenticated listing/object existence.
+
+4. Authenticated-download/read it.
+
+5. Verify downloaded checksum matches exactly.
+
+6. Confirm the bucket/object is not publicly or anonymously accessible using the capabilities exposed by Replit App Storage.
+
+7. Delete the test object.
+
+8. Verify it is gone.
+
+9. Determine whether the official SDK supports reliable direct streaming of the later PostgreSQL dump. Do not create a real database dump yet.
+
+Return:
+
+- SDK installation: PASS/FAIL
+- bucket runtime access: PASS/FAIL
+- privacy/access: PASS/FAIL
+- encryption-at-rest basis: PASS/FAIL
+- synthetic upload: PASS/FAIL
+- authenticated download: PASS/FAIL
+- checksum: PASS/FAIL
+- deletion: PASS/FAIL
+- object gone: PASS/FAIL
+- new secret required: YES/NO
+- future backup method: DIRECT STREAM or TRANSIENT /tmp
+- exact files changed solely by SDK installation, if any
+- confirmation neither Supabase database was contacted
+
+If SDK installation would require broader application changes than dependency installation alone, STOP and report before modifying application code.
+
+End with exactly one:
+
+BL-135 BACKUP STORAGE READY
+
+or
+
+BL-135 BACKUP STORAGE NOT READY
