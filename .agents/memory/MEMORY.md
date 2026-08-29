@@ -11,4 +11,5 @@
 - [Startup database safety](development-schema-safety.md) — routine app startup is read-only; schema uses standalone Alembic and historical DML uses guarded maintenance only.
 - [Supabase pooler identity collision](supabase-pooler-identity.md) — host/database-only identity cannot distinguish projects using the same regional Supabase pooler.
 - [Participant presence privacy](participant-presence-privacy.md) — friend attendance on guest rows is a location signal and must honor shared-trip visibility before surfacing it.
+- [Mountains private-trip privacy](mountains-private-trip-privacy.md) — private trips never contribute to Mountains friend counts or social proof, regardless of viewer relationship.
 - [Production backup client compatibility](production-backup-client-compatibility.md) — verify pg_dump matches the database major version before relying on a local logical backup.
