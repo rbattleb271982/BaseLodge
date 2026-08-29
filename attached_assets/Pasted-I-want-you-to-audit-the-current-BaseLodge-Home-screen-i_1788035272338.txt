@@ -1,0 +1,164 @@
+I want you to audit the current BaseLodge Home screen implementation so we can redesign it safely.
+Do not make any code changes. Do not edit templates, CSS, JavaScript, backend logic, models, migrations, or database data. Do not refactor anything.
+I only want a technical audit of how the current Home screen is assembled, what data it already has, what is computed where, and what would be required to support the redesign.
+The current Home screen contains:
+Welcome/header
+Top user summary/profile information
+Happening
+Ideas
+Bottom navigation
+We are exploring a future Home structure that may include:
+collapsed About You & Your Gear
+collapsed Your Activity
+collapsed Friends' Passes
+a compact Your Next Trip module
+collapsed Actions to take within the next-trip module
+Happening potentially presented as a horizontal carousel with dismissible items
+the existing Ideas section below
+This is only context for the audit. Do not implement any of it yet.
+1. Audit the current Home route and rendering path
+Identify:
+exact route/controller/function that serves Home
+template(s) used
+any partials/components/includes involved
+JavaScript responsible for Home interactions
+CSS/stylesheets responsible for Home layout
+whether anything differs for mobile web / Capacitor / native shell
+Explain the render/data flow from request → backend → template → client-side behavior.
+2. Audit the current top user summary
+For every item currently shown or available around the top of Home, identify its exact source:
+rider type
+skill level
+pass/pass status
+skis
+boots
+bindings
+gear setup(s)
+upcoming-trip count
+mountains visited
+wishlist count
+total friend count
+friend pass counts/distribution
+For each one, tell me:
+model/table/source
+helper/query/service used
+whether Home already receives it
+whether Profile computes the same thing separately
+whether there is reusable logic already
+whether it is season-specific or lifetime
+Pay particular attention to:
+multiple passes
+multiple gear setups
+long gear/pass names
+whether pass categories are hardcoded
+whether a friend can be counted in multiple pass categories
+3. Audit the current next-trip data
+Determine whether Home can already identify the user's nearest upcoming trip.
+Identify what is currently available for that trip, including where relevant:
+mountain/destination
+start/end dates
+number of nights/days
+countdown until trip
+participant/friend count
+RSVP states
+RSVP deadlines
+lodging/accommodation presence
+organizer vs attendee permissions
+trip completeness/missing fields
+any existing trip-edit routes/sections
+I specifically want to know whether BaseLodge can already compute actions that need attention for the next trip.
+Examples may include:
+RSVP deadline approaching
+participants who have not responded
+lodging not added
+missing trip details
+Do not invent new action types. Report only what the current data/model can reliably support.
+For each potential action, identify:
+source data
+existing logic if any
+target route/page that could resolve it
+whether the target can deep-link to the relevant part of Trip Edit or would require new routing/UI behavior
+Also confirm that pass management is user/profile-level, not trip-level, and identify the existing route/UI used to manage passes.
+4. Audit Happening
+Identify exactly how Happening works today:
+where candidates come from
+what event/activity types exist
+how they are ranked/sorted
+maximum number loaded/rendered
+dismissal behavior
+where dismissed state is stored
+whether dismissals persist
+whether items have stable IDs
+whether the current UI assumes a vertical list
+Determine whether the existing data/interaction model could support a horizontal carousel with an X dismiss action without backend changes.
+Call out anything that would break or need modification.
+5. Audit Ideas
+Identify:
+exact source and generation logic
+current idea types
+ranking/scoring
+dismissal behavior
+persistence of dismissal
+number retrieved vs number rendered
+links/actions for each idea type
+Also explain any overlap between:
+Happening
+Ideas
+friend trips
+wishlist matches
+trip overlaps
+I want to understand whether the current Home is surfacing the same underlying social signal in multiple sections.
+6. Audit accordion/collapse feasibility
+For the future collapsed sections:
+About You & Your Gear
+Your Activity
+Friends' Passes
+Actions to take
+determine:
+whether existing frontend patterns/components for accordion/disclosure already exist in BaseLodge
+whether collapse state would naturally be client-only
+whether any state needs to persist between sessions
+accessibility considerations in the current stack
+Do not implement anything.
+7. Performance audit
+Inspect the current Home request for:
+N+1 queries
+duplicated Profile/Home queries
+repeated friend-network lookups
+expensive Ideas/Happening candidate loading
+repeated pass aggregation
+repeated trip/participant queries
+data loaded but not displayed
+Tell me which proposed Home information is already effectively “free” because it is loaded today versus which additions would increase request cost.
+8. Backend / schema readiness
+Categorize every proposed piece into:
+A. Presentation-only change
+Existing backend/data is sufficient.
+B. Small backend/helper change
+Data exists but needs a reusable helper/query/aggregation.
+C. Structural/backend work
+Current data model cannot reliably support it.
+D. Depends on another existing BaseLodge task
+Do not recommend schema changes unless the current schema genuinely cannot support the requirement.
+9. Give me an implementation map
+End with:
+Current architecture
+Data already available
+What is reusable
+Gaps / risks
+Performance concerns
+Task dependencies
+Recommended implementation sequence
+In the recommendation, separate:
+changes we could safely do in the current web layer
+changes requiring backend work
+changes that could affect schema/user data
+changes that may require a new iOS/Android build versus changes that are purely server/web-layer
+Reference exact:
+file names
+route names
+functions
+models
+templates/components
+helpers/services
+Again: investigation only. No code changes.
