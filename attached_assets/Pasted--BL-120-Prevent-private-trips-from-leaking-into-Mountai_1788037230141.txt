@@ -1,0 +1,122 @@
+# BL-120 — Prevent private trips from leaking into Mountains friend counts
+
+Work on BaseLodge task BL-120.
+
+This is a CRITICAL privacy bug.
+
+Start with investigation and planning only. Do not modify code yet.
+
+## Problem
+
+Private trips currently contribute to friend counts returned by `/api/mountains-data`, which can expose destination-level intent to viewers who are not authorized to see those trips.
+
+A prior QA audit reproduced `friend_count` changing from 0 to 1 after a friend created a private trip and the relevant cache was refreshed.
+
+## Required behavior
+
+1. `/api/mountains-data` must exclude private trips from friend counts unless the current viewer is otherwise authorized to see the trip.
+
+2. Mountain friend counts must use the same trip-visibility rules as Mountain Detail.
+
+3. Preserve all existing correct behavior for:
+   - direct-friend requirements
+   - trip dates
+   - attendance / participation statuses
+   - public trips
+   - trips the viewer is legitimately authorized to see
+
+4. Do not solve this with a UI-only filter. Unauthorized private-trip data must not enter the count in the first place.
+
+5. Regression tests must prove that a private trip does not change Mountain friend counts for an unauthorized viewer.
+
+## Safety / scope
+
+Expected scope is narrow.
+
+Do NOT:
+- change database schema
+- create migrations
+- redesign Mountains
+- change unrelated trip visibility rules
+- alter public-trip behavior
+- change friend eligibility semantics
+- change attendance semantics
+- refactor unrelated code
+- implement caching changes unless strictly necessary to correct this bug
+
+BL-133 will later define the broader canonical authorization/visibility policy. BL-120 should fix the concrete current privacy leak without expanding into that larger task.
+
+There is also a separate task for stale Mountains friend-count caching. Do not absorb cache-freshness work into BL-120 unless the cache itself is directly responsible for leaking unauthorized private-trip data.
+
+## Investigation
+
+Inspect the current implementation, especially:
+
+- `/api/mountains-data`
+- the query/helper that calculates friend counts
+- Mountain Detail's existing trip-visibility logic
+- relevant trip, participant, friend, and visibility helpers/models
+- any cache layer involved in the Mountains response
+
+Determine exactly why a private trip is counted in one path but hidden in the other.
+
+## Before implementation, return:
+
+### A. Root cause
+Explain the exact code path causing private trips to contribute to `friend_count`.
+
+Cite exact files, functions, helpers, and relevant logic.
+
+### B. Existing canonical visibility behavior
+Show how Mountain Detail currently determines whether the viewer may see a trip.
+
+Explain whether that logic can be reused directly or whether a small shared helper is needed.
+
+### C. Proposed fix
+Describe the smallest safe fix.
+
+Prefer reuse of existing visibility logic over creating a second interpretation.
+
+### D. Behavior matrix
+Show expected count eligibility for at least:
+
+- direct friend + public trip
+- direct friend + private trip + unauthorized viewer
+- direct friend + private trip + viewer explicitly authorized
+- non-friend + public trip
+- past trip
+- future trip
+- participant statuses that currently qualify
+- statuses that currently do not qualify
+
+Do not invent new rules. Derive this from current code.
+
+### E. Cache implications
+Determine whether cached Mountains data could retain unauthorized private-trip counts after the code fix.
+
+If yes, explain the minimum safe handling required.
+
+Do not expand into the separate cache-freshness task.
+
+### F. Tests
+Specify regression tests that prove:
+- unauthorized private trips do not affect `friend_count`
+- authorized visibility still works
+- public trip counts are unchanged
+- existing friend/date/status semantics are unchanged
+
+### G. Files to change
+List the exact minimal set of files you expect to modify.
+
+### H. Risk
+Call out any privacy, authorization, performance, or regression risk.
+
+End with:
+
+READY TO IMPLEMENT BL-120 AS WRITTEN
+
+or
+
+BL-120 NEEDS A DECISION BEFORE IMPLEMENTATION
+
+Do not implement until I explicitly approve the plan.
