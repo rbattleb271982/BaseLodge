@@ -1,0 +1,158 @@
+BL-135 identity verification revealed a materially different current state:
+
+Supabase Development identity: VERIFIED
+Actual Alembic revision: bl52_trip_stay
+Previously expected revision: bl317_startup_schema
+
+Do NOT migrate, downgrade, stamp, or otherwise modify Development.
+
+We now need a READ-ONLY reconciliation of the current Development state before deciding what to do with BL-135 and BL-136.
+
+Do not connect to Supabase Production.
+Do not modify Development.
+Do not run Alembic upgrade/downgrade/stamp/revision.
+Do not run BL-136.
+Do not change code, secrets, or environment variables.
+
+## Goal
+
+Determine whether Supabase Development is already correctly aligned to the repository state represented by bl52_trip_stay, and whether BL-136 is now unnecessary.
+
+## 1. Reconfirm guarded identity
+
+Use BL-134 safeguards.
+
+Required:
+
+- target = supabase-development
+- target verification = PASS
+- revision = bl52_trip_stay
+
+All live Development queries must be explicitly read-only.
+
+## 2. Inspect the actual Stay schema
+
+Read-only inspect public.ski_trip.
+
+Verify exactly:
+
+stay_name
+- type: VARCHAR / character varying
+- max length: 200
+- nullable: YES
+
+stay_description
+- type: VARCHAR / character varying
+- max length: 500
+- nullable: YES
+
+Also verify:
+
+- public.ski_trip exists
+- no unexpected constraint/default/index was added specifically for these fields
+- no duplicate or alternate Stay columns exist
+
+Do not print trip/customer row contents.
+
+## 3. Determine whether Stay data already exists
+
+Read-only aggregate only.
+
+Return:
+
+- ski_trip total row count
+- count of rows where stay_name IS NOT NULL
+- count of rows where stay_description IS NOT NULL
+
+Do not return the values themselves.
+
+This matters because it tells us whether the migration has merely been applied or whether the feature is already actively writing data.
+
+## 4. Compare Development schema to repository bl52
+
+Create a canonical LOCAL disposable PostgreSQL database from repository migrations through exactly:
+
+bl52_trip_stay
+
+Do not use head.
+
+Compare the canonical bl52 public schema against the actual Development public schema using schema-only metadata/dumps.
+
+Development side remains read-only.
+
+Normalize only environment-specific/non-semantic differences.
+
+Classify every substantive difference as:
+
+- expected
+- unrelated known drift
+- unexplained drift
+
+Do not automatically modify anything.
+
+## 5. Investigate repository/history evidence
+
+Without changing anything, inspect Git/repository history and existing migration/task evidence to determine whether there is evidence that bl52_trip_stay was previously applied to Development.
+
+Look for:
+
+- prior operator notes
+- deployment/migration documentation
+- commits
+- task references
+- scripts/logs that are already stored in the repository
+
+Do not claim who or when applied the migration unless evidence supports it.
+
+Do not access Production.
+
+## 6. Reassess BL-135 backup requirement
+
+Because Development is already at bl52, determine whether the originally planned pre-migration BL-135 backup can still serve its intended purpose.
+
+Distinguish:
+
+A. pre-bl52 rollback backup — no longer possible to create now if migration already occurred
+
+B. current-state Development backup — still potentially useful for operational recovery, but not equivalent to the originally planned pre-migration backup
+
+Do not create the backup yet in this Plan step.
+
+## 7. Reassess BL-136
+
+Determine whether BL-136:
+
+- is already effectively satisfied by the current Development state
+- should be closed as unnecessary/already applied after verification
+- needs to be rewritten as a verification-only task
+- or remains necessary for some reason
+
+Under no circumstances execute BL-136 during this investigation.
+
+## 8. Return a decision report
+
+Report:
+
+1. Development identity result
+2. Current revision
+3. Exact Stay-column schema
+4. Aggregate evidence of whether Stay data exists
+5. Canonical bl52 vs Development schema comparison
+6. Any unexplained drift
+7. Evidence, if any, for how Development reached bl52
+8. Whether a true pre-migration BL-135 backup is still possible
+9. Whether a current-state backup is still advisable
+10. Recommended disposition of BL-135
+11. Recommended disposition of BL-136
+
+End with exactly one:
+
+DEVELOPMENT ALREADY ALIGNED — BL-136 NOT REQUIRED
+
+or
+
+DEVELOPMENT STATE REQUIRES FURTHER DECISION
+
+or
+
+DEVELOPMENT DRIFT FOUND — BL-136 NO-GO
