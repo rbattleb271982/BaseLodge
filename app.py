@@ -5563,7 +5563,8 @@ def api_mountains_data():
             _func.count(_func.distinct(SkiTrip.user_id))
         ).filter(
             SkiTrip.user_id.in_(friend_ids),
-            SkiTrip.resort_id.isnot(None)
+            SkiTrip.resort_id.isnot(None),
+            SkiTrip.is_public.is_(True),
         ).group_by(SkiTrip.resort_id).all()
         friend_resort_counts = {rid: cnt for rid, cnt in _counts}
     if app.debug:
