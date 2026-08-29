@@ -1,0 +1,84 @@
+Approve and execute Task #369 exactly as drafted.
+
+This is a read-only reconciliation task.
+
+Do not connect to Supabase Production.
+Do not modify Supabase Development.
+Do not run Alembic upgrade/downgrade/stamp/revision against Development.
+Do not execute BL-136.
+Do not create a backup yet.
+Do not change application code, migrations, secrets, environment variables, or runtime configuration.
+
+Use the existing BL-134 safeguards and fail closed on any target ambiguity.
+
+Required execution:
+
+1. Reconfirm Development identity and live revision with the guarded read-only diagnostic.
+   Required:
+   - target = supabase-development
+   - target verification = PASS
+   - revision = bl52_trip_stay
+
+2. In explicitly read-only Development queries, verify:
+   - public.ski_trip exists
+   - stay_name = VARCHAR(200), nullable
+   - stay_description = VARCHAR(500), nullable
+   - defaults for both fields
+   - constraints involving either field
+   - indexes involving either field
+   - any alternate or duplicate stay-named columns
+
+3. Return aggregate-only usage:
+   - total ski_trip row count
+   - rows with stay_name IS NOT NULL
+   - rows with stay_description IS NOT NULL
+   Do not print application row contents.
+
+4. Create a fresh LOCAL DISPOSABLE PostgreSQL database using the guarded local target.
+   Migrate it exactly through:
+   bl52_trip_stay
+   Never use head.
+
+5. Compare the canonical local bl52 public schema with Development.
+   Normalize only environment-specific/non-semantic metadata.
+   Classify every substantive difference as:
+   - expected
+   - unrelated known drift
+   - unexplained drift
+
+6. Review repository/Git/task evidence for any stored indication that Development previously reached bl52_trip_stay.
+   Do not infer who or when unless evidence explicitly supports it.
+
+7. Reassess recovery:
+   - explain whether a true pre-bl52 backup is now impossible
+   - assess whether a current-state Development backup is still advisable
+   - do not create it in this task
+
+8. Recommend explicit dispositions for:
+   - BL-135
+   - BL-136
+
+9. Safety confirmation:
+   - all live Development operations were read-only
+   - all write-capable operations were local disposable PostgreSQL only
+   - Supabase Production was not contacted
+   - no code/config/secret/env changes occurred
+
+Immediate stop conditions:
+- identity failure
+- revision changes away from bl52_trip_stay
+- inability to prove read-only mode
+- unsafe target ambiguity
+- unexplained schema drift that prevents a confident reconciliation
+
+End with exactly one:
+
+DEVELOPMENT ALREADY ALIGNED — BL-136 NOT REQUIRED
+
+or
+
+DEVELOPMENT STATE REQUIRES FURTHER DECISION
+
+or
+
+DEVELOPMENT DRIFT FOUND — BL-136 NO-GO
