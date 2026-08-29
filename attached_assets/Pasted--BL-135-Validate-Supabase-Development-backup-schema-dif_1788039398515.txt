@@ -1,0 +1,301 @@
+# BL-135 — Validate Supabase Development backup, schema diff, dry run, and rollback
+
+PLAN / INVESTIGATION FIRST.
+
+This task is safety-critical because it is the last validation step before BL-136 is allowed to modify Supabase Development.
+
+BL-134 is complete and the migration target guard is now in place.
+
+Do not run a Production migration.
+Do not connect to Supabase Production.
+Do not make schema or data changes to Supabase Development during the investigation phase.
+Do not run alembic upgrade/stamp/downgrade against Development yet.
+Do not change secrets.
+
+## Goal
+
+Prove that moving Supabase Development from:
+
+bl317_startup_schema
+
+to:
+
+bl52_trip_stay
+
+is safe, understood, backed up, reversible, and limited to the expected schema changes before BL-136 is allowed to execute it.
+
+## A. Verify the exact migration chain
+
+Inspect the Alembic history and identify every revision between:
+
+bl317_startup_schema
+
+and:
+
+bl52_trip_stay
+
+For each revision, report:
+
+- revision ID
+- parent/down_revision
+- purpose
+- exact schema changes
+- tables/columns/indexes/constraints affected
+- whether it contains data migration logic
+- whether it executes raw SQL
+- whether it has any destructive operation
+- whether downgrade is implemented
+- whether downgrade is actually safe/reversible
+- dependencies on application code or existing data
+
+Do not summarize this loosely. I want the exact chain.
+
+## B. Current source expectations
+
+Determine what the current application code expects that does not exist at bl317_startup_schema.
+
+Map code/model expectations to the migration(s) that introduce them.
+
+Specifically identify:
+
+- models/columns currently expected
+- indexes/constraints currently expected
+- trip-stay-related schema expected by current code
+- any application paths that would fail or behave incorrectly against bl317_startup_schema
+- any compatibility window during migration
+
+## C. Development identity verification
+
+Use the BL-134 tooling only in safe diagnostic mode.
+
+Determine the exact command that should be used to verify:
+
+- BASELODGE_MIGRATION_TARGET=supabase-development
+- Development identity hash matches
+- runtime environment is appropriate
+- target verification passes
+
+Default to offline diagnostics.
+
+If a live revision check is required to prove Development is actually at bl317_startup_schema, identify the exact command and safety conditions.
+
+Do NOT execute the live check yet unless the task explicitly moves from investigation into approved validation.
+
+Never expose database credentials or raw project refs.
+
+## D. Backup plan
+
+Design the exact backup procedure required immediately before BL-136.
+
+We need a backup that is sufficient to recover Development if the migration fails or creates unexpected behavior.
+
+Evaluate the best available option for the current Supabase setup:
+
+- Supabase-native backup/restore capability
+- pg_dump
+- schema-only dump
+- full logical dump
+- targeted tables
+- another supported mechanism
+
+Recommend the smallest backup that still gives us a reliable recovery path.
+
+Document:
+
+- exact backup command/path
+- where the backup is stored
+- how success is verified
+- expected artifact
+- whether credentials are exposed
+- approximate restore path
+- what must be backed up: schema only vs schema + data
+- whether Alembic revision state is included
+
+Do not create a backup during Plan mode.
+
+## E. Schema diff
+
+Design a safe way to compare:
+
+1. current Supabase Development at bl317_startup_schema
+2. expected schema at bl52_trip_stay
+
+The diff must identify all intended and unintended changes before a write occurs.
+
+Determine whether to use:
+
+- Alembic-generated SQL
+- pg_dump --schema-only comparisons
+- SQLAlchemy metadata comparison
+- Alembic autogenerate/check
+- Supabase schema tooling
+- another existing repo mechanism
+
+Recommend the most reliable method for this repo.
+
+We should be able to answer:
+
+- exactly what DDL would execute
+- whether anything outside the expected migration chain changes
+- whether destructive operations occur
+- whether current Development schema has drift not represented by migrations
+
+## F. Dry run design
+
+Design the safest possible dry run.
+
+Preferred order of evaluation:
+
+1. Alembic offline SQL generation
+2. isolated disposable PostgreSQL database restored/constructed at bl317_startup_schema
+3. run the real upgrade there
+4. inspect resulting schema and tests
+5. only then consider Development
+
+Determine what is already available in the repo for disposable PostgreSQL migration testing.
+
+Report:
+
+- exact commands
+- whether they write only to disposable DB
+- how BL-134 target protections interact with them
+- what revision to initialize at
+- how to verify final revision
+- how to compare final schema
+- what application tests should be run against the migrated disposable DB
+
+Do not run real Development migration work in Plan mode.
+
+## G. Data-risk analysis
+
+Inspect all revisions in scope for assumptions about existing rows.
+
+For every data-bearing table affected, determine:
+
+- whether adding columns can fail because of NULL/default constraints
+- whether existing rows need backfill
+- whether a new unique constraint/index could fail
+- whether foreign keys could fail due to orphaned data
+- whether type conversions occur
+- whether rows are deleted/rewritten
+- whether migration duration or locking could matter
+- whether current Development data has characteristics that need to be checked before execution
+
+Where live data inspection would be required, define read-only queries only.
+
+Do not execute them yet unless explicitly safe and necessary.
+
+## H. Rollback plan
+
+Do not assume `alembic downgrade` alone is sufficient.
+
+Determine the actual rollback strategy if BL-136 fails.
+
+Evaluate:
+
+- Alembic downgrade
+- restoring the backup
+- restoring schema + data
+- re-stamping revision
+- application rollback
+- combinations of the above
+
+For each migration revision, state whether downgrade is complete and trustworthy.
+
+Define clear rollback triggers such as:
+
+- migration error
+- unexpected DDL
+- schema mismatch
+- application startup failure
+- regression tests failing
+- data integrity anomaly
+
+Recommend the canonical rollback path.
+
+## I. Validation gates before BL-136
+
+Define a hard GO / NO-GO checklist.
+
+BL-136 must not start until all required gates pass.
+
+At minimum consider:
+
+- Development identity verified
+- actual current revision verified
+- backup completed and verified
+- migration chain reviewed
+- offline SQL reviewed
+- schema diff matches expectations
+- disposable dry run passes
+- downgrade/restore path proven
+- post-migration test suite identified
+- no unexpected drift
+- no Production variables/identity involved
+
+Separate:
+- mandatory gates
+- optional confidence checks
+
+## J. Exact commands
+
+Provide exact non-executed command examples for:
+
+1. offline Development identity diagnostic
+2. optional read-only revision check
+3. backup
+4. schema-only backup/diff if applicable
+5. offline Alembic SQL generation
+6. disposable dry-run setup
+7. disposable upgrade
+8. disposable downgrade/rollback validation
+9. Development migration command that BL-136 would later use
+10. Development post-migration verification
+
+Clearly label anything that would write to Development:
+
+DO NOT RUN IN BL-135 PLAN
+
+Do not provide or expose secret values.
+
+## K. Scope boundaries
+
+BL-135 may validate and prove safety.
+
+BL-135 must NOT:
+
+- execute the actual Supabase Development schema alignment
+- touch Supabase Production
+- alter application schema definitions
+- invent new migrations unless a defect is discovered and separately approved
+- bypass BL-134 target controls
+- clean up unrelated database architecture
+
+BL-136 owns the actual approved Development alignment.
+
+## Output
+
+Return:
+
+1. Exact revision chain from bl317_startup_schema to bl52_trip_stay
+2. Current source/schema mismatch
+3. Risk analysis for each migration
+4. Recommended backup procedure
+5. Recommended schema-diff procedure
+6. Recommended disposable dry-run procedure
+7. Rollback strategy
+8. Read-only Development checks required
+9. GO / NO-GO gates
+10. Exact command sequence
+11. Any changes needed to BL-135 scope
+12. Any decisions I need to make
+
+End with exactly one:
+
+READY TO EXECUTE BL-135 VALIDATION
+
+or
+
+BL-135 NEEDS A DECISION BEFORE VALIDATION
+
+Do not modify code, database, migrations, secrets, or tasks during this investigation.
