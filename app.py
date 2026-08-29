@@ -5959,6 +5959,36 @@ def create_trip():
     end_date_str = data.get("end_date")
     pass_type = data.get("pass_type", user.pass_type or "No Pass")
     is_public = data.get("is_public", True)
+    friend_id_raw = data.get("friend_id")
+    friend_id = None
+
+    if friend_id_raw is not None:
+        if isinstance(friend_id_raw, bool):
+            return jsonify({"success": False, "error": "Invalid friend_id."}), 400
+        if isinstance(friend_id_raw, int):
+            friend_id = friend_id_raw
+        elif isinstance(friend_id_raw, str) and friend_id_raw.strip().isdigit():
+            friend_id = int(friend_id_raw.strip())
+        else:
+            return jsonify({"success": False, "error": "Invalid friend_id."}), 400
+
+        if friend_id == user.id:
+            return jsonify({"success": False, "error": "You cannot invite yourself."}), 400
+
+        eligible_friend = (
+            db.session.query(User.id)
+            .join(Friend, Friend.friend_id == User.id)
+            .filter(
+                Friend.user_id == user.id,
+                User.id == friend_id,
+            )
+            .first()
+        )
+        if not eligible_friend:
+            return jsonify({
+                "success": False,
+                "error": "Not authorized to invite this user.",
+            }), 403
 
     # Resolve resort — canonical source of truth for mountain/state
     resolved_resort = None
@@ -5990,7 +6020,6 @@ def create_trip():
         return jsonify({"success": False, "error": "You already have a trip during these dates."}), 409
     
     # Check if this is a group trip proposal
-    friend_id = data.get("friend_id")
     is_group_trip = data.get("is_group", False)
     
     trip = SkiTrip(
@@ -6013,7 +6042,7 @@ def create_trip():
     trip.add_owner_as_participant()
     
     # Add participant if friend_id is provided
-    if friend_id:
+    if friend_id is not None:
         trip.add_participant(friend_id, GuestStatus.PENDING)
     
     # Track first trip created if not already set
@@ -6029,7 +6058,7 @@ def create_trip():
     db.session.commit()
 
     # ── B5: trip.invite.created (create_trip JSON API) — centralized dispatch ──
-    if friend_id:
+    if friend_id is not None:
         emit_messaging_event(
             event_name=EventName.TRIP_INVITE_CREATED,
             actor_user_id=current_user.id,
