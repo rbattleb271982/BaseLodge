@@ -1,0 +1,88 @@
+I want you to investigate the current BaseLodge implementation so we can plan a redesign of the top section of the Home screen.
+Do not make any code changes. Do not modify the database. Do not create migrations. Do not refactor anything yet.
+I only want a technical audit of how this area is currently built and what data is already available.
+The intended future Home design will likely include:
+Rider Type
+Skill Level
+Pass / potentially multiple passes
+Skis
+Boots
+Bindings
+4 Upcoming Trips
+Mountains Visited
+Wishlist Mountains
+Friends' Passes
+Total friend count
+Friend pass distribution, currently envisioned as counts by pass type
+We also need the design to support:
+users with multiple passes
+users with multiple gear setups
+longer gear/pass names
+potentially additional pass types in the future
+Please audit the existing codebase and report:
+1. Current Home implementation
+Which route/controller/view renders Home?
+Which template/component(s) render the current top Home card?
+What data is passed into that view today?
+Which parts are computed in the route vs helper/service vs template?
+Are there any mobile-specific or Capacitor-specific branches?
+2. Current Profile implementation
+Where is the Profile version of Rider Type / Skill Level / Pass / Gear rendered?
+Is this using the same source data as Home or separate logic?
+Is there an existing reusable component/helper that could be shared?
+How are multiple gear setups represented today?
+How are passes represented today? Is the data model capable of multiple passes per user, or only one current pass?
+3. Activity counts
+For each of the following, identify the exact current source and logic:
+Upcoming Trips
+Mountains Visited
+Wishlist Mountains
+Tell me:
+table/model involved
+helper/query involved
+whether the number is already available on Home
+whether it is season-specific or lifetime
+any privacy/visibility considerations
+4. Friends' Passes
+Audit how the current Home screen calculates:
+total friend count
+Epic count
+Ikon count
+Other count
+Also determine:
+what happens to friends with no pass data
+whether pass categories are hardcoded or data-driven
+whether one friend can have multiple passes
+whether counts currently count people or pass records
+whether the existing implementation could support a visual distribution safely
+whether there is any risk of double-counting if multiple passes are supported
+5. Data model / backend readiness
+Based on the intended design, tell me which parts can be implemented using existing data and which would require:
+schema changes
+new queries/helpers
+normalization
+additional API/data loading
+caching or performance work
+Do not propose schema changes unless the current model cannot support the requirement.
+6. Performance
+Check whether rendering this information on Home today causes:
+N+1 queries
+repeated queries also run by Profile
+expensive friend-network aggregation
+duplicated pass/gear lookups
+If there is existing reusable data-loading logic, point it out.
+7. Implementation recommendation
+End with a concise recommendation for the safest implementation path:
+what can be reused as-is
+what should be extracted/shared
+what needs backend work first
+what can remain presentation-only
+any task dependencies that should be completed before this UI work
+Please reference exact file names, functions, models, routes, and templates/components.
+Again: investigation only. No changes.
+I want the output structured as:
+Current architecture
+Data available today
+Gaps / risks
+Reuse opportunities
+Recommended implementation sequence
