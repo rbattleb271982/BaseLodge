@@ -1,0 +1,45 @@
+Investigate why Replit's Publish flow generated a full database schema migration for BaseLodge.
+
+Do not modify code, configuration, secrets, databases, Git, deployment settings, or Production. Do not republish.
+
+Context:
+
+* BaseLodge uses external Supabase databases.
+* Development and Production are both already at Alembic revision `bl52_trip_stay`.
+* Production was manually and successfully migrated using the repository's Alembic process.
+* Full automated suite is green: `828 passed`.
+* Production smoke tests are healthy.
+* During Republish, Replit displayed:
+
+  * "Development database changes detected"
+  * "Generated migrations to apply to production database"
+  * "Database migrations validated successfully"
+* Expanding the generated migration showed a very large schema script containing `CREATE TYPE`, `CREATE TABLE`, foreign keys, and indexes for essentially the entire BaseLodge schema, not just the Stay columns.
+* The publish was cancelled before approval. Nothing was deployed and no Replit-generated migration was applied.
+
+Your job is to determine exactly what Replit is detecting and why.
+
+Please investigate:
+
+1. What Replit database/schema feature is causing the Publish flow to think database changes need to be applied?
+2. Which Development database is Replit comparing against which Production database?
+3. Is Replit comparing a Replit-managed database/schema rather than the external Supabase application database?
+4. Why is it generating a full schema creation script instead of recognizing the existing Production schema?
+5. Which project files, Replit settings, environment variables, database integrations, ORM/schema metadata, or deployment configuration trigger this behavior?
+6. Is there a supported way to publish BaseLodge application code while disabling or bypassing Replit-managed database migrations?
+7. Would disabling that mechanism affect the application's real Supabase connection or Alembic workflow?
+8. Is there any risk that the cancelled publish already changed database state? Verify read-only.
+9. Reconfirm external Supabase Production remains at `bl52_trip_stay` and healthy.
+10. Recommend the smallest safe configuration change, if one is needed, so future Replit publishes deploy application code only and leave Supabase migrations exclusively to Alembic.
+
+Do not make the change yet.
+
+End with:
+
+* ROOT CAUSE
+* SAFE FIX
+* FILE/SETTING THAT WOULD CHANGE
+* RISKS
+* WHETHER REPUBLISH CAN PROCEED AFTER THAT FIX
+
+If you cannot determine this confidently, say CANNOT DETERMINE and stop.
