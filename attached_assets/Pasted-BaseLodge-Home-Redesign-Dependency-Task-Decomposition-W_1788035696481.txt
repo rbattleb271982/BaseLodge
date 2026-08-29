@@ -1,0 +1,199 @@
+BaseLodge Home Redesign — Dependency & Task Decomposition
+We have explored a future redesign of the BaseLodge Home screen, but I do not want to implement it yet.
+Before any Home UI changes are made, I want to understand how the redesign should be broken into safe, independently executable tasks and which existing BaseLodge technical/product work needs to happen first.
+Use the findings from #364 — Audit Complete Home Architecture as the technical source of truth for the current Home implementation.
+Do not make any code changes. Do not modify the database. Do not create migrations. Do not implement the redesign. Do not create commits.
+This is a planning and dependency-mapping exercise only.
+Future Home direction
+The current design direction is approximately:
+Top personal/reference area
+Three compact disclosure/accordion sections:
+About You & Your Gear
+collapsed by default
+rider type
+skill level
+user pass/pass(es)
+skis
+boots
+bindings / equipment
+this is reference information, not the primary focus of Home
+Your Activity
+collapsed by default
+upcoming trips
+mountains visited
+wishlist mountains
+Friends' Passes
+collapsed by default
+total friends
+friend pass distribution
+must safely handle missing pass information and multiple passes
+Your Next Trip
+A compact always-visible summary of the user's nearest upcoming trip.
+The current concept is approximately:
+YOUR NEXT TRIP View trip >
+Vail · Jan 13–17 12 days away
+4 nights · 4 friends going
+Actions to take · 2 v
+The exact visual treatment is not part of this task.
+Actions to take is collapsed by default.
+When expanded, it should show only legitimate actions BaseLodge can reliably determine from existing product state.
+Examples could include:
+RSVP-related attention
+lodging missing
+incomplete trip information
+Do not assume these examples are technically valid. #364 should determine what is actually supported.
+Important product boundary:
+Pass management does NOT belong inside a trip. Passes are user/profile information and belong under About You & Your Gear / Profile.
+A trip action such as Add lodging should route the user to the appropriate Trip Edit experience rather than creating a second lodging-management experience on Home.
+Happening
+Current direction:
+preserve Happening as a Home concept
+potentially change it from a vertical stack to a horizontal carousel
+individual Happening items may retain their existing X/dismiss behavior
+no profile photos/bubbles
+no mountain photography
+Ideas
+Ideas remains below Happening.
+Do not redesign its matching logic as part of this Home work.
+We may refine its presentation later, but existing Ideas logic and current related tasks must be respected.
+Existing Home content below these areas
+Do not assume the redesigned top should eliminate existing Home functionality.
+The objective is to make Home more useful and space-efficient while preserving the underlying product intelligence.
+What I need you to determine
+1. Break the Home redesign into independently safe tasks
+Do NOT create one giant "Redesign Home" task.
+Identify the smallest sensible implementation units that allow us to change Home progressively without destabilizing unrelated functionality.
+Candidate areas include, but are not limited to:
+disclosure/accordion foundation
+About You & Your Gear
+Your Activity
+Friends' Passes
+Next Trip summary
+Next Trip actions
+Happening carousel
+Ideas presentation
+responsive/mobile behavior
+analytics
+final Home integration/polish
+You may combine or further split these if the architecture indicates a better boundary.
+For every proposed task, explain why that boundary is safe.
+2. Map every Home component to existing BaseLodge work
+Review #364 and identify any existing BaseLodge task/workstream that already affects each component.
+Pay particular attention to existing work involving:
+pass data/history
+gear/profile data
+activity aggregates
+trip history
+RSVP deadlines
+participant/action tracking
+trip editing
+friend counts
+friend pass distribution
+Happening
+Ideas
+Home performance
+Profile aggregate cleanup
+PostHog/analytics
+authorization/privacy
+caching
+progressive loading
+Do not duplicate work that already belongs to another task.
+3. Classify the relationship to existing work
+For every proposed Home task, assign exactly one of:
+A — Can be implemented independently now
+Existing backend/data contracts are stable enough.
+B — Can be implemented now but should reuse another task's foundation
+No blocking dependency, but shared logic/component work should be respected.
+C — Blocked by an existing BaseLodge task
+The Home task should not begin until that dependency is complete.
+D — Existing task should be expanded instead
+Do not create a duplicate Home task. The requirement belongs inside an existing task.
+E — Needs a new foundation/backend task first
+The required capability is not adequately represented in the backlog.
+4. Identify backend-before-frontend dependencies
+This is especially important.
+I do not want us building UI against temporary or incorrect backend behavior.
+Identify any Home feature whose underlying:
+schema
+query
+aggregation
+authorization
+state model
+dismissal behavior
+trip action logic
+pass logic
+caching
+should be stabilized before its Home UI is changed.
+Explain why.
+5. Specifically evaluate these likely dependencies
+Based on the existing backlog and #364, determine how the Home redesign relates to tasks such as:
+Friends' pass distribution
+pass-history/data work
+RSVP deadlines
+trip participant action tracking
+Profile aggregate cleanup
+Home Ideas candidate bounding/performance
+Home Happening candidate bounding/performance
+PostHog Home/social/trip instrumentation
+Home information architecture
+final consumer design/system pass
+Use the actual task IDs/titles available to you. Do not invent IDs.
+If another existing task is more relevant, include it.
+6. Distinguish product dependency from technical dependency
+These are not the same.
+For example:
+A future pass-history feature may affect what we eventually show, but may not technically block showing today's current pass.
+A performance task may be desirable before expanding a query, but may not block a presentation-only change.
+For every dependency, label it:
+Hard technical blocker
+Soft technical dependency
+Product dependency
+No dependency
+Do not mark something blocked merely because another related task exists.
+7. Identify what should NOT be bundled
+Explicitly identify combinations that would create unnecessary risk.
+For example, tell me if we should avoid combining:
+Next Trip UI + new RSVP backend logic
+Happening carousel + Happening ranking changes
+Friends' Passes UI + pass-history migration
+Ideas UI + Ideas matching changes
+Base this on the actual architecture, not these examples.
+8. Determine native-build impact
+For each proposed implementation task, classify:
+Web/server deploy only
+Likely web/server only but verify Capacitor
+Requires native iOS/Android build
+Do not assume a native build is required simply because the UI appears in the mobile app.
+9. Recommend execution order
+Give me a dependency-aware sequence.
+I want to know:
+Phase 0 — prerequisite/backend work
+What should be fixed/stabilized before Home work begins?
+Phase 1 — safe structural Home work
+What can be changed without altering product logic?
+Phase 2 — data-backed Home modules
+What should be added once dependencies are stable?
+Phase 3 — Happening / Ideas presentation
+When should these change relative to their existing performance/logic tasks?
+Phase 4 — integration, analytics, and polish
+What comes last?
+Do not force work into these phases if the architecture suggests a better sequence.
+Required final deliverable
+End with one master table:
+Proposed Home task	Scope	Existing BL task(s)	Relationship A–E	Dependency type	Backend first?	Native build impact	Recommended phase	Why
+Then provide:
+Existing tasks that should be completed first
+Only tasks that genuinely block or materially de-risk Home.
+Existing tasks that should be updated
+Requirements from this Home redesign that belong inside already-existing tasks rather than new ones.
+New Home tasks actually needed
+Only genuine gaps.
+Existing tasks that are related but should NOT block Home
+This is important so we do not unnecessarily delay the redesign.
+Proposed execution order
+Give me the final ordered list of task IDs / proposed tasks.
+Do not implement anything.
+Do not create tasks yet.
+Do not modify existing tasks yet.
+Do not change priorities yet.
+I want the dependency map first so we can review it together before touching the BaseLodge backlog.
