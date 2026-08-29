@@ -701,7 +701,7 @@ def resort_display_filter(resort):
     Appends (WA) / (ON) for US/CA; (FR) / (AT) etc. for international.
     Plain name returned when no duplication exists.
     """
-    return _resort_display_name(resort, AMBIGUOUS_RESORT_NAMES)
+    return _resort_display_name(resort, get_ambiguous_resort_names())
 
 
 @app.template_filter('relative_time')
@@ -2788,16 +2788,42 @@ def _run_connection_toast_backfill_migration():
 
 
 # ============================================================================
-# RESORT DISAMBIGUATION — compute once at startup, no N+1 in requests
+# RESORT DISAMBIGUATION — load once on first use, no N+1 in requests
 # ============================================================================
-from utils.resort_utils import get_ambiguous_resort_names, resort_display_name as _resort_display_name
-try:
-    with app.app_context():
-        AMBIGUOUS_RESORT_NAMES = get_ambiguous_resort_names(db.session, Resort)
-    print(f"resort_utils: {len(AMBIGUOUS_RESORT_NAMES)} ambiguous resort name(s) cached.")
-except Exception as _rdu_err:
-    print(f"resort_utils: could not build AMBIGUOUS_RESORT_NAMES ({_rdu_err}); falling back to empty set.")
-    AMBIGUOUS_RESORT_NAMES = frozenset()
+from utils.resort_utils import (
+    get_ambiguous_resort_names as _query_ambiguous_resort_names,
+    resort_display_name as _resort_display_name,
+)
+
+_AMBIGUOUS_RESORT_NAMES = None
+
+
+def get_ambiguous_resort_names():
+    """Return the cached ambiguous resort names, loading them on first use."""
+    global _AMBIGUOUS_RESORT_NAMES
+
+    if _AMBIGUOUS_RESORT_NAMES is not None:
+        return _AMBIGUOUS_RESORT_NAMES
+
+    try:
+        with app.app_context():
+            loaded_names = _query_ambiguous_resort_names(db.session, Resort)
+    except Exception as _rdu_err:
+        print(
+            "resort_utils: could not build AMBIGUOUS_RESORT_NAMES "
+            f"({_rdu_err}); falling back to empty set."
+        )
+        # Preserve the previous startup fail-safe behavior and avoid retrying
+        # a failed database query on every request in this worker.
+        loaded_names = frozenset()
+    else:
+        print(
+            f"resort_utils: {len(loaded_names)} "
+            "ambiguous resort name(s) cached."
+        )
+
+    _AMBIGUOUS_RESORT_NAMES = loaded_names
+    return _AMBIGUOUS_RESORT_NAMES
 
 
 # ============================================================================
@@ -3183,7 +3209,7 @@ def get_resorts_for_trip_form():
         {
             "id": r.id,
             "name": r.name,
-            "display_name": _resort_display_name(r, AMBIGUOUS_RESORT_NAMES),
+            "display_name": _resort_display_name(r, get_ambiguous_resort_names()),
             "country_code": r.country_code or r.country,
             "state_code": r.state_code or r.state,
             "state_name": (
@@ -3269,7 +3295,7 @@ def get_all_active_resorts_map():
         result[r.id] = SimpleNamespace(
             id=r.id,
             name=r.name,
-            display_name=_resort_display_name(r, AMBIGUOUS_RESORT_NAMES),
+            display_name=_resort_display_name(r, get_ambiguous_resort_names()),
             slug=r.slug or "",
             country_code=cc,
             country_name=cn,
@@ -5319,7 +5345,7 @@ def season_snapshot():
         full_name = display_start.strftime('%B')
         abbrev = _MONTH_ABBREVS.get(full_name, full_name[:3].upper())
         dest = (
-            _resort_display_name(trip.resort, AMBIGUOUS_RESORT_NAMES)
+            _resort_display_name(trip.resort, get_ambiguous_resort_names())
             if trip.resort
             else (trip.mountain or 'TBD')
         )
@@ -5805,7 +5831,7 @@ def idea_detail_wishlist():
         })
 
     user_pass_display = _ideas_rider_pass_line(user)
-    resort_name = _resort_display_name(resort, AMBIGUOUS_RESORT_NAMES) if resort else "this resort"
+    resort_name = _resort_display_name(resort, get_ambiguous_resort_names()) if resort else "this resort"
 
     return render_template(
         "idea_detail_wishlist.html",
@@ -5887,7 +5913,7 @@ def idea_detail_trip(trip_id):
             })
 
     user_pass_display = _ideas_rider_pass_line(user)
-    resort_name = _resort_display_name(trip.resort, AMBIGUOUS_RESORT_NAMES) if trip.resort else (trip.mountain or "the mountain")
+    resort_name = _resort_display_name(trip.resort, get_ambiguous_resort_names()) if trip.resort else (trip.mountain or "the mountain")
 
     return render_template(
         "idea_detail_trip.html",
@@ -9648,7 +9674,7 @@ def friend_profile(friend_id):
                 start_date = datetime.strptime(overlap_start, '%Y-%m-%d').date()
                 end_date = datetime.strptime(overlap_end, '%Y-%m-%d').date() if overlap_end else start_date
                 overlap_context = {
-                    'resort_name': _resort_display_name(resort, AMBIGUOUS_RESORT_NAMES),
+                    'resort_name': _resort_display_name(resort, get_ambiguous_resort_names()),
                     'start_date': start_date,
                     'end_date': end_date
                 }
@@ -10821,7 +10847,7 @@ def build_trip_overlap_today_card(user, today, friend_ids):
 
     card = {
         'resort_id': resort_id,
-        'resort_name': _resort_display_name(resort, AMBIGUOUS_RESORT_NAMES),
+        'resort_name': _resort_display_name(resort, get_ambiguous_resort_names()),
         'resort_slug': resort.slug,
         'card_key': card_key,
         'friend_count': friend_count,
@@ -11006,7 +11032,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
         'friend_id': best_friend_id,
         'friend_name': friend_full_name,
         'resort_id': target_resort_id,
-        'resort_name': _resort_display_name(resort, AMBIGUOUS_RESORT_NAMES),
+        'resort_name': _resort_display_name(resort, get_ambiguous_resort_names()),
         'trip_id': target_trip.id,
         'card_key': card_key,
     }

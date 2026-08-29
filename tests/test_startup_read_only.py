@@ -127,7 +127,31 @@ print(json.dumps({"captured": statements, "forbidden": forbidden}))
 
     assert result.returncode == 0, result.stderr
     payload = result.stdout.strip().splitlines()[-1]
+    assert '"captured": []' in payload
     assert '"forbidden": []' in payload
+
+
+def test_ambiguous_resort_names_load_lazily_and_cache(monkeypatch):
+    import app as app_module
+
+    loaded_names = frozenset({"Alpine Peak"})
+    query_calls = []
+
+    def fake_query(db_session, resort_model):
+        query_calls.append((db_session, resort_model))
+        return loaded_names
+
+    monkeypatch.setattr(app_module, "_AMBIGUOUS_RESORT_NAMES", None)
+    monkeypatch.setattr(
+        app_module,
+        "_query_ambiguous_resort_names",
+        fake_query,
+    )
+
+    assert app_module._AMBIGUOUS_RESORT_NAMES is None
+    assert app_module.get_ambiguous_resort_names() == loaded_names
+    assert app_module.get_ambiguous_resort_names() == loaded_names
+    assert len(query_calls) == 1
 
 
 def test_push_token_maintenance_is_not_reachable_from_startup():
