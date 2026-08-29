@@ -1,0 +1,124 @@
+Investigate and reconcile the completion state of the recent BL-135 support tasks before any further execution.
+
+This is an AUDIT ONLY.
+
+Do not connect to Supabase Development.
+Do not connect to Supabase Production.
+Do not run pg_dump.
+Do not run Alembic or migrations.
+Do not create/delete storage objects.
+Do not change code.
+Do not change secrets or environment variables.
+Do not modify task status yet.
+Do not execute Task #370 yet.
+
+Review Tasks #366, #367, #369, and #370 and determine what was actually completed versus what is only drafted, stale, proposed, or inferred.
+
+For each task, report:
+
+1. Current Replit task state
+   - Draft
+   - Assigned
+   - In progress
+   - Completed
+   - Stale/duplicate
+   - Other
+
+2. What actions actually executed.
+
+3. What actions definitely did NOT execute.
+
+4. Evidence supporting completion, including:
+   - command/tool output
+   - files changed
+   - storage operations
+   - database connections
+   - diagnostic results
+   - checksums
+   - schema comparison output
+   - task completion records
+   - commits, if any
+
+5. Whether the task's stated "Done looks like" criteria were fully satisfied.
+
+6. Whether any completion claim relies only on agent memory or prior narrative rather than verifiable execution evidence.
+
+7. Whether any stale task should be closed with no commit rather than rerun.
+
+Specifically verify:
+
+## Task #366
+Confirm whether:
+- Replit App Storage bucket `baselodge-migration-backups` was actually accessible at runtime
+- synthetic object upload/download/checksum/delete verification actually passed
+- the synthetic object is currently absent
+- @replit/object-storage was actually installed
+- package.json/package-lock.json changed
+- no database was contacted
+- no commit was created
+
+## Task #367
+Confirm whether:
+- the Development identity-hash contract was actually inspected
+- candidate database identity hash was actually computed
+- no database connection occurred
+- no code/config/secret change occurred during #367 itself
+- task can be closed with no commit
+
+Do not print secret values or raw database URLs.
+
+## Task #369
+This is the most important check.
+
+Determine whether the Development reconciliation actually EXECUTED or merely reached an approved plan/task state.
+
+Look for verifiable evidence that all of the following actually occurred:
+
+- guarded Development identity check
+- live revision reconfirmed as bl52_trip_stay
+- explicit read-only Development transaction
+- Stay column metadata inspection
+- aggregate-only Stay usage counts
+- local disposable PostgreSQL creation
+- local migration exactly through bl52_trip_stay
+- canonical local-vs-Development schema comparison
+- every substantive difference classified
+- repository/Git history review
+- recovery reassessment
+- explicit recommended dispositions for BL-135 and BL-136
+- final required decision statement
+
+If any of these lack evidence, mark #369 INCOMPLETE.
+
+Do not fill gaps from prior assumptions.
+
+## Task #370
+Report:
+- current task state
+- exact scope
+- whether anything has executed
+- whether it duplicates any already completed work
+- whether it should remain untouched pending review of #369
+
+## Final reconciliation
+
+Return a compact table with:
+
+Task | Actual state | Fully executed? | Evidence sufficient? | Rerun needed? | Recommended disposition
+
+Then give:
+
+- CONFIRMED COMPLETED WORK
+- INCOMPLETE OR UNVERIFIED WORK
+- STALE/DUPLICATE TASKS
+- EXACT NEXT SAFE ACTION
+
+Do not execute the next action.
+
+End with exactly one:
+
+RECENT TASK STATE VERIFIED — SAFE TO PROCEED
+
+or
+
+RECENT TASK STATE NOT FULLY VERIFIED — HOLD
