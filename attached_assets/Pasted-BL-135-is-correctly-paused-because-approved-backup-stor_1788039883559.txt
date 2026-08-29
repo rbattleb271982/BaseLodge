@@ -1,0 +1,63 @@
+BL-135 is correctly paused because approved backup storage is not yet configured.
+
+Investigate ONLY what secure backup-storage options are currently available to this BaseLodge Replit environment.
+
+Do not connect to any database.
+Do not create a backup.
+Do not run migrations.
+Do not change secrets or environment variables.
+Do not provision or purchase anything.
+Do not modify code.
+
+Determine:
+
+1. Whether this Replit workspace already has any private/encrypted external object storage configured or accessible.
+
+2. Whether Replit provides a native private object-storage mechanism suitable for temporarily storing a PostgreSQL custom-format logical backup outside the project filesystem.
+
+3. Whether the existing BaseLodge Supabase setup includes a private Storage bucket that could safely hold the Development backup WITHOUT placing the backup inside the Development PostgreSQL database itself.
+
+4. For each available option, determine:
+   - encrypted at rest?
+   - private/restricted access?
+   - writable from this Replit workspace?
+   - outside repository and workspace filesystem?
+   - suitable for a database dump?
+   - easy to verify after upload?
+   - easy to delete after BL-136 rollback window?
+   - requires new infrastructure, account, bucket, secret, or cost?
+
+5. Do not inspect or print secret VALUES. You may identify existing secret/config VARIABLE NAMES where necessary.
+
+Recommend the simplest safe option using infrastructure we already have.
+
+Preference order:
+
+A. Existing suitable secure external storage
+B. Existing private Supabase Storage capability
+C. Replit-native secure object storage, if suitable
+D. New storage infrastructure only if none of the above works
+
+If an existing option works, give me the exact minimal setup steps required to make it the BL-135 backup destination.
+
+If nothing is currently suitable, tell me the simplest thing I need to create and where.
+
+Do not resume BL-135 validation yet.
+
+Return:
+
+- available options found
+- recommended option
+- why
+- anything I need to configure manually
+- whether a new secret is required
+- expected cost, if any
+- exact next step
+
+End with:
+
+BACKUP STORAGE OPTION READY FOR APPROVAL
+
+or
+
+NEW BACKUP STORAGE REQUIRED
