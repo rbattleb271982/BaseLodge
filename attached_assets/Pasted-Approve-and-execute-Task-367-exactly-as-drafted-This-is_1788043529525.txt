@@ -1,0 +1,74 @@
+Approve and execute Task #367 exactly as drafted.
+
+This is identity-hash preparation only.
+
+Do not connect to Supabase Development.
+Do not connect to Supabase Production.
+Do not run pg_dump.
+Do not run Alembic.
+Do not run migrations.
+Do not modify application code.
+Do not modify runtime configuration.
+Do not add or change secrets or environment variables.
+Do not configure BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH yet.
+
+## Required output
+
+1. Confirm the exact existing database_identity_hash() contract from the repository.
+
+Document precisely which credential-free normalized attributes participate in the hash.
+
+Also state explicitly which URL components are excluded, including credentials.
+
+If the Supabase pooler/project-reference handling contributes a derived project-reference hash or similar identity component, explain exactly how it participates.
+
+2. Using the currently configured:
+
+BASELODGE_DEVELOPMENT_DATABASE_URL
+
+compute the candidate identity hash locally through the repository's existing implementation.
+
+Do not open a database connection.
+
+Return ONLY the resulting SHA-256 hash value from that computation.
+
+Do not print:
+
+- the database URL
+- username
+- password
+- query parameters containing credentials
+- full connection string
+- secret values
+
+3. Provide the independent operator-verification checklist.
+
+For every credential-free identity attribute included in the hash, tell me:
+
+- the expected normalized value or safely redacted value I need to verify
+- where in the Supabase Development dashboard I should independently confirm it
+
+The purpose is to ensure the existing Development URL cannot simply authorize itself.
+
+Do not rely on the URL alone as the verification source.
+
+4. If any identity attribute cannot be independently verified from Supabase's project/dashboard information, mark that clearly and explain the safest alternative verification method.
+
+Do not weaken the BL-134 identity gate.
+
+5. Safety confirmation
+
+Explicitly confirm:
+
+- no database connection occurred
+- Supabase Development was not contacted
+- Supabase Production was not contacted
+- no secret or environment variable was changed
+- no code was changed
+- no migration command was run
+- no backup operation occurred
+- BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH remains unconfigured
+
+End with:
+
+DEVELOPMENT IDENTITY HASH READY FOR OPERATOR VERIFICATION
