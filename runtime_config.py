@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import hmac
 import os
 import re
 from typing import Mapping
@@ -21,6 +22,31 @@ _SUPABASE_POOLER_HOST_PATTERN = re.compile(
     r"^[a-z0-9-]+\.pooler\.supabase\.com$"
 )
 _SUPABASE_PROJECT_REF_PATTERN = re.compile(r"^[a-z0-9]{20}$")
+_SUPABASE_DIRECT_HOST_PATTERN = re.compile(
+    r"^db\.[a-z0-9]+\.supabase\.co$"
+)
+_VALID_MIGRATION_TARGETS = frozenset(
+    {"replit", "supabase-development", "supabase-production"}
+)
+_MIGRATION_TARGET_URL_KEYS = {
+    "replit": "DATABASE_URL",
+    "supabase-development": "BASELODGE_DEVELOPMENT_DATABASE_URL",
+    "supabase-production": "BASELODGE_PRODUCTION_DATABASE_URL",
+}
+_MIGRATION_TARGET_IDENTITY_HASH_KEYS = {
+    "replit": "BASELODGE_MIGRATION_REPLIT_IDENTITY_HASH",
+    "supabase-development": (
+        "BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH"
+    ),
+    "supabase-production": (
+        "BASELODGE_MIGRATION_SUPABASE_PRODUCTION_IDENTITY_HASH"
+    ),
+}
+_MIGRATION_TARGET_RUNTIME_ENVS = {
+    "replit": frozenset({"development", "test"}),
+    "supabase-development": frozenset({"development"}),
+    "supabase-production": frozenset({"production"}),
+}
 
 
 class RuntimeConfigurationError(RuntimeError):
@@ -33,6 +59,8 @@ class DatabaseConfiguration:
     database_url: str
     source: str
     legacy_production_compatibility: bool = False
+    migration_target: str | None = None
+    verified_identity_hash: str | None = None
 
     @property
     def debug_enabled(self) -> bool:
@@ -81,19 +109,29 @@ def _canonical_hostname(hostname: str) -> str:
 
 def database_identity(database_url: str) -> str:
     """Return a credential-free canonical connection identity."""
-    parsed = urlsplit(_normalize_url(database_url))
+    try:
+        parsed = urlsplit(_normalize_url(database_url))
+        parsed_port = parsed.port
+    except ValueError as exc:
+        raise RuntimeConfigurationError(
+            "Configured database URL is invalid."
+        ) from exc
     scheme = parsed.scheme.lower()
     if scheme.startswith("sqlite"):
         path = parsed.path or ":memory:"
         return f"sqlite:{path}"
 
-    if not parsed.hostname or not parsed.path:
+    if not scheme or not parsed.hostname or not parsed.path:
         raise RuntimeConfigurationError(
             "Configured database URL is invalid; a host and database name are required."
         )
     host = _canonical_hostname(parsed.hostname)
-    port = parsed.port or (5432 if scheme.startswith("postgres") else 0)
+    port = parsed_port or (5432 if scheme.startswith("postgres") else 0)
     database_name = parsed.path.lstrip("/").split("/")[0]
+    if not database_name:
+        raise RuntimeConfigurationError(
+            "Configured database URL is invalid; a host and database name are required."
+        )
     identity = f"{scheme}://{host}:{port}/{database_name}"
     project_ref_hash = _supabase_pooler_project_ref_hash(parsed)
     if project_ref_hash:
@@ -127,6 +165,85 @@ def supabase_pooler_project_ref_hash(database_url: str) -> str | None:
 def database_identity_hash(database_url: str) -> str:
     identity = database_identity(database_url)
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def _expected_identity_hash(environ: Mapping[str, str], key: str) -> str:
+    configured_hash = _value(environ, key)
+    if not configured_hash or not _HASH_PATTERN.fullmatch(configured_hash):
+        raise RuntimeConfigurationError(
+            f"{key} must be configured as a SHA-256 database identity hash."
+        )
+    return configured_hash.split(":", 1)[-1].lower()
+
+
+def _database_hostname(database_url: str) -> str:
+    try:
+        parsed = urlsplit(_normalize_url(database_url))
+        hostname = parsed.hostname
+        parsed.port
+    except ValueError as exc:
+        raise RuntimeConfigurationError(
+            "Configured database URL is invalid."
+        ) from exc
+    if not hostname:
+        raise RuntimeConfigurationError(
+            "Configured database URL is invalid; a host and database name are required."
+        )
+    return _canonical_hostname(hostname)
+
+
+def _is_supabase_database_url(database_url: str) -> bool:
+    hostname = _database_hostname(database_url)
+    return hostname.endswith(".supabase.com") or hostname.endswith(".supabase.co")
+
+
+def _validate_migration_database_class(
+    migration_target: str, database_url: str
+) -> None:
+    parsed = urlsplit(_normalize_url(database_url))
+    if not parsed.scheme.lower().startswith("postgresql"):
+        raise RuntimeConfigurationError(
+            "Migration target database URL must use a PostgreSQL dialect."
+        )
+
+    is_supabase = _is_supabase_database_url(database_url)
+    if migration_target == "replit" and is_supabase:
+        raise RuntimeConfigurationError(
+            "Migration target replit cannot use a Supabase database URL."
+        )
+    if migration_target.startswith("supabase-") and not is_supabase:
+        raise RuntimeConfigurationError(
+            f"Migration target {migration_target} requires a Supabase database URL."
+        )
+
+
+def migration_database_diagnostic(
+    configuration: DatabaseConfiguration,
+) -> Mapping[str, str]:
+    """Return credential-free fields for the offline migration diagnostic."""
+    if not configuration.migration_target or not configuration.verified_identity_hash:
+        raise RuntimeConfigurationError(
+            "Migration diagnostic requires a verified migration configuration."
+        )
+
+    parsed = urlsplit(_normalize_url(configuration.database_url))
+    hostname = _database_hostname(configuration.database_url)
+    if _SUPABASE_DIRECT_HOST_PATTERN.fullmatch(hostname):
+        hostname = "db.[project-ref-redacted].supabase.co"
+    database_name = parsed.path.lstrip("/").split("/")[0]
+    dialect = parsed.scheme.lower().split("+", 1)[0]
+
+    return {
+        "migration_target": configuration.migration_target,
+        "source": configuration.source,
+        "dialect": dialect,
+        "hostname": hostname,
+        "database_name": database_name,
+        "identity_hash": (
+            f"sha256:{configuration.verified_identity_hash[:12]}..."
+        ),
+        "verification": "PASS",
+    }
 
 
 def _expected_production_hash(environ: Mapping[str, str]) -> str:
@@ -226,20 +343,64 @@ def resolve_application_database_config(
 def resolve_migration_database_config(
     environ: Mapping[str, str] | None = None,
 ) -> DatabaseConfiguration:
-    """Select the migration-only database without importing the Flask app."""
+    """Resolve and verify an explicitly selected migration database target."""
     environment = os.environ if environ is None else environ
-    runtime_env = _runtime_env(environment)
     if _value(environment, "BASELODGE_MIGRATION_MODE") != "1":
         raise RuntimeConfigurationError(
             "BASELODGE_MIGRATION_MODE=1 is required for migration database access."
         )
 
-    database_url = _require_url(
-        environment, "BASELODGE_MIGRATION_DATABASE_URL", runtime_env
+    migration_target = _value(environment, "BASELODGE_MIGRATION_TARGET")
+    if migration_target is None:
+        raise RuntimeConfigurationError(
+            "BASELODGE_MIGRATION_TARGET is required for migration database access."
+        )
+    if migration_target not in _VALID_MIGRATION_TARGETS:
+        raise RuntimeConfigurationError(
+            "BASELODGE_MIGRATION_TARGET must be exactly replit, "
+            "supabase-development, or supabase-production."
+        )
+
+    runtime_env = _runtime_env(environment)
+    allowed_runtime_envs = _MIGRATION_TARGET_RUNTIME_ENVS[migration_target]
+    if runtime_env not in allowed_runtime_envs:
+        expected_runtime_env = " or ".join(sorted(allowed_runtime_envs))
+        raise RuntimeConfigurationError(
+            f"Migration target {migration_target} requires "
+            f"BASELODGE_RUNTIME_ENV={expected_runtime_env}."
+        )
+
+    url_key = _MIGRATION_TARGET_URL_KEYS[migration_target]
+    database_url = _require_url(environment, url_key, runtime_env)
+    _validate_migration_database_class(migration_target, database_url)
+
+    identity_hash = database_identity_hash(database_url)
+    identity_hash_key = _MIGRATION_TARGET_IDENTITY_HASH_KEYS[migration_target]
+    expected_identity_hash = _expected_identity_hash(
+        environment, identity_hash_key
     )
-    if runtime_env in {"development", "test"}:
-        _reject_production_identity(database_url, environment)
-    return DatabaseConfiguration(runtime_env, database_url, "migration")
+    if not hmac.compare_digest(identity_hash, expected_identity_hash):
+        raise RuntimeConfigurationError(
+            f"Migration target {migration_target} does not match its configured "
+            "database identity."
+        )
+
+    if (
+        migration_target == "supabase-production"
+        and _value(environment, "BASELODGE_CONFIRM_PRODUCTION_MIGRATION") != "1"
+    ):
+        raise RuntimeConfigurationError(
+            "BASELODGE_CONFIRM_PRODUCTION_MIGRATION=1 is required for "
+            "Supabase Production migration access."
+        )
+
+    return DatabaseConfiguration(
+        runtime_env=runtime_env,
+        database_url=database_url,
+        source=url_key,
+        migration_target=migration_target,
+        verified_identity_hash=identity_hash,
+    )
 
 
 def resolve_maintenance_database_config(

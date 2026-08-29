@@ -149,7 +149,12 @@ def _bootstrap_environment(monkeypatch, database_url):
 def _migration_environment(monkeypatch, database_url):
     monkeypatch.setenv("BASELODGE_RUNTIME_ENV", "test")
     monkeypatch.setenv("BASELODGE_MIGRATION_MODE", "1")
-    monkeypatch.setenv("BASELODGE_MIGRATION_DATABASE_URL", database_url)
+    monkeypatch.setenv("BASELODGE_MIGRATION_TARGET", "replit")
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv(
+        "BASELODGE_MIGRATION_REPLIT_IDENTITY_HASH",
+        database_identity_hash(database_url),
+    )
     monkeypatch.setenv(
         "BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH", PRODUCTION_HASH
     )

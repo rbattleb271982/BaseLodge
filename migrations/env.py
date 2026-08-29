@@ -2,13 +2,30 @@ import logging
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
 
-from models import db
 from runtime_config import (
     RuntimeConfigurationError,
     resolve_migration_database_config,
 )
+
+
+def _resolve_verified_migration_configuration():
+    """Fail before importing models or initializing any database machinery."""
+    try:
+        return resolve_migration_database_config()
+    except RuntimeConfigurationError as exc:
+        raise RuntimeError(
+            f"BaseLodge migration configuration error: {exc}"
+        ) from exc
+
+
+# This is the mandatory boundary for raw Alembic and Flask-Migrate commands.
+# Both offline and online paths use this already-verified configuration.
+migration_configuration = _resolve_verified_migration_configuration()
+
+from sqlalchemy import engine_from_config, pool
+
+from models import db
 
 
 config = context.config
@@ -18,12 +35,7 @@ target_metadata = db.metadata
 
 
 def get_migration_url():
-    try:
-        return resolve_migration_database_config().database_url
-    except RuntimeConfigurationError as exc:
-        raise RuntimeError(
-            f"BaseLodge migration configuration error: {exc}"
-        ) from exc
+    return migration_configuration.database_url
 
 
 def run_migrations_offline():

@@ -171,13 +171,17 @@ def test_development_rejects_production_pooler_with_alternate_role():
         )
 
 
-def test_migration_rejects_production_pooler_with_alternate_role():
-    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+def test_supabase_development_migration_rejects_production_pooler():
+    with pytest.raises(RuntimeConfigurationError, match="configured database identity"):
         resolve_migration_database_config(
             _pooler_environment(
                 BASELODGE_MIGRATION_MODE="1",
-                BASELODGE_MIGRATION_DATABASE_URL=(
+                BASELODGE_MIGRATION_TARGET="supabase-development",
+                BASELODGE_DEVELOPMENT_DATABASE_URL=(
                     PRODUCTION_POOLER_ALTERNATE_ROLE_URL
+                ),
+                BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH=(
+                    database_identity_hash(DEVELOPMENT_POOLER_URL)
                 ),
             )
         )
@@ -410,23 +414,43 @@ def test_only_development_enables_debug_behavior():
     ).debug_enabled
 
 
-def test_migration_configuration_requires_explicit_mode_and_url():
+def test_migration_configuration_requires_explicit_mode_target_and_url():
     with pytest.raises(RuntimeConfigurationError, match="MIGRATION_MODE"):
         resolve_migration_database_config(
-            _environment(BASELODGE_MIGRATION_DATABASE_URL=DEVELOPMENT_URL)
+            _environment(
+                BASELODGE_MIGRATION_TARGET="replit",
+                DATABASE_URL=DEVELOPMENT_URL,
+                BASELODGE_MIGRATION_REPLIT_IDENTITY_HASH=(
+                    database_identity_hash(DEVELOPMENT_URL)
+                ),
+            )
         )
-    with pytest.raises(RuntimeConfigurationError, match="MIGRATION_DATABASE_URL"):
+    with pytest.raises(RuntimeConfigurationError, match="MIGRATION_TARGET"):
         resolve_migration_database_config(
             _environment(BASELODGE_MIGRATION_MODE="1")
         )
-
-
-def test_nonproduction_migration_rejects_production_endpoint_with_alternate_role():
-    with pytest.raises(RuntimeConfigurationError, match="protected production"):
+    with pytest.raises(RuntimeConfigurationError, match="DATABASE_URL"):
         resolve_migration_database_config(
             _environment(
                 BASELODGE_MIGRATION_MODE="1",
-                BASELODGE_MIGRATION_DATABASE_URL=PRODUCTION_URL_ALTERNATE_ROLE,
+                BASELODGE_MIGRATION_TARGET="replit",
+                BASELODGE_MIGRATION_REPLIT_IDENTITY_HASH=(
+                    database_identity_hash(DEVELOPMENT_URL)
+                ),
+            )
+        )
+
+
+def test_replit_migration_rejects_supabase_database_class():
+    with pytest.raises(RuntimeConfigurationError, match="cannot use a Supabase"):
+        resolve_migration_database_config(
+            _pooler_environment(
+                BASELODGE_MIGRATION_MODE="1",
+                BASELODGE_MIGRATION_TARGET="replit",
+                DATABASE_URL=PRODUCTION_POOLER_ALTERNATE_ROLE_URL,
+                BASELODGE_MIGRATION_REPLIT_IDENTITY_HASH=(
+                    database_identity_hash(PRODUCTION_POOLER_URL)
+                ),
             )
         )
 
@@ -508,6 +532,11 @@ def test_migration_graph_inspection_does_not_import_app():
         "BASELODGE_PRODUCTION_DATABASE_URL",
         "BASELODGE_MIGRATION_DATABASE_URL",
         "BASELODGE_MIGRATION_MODE",
+        "BASELODGE_MIGRATION_TARGET",
+        "BASELODGE_MIGRATION_REPLIT_IDENTITY_HASH",
+        "BASELODGE_MIGRATION_SUPABASE_DEVELOPMENT_IDENTITY_HASH",
+        "BASELODGE_MIGRATION_SUPABASE_PRODUCTION_IDENTITY_HASH",
+        "BASELODGE_CONFIRM_PRODUCTION_MIGRATION",
         "SUPABASE_DATABASE_URL",
     ):
         environment.pop(key, None)
