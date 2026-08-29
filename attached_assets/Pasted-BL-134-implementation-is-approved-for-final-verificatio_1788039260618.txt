@@ -1,0 +1,112 @@
+BL-134 implementation is approved for final verification.
+
+Do not make additional product or architecture changes.
+
+Before committing, perform a final closeout review.
+
+## 1. Diff scope
+
+Confirm the commit contains only these BL-134-related files:
+
+- runtime_config.py
+- migrations/env.py
+- scripts/database_target.py
+- db_init.py
+- replit.md
+- conftest.py
+- .github/workflows/ci.yml
+- tests/test_database_target.py
+- tests/test_runtime_config.py
+- tests/test_bootstrap_bl60_postgres.py
+- tests/test_import_reference_data_postgres.py
+- tests/test_mountain_page_view_migration.py
+
+If any additional file is changed, stop and report it.
+
+Confirm no agent-memory, attached_assets, unrelated application/product, schema, migration revision, or generated files are included.
+
+## 2. Production contract check
+
+Explicitly confirm the final Production contract is:
+
+- BASELODGE_MIGRATION_MODE=1
+- BASELODGE_MIGRATION_TARGET=supabase-production
+- BASELODGE_PRODUCTION_DATABASE_URL present
+- matching BASELODGE_MIGRATION_SUPABASE_PRODUCTION_IDENTITY_HASH
+- BASELODGE_CONFIRM_PRODUCTION_MIGRATION=1
+- BASELODGE_RUNTIME_ENV=production
+
+Confirm the BASELODGE_RUNTIME_ENV=production requirement is intentional, tested, and documented.
+
+Do not remove it unless there is a concrete architectural conflict.
+
+## 3. Supabase isolation
+
+Confirm again that:
+
+- DATABASE_URL cannot authorize either Supabase target
+- SUPABASE_DATABASE_URL cannot authorize migration execution
+- BASELODGE_MIGRATION_DATABASE_URL is not accepted as a fallback
+- Development and Production identity verification does not rely on hostname alone
+- raw Alembic cannot bypass migrations/env.py verification
+- ordinary application startup does not require BASELODGE_MIGRATION_TARGET
+
+## 4. Safety tests
+
+Re-run the approved non-connecting test set that produced:
+
+- 106 main BL-134/runtime/Alembic tests
+- 9 bootstrap safety tests
+- 8 reference-import safety tests
+- 10 development-user safety tests
+
+Expected total: 133 passing tests.
+
+Also run:
+
+git diff --check
+
+and the Python compilation checks previously used.
+
+Do not run:
+
+- real Supabase connections
+- Alembic upgrade
+- downgrade
+- stamp
+- revision
+- schema writes
+- data writes
+- live --check-revision
+- disposable write-capable migration tests
+
+## 5. Secret-output review
+
+Perform one final static/test review proving diagnostic and error output cannot expose:
+
+- full database URLs
+- usernames
+- passwords
+- raw Supabase project refs
+- tokens
+- API keys
+
+## 6. Commit
+
+If all checks pass, commit with:
+
+BL-134: guard migration database targets
+
+Do not push or run migrations after committing.
+
+Return:
+
+1. commit hash
+2. exact files committed
+3. final test results
+4. git diff --check result
+5. confirmation working tree is clean
+6. confirmation no real Supabase connection occurred
+7. confirmation no migration/schema/data write occurred
+8. confirmation Production requires all documented gates
+9. confirmation generic/legacy database URLs cannot authorize Supabase migrations
