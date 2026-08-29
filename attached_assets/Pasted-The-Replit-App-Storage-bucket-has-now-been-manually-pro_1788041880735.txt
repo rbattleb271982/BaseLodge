@@ -1,0 +1,70 @@
+The Replit App Storage bucket has now been manually provisioned.
+
+Bucket:
+baselodge-migration-backups
+
+Approved BL-135 prefix:
+bl135/development/
+
+Resume Task #366 and perform ONLY the previously approved storage verification.
+
+Do not connect to Supabase Development.
+Do not connect to Supabase Production.
+Do not run pg_dump.
+Do not run Alembic or migrations.
+Do not change application code, database configuration, secrets, or environment variables.
+
+Using harmless synthetic content only:
+
+1. Confirm the BaseLodge Repl can access:
+   baselodge-migration-backups
+
+2. Confirm the bucket is private and does not expose anonymous/public access.
+
+3. Confirm the applicable Replit App Storage encryption-at-rest protection.
+
+4. Upload:
+   bl135/development/storage-verification-test.txt
+
+5. Calculate a checksum for the synthetic content.
+
+6. Verify authenticated listing/object existence.
+
+7. Authenticated-download/read the object.
+
+8. Verify the downloaded checksum exactly matches.
+
+9. Delete the synthetic object.
+
+10. Verify the object no longer exists.
+
+11. Determine from the actual available App Storage interface/SDK whether the later PostgreSQL custom-format dump can be streamed directly into this bucket.
+
+Prefer direct streaming if it can be implemented reliably with error handling and subsequent checksum/download verification.
+
+If direct streaming cannot be safely verified, report that /tmp staging is required, but do not create a database backup yet.
+
+Do not create the actual bl135/development folder manually if App Storage uses object-key prefixes. Allow the test object's key to establish the prefix naturally.
+
+Return:
+
+- bucket access: PASS/FAIL
+- privacy: PASS/FAIL
+- encryption at rest: PASS/FAIL
+- synthetic upload: PASS/FAIL
+- authenticated download: PASS/FAIL
+- checksum: PASS/FAIL
+- deletion: PASS/FAIL
+- object gone: PASS/FAIL
+- new secret required: YES/NO
+- future backup method: DIRECT STREAM or TRANSIENT /tmp
+- confirmation neither Supabase database was contacted
+- confirmation no code/env/secret changes occurred
+
+If every mandatory storage check passes, end:
+
+BL-135 BACKUP STORAGE READY
+
+Otherwise:
+
+BL-135 BACKUP STORAGE NOT READY
