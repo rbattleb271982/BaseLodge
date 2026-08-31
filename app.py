@@ -11116,6 +11116,7 @@ def _build_home_summary(
     home_rider_disciplines,
     home_gear_by_discipline,
     home_is_renting,
+    next_trip_actions=None,
 ):
     """Assemble Home summary data exclusively from already-resolved values."""
     summary_user = (
@@ -11123,6 +11124,7 @@ def _build_home_summary(
         if hasattr(user, "_get_current_object")
         else user
     )
+    resolved_next_trip_actions = list(next_trip_actions or [])
     return {
         "about_you": {
             "user": summary_user,
@@ -11148,11 +11150,87 @@ def _build_home_summary(
                 "trip": next_trip,
                 "is_owner": next_trip.user_id == summary_user.id,
                 "friends_going_count": next_trip_friends_going_count,
+                "actions": resolved_next_trip_actions,
+                "action_count": len(resolved_next_trip_actions),
             }
             if next_trip
             else None
         ),
     }
+
+
+HOME_NEXT_TRIP_ACTION_PRIORITIES = {
+    "review_rsvp": 10,
+    "review_join_requests": 20,
+}
+
+
+def _canonicalize_home_next_trip_actions(actions):
+    """Deduplicate and order server-resolved Next Trip actions."""
+    actions_by_key = {}
+    for action in actions:
+        actions_by_key.setdefault(action["key"], action)
+    return sorted(
+        actions_by_key.values(),
+        key=lambda action: (action["priority"], action["key"]),
+    )
+
+
+def _build_home_next_trip_actions(*, next_trip, current_user_id, participant=None):
+    """Resolve the approved needs-attention actions for one Home Next Trip."""
+    if not next_trip:
+        return []
+
+    actions = []
+    is_owner = next_trip.user_id == current_user_id
+
+    if is_owner:
+        has_pending_join_request = (
+            db.session.query(
+                sa.exists().where(
+                    sa.and_(
+                        Invitation.trip_id == next_trip.id,
+                        Invitation.invite_type == InviteType.REQUEST,
+                        Invitation.status == "pending",
+                    )
+                )
+            )
+            .scalar()
+        )
+        if has_pending_join_request:
+            actions.append({
+                "key": f"next_trip:review_join_requests:{next_trip.id}",
+                "type": "review_join_requests",
+                "label": "Review join requests",
+                "destination": url_for(
+                    "trip_detail",
+                    trip_id=next_trip.id,
+                    _anchor="td-join-requests",
+                ),
+                "priority": HOME_NEXT_TRIP_ACTION_PRIORITIES[
+                    "review_join_requests"
+                ],
+            })
+    elif (
+        participant
+        and participant.trip_id == next_trip.id
+        and participant.user_id == current_user_id
+        and participant.is_active
+        and participant.status == GuestStatus.INTERESTED
+    ):
+        actions.append({
+            "key": f"next_trip:review_rsvp:{next_trip.id}",
+            "type": "review_rsvp",
+            "label": "Review RSVP",
+            "destination": url_for(
+                "trip_detail",
+                trip_id=next_trip.id,
+                _anchor="td-self-rsvp",
+            ),
+            "priority": HOME_NEXT_TRIP_ACTION_PRIORITIES["review_rsvp"],
+        })
+
+    return _canonicalize_home_next_trip_actions(actions)
 
 
 def _count_home_next_trip_friends_going(next_trip, friend_ids, current_user_id):
@@ -11272,6 +11350,7 @@ def home():
         connection_toast_suggest_url = None
 
     # --- Next Trip (created or actively joined) ---
+    accepted_by_trip_id = {}
     try:
         _hp_t0 = time.perf_counter()
         my_trips = (
@@ -11350,6 +11429,15 @@ def home():
     friend_pass_counts = count_friends_by_pass_group(all_friends)
     next_trip_friends_going_count = _count_home_next_trip_friends_going(
         next_trip, friend_ids, user.id
+    )
+    next_trip_actions = _build_home_next_trip_actions(
+        next_trip=next_trip,
+        current_user_id=user.id,
+        participant=(
+            accepted_by_trip_id.get(next_trip.id)
+            if next_trip and next_trip.user_id != user.id
+            else None
+        ),
     )
 
     # --- Trip Invite Banner (soonest active pending trip invite) ---
@@ -11659,6 +11747,7 @@ def home():
         home_rider_disciplines=home_rider_disciplines,
         home_gear_by_discipline=home_gear_by_discipline,
         home_is_renting=home_is_renting,
+        next_trip_actions=next_trip_actions,
     )
     stat_mountains = home_summary["activity"]["mountains_visited_count"]
     stat_trips_total = home_summary["activity"]["upcoming_trip_count"]

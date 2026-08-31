@@ -178,6 +178,8 @@ def test_home_summary_assembler_uses_only_resolved_values():
             "trip": next_trip,
             "is_owner": True,
             "friends_going_count": 2,
+            "actions": [],
+            "action_count": 0,
         },
     }
 
