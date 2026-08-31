@@ -12,7 +12,7 @@ from app import app
 from models import (
     db, User, SkiTrip, SkiDay, SkiTripParticipant, SkiTripPlanningPost,
     SkiTripRsvpTransition, TripInviteToken, Invitation, Friend, GuestStatus,
-    FriendConnectionEvent,
+    FriendConnectionEvent, WishlistResortEvent,
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
@@ -93,6 +93,20 @@ def deletion_setup(client):
             owned_trip_history,
             pair_connection_event,
             actor_only_connection_event,
+            WishlistResortEvent(
+                user_id=user.id,
+                resort_id=resort.id,
+                actor_user_id=user.id,
+                event_type="added",
+                source="settings",
+            ),
+            WishlistResortEvent(
+                user_id=other.id,
+                resort_id=resort.id,
+                actor_user_id=user.id,
+                event_type="added",
+                source="mountain_detail",
+            ),
         ])
         db.session.add_all([
             SkiDay(
@@ -229,6 +243,26 @@ def test_delete_account_nulls_actor_on_unrelated_connection_history(
         )
         assert surviving is not None
         assert surviving.actor_user_id is None
+
+
+def test_delete_account_erases_subject_wishlist_history_and_anonymizes_actor(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert WishlistResortEvent.query.filter_by(
+            user_id=s["user_id"]
+        ).count() == 0
+        surviving = WishlistResortEvent.query.filter_by(
+            user_id=s["other_id"]
+        ).one()
+        assert surviving.actor_user_id is None
+        assert WishlistResortEvent.query.filter_by(
+            event_type="removed"
+        ).count() == 0
 
 
 def test_delete_account_removes_only_deleted_users_ski_days(client, deletion_setup):

@@ -6,7 +6,7 @@ from sqlalchemy import event
 
 from app import app
 from conftest import _login, _make_resort, _make_user, json_post
-from models import Friend, User, db
+from models import Friend, User, WishlistResortEvent, db
 from services.ideas_retrieval import get_home_ideas
 from services.wishlist import (
     WISHLIST_LIMIT,
@@ -217,7 +217,7 @@ def test_single_mutations_reject_non_object_json(client, url, payload):
     assert response.status_code == 400
 
 
-def test_remove_deletes_all_normalized_occurrences_and_preserves_other_values(client):
+def test_remove_canonicalizes_storage_and_emits_only_real_removal(client):
     with app.app_context():
         user = _make_user("wishlist-remove")
         removed = _make_resort("Remove Wishlist")
@@ -243,10 +243,12 @@ def test_remove_deletes_all_normalized_occurrences_and_preserves_other_values(cl
         "at_limit": False,
     }
     with app.app_context():
-        assert db.session.get(User, user_id).wish_list_resorts == [
-            "legacy-bad",
-            str(kept_id),
-            kept_id,
+        assert db.session.get(User, user_id).wish_list_resorts == [kept_id]
+        events = WishlistResortEvent.query.order_by(
+            WishlistResortEvent.id
+        ).all()
+        assert [(event.resort_id, event.event_type) for event in events] == [
+            (removed_id, "removed")
         ]
 
 
@@ -281,7 +283,7 @@ def test_remove_reports_canonical_limit_at_boundaries(
     }
 
 
-def test_remove_reports_canonical_limit_for_over_limit_legacy_data(client):
+def test_remove_repairs_over_limit_legacy_data_without_fabricated_event(client):
     with app.app_context():
         user = _make_user("wishlist-remove-over-limit")
         resorts = [
@@ -306,7 +308,8 @@ def test_remove_reports_canonical_limit_for_over_limit_legacy_data(client):
     }
     with app.app_context():
         stored_ids = db.session.get(User, user_id).wish_list_resorts
-        assert len(stored_ids) == WISHLIST_LIMIT + 1
+        assert len(stored_ids) == WISHLIST_LIMIT
+        assert WishlistResortEvent.query.count() == 0
 
 
 def test_model_reads_ignore_bad_data_dedupe_and_preserve_valid_order(client):
@@ -406,3 +409,4 @@ def test_admin_merge_normalizes_replacement_order_and_limit(client):
             canonical_id,
             *other_ids[:14],
         ]
+        assert WishlistResortEvent.query.count() == 0

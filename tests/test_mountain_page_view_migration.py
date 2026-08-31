@@ -13,6 +13,7 @@ from alembic.runtime.migration import MigrationContext
 
 from models import FriendCooldown
 from runtime_config import database_identity_hash
+from test_import_reference_data_postgres import disposable_postgres
 
 
 MIGRATION_PATH = (
@@ -240,10 +241,10 @@ def test_full_chain_upgrades_from_bl60_shape_in_order():
         } == {("resort", "CASCADE"), ("user", "SET NULL")}
 
 
-def test_alembic_upgrade_traverses_from_bl60_to_bl306_on_isolated_engine(
-    tmp_path, monkeypatch
+def test_alembic_upgrade_traverses_from_bl60_to_bl306_on_isolated_postgres(
+    disposable_postgres, monkeypatch
 ):
-    database_url = f"sqlite:///{tmp_path / 'migration.db'}"
+    database_url = disposable_postgres("mpv-migration-chain")
     engine = sa.create_engine(database_url)
     metadata = _base_metadata()
     sa.Table("ski_trip", metadata, sa.Column("id", sa.Integer(), primary_key=True))

@@ -1176,6 +1176,61 @@ class FriendConnectionEvent(db.Model):
     )
 
 
+class WishlistResortEvent(db.Model):
+    """Private append-only history for wishlist membership transitions."""
+    __tablename__ = "wishlist_resort_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    resort_id = db.Column(
+        db.Integer,
+        db.ForeignKey("resort.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    actor_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    event_type = db.Column(db.String(8), nullable=False)
+    source = db.Column(db.String(32), nullable=False)
+    occurred_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+
+    subject_user = db.relationship("User", foreign_keys=[user_id])
+    resort = db.relationship("Resort", foreign_keys=[resort_id])
+    actor = db.relationship("User", foreign_keys=[actor_user_id])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "event_type IN ('added', 'removed')",
+            name="ck_wre_event_type",
+        ),
+        db.CheckConstraint(
+            "source IN ('settings', 'mountain_detail')",
+            name="ck_wre_source",
+        ),
+        db.Index(
+            "ix_wre_user_occurred_at",
+            "user_id",
+            "occurred_at",
+        ),
+        db.Index(
+            "ix_wre_user_resort_occurred_at",
+            "user_id",
+            "resort_id",
+            "occurred_at",
+        ),
+    )
+
+
 class SkiTripParticipant(db.Model):
     """Participant in a shared/group SkiTrip."""
     __tablename__ = 'ski_trip_participant'

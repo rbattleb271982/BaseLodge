@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "bl70_user_season_pass"
-down_revision = "bl80_trip_lifecycle"
+down_revision = "bl87_wishlist_history"
 branch_labels = None
 depends_on = None
 

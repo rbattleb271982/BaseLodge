@@ -109,7 +109,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, WishlistResortEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.trip_attendance import (
     effective_attendance_dates,
     participant_is_going,
@@ -123,10 +123,13 @@ from services.wishlist import (
     WishlistValidationError,
     canonical_wishlist_resorts,
     coerce_wishlist_resort_id,
-    eligible_wishlist_resort_ids,
     normalize_wishlist_resort_ids,
-    remove_wishlist_resort_id,
+    add_wishlist_resort,
+    remove_wishlist_resort,
+    replace_wishlist,
+    rewrite_wishlists_for_resort_merge,
     validate_wishlist_resort_ids,
+    wishlist_contains_resort_id,
 )
 from services.rsvp_transitions import RsvpCurrentStateError, transition_rsvp
 from services.trip_lifecycle import (
@@ -13550,20 +13553,25 @@ def settings_wish_list_save():
     if not isinstance(data, dict):
         return jsonify({"error": "Invalid wishlist request"}), 400
     try:
-        resort_ids = validate_wishlist_resort_ids(data.get("resort_ids", []))
+        change = replace_wishlist(
+            db.session,
+            user_id=current_user.id,
+            requested_ids=data.get("resort_ids", []),
+            actor_user_id=current_user.id,
+            source="settings",
+        )
     except WishlistValidationError as exc:
+        db.session.rollback()
         return jsonify({"error": str(exc), "code": exc.code}), 400
 
-    old_ids, _ = canonical_wishlist_resorts(current_user.wish_list_resorts)
-    current_user.wish_list_resorts = resort_ids
     db.session.commit()
-    if len(resort_ids) > len(old_ids):
+    if change.added_ids:
         ph_analytics.track(current_user.id, 'wishlist_added', {
-            'added_count': len(resort_ids) - len(old_ids),
-            'total_count': len(resort_ids),
+            'added_count': len(change.added_ids),
+            'total_count': len(change.new_ids),
             'source':      'settings',
         })
-    return jsonify({"success": True, "count": len(resort_ids)})
+    return jsonify({"success": True, "count": change.count})
 
 
 # =====================================================================
@@ -13629,39 +13637,35 @@ def api_wishlist_add():
     except WishlistValidationError as exc:
         return jsonify({"error": str(exc), "code": exc.code}), 400
 
-    ids, _ = canonical_wishlist_resorts(current_user.wish_list_resorts)
-    if resort_id in ids:
-        if current_user.wish_list_resorts != ids:
-            current_user.wish_list_resorts = ids
-            db.session.commit()
-        return jsonify({
-            "success": True,
-            "count": len(ids),
-            "at_limit": len(ids) >= WISHLIST_LIMIT,
-        })
-
     try:
-        validate_wishlist_resort_ids([resort_id], maximum=None)
+        change = add_wishlist_resort(
+            db.session,
+            user_id=current_user.id,
+            resort_id=resort_id,
+            actor_user_id=current_user.id,
+            source="mountain_detail",
+        )
     except WishlistValidationError:
+        db.session.rollback()
         return jsonify({"error": "Resort not found"}), 404
-    if len(ids) >= WISHLIST_LIMIT:
+    if change.limit_reached:
+        db.session.commit()
         return jsonify({
             "error": f"Maximum {WISHLIST_LIMIT} resorts",
             "at_limit": True,
         }), 200
 
-    ids.append(resort_id)
-    current_user.wish_list_resorts = ids
     db.session.commit()
-    ph_analytics.track(current_user.id, 'wishlist_added', {
-        'resort_id':   resort_id,
-        'total_count': len(ids),
-        'source':      'mountain_page',
-    })
+    if change.added_ids:
+        ph_analytics.track(current_user.id, 'wishlist_added', {
+            'resort_id':   resort_id,
+            'total_count': change.count,
+            'source':      'mountain_page',
+        })
     return jsonify({
         "success": True,
-        "count": len(ids),
-        "at_limit": len(ids) >= WISHLIST_LIMIT,
+        "count": change.count,
+        "at_limit": change.at_limit,
     })
 
 
@@ -13676,16 +13680,18 @@ def api_wishlist_remove():
         resort_id = coerce_wishlist_resort_id(data.get("resort_id"))
     except WishlistValidationError as exc:
         return jsonify({"error": str(exc), "code": exc.code}), 400
-    stored_ids = remove_wishlist_resort_id(
-        current_user.wish_list_resorts, resort_id
+    change = remove_wishlist_resort(
+        db.session,
+        user_id=current_user.id,
+        resort_id=resort_id,
+        actor_user_id=current_user.id,
+        source="mountain_detail",
     )
-    current_user.wish_list_resorts = stored_ids
     db.session.commit()
-    ids, _ = canonical_wishlist_resorts(stored_ids)
     return jsonify({
         "success": True,
-        "count": len(ids),
-        "at_limit": len(ids) >= WISHLIST_LIMIT,
+        "count": change.count,
+        "at_limit": change.at_limit,
     })
 
 
@@ -16655,6 +16661,18 @@ def delete_account():
             actor_user_id=user_id
         ).update(
             {FriendConnectionEvent.actor_user_id: None},
+            synchronize_session=False,
+        )
+
+        # Wishlist history identifies its subject user and must be erased for
+        # privacy. Actor-only references on surviving subjects are anonymized.
+        WishlistResortEvent.query.filter_by(
+            user_id=user_id
+        ).delete(synchronize_session=False)
+        WishlistResortEvent.query.filter_by(
+            actor_user_id=user_id
+        ).update(
+            {WishlistResortEvent.actor_user_id: None},
             synchronize_session=False,
         )
 
@@ -19751,7 +19769,7 @@ def admin_delete_resort_post():
     for user in users:
         if user.visited_resort_ids and resort_id in user.visited_resort_ids:
             visited_count += 1
-        if user.wish_list_resorts and resort_id in user.wish_list_resorts:
+        if wishlist_contains_resort_id(user.wish_list_resorts, resort_id):
             wishlist_count += 1
     
     total_refs = trip_count + home_count + visited_count + wishlist_count
@@ -20093,7 +20111,7 @@ def admin_delete_resort(resort_id):
     for user in users:
         if user.visited_resort_ids and resort_id in user.visited_resort_ids:
             visited_count += 1
-        if user.wish_list_resorts and resort_id in user.wish_list_resorts:
+        if wishlist_contains_resort_id(user.wish_list_resorts, resort_id):
             wishlist_count += 1
     
     total_refs = trip_count + home_count + visited_count + wishlist_count
@@ -20142,7 +20160,7 @@ def admin_bulk_delete_resorts():
         for user in users:
             if user.visited_resort_ids and resort_id in user.visited_resort_ids:
                 visited_count += 1
-            if user.wish_list_resorts and resort_id in user.wish_list_resorts:
+            if wishlist_contains_resort_id(user.wish_list_resorts, resort_id):
                 wishlist_count += 1
         
         total_refs = trip_count + home_count + visited_count + wishlist_count
@@ -20264,6 +20282,12 @@ def admin_merge_resorts():
             'resorts_deactivated': 0
         }
         
+        stats['wishlist_updated'] = rewrite_wishlists_for_resort_merge(
+            db.session,
+            duplicate_ids=duplicate_ids,
+            canonical_id=canonical_id,
+        )
+
         for dup in duplicates:
             dup_id = dup.id
             
@@ -20288,36 +20312,6 @@ def admin_merge_resorts():
                     user.visited_resort_ids = new_list
                     flag_modified(user, 'visited_resort_ids')
                     stats['visited_lists_updated'] += 1
-            
-            # 4. Update User.wish_list_resorts (JSON array)
-            users_with_wishlist = User.query.filter(
-                User.wish_list_resorts.isnot(None)
-            ).all()
-            rewritten_wishlists = {}
-            rewritten_candidate_ids = set()
-            for user in users_with_wishlist:
-                normalized = normalize_wishlist_resort_ids(
-                    user.wish_list_resorts, strict=False
-                )
-                if dup_id in normalized:
-                    replaced = [
-                        canonical_id if resort_id == dup_id else resort_id
-                        for resort_id in normalized
-                    ]
-                    new_list = normalize_wishlist_resort_ids(replaced)
-                    rewritten_wishlists[user.id] = (user, new_list)
-                    rewritten_candidate_ids.update(new_list)
-
-            eligible_ids = eligible_wishlist_resort_ids(
-                rewritten_candidate_ids
-            )
-            for user, rewritten in rewritten_wishlists.values():
-                user.wish_list_resorts = [
-                    resort_id for resort_id in rewritten
-                    if resort_id in eligible_ids
-                ][:WISHLIST_LIMIT]
-                flag_modified(user, 'wish_list_resorts')
-                stats['wishlist_updated'] += 1
             
             # 5. Mark duplicate as inactive
             dup.is_active = False

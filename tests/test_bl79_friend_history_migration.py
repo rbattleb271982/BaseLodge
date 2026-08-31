@@ -59,7 +59,9 @@ def test_revision_reparents_bl70_and_is_the_sole_head():
     assert migration.branch_labels is None
     assert len(migration.revision) <= 32
     assert bl80.down_revision == migration.revision
-    assert bl70.down_revision == bl80.revision
+    bl87 = script.get_revision("bl87_wishlist_history")
+    assert bl87.down_revision == bl80.revision
+    assert bl70.down_revision == bl87.revision
     assert script.get_heads() == ["bl70_user_season_pass"]
 
 

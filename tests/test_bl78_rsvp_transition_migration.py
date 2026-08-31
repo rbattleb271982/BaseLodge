@@ -74,7 +74,9 @@ def test_revision_precedes_deferred_bl70_in_single_linear_graph():
     assert len(migration.revision) <= 32
     assert bl79.down_revision == "bl78_rsvp_transition"
     assert bl80.down_revision == "bl79_friend_history"
-    assert deferred_bl70.down_revision == "bl80_trip_lifecycle"
+    bl87 = script.get_revision("bl87_wishlist_history")
+    assert bl87.down_revision == "bl80_trip_lifecycle"
+    assert deferred_bl70.down_revision == bl87.revision
     assert script.get_heads() == ["bl70_user_season_pass"]
 
 
