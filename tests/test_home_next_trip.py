@@ -14,7 +14,10 @@ from tests.conftest import _add_participant, _login, _make_trip, _make_user
 
 
 def _connect(viewer, friend):
-    db.session.add(Friend(user_id=viewer.id, friend_id=friend.id))
+    db.session.add_all([
+        Friend(user_id=viewer.id, friend_id=friend.id),
+        Friend(user_id=friend.id, friend_id=viewer.id),
+    ])
 
 
 def _home_response(client, user_id):

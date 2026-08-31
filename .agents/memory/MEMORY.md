@@ -22,3 +22,4 @@
 - [Connection lifecycle history](connection-lifecycle-history.md) — private pair history never grants access; lock users canonically; BL-79 sits between BL-78 and deferred BL-70.
 - [Terminal trip isolation](terminal-trip-isolation.md) — retained terminal trips require explicit exclusion from every live surface; dates, visibility, and RSVP status are not substitutes.
 - [Wishlist transition history rollout](wishlist-transition-history-rollout.md) — Supabase Development is at BL-87 with empty initial history; other persistent databases were not migrated.
+- [Authenticated social visibility](authenticated-social-visibility.md) — friend-only access requires reciprocal current rows; public trips are friend-social; invitation-state identities stay organizer-only.

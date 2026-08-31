@@ -18,6 +18,7 @@ from flask import url_for
 from utils.formatting import format_name
 from models import db, Resort, SkiTrip, SkiTripParticipant
 from services.trip_attendance import effective_attendance_dates, set_effective_attendance_dates
+from services.visibility import issue_availability_idea_capability
 
 from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_label, passes_match as _passes_match
 
@@ -437,12 +438,20 @@ def build_availability_overlap_cards(user, windows, all_friends, user_wishlist):
 
         anchor_friend_id = w.get("anchor_friend_id")
 
-        # Build cta_url → idea detail route
-        friend_ids_param = ",".join(str(fid) for fid in sorted(window_friend_ids))
-        params = f"?friend_ids={friend_ids_param}&start_date={w['start_date']}&end_date={w['end_date']}"
-        if shared_resort_id:
-            params += f"&resort_id={shared_resort_id}"
-        cta_url = url_for("idea_detail_availability") + params
+        # The detail route accepts only this viewer-bound signed scope. Raw
+        # friend/date query parameters would otherwise create an availability
+        # probing oracle.
+        capability = issue_availability_idea_capability(
+            viewer_id=user.id,
+            friend_ids=window_friend_ids,
+            start_date=w["start_date"],
+            end_date=w["end_date"],
+            resort_id=shared_resort_id,
+        )
+        cta_url = url_for(
+            "idea_detail_availability",
+            capability=capability,
+        )
 
         # Window length phrase for featured card headline
         start_obj_inner = date.fromisoformat(w["start_date"])

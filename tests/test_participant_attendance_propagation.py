@@ -35,7 +35,10 @@ def _capture_template(monkeypatch):
 
 
 def _link_friends(user, friend):
-    db.session.add(Friend(user_id=user.id, friend_id=friend.id))
+    db.session.add_all([
+        Friend(user_id=user.id, friend_id=friend.id),
+        Friend(user_id=friend.id, friend_id=user.id),
+    ])
 
 
 def test_home_overlap_today_uses_effective_window_for_going_friend(client):

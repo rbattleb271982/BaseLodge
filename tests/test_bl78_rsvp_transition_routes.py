@@ -50,7 +50,10 @@ def _trip_payload(friend_id):
 def test_creation_optional_guest_records_initial_invite_but_not_owner(client):
     with app.app_context():
         owner, guest = _make_user("create-owner"), _make_user("create-guest")
-        db.session.add(Friend(user_id=owner.id, friend_id=guest.id))
+        db.session.add_all([
+            Friend(user_id=owner.id, friend_id=guest.id),
+            Friend(user_id=guest.id, friend_id=owner.id),
+        ])
         db.session.commit()
         owner_id, guest_id = owner.id, guest.id
 
@@ -69,7 +72,10 @@ def test_organizer_invite_and_cancel_are_idempotent_history_transitions(client):
     with app.app_context():
         owner, guest = _make_user("invite-owner"), _make_user("invite-guest")
         trip = _make_trip(owner)
-        db.session.add(Friend(user_id=owner.id, friend_id=guest.id))
+        db.session.add_all([
+            Friend(user_id=owner.id, friend_id=guest.id),
+            Friend(user_id=guest.id, friend_id=owner.id),
+        ])
         db.session.commit()
         trip_id, owner_id, guest_id = trip.id, owner.id, guest.id
 

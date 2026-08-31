@@ -24,6 +24,7 @@ from models import (
     db,
 )
 from services.ideas_engine import _fmt_date_range_short, _fmt_social_names
+from services.visibility import reciprocal_friend_predicate
 from utils.formatting import format_name
 
 
@@ -211,7 +212,10 @@ def _available_days(*, user_id, today):
 
     relevant_users = sa.union(
         sa.select(sa.literal(user_id).label("user_id")),
-        sa.select(friendship.c.friend_id).where(friendship.c.user_id == user_id),
+        sa.select(friendship.c.friend_id).where(
+            friendship.c.user_id == user_id,
+            reciprocal_friend_predicate(user_id, friendship.c.friend_id),
+        ),
     ).cte("ideas_relevant_users")
 
     normalized = (
@@ -274,6 +278,7 @@ def _wishlist_pairs(*, user_id):
         )
         .where(
             friendship.c.user_id == user_id,
+            reciprocal_friend_predicate(user_id, friendship.c.friend_id),
             viewer.c.id == friendship.c.user_id,
             friend_user.c.id == friendship.c.friend_id,
             _safe_int(friend_values.c.value)
@@ -317,6 +322,7 @@ def _trip_candidates(*, user_id, today, available_days):
             trip.c.end_date >= today,
             trip.c.is_public.is_(True),
             trip.c.resort_id.is_not(None),
+            reciprocal_friend_predicate(user_id, trip.c.user_id),
         )
     )
     going_override = sa.and_(
@@ -364,6 +370,7 @@ def _trip_candidates(*, user_id, today, available_days):
             effective_end >= today,
             trip.c.is_public.is_(True),
             trip.c.resort_id.is_not(None),
+            reciprocal_friend_predicate(user_id, participant.c.user_id),
         )
     )
     occurrences = sa.union_all(owner_rows, participant_rows).cte(
@@ -488,7 +495,10 @@ def _availability_candidates(*, user_id, available_days, wishlist_pairs):
             )
             .join(friend_user, friend_user.c.id == friendship.c.friend_id)
         )
-        .where(mine.c.user_id == user_id)
+        .where(
+            mine.c.user_id == user_id,
+            reciprocal_friend_predicate(user_id, friendship.c.friend_id),
+        )
         .distinct()
         .cte("ideas_availability_matches")
     )

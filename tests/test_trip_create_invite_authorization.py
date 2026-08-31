@@ -189,7 +189,7 @@ def test_reverse_only_friend_row_does_not_qualify(client):
     _assert_no_side_effects(creator_id, messaging, event, analytics)
 
 
-def test_outgoing_friend_row_allows_invite_without_reverse_row(client):
+def test_outgoing_friend_row_does_not_allow_invite_without_reverse_row(client):
     with app.app_context():
         creator = _make_user("friend-creator")
         friend = _make_user("friend-target")
@@ -204,19 +204,11 @@ def test_outgoing_friend_row_allows_invite_without_reverse_row(client):
         _trip_payload(friend_id=str(friend_id)),
     )
 
-    assert response.status_code == 200
-    assert response.get_json()["success"] is True
+    assert response.status_code == 403
     with app.app_context():
-        trip = SkiTrip.query.one()
-        participant = SkiTripParticipant.query.filter_by(
-            trip_id=trip.id,
-            user_id=friend_id,
-        ).one()
-        assert participant.status == GuestStatus.PENDING
-        assert trip.is_group_trip is True
-    messaging.assert_called_once()
-    event.assert_called_once()
-    analytics.assert_called_once()
+        assert SkiTrip.query.count() == 0
+        assert SkiTripParticipant.query.count() == 0
+    _assert_no_side_effects(creator_id, messaging, event, analytics)
 
 
 @pytest.mark.parametrize("friend_field", [{}, {"friend_id": None}])

@@ -116,7 +116,11 @@ from services.trip_attendance import (
     set_effective_attendance_dates,
 )
 from services.search_utils import normalize_for_search, build_name_search_clauses
-from services.open_dates import get_open_date_matches, get_available_dates_for_user
+from services.open_dates import (
+    get_available_dates_for_user,
+    get_available_dates_for_users,
+    get_open_date_matches,
+)
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.wishlist import (
     WISHLIST_LIMIT,
@@ -132,6 +136,14 @@ from services.wishlist import (
     wishlist_contains_resort_id,
 )
 from services.rsvp_transitions import RsvpCurrentStateError, transition_rsvp
+from services.visibility import (
+    friend_api_view,
+    is_reciprocal_friend,
+    load_availability_idea_capability,
+    reciprocal_friend_ids,
+    reciprocal_friend_predicate,
+    trip_view_capability,
+)
 from services.trip_lifecycle import (
     TripLifecycleAuthorizationError,
     TripLifecycleConflictError,
@@ -883,7 +895,7 @@ def compute_user_state(user):
         if trip_count > 0:
             state = "ACTIVE_FULL"
         else:
-            friend_count = Friend.query.filter_by(user_id=user.id).count()
+            friend_count = len(reciprocal_friend_ids(user.id))
             state = "ACTIVE_SOCIAL" if friend_count > 0 else "ACTIVE_EMPTY"
 
     g._computed_user_state = state
@@ -1103,14 +1115,14 @@ def emit_event(event_name, user, payload=None):
 
 
 def get_friend_ids(user_id):
-    """Get all direct friend IDs for a user — only returns IDs where the User row still exists."""
-    rows = (
-        db.session.query(Friend.friend_id)
-        .join(User, User.id == Friend.friend_id)
-        .filter(Friend.user_id == user_id)
-        .all()
-    )
-    return [r[0] for r in rows]
+    """Get reciprocal current friend IDs whose User row still exists."""
+    friend_ids = reciprocal_friend_ids(user_id)
+    if not friend_ids:
+        return []
+    return [
+        user_id for (user_id,) in
+        db.session.query(User.id).filter(User.id.in_(friend_ids)).all()
+    ]
 
 
 def create_activity(actor_user_id, recipient_user_id, activity_type, object_type, object_id, extra_data=None):
@@ -3184,8 +3196,7 @@ def count_friends_open_on_same_dates(user):
             return 0, False
         
         # Get user's friends
-        friend_links = Friend.query.filter_by(user_id=user.id).all()
-        friend_ids = [f.friend_id for f in friend_links]
+        friend_ids = list(reciprocal_friend_ids(user.id))
         
         if not friend_ids:
             return 0, True
@@ -4513,7 +4524,7 @@ def _connect_pending_inviter(user):
     if invite.inviter_id != user.id:
         connected = _apply_invite_token(invite, user)
         if connected:
-            _isc_count = Friend.query.filter_by(user_id=user.id).count()
+            _isc_count = len(reciprocal_friend_ids(user.id))
             ph_analytics.track(user.id, 'friend_connected', {
                 'source':          'invite_signup',
                 'is_first_friend': _isc_count == 1,
@@ -4812,7 +4823,7 @@ def edit_profile():
             flash("Something went wrong while saving your profile. Please try again.", "error")
             return redirect(url_for("edit_profile"))
     
-    friends_count = Friend.query.filter_by(user_id=user.id).count()
+    friends_count = len(reciprocal_friend_ids(user.id))
     
     # Build resorts by state from database (exclude region-level entities)
     all_resorts = Resort.query.filter_by(is_active=True, is_region=False).order_by(Resort.state, Resort.name).all()
@@ -4921,10 +4932,7 @@ def build_trip_detail_friend_overlaps(
     if not viewer_start or not viewer_end or viewer_end < today:
         return []
 
-    friend_ids = [
-        link.friend_id
-        for link in Friend.query.filter_by(user_id=viewer.id).all()
-    ]
+    friend_ids = list(reciprocal_friend_ids(viewer.id))
     if not friend_ids:
         return []
 
@@ -5218,7 +5226,10 @@ def my_trips():
         friends = (
             User.query
             .join(Friend, Friend.friend_id == User.id)
-            .filter(Friend.user_id == user.id)
+            .filter(
+                Friend.user_id == user.id,
+                reciprocal_friend_predicate(user.id, User.id),
+            )
             .all()
         )
         friend_ids = [f.id for f in friends]
@@ -5711,8 +5722,7 @@ def api_mountains_data():
 
     # ── Friend counts per resort (per-user — must remain dynamic) ─────────────
     _t = time.perf_counter()
-    friend_links = Friend.query.filter_by(user_id=user.id).all()
-    friend_ids = [f.friend_id for f in friend_links]
+    friend_ids = list(reciprocal_friend_ids(user.id))
     friend_resort_counts = {}
     if friend_ids:
         from sqlalchemy import func as _func
@@ -5907,39 +5917,83 @@ def idea_detail_availability():
     from datetime import date as _date
     user = current_user
 
-    # Parse query params
-    friend_ids_raw = request.args.get("friend_ids", "")
+    claims = load_availability_idea_capability(
+        request.args.get("capability"),
+        viewer_id=user.id,
+    )
+    if not claims:
+        abort(404)
+    friend_ids = claims["friend_ids"]
+    resort_id = claims["resort_id"]
+    start_date_str = claims["start_date"]
+    end_date_str = claims["end_date"]
+
+    user_friend_ids = reciprocal_friend_ids(user.id)
+    if any(friend_id not in user_friend_ids for friend_id in friend_ids):
+        abort(404)
     try:
-        raw_ids = [int(x.strip()) for x in friend_ids_raw.split(",") if x.strip().isdigit()]
-    except ValueError:
-        raw_ids = []
-    resort_id = request.args.get("resort_id", type=int)
-    start_date_str = request.args.get("start_date")
-    end_date_str = request.args.get("end_date")
+        s = _date.fromisoformat(start_date_str)
+        e = _date.fromisoformat(end_date_str)
+    except (ValueError, TypeError):
+        abort(404)
+    if s > e or e < _date.today():
+        abort(404)
 
-    # Security: only expose friends of the current user
-    user_friend_ids = {
-        f.friend_id for f in Friend.query.filter_by(user_id=user.id).all()
+    scoped_users = User.query.filter(
+        User.id.in_([user.id, *friend_ids])
+    ).all()
+    scoped_users_by_id = {
+        scoped_user.id: scoped_user for scoped_user in scoped_users
     }
-    friend_ids = [fid for fid in raw_ids if fid in user_friend_ids]
+    if len(scoped_users_by_id) != len(set([user.id, *friend_ids])):
+        abort(404)
+    friends = [scoped_users_by_id[friend_id] for friend_id in friend_ids]
+    friends_by_id = {friend.id: friend for friend in friends}
+    window_dates = {
+        (s + timedelta(days=offset)).isoformat()
+        for offset in range((e - s).days + 1)
+    }
+    availability_by_user_id = get_available_dates_for_users(
+        scoped_users_by_id.values()
+    )
+    viewer_window_dates = (
+        availability_by_user_id.get(user.id, set()) & window_dates
+    )
+    if not viewer_window_dates or any(
+        not (
+            availability_by_user_id.get(friend.id, set())
+            & viewer_window_dates
+        )
+        for friend in friends
+    ):
+        abort(404)
 
-    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    resort = db.session.get(Resort, resort_id) if resort_id else None
+    resort = None
+    if resort_id:
+        resort = Resort.query.filter_by(
+            id=resort_id, is_active=True, is_region=False
+        ).first()
+        viewer_wishlist = set(normalize_wishlist_resort_ids(
+            user.wish_list_resorts, strict=False
+        ))
+        if (
+            not resort
+            or resort.id not in viewer_wishlist
+            or not any(
+                resort.id in normalize_wishlist_resort_ids(
+                    friend.wish_list_resorts, strict=False
+                )
+                for friend in friends
+            )
+        ):
+            abort(404)
 
-    # Format date range for display
-    date_range_display = None
-    if start_date_str and end_date_str:
-        try:
-            s = _date.fromisoformat(start_date_str)
-            e = _date.fromisoformat(end_date_str)
-            if s == e:
-                date_range_display = s.strftime("%B %-d")
-            elif s.month == e.month:
-                date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%-d')}"
-            else:
-                date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%B %-d')}"
-        except (ValueError, TypeError):
-            pass
+    if s == e:
+        date_range_display = s.strftime("%B %-d")
+    elif s.month == e.month:
+        date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%-d')}"
+    else:
+        date_range_display = f"{s.strftime('%B %-d')} \u2013 {e.strftime('%B %-d')}"
 
     participants = []
     for f in friends:
@@ -5964,6 +6018,8 @@ def idea_detail_availability():
         date_range_display=date_range_display,
         user_pass_display=user_pass_display,
         people_word=people_word,
+        start_date=start_date_str,
+        end_date=end_date_str,
     )
 
 
@@ -5981,13 +6037,33 @@ def idea_detail_wishlist():
         raw_ids = []
 
     # Security: only expose friends of the current user
-    user_friend_ids = {
-        f.friend_id for f in Friend.query.filter_by(user_id=user.id).all()
-    }
-    friend_ids = [fid for fid in raw_ids if fid in user_friend_ids]
-
-    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
-    resort = db.session.get(Resort, resort_id) if resort_id else None
+    user_friend_ids = reciprocal_friend_ids(user.id)
+    friend_ids = list(dict.fromkeys(raw_ids))
+    if (
+        not friend_ids
+        or len(friend_ids) > 50
+        or any(friend_id not in user_friend_ids for friend_id in friend_ids)
+    ):
+        abort(404)
+    resort = (
+        Resort.query.filter_by(id=resort_id, is_active=True, is_region=False).first()
+        if resort_id else None
+    )
+    viewer_wishlist = set(normalize_wishlist_resort_ids(
+        user.wish_list_resorts, strict=False
+    ))
+    if not resort or resort.id not in viewer_wishlist or not friend_ids:
+        abort(404)
+    friends = User.query.filter(User.id.in_(friend_ids)).all()
+    friends_by_id = {friend.id: friend for friend in friends}
+    if len(friends_by_id) != len(friend_ids) or any(
+        resort.id not in normalize_wishlist_resort_ids(
+            friends_by_id[friend_id].wish_list_resorts, strict=False
+        )
+        for friend_id in friend_ids
+    ):
+        abort(404)
+    friends = [friends_by_id[friend_id] for friend_id in friend_ids]
 
     participants = []
     for f in friends:
@@ -6026,10 +6102,10 @@ def idea_detail_trip(trip_id):
     if not trip.is_public:
         abort(404)
 
-    user_friend_ids = {
-        f.friend_id for f in Friend.query.filter_by(user_id=user.id).all()
-    }
-    if trip.user_id not in user_friend_ids and trip.user_id != user.id:
+    capability = trip_view_capability(
+        trip, user.id, allow_friend_public=True
+    )
+    if not capability.organizer and not capability.friend_public:
         abort(404)
 
     trip_owner = db.session.get(User, trip.user_id)
@@ -6149,6 +6225,7 @@ def create_trip():
             .filter(
                 Friend.user_id == user.id,
                 User.id == friend_id,
+                reciprocal_friend_predicate(user.id, User.id),
             )
             .first()
         )
@@ -6945,7 +7022,7 @@ def create_friend_request(actor_id, target_id):
         return {'ok': False, 'code': 'SELF', 'invitation_id': None}
 
     # Already confirmed friends?
-    if Friend.query.filter_by(user_id=actor_id, friend_id=target_id).first():
+    if is_reciprocal_friend(actor_id, target_id):
         return {'ok': False, 'code': 'ALREADY_FRIENDS', 'invitation_id': None}
 
     # Existing outgoing pending request from actor → target (friend-only, not trip)?
@@ -7060,9 +7137,7 @@ def user_connect(user_id):
     # Enforce discoverability unless an exception applies.
     if not target.discoverable_in_friend_search:
         # Exception 1: already confirmed friends (create_friend_request handles this)
-        is_friend = Friend.query.filter_by(
-            user_id=current_user.id, friend_id=user_id
-        ).first()
+        is_friend = is_reciprocal_friend(current_user.id, user_id)
         # Exception 2: target sent current user a pending request
         incoming = Invitation.query.filter_by(
             sender_id=user_id, receiver_id=current_user.id, status='pending'
@@ -7094,17 +7169,9 @@ def user_connect(user_id):
 @app.route("/api/friends", methods=["GET"])
 @login_required
 def get_friends():
-    friends = Friend.query.filter_by(user_id=current_user.id).all()
-    friends_list = []
-    for f in friends:
-        if not f.friend:
-            continue
-        friends_list.append({
-            "id": f.friend.id,
-            "name": f"{f.friend.first_name} {f.friend.last_name}",
-            "email": f.friend.email,
-            "pass_type": f.friend.pass_type or "No Pass"
-        })
+    friend_ids = reciprocal_friend_ids(current_user.id)
+    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    friends_list = [friend_api_view(friend) for friend in friends]
     return jsonify({"success": True, "friends": friends_list}), 200
 
 @app.route("/api/friends/<int:friend_id>", methods=["GET"])
@@ -7116,10 +7183,7 @@ def get_friend_profile(friend_id):
         return jsonify({"success": False, "error": "User not found"}), 404
 
     if friend.id != current_user.id:
-        _auth = Friend.query.filter_by(
-            user_id=current_user.id, friend_id=friend.id
-        ).first()
-        if not _auth:
+        if not is_reciprocal_friend(current_user.id, friend.id):
             return jsonify({"success": False, "error": "Not authorized"}), 403
 
     return jsonify({
@@ -7170,7 +7234,7 @@ def accept_invitation(invitation_id):
 
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
     db.session.commit()
-    _fc_count = Friend.query.filter_by(user_id=current_user.id).count()
+    _fc_count = len(reciprocal_friend_ids(current_user.id))
     ph_analytics.track(current_user.id, 'friend_connected', {
         'source':          'invitation_accept',
         'is_first_friend': _fc_count == 1,
@@ -7378,10 +7442,9 @@ def suggestions_connect():
 def set_trip_invites(friend_id):
     """Set trip_invites_allowed for a friendship (explicit Yes/No, no toggle)."""
     validate_csrf_request()
-    friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
-    
-    if not friendship:
+    if not is_reciprocal_friend(current_user.id, friend_id):
         return jsonify({"success": False, "error": "Friendship not found"}), 404
+    friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
     
     data = request.get_json() or {}
     allow = data.get('allow', False)
@@ -9342,9 +9405,7 @@ def user_search():
     current_uid = current_user.id
 
     # ── Pre-fetch relationship context (all in 4 indexed queries) ─────────────
-    my_friend_ids = {
-        r.friend_id for r in Friend.query.filter_by(user_id=current_uid).all()
-    }
+    my_friend_ids = reciprocal_friend_ids(current_uid)
 
     _out_rows = (
         Invitation.query
@@ -9408,10 +9469,26 @@ def user_search():
     mutual_counts = {}
     if candidate_ids and my_friend_ids:
         f1 = db.aliased(Friend)
+        f1_reverse = db.aliased(Friend)
         f2 = db.aliased(Friend)
+        f2_reverse = db.aliased(Friend)
         rows = (
             db.session.query(f2.friend_id, func.count().label('cnt'))
             .join(f1, f1.friend_id == f2.user_id)
+            .join(
+                f1_reverse,
+                db.and_(
+                    f1_reverse.user_id == f1.friend_id,
+                    f1_reverse.friend_id == f1.user_id,
+                ),
+            )
+            .join(
+                f2_reverse,
+                db.and_(
+                    f2_reverse.user_id == f2.friend_id,
+                    f2_reverse.friend_id == f2.user_id,
+                ),
+            )
             .filter(f1.user_id == current_uid)
             .filter(f2.friend_id.in_(candidate_ids))
             .group_by(f2.friend_id)
@@ -9488,7 +9565,10 @@ def friends():
     _friend_join_rows = (
         db.session.query(User, Friend)
         .join(Friend, Friend.friend_id == User.id)
-        .filter(Friend.user_id == user.id)
+        .filter(
+            Friend.user_id == user.id,
+            reciprocal_friend_predicate(user.id, User.id),
+        )
         .all()
     )
     all_friends = [u for u, _f in _friend_join_rows]
@@ -9616,6 +9696,7 @@ def friends():
                 SkiTrip.user_id.in_(friend_ids),
                 active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
+                SkiTrip.is_public.is_(True),
             )
             .all()
         )
@@ -9638,6 +9719,7 @@ def friends():
                 SkiTripParticipant.active_status_filter(),
                 active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
+                SkiTrip.is_public.is_(True),
             )
             .all()
         )
@@ -9921,11 +10003,11 @@ def friend_profile(friend_id):
     # Self-view is allowed; for any other user, must be a confirmed friend.
     _friendship = None
     if friend.id != user.id:
+        if not is_reciprocal_friend(user.id, friend.id):
+            abort(403)
         _friendship = Friend.query.filter_by(
             user_id=user.id, friend_id=friend.id
         ).first()
-        if not _friendship:
-            abort(403)
 
     # Mark profile as viewed — clears the NEW badge on the Friends screen.
     # Reuses the friendship record already fetched for the auth guard above.
@@ -9943,16 +10025,54 @@ def friend_profile(friend_id):
     overlap_end = request.args.get('overlap_end')
     
     if resort_id and overlap_start:
-        resort = db.session.get(Resort, resort_id)
+        resort = Resort.query.filter_by(
+            id=resort_id, is_active=True, is_region=False
+        ).first()
         if resort:
             try:
                 start_date = datetime.strptime(overlap_start, '%Y-%m-%d').date()
                 end_date = datetime.strptime(overlap_end, '%Y-%m-%d').date() if overlap_end else start_date
-                overlap_context = {
-                    'resort_name': _resort_display_name(resort, get_ambiguous_resort_names()),
-                    'start_date': start_date,
-                    'end_date': end_date
-                }
+                if start_date <= end_date and end_date >= date.today():
+                    eligible_trip_rows = (
+                        db.session.query(SkiTrip, SkiTripParticipant)
+                        .outerjoin(
+                            SkiTripParticipant,
+                            db.and_(
+                                SkiTripParticipant.trip_id == SkiTrip.id,
+                                SkiTripParticipant.user_id == user.id,
+                            ),
+                        )
+                        .filter(
+                            SkiTrip.resort_id == resort.id,
+                            active_or_legacy_trip_predicate(),
+                            SkiTrip.end_date >= date.today(),
+                            db.or_(
+                                SkiTrip.user_id == user.id,
+                                SkiTripParticipant.active_status_filter(),
+                            ),
+                        )
+                        .all()
+                    )
+                    has_trip_context = any(
+                        max(start_date, effective_attendance_dates(t, p)[0])
+                        <= min(end_date, effective_attendance_dates(t, p)[1])
+                        for t, p in eligible_trip_rows
+                    )
+                    window_dates = {
+                        (start_date + timedelta(days=offset)).isoformat()
+                        for offset in range((end_date - start_date).days + 1)
+                    }
+                    if (
+                        has_trip_context
+                        and get_available_dates_for_user(friend) & window_dates
+                    ):
+                        overlap_context = {
+                            'resort_name': _resort_display_name(
+                                resort, get_ambiguous_resort_names()
+                            ),
+                            'start_date': start_date,
+                            'end_date': end_date,
+                        }
             except (ValueError, TypeError):
                 pass
     
@@ -10081,7 +10201,7 @@ def friend_profile(friend_id):
     
     # Check for shared GroupTrips and existing friendship
     shared_trip_exists = check_shared_upcoming_trip(user.id, friend.id)
-    already_friends = Friend.query.filter_by(user_id=user.id, friend_id=friend.id).first() is not None
+    already_friends = is_reciprocal_friend(user.id, friend.id)
     show_connect_button = shared_trip_exists and not already_friends
     
     # Get friend's wish list resorts
@@ -10218,9 +10338,9 @@ def suggest_connections(friend_id):
     Auth guard runs first (before any eligibility logic). Non-friends get 404
     to avoid disclosing user existence.
     """
-    _friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
-    if not _friendship:
+    if not is_reciprocal_friend(current_user.id, friend_id):
         abort(404)
+    _friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
 
     recipient = db.session.get(User, friend_id)
     if not recipient:
@@ -10232,15 +10352,16 @@ def suggest_connections(friend_id):
     richard_connections = (
         db.session.query(User)
         .join(Friend, Friend.friend_id == User.id)
-        .filter(Friend.user_id == current_user.id)
+        .filter(
+            Friend.user_id == current_user.id,
+            reciprocal_friend_predicate(current_user.id, User.id),
+        )
         .order_by(User.first_name.asc(), User.last_name.asc())
         .all()
     )
 
     # Batch 1: Jon's confirmed friend IDs (hide from selector)
-    jon_friend_ids = {
-        row.friend_id for row in Friend.query.filter_by(user_id=friend_id).all()
-    }
+    jon_friend_ids = reciprocal_friend_ids(friend_id)
 
     # Batch 2: IDs with pending Invitation involving Jon (either direction)
     pending_with_jon_ids = set()
@@ -10297,9 +10418,9 @@ def submit_suggestions(friend_id):
     Server-side revalidates every ID. Uses savepoints so a concurrency
     collision on one user does not roll back the rest of the batch.
     """
-    _friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
-    if not _friendship:
+    if not is_reciprocal_friend(current_user.id, friend_id):
         abort(404)
+    _friendship = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
 
     recipient = db.session.get(User, friend_id)
     if not recipient:
@@ -10320,12 +10441,8 @@ def submit_suggestions(friend_id):
     _SUGGESTION_PUSH_COOLDOWN_HOURS = 12
 
     # Server-side validation sets (batch)
-    richard_friend_ids = {
-        row.friend_id for row in Friend.query.filter_by(user_id=current_user.id).all()
-    }
-    jon_friend_ids = {
-        row.friend_id for row in Friend.query.filter_by(user_id=friend_id).all()
-    }
+    richard_friend_ids = reciprocal_friend_ids(current_user.id)
+    jon_friend_ids = reciprocal_friend_ids(friend_id)
 
     inserted_count = 0
 
@@ -10751,8 +10868,7 @@ def connect_via_qr(user_id):
     if current_user.id == inviter.id:
         return render_template("connect_self.html")
     
-    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
-    if existing:
+    if is_reciprocal_friend(current_user.id, inviter.id):
         return render_template("already_friends.html", friend=inviter)
     
     return render_template("connect_confirm.html", friend=inviter)
@@ -10907,6 +11023,8 @@ def check_trip_invite_eligibility(user_id, friend_id):
     """
     today = date.today()
     today_str = today.strftime('%Y-%m-%d')
+    if not is_reciprocal_friend(user_id, friend_id):
+        return False
     
     # Check 1: Friendship permission
     friendship = Friend.query.filter_by(user_id=user_id, friend_id=friend_id).first()
@@ -11079,6 +11197,7 @@ def build_trip_overlap_today_card(user, today, friend_ids):
         for trip in SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
         active_or_legacy_trip_predicate(),
+        SkiTrip.is_public.is_(True),
         SkiTrip.resort_id == resort_id,
         SkiTrip.start_date <= today,
         SkiTrip.end_date >= today,
@@ -11220,6 +11339,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
             .filter(
                 SkiTrip.user_id.in_(friend_ids),
                 active_or_legacy_trip_predicate(),
+                SkiTrip.is_public.is_(True),
                 SkiTrip.resort_id == trip.resort_id,
                 SkiTrip.end_date < today
             )
@@ -11680,7 +11800,10 @@ def home():
         all_friends = (
             User.query
             .join(Friend, Friend.friend_id == User.id)
-            .filter(Friend.user_id == user.id)
+            .filter(
+                Friend.user_id == user.id,
+                reciprocal_friend_predicate(user.id, User.id),
+            )
             .all()
         )
         friend_ids = [f.id for f in all_friends]
@@ -12249,33 +12372,33 @@ def friend_trip_details(trip_id):
     trip = SkiTrip.query.get_or_404(trip_id)
     friend = db.session.get(User, trip.user_id)
 
-    # Terminal records are retained history, not friend-discoverable content.
-    # Delegate their access policy to the canonical, read-only trip detail:
-    # only the owner or an active retained participant can reach it.
-    if is_terminal_trip(trip):
-        terminal_participant = SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.user_id == current_user.id,
-            SkiTripParticipant.active_status_filter(),
-        ).first()
-        if trip.user_id != current_user.id and not terminal_participant:
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id, user_id=current_user.id
+    ).first()
+    capability = trip_view_capability(
+        trip,
+        current_user.id,
+        participant=participant,
+        allow_friend_public=True,
+    )
+    if capability.terminal:
+        if not capability.organizer and not capability.active_participant:
             abort(404)
         return redirect(url_for("trip_detail", trip_id=trip.id))
 
-    # Prevent users from viewing trips of non-friends (unless it's their own)
-    if trip.user_id != current_user.id:
-        is_friend = Friend.query.filter_by(
-            user_id=current_user.id,
-            friend_id=friend.id
-        ).first()
-
-        if not is_friend:
-            return render_template('403.html'), 403
-
-    # Block friends from viewing private trips via direct URL.
-    # Owners always retain access to their own trip regardless of is_public.
-    if trip.user_id != current_user.id and not trip.is_public:
-        abort(404)
+    # This surface is owner-or-confirmed-friend public discovery. Trip members
+    # use canonical Trip Detail for membership-based private access.
+    if (
+        not capability.organizer
+        and
+        (capability.active_participant or capability.pending_invitee)
+        and not capability.friend_public
+    ):
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+    if not capability.organizer and not capability.friend_public:
+        if is_reciprocal_friend(current_user.id, trip.user_id):
+            abort(404)
+        return render_template("403.html"), 403
 
     # Calculate overlapping days with current user's trips at the same resort.
     # Owned trips use core dates; Going guest trips carry their participant row
@@ -13239,9 +13362,7 @@ def mountain_detail(slug):
     season_start, season_end = get_ski_season_window(today)
 
     # Current user's friend IDs (bidirectional friendship model: Friend row = user_id → friend_id)
-    friend_ids = set(
-        f.friend_id for f in Friend.query.filter_by(user_id=current_user.id).all()
-    )
+    friend_ids = reciprocal_friend_ids(current_user.id)
     # Upcoming + in-progress trips for this resort only (resort_id canonical; no string fallback)
     # is_public=True: private trips must not appear in friend social proof rows.
     raw_trips = (
@@ -13705,10 +13826,9 @@ def friend_mountains_visited(user_id):
     """Read-only view of another user's mountains visited (friends only)."""
     friend = User.query.get_or_404(user_id)
     # Must be a confirmed friend
-    is_friend = Friend.query.filter_by(
-        user_id=current_user.id, friend_id=user_id
-    ).first() is not None
-    if not is_friend:
+    if user_id != current_user.id and not is_reciprocal_friend(
+        current_user.id, user_id
+    ):
         abort(403)
 
     # Friend's visited resorts
@@ -13741,10 +13861,9 @@ def friend_mountains_visited(user_id):
 def friend_wishlist(user_id):
     """Read-only view of another user's wishlist (friends only)."""
     friend = User.query.get_or_404(user_id)
-    is_friend = Friend.query.filter_by(
-        user_id=current_user.id, friend_id=user_id
-    ).first() is not None
-    if not is_friend:
+    if user_id != current_user.id and not is_reciprocal_friend(
+        current_user.id, user_id
+    ):
         abort(403)
 
     # Friend's wishlist
@@ -14264,12 +14383,13 @@ def add_trip():
 
 def is_active_trip_member(trip, user):
     """Return True if user is the organizer or has an active RSVP."""
-    if trip.user_id == user.id:
-        return True
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip.id, user_id=user.id
     ).first()
-    return participant is not None and participant.is_active
+    capability = trip_view_capability(
+        trip, user.id, participant=participant
+    )
+    return capability.organizer or capability.active_participant
 
 
 def is_accepted_trip_member(trip, user):
@@ -14356,27 +14476,31 @@ def trip_detail(trip_id):
     # Check whether the current user may view this detail screen. Active
     # participants can use the full trip experience; Pending users can view
     # only to make their RSVP choice.
-    is_owner = trip.user_id == current_user.id
-    is_terminal = is_terminal_trip(trip)
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
     ).first()
-    is_guest = bool(not is_owner and participant and participant.is_active)
-    is_invited = bool(
-        not is_owner and participant and participant.status == GuestStatus.PENDING
+    capability = trip_view_capability(
+        trip, current_user.id, participant=participant
     )
+    is_owner = capability.organizer
+    is_terminal = capability.terminal
+    is_guest = bool(not is_owner and capability.active_participant)
+    is_invited = bool(not is_owner and capability.pending_invitee)
     
     # Organizers, active guests, and pending invitees can view the trip detail.
     # Declined and Removed relationships remain private until an organizer
     # explicitly reinvites them.
-    if is_terminal and not is_owner and not is_guest:
-        abort(404)
-    if not is_terminal and not is_owner and not is_guest and not is_invited:
+    if not capability.allowed:
         abort(404)
     
     # Load all RSVP rows once, then provide explicit UI groups. Removed is
     # intentionally excluded from every visible group.
-    participant_rows = SkiTripParticipant.query.filter_by(trip_id=trip_id).all()
+    participant_query = SkiTripParticipant.query.filter_by(trip_id=trip_id)
+    if not is_owner:
+        participant_query = participant_query.filter(
+            SkiTripParticipant.active_status_filter()
+        )
+    participant_rows = participant_query.all()
     going_participants = [
         p for p in participant_rows if p.status == GuestStatus.GOING
     ]
@@ -14404,8 +14528,7 @@ def trip_detail(trip_id):
     # Get connected friends for invite modal (owner only)
     friends_for_invite = []
     if is_owner and not is_terminal:
-        friend_links = Friend.query.filter_by(user_id=current_user.id).all()
-        friend_ids = [f.friend_id for f in friend_links]
+        friend_ids = list(reciprocal_friend_ids(current_user.id))
         if friend_ids:
             friends = User.query.filter(User.id.in_(friend_ids)).all()
             # Sort alphabetically by first name (case-insensitive, leading/trailing
@@ -14534,7 +14657,7 @@ def trip_detail(trip_id):
         and trip.resort.is_active
         and not trip.resort.is_region
     ):
-        _friend_ids = [f.friend_id for f in Friend.query.filter_by(user_id=current_user.id).all()]
+        _friend_ids = list(reciprocal_friend_ids(current_user.id))
         if _friend_ids:
             _wl_friends = User.query.filter(User.id.in_(_friend_ids)).all()
             friends_wishlist_count = sum(
@@ -15018,13 +15141,16 @@ def planning_posts_delete(trip_id, post_id):
 def trip_invite_detail(trip_id):
     """Invite detail page - view trip invitation before accepting or after accepting."""
     trip = SkiTrip.query.get_or_404(trip_id)
-    if is_terminal_trip(trip):
-        if trip.user_id == current_user.id:
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id, user_id=current_user.id
+    ).first()
+    capability = trip_view_capability(
+        trip, current_user.id, participant=participant
+    )
+    if capability.terminal:
+        if capability.organizer:
             return redirect(url_for("trip_detail", trip_id=trip.id))
-        participant = SkiTripParticipant.query.filter_by(
-            trip_id=trip_id, user_id=current_user.id
-        ).first()
-        if participant and participant.is_active:
+        if capability.active_participant:
             return redirect(url_for("trip_detail", trip_id=trip.id))
         flash("This trip is no longer accepting responses.", "error")
         return redirect(url_for("my_trips"))
@@ -15036,11 +15162,9 @@ def trip_invite_detail(trip_id):
         return redirect(url_for("my_trips"))
     
     # Check if user has an invite (pending, accepted, or declined) for this trip
-    participant = SkiTripParticipant.query.filter_by(
-        trip_id=trip_id, user_id=current_user.id
-    ).first()
-    
-    if not participant:
+    if capability.organizer:
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+    if not capability.active_participant and not capability.pending_invitee:
         flash("You don't have an invite for this trip.", "error")
         return redirect(url_for("my_trips"))
     
@@ -15054,11 +15178,14 @@ def trip_invite_detail(trip_id):
     owner = db.session.get(User, trip.user_id)
     
     # Get all participants
-    all_participants = SkiTripParticipant.query.filter_by(trip_id=trip_id).all()
+    all_participants = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id == trip_id,
+        SkiTripParticipant.active_status_filter(),
+    ).all()
     
     # Sort participants by status
     accepted_participants = [p for p in all_participants if p.is_active]
-    other_participants = [p for p in all_participants if not p.is_active]
+    other_participants = []
     
     # Count explicit personal Going RSVPs only.
     going_count = len([
@@ -15468,8 +15595,7 @@ def send_trip_invites(trip_id):
         return redirect(url_for("trip_detail", trip_id=trip_id))
     
     # Validate that all selected users are connected friends
-    friend_links = Friend.query.filter_by(user_id=current_user.id).all()
-    connected_friend_ids = {f.friend_id for f in friend_links}
+    connected_friend_ids = reciprocal_friend_ids(current_user.id)
     
     newly_invited_user_ids = []
     invites_sent = 0
@@ -17654,8 +17780,7 @@ def view_group_trip(trip_id):
     guests = TripGuest.query.filter_by(trip_id=trip_id).all()
     
     # Get user's friends for invite form (host only)
-    user_friends = Friend.query.filter_by(user_id=current_user.id).all()
-    friend_ids = [f.friend_id for f in user_friends]
+    friend_ids = list(reciprocal_friend_ids(current_user.id))
     friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
     
     # Filter out already invited/joined friends
@@ -17699,7 +17824,7 @@ def invite_to_group_trip(trip_id):
         return redirect(url_for("view_group_trip", trip_id=trip_id))
     
     # Check if user is actually a friend
-    is_friend = Friend.query.filter_by(user_id=current_user.id, friend_id=friend_id).first()
+    is_friend = is_reciprocal_friend(current_user.id, friend_id)
     if not is_friend:
         flash("User is not in your friends list.", "error")
         return redirect(url_for("view_group_trip", trip_id=trip_id))

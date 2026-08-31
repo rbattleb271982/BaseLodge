@@ -89,7 +89,10 @@ def test_home_renders_singular_friend_total(client):
     with app.app_context():
         me = _make_user("home-one-friend")
         friend = _make_user("home-one-friend-target")
-        db.session.add(Friend(user_id=me.id, friend_id=friend.id))
+        db.session.add_all([
+            Friend(user_id=me.id, friend_id=friend.id),
+            Friend(user_id=friend.id, friend_id=me.id),
+        ])
         db.session.commit()
         me_id = me.id
 

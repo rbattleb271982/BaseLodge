@@ -19,7 +19,10 @@ def _clear_mountains_caches():
 
 
 def _connect(viewer, friend):
-    db.session.add(Friend(user_id=viewer.id, friend_id=friend.id))
+    db.session.add_all([
+        Friend(user_id=viewer.id, friend_id=friend.id),
+        Friend(user_id=friend.id, friend_id=viewer.id),
+    ])
 
 
 def _friend_count(client, resort_id):

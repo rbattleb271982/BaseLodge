@@ -15,6 +15,7 @@ This is the foundation for:
 
 from datetime import date as date_cls
 from models import db, User, Friend, UserAvailability
+from services.visibility import reciprocal_friend_predicate
 from services.pass_utils import passes_match
 
 
@@ -32,17 +33,13 @@ def get_available_dates_for_user(user):
     """
     today_str = date_cls.today().isoformat()
 
-    rows = (
-        UserAvailability.query
-        .filter_by(user_id=user.id, is_available=True)
-        .all()
-    )
+    rows = UserAvailability.query.filter_by(user_id=user.id).all()
 
     if rows:
         return {
             row.date.isoformat()
             for row in rows
-            if row.date.isoformat() >= today_str
+            if row.is_available and row.date.isoformat() >= today_str
         }
 
     # Fallback: legacy open_dates JSON
@@ -50,6 +47,40 @@ def get_available_dates_for_user(user):
     return {
         d for d in legacy
         if isinstance(d, str) and len(d) == 10 and d >= today_str
+    }
+
+
+def get_available_dates_for_users(users):
+    """Batch-resolve authoritative availability for a bounded user collection."""
+    users = list(users)
+    if not users:
+        return {}
+    today_str = date_cls.today().isoformat()
+    user_ids = [user.id for user in users]
+    rows = UserAvailability.query.filter(
+        UserAvailability.user_id.in_(user_ids)
+    ).all()
+    normalized = {}
+    normalized_user_ids = set()
+    for row in rows:
+        normalized_user_ids.add(row.user_id)
+        date_string = row.date.isoformat()
+        if row.is_available and date_string >= today_str:
+            normalized.setdefault(row.user_id, set()).add(date_string)
+    return {
+        user.id: (
+            normalized.get(user.id, set())
+            if user.id in normalized_user_ids
+            else {
+                value for value in (user.open_dates or [])
+                if (
+                    isinstance(value, str)
+                    and len(value) == 10
+                    and value >= today_str
+                )
+            }
+        )
+        for user in users
     }
 
 
@@ -98,7 +129,10 @@ def get_open_date_matches(current_user, cached_my_dates=None, cached_friends=Non
         friends = (
             db.session.query(User)
             .join(Friend, Friend.friend_id == User.id)
-            .filter(Friend.user_id == current_user.id)
+            .filter(
+                Friend.user_id == current_user.id,
+                reciprocal_friend_predicate(current_user.id, User.id),
+            )
             .all()
         )
 
@@ -110,26 +144,25 @@ def get_open_date_matches(current_user, cached_my_dates=None, cached_friends=Non
     _friend_ids = [f.id for f in friends]
     _avail_by_friend: dict = {}
     if _friend_ids:
-        _batch_rows = (
-            UserAvailability.query
-            .filter(
-                UserAvailability.user_id.in_(_friend_ids),
-                UserAvailability.is_available == True,
-            )
-            .all()
-        )
+        _batch_rows = UserAvailability.query.filter(
+            UserAvailability.user_id.in_(_friend_ids)
+        ).all()
+        _normalized_friend_ids = set()
         for _row in _batch_rows:
+            _normalized_friend_ids.add(_row.user_id)
             _ds = _row.date.isoformat()
-            if _ds >= today_str:
+            if _row.is_available and _ds >= today_str:
                 _avail_by_friend.setdefault(_row.user_id, set()).add(_ds)
+    else:
+        _normalized_friend_ids = set()
 
     # Step 3: Compute overlaps in Python (intentional — explicit and debuggable)
     matches = []
 
     for friend in friends:
-        if friend.id in _avail_by_friend:
+        if friend.id in _normalized_friend_ids:
             # UserAvailability rows exist — use them exclusively (same priority as before)
-            friend_dates = _avail_by_friend[friend.id]
+            friend_dates = _avail_by_friend.get(friend.id, set())
         else:
             # No UserAvailability rows — fall back to legacy open_dates JSON
             legacy = friend.open_dates or []

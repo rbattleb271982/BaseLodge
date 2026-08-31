@@ -28,7 +28,10 @@ TODAY = date(2026, 9, 1)
 
 
 def _connect(viewer, friend):
-    db.session.add(Friend(user_id=viewer.id, friend_id=friend.id))
+    db.session.add_all([
+        Friend(user_id=viewer.id, friend_id=friend.id),
+        Friend(user_id=friend.id, friend_id=viewer.id),
+    ])
 
 
 @pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
