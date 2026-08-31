@@ -1,0 +1,400 @@
+REPLIT: MAX + BUILD
+Estimated Batch completion after this step: ~40%
+
+TASK: BL-161 — Reduce authenticated-page query overhead
+
+Task #405 investigation is approved.
+
+Proceed directly to implementation.
+Do not create another plan.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Implement only the four confirmed BL-161 query-shape improvements:
+
+1. Trip Idea Detail participant User N+1
+2. Friends duplicate participant retrieval
+3. Mountain Detail duplicate pass-mapping evaluation
+4. Friend Profile repeated reciprocal-friend / authorized availability work
+
+Do not broadly rewrite authenticated pages.
+
+Preserve all existing product behavior, privacy, authorization, ranking, pagination, navigation, and caching behavior.
+
+==================================================
+1. TRIP IDEA DETAIL — REMOVE N+1
+==================================================
+
+Current problem:
+
+Trip Idea Detail retrieves privacy-filtered active participant rows, then calls:
+
+db.session.get(User, row.user_id)
+
+inside the participant loop.
+
+Replace this with one bounded User batch retrieval.
+
+Requirements:
+
+- filter participant rows first
+- only Going and Interested identities may be hydrated
+- batch only those authorized User IDs
+- preserve participant ordering
+- preserve trip visibility gates
+- preserve reciprocal-friend/public/private behavior
+
+Never hydrate:
+
+- Pending
+- Declined
+- Removed
+
+Do not fetch broad User collections and filter afterward.
+
+==================================================
+2. TRIP IDEA DETAIL QUERY BUDGET
+==================================================
+
+Establish valid warmed HTTP 200 fixtures.
+
+Test:
+
+- 1 visible participant
+- 5 visible participants
+- 20 visible participants
+
+Primary invariant:
+
+1 → 5 → 20 participant growth must add no more than ONE total query.
+
+User SELECT growth must also be <= 1.
+
+Participant hydration should be one bounded User query regardless of N.
+
+Use distinct users and clean request boundaries so SQLAlchemy's identity map cannot hide a regression.
+
+==================================================
+3. TRIP IDEA PRIVACY
+==================================================
+
+Explicitly verify that adding:
+
+- Pending
+- Declined
+- Removed
+
+does not cause those User records to be hydrated or rendered.
+
+Verify both ORM loading and output.
+
+BL-133 remains authoritative.
+
+==================================================
+4. FRIENDS — REMOVE DUPLICATE PARTICIPANT QUERY
+==================================================
+
+The Friends route already performs a bounded participant-trip join.
+
+It then performs a second participant query to recover participant User IDs.
+
+Reuse participant identity from the first joined result.
+
+Do not change:
+
+- trip eligibility
+- friend eligibility
+- card content
+- ordering
+- pagination behavior
+
+Target warmed total:
+
+<= 18 queries from the measured 19.
+
+More importantly, query count must remain bounded as friend/card count grows.
+
+==================================================
+5. MOUNTAIN DETAIL — RESOLVE PASS MAPPINGS ONCE
+==================================================
+
+Mountain Detail currently evaluates the same dynamic ResortPass relationship twice through separate helpers.
+
+Resolve the pass mappings once per request and reuse them for existing:
+
+- primary-pass behavior
+- display-name behavior
+
+Preserve output and fallback semantics exactly.
+
+Do not:
+
+- redesign ResortPass
+- globally eager-load mappings
+- change cache architecture
+- change pass eligibility
+
+Target:
+
+- exactly one ResortPass statement
+- warmed total <= 12 from the measured 13
+
+==================================================
+6. FRIEND PROFILE — REUSE RECIPROCAL FRIEND RESULT
+==================================================
+
+Friend Profile already establishes reciprocal-current friendship during authorization.
+
+Do not perform an equivalent second friendship lookup for presentation.
+
+Carry forward the established authorization result where safe.
+
+Do not bypass or duplicate canonical visibility helpers.
+
+BL-133 remains the source of truth.
+
+==================================================
+7. FRIEND PROFILE — REUSE AUTHORIZED AVAILABILITY
+==================================================
+
+If the same friend's availability is resolved more than once for the exact same authorized overlap context during one request, reuse it.
+
+Reuse is allowed only when all are identical:
+
+- viewer
+- friend
+- authorization scope
+- relevant date/context
+
+Do not introduce generalized caching.
+
+Never reuse across requests, viewers, friends, or authorization scopes.
+
+Never expose raw availability beyond current authorized behavior.
+
+Target:
+
+- eliminate one duplicate availability query
+- query count remains constant with friend/date cardinality
+
+==================================================
+8. REGRESSION BASELINES
+==================================================
+
+Do not broadly modify:
+
+- Home
+- My Trips
+- Profile
+- Notifications
+- Mountains shell
+- Mountains API
+- BL-155 Trip Detail
+
+Measured warmed regression ceilings:
+
+Home <= 25
+My Trips <= 14
+Profile <= 9
+Mountains shell <= 6
+Mountains API miss/hit <= 3 / 1
+Notifications equivalent empty fixture <= 6
+
+BL-155 Trip Detail must remain bounded at 1/5/20 participants.
+
+==================================================
+9. QUERY INSTRUMENTATION
+==================================================
+
+Use test-scoped SQL instrumentation.
+
+Requirements:
+
+- warmed requests
+- valid 200 fixtures
+- scoped before_cursor_execute listener or existing equivalent
+- listener reliably removed afterward
+- normalized SQL categories
+
+Track as applicable:
+
+- User
+- SkiTripParticipant
+- ResortPass
+- Friend
+- SkiTrip
+- Resort
+- Activity
+- availability-related statements
+
+Prefer bounded-growth assertions over brittle exact totals.
+
+==================================================
+10. PRIVACY / AUTHORIZATION
+==================================================
+
+BL-133 is a hard boundary.
+
+Preserve:
+
+- reciprocal current friendship
+- public friend-trip behavior
+- private-trip behavior
+- participant identity privacy
+- raw availability privacy
+- wishlist/pass/profile visibility
+- signed capability/revalidation behavior
+- history never authorizes
+
+Reducing query count must never broaden loaded or serialized data.
+
+==================================================
+11. BL-155 NON-REGRESSION
+==================================================
+
+Re-run BL-155 query-budget tests.
+
+Confirm Trip Detail remains effectively constant for:
+
+- 1 participant
+- 5 participants
+- 20 participants
+
+Do not weaken its existing privacy filters or budgets.
+
+==================================================
+12. OUT OF SCOPE
+==================================================
+
+Do not implement:
+
+- BL-156 Home candidate bounding
+- BL-158 My Trips pagination
+- BL-159 Friends pagination/progressive loading
+- BL-157 mutation reload/navigation
+- BL-172 Trip Detail UI work
+- Ideas ranking changes
+- notification delivery redesign
+- friend-trip redesign
+- generalized caching
+- generic request-data framework
+- schema or index work
+
+==================================================
+13. DATABASE SAFETY
+==================================================
+
+Expected:
+
+NO schema change
+NO migration
+
+Do not:
+
+- create Alembic revisions
+- apply BL-70
+- mutate Supabase Development
+- mutate persistent Replit
+- access Production
+
+If a schema/index/migration/persistent-data change appears necessary:
+
+STOP and report it.
+
+==================================================
+14. VALIDATION
+==================================================
+
+Run focused tests covering:
+
+- Trip Idea Detail 1/5/20 query scaling
+- hidden participant hydration
+- Friends query reuse
+- Mountain Detail pass queries
+- Friend Profile friendship reuse
+- Friend Profile availability reuse
+- BL-133 visibility
+- BL-155 query budgets
+
+Run relevant adjacent functional tests.
+
+Then run the full suite.
+
+Also run:
+
+- py_compile
+- git diff --check
+
+==================================================
+15. INDEPENDENT REVIEW
+==================================================
+
+Before commit perform an independent performance/privacy review.
+
+Verify:
+
+- Trip Idea User queries do not scale with participant count
+- Pending/Declined/Removed users are not hydrated
+- Friends duplicate participant query is gone
+- Mountain Detail evaluates ResortPass once
+- Friend Profile does not repeat equivalent friendship work
+- availability reuse stays inside identical authorized context
+- BL-133 remains intact
+- BL-155 remains bounded
+- no sensitive-data overfetching
+- no generalized caching/framework
+- no schema/migration
+- no persistent database or Production access
+
+If any material privacy, authorization, or performance regression remains:
+
+STOP.
+
+==================================================
+16. COMMIT
+==================================================
+
+If all implementation and validation pass:
+
+Commit with:
+
+BL-161 Reduce authenticated page query overhead
+
+Exclude unrelated pasted prompt assets.
+
+Do not begin BL-156 or another task.
+
+==================================================
+RETURN
+==================================================
+
+Return:
+
+A. files changed
+B. Trip Idea N+1 fix
+C. Trip Idea 1/5/20 query counts
+D. Trip Idea User-query counts
+E. hidden-status hydration verification
+F. Friends duplicate-query fix
+G. Friends before/after query count
+H. Mountain Detail pass-query fix
+I. Mountain Detail before/after query count
+J. ResortPass statement count
+K. Friend Profile friendship reuse
+L. Friend Profile availability reuse
+M. Friend Profile before/after query counts
+N. regression-page query results
+O. BL-155 1/5/20 results
+P. focused test results
+Q. adjacent regression results
+R. full-suite result
+S. py_compile result
+T. git diff --check result
+U. independent review result
+V. privacy/authorization verification
+W. confirmation no schema/migration
+X. confirmation BL-70 untouched
+Y. confirmation persistent DBs and Production untouched
+Z. commit hash and whether BL-161 is code-side complete and safe to close
