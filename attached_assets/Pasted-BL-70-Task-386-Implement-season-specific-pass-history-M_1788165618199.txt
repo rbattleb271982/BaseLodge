@@ -1,0 +1,99 @@
+BL-70 / Task #386 — Implement season-specific pass history
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~37%
+
+Task #386 has been reviewed and approved. Do not create another planning task.
+
+Implement the season-specific pass-history foundation described in the approved Task #386.
+
+Before modifying schema, use the investigation findings to select the smallest robust canonical model from the alternatives already evaluated. Prefer the normalized user-season relationship if that remains the investigation's recommended model.
+
+Requirements:
+
+- Use the existing June 1–May 31 ski-season definition. Do not create a second season system.
+- Preserve User.pass_type as the current product-facing pass behavior during this first rollout unless the approved architecture requires otherwise.
+- Establish one canonical source for season-specific historical pass ownership.
+- Do not create conflicting JSON/table dual-write history.
+- Do not fabricate historical pass ownership.
+
+Implement the approved model, migration, and safe backfill.
+
+Backfill rules:
+- Only backfill information that can be established from authoritative existing data.
+- Current User.pass_type may be associated with the active season if the investigation determined that is safe.
+- Do not infer historical seasons from trips, signup dates, analytics, or previous_pass.
+- Do not manufacture historical records from uncertain legacy data.
+- Backfill must be idempotent.
+
+Define and enforce the approved semantics for:
+- same-season correction
+- explicit pass removal/no-pass
+- blank input
+- season rollover
+- duplicate prevention
+- legacy users without history
+
+Keep the initial consumer rollout intentionally narrow.
+
+Preserve existing behavior unless Task #386 specifically requires a consumer to change:
+- onboarding
+- profile
+- Home About You & Gear
+- Home Friends' Passes
+- friend/profile views
+- trips
+- Season Snapshot
+- Ideas/matching
+- mountain intelligence
+- admin
+- analytics
+
+Do not redesign pass-selection UI.
+
+Migration safety:
+- Follow BaseLodge's existing migration target/environment safeguards.
+- Do not apply anything to Production during this implementation.
+- If a Development migration is required, prepare it and validate the migration path according to the established BaseLodge migration process.
+- Do not bypass migration target guards.
+- Do not mutate Production data.
+
+Add regression coverage for:
+- active-season pass persistence
+- same-season correction
+- explicit removal/no-pass
+- June 1 and May 31 boundaries
+- season rollover
+- cross-season history
+- duplicate prevention
+- legacy/backfilled users
+- backfill idempotency
+- current profile/onboarding compatibility
+- Friends' Passes compatibility
+- Ideas/matching compatibility where relevant
+
+Run focused regressions and the full suite.
+Run Python compilation and git diff --check.
+
+STOP and report before proceeding if:
+- the final architecture requires a materially broader consumer rewrite than Task #386 describes
+- historical data would need to be guessed
+- Production migration/data mutation is required
+- the existing migration safeguards cannot safely support the proposed migration
+- implementation reveals that the normalized model is not actually the recommended model from the completed investigation
+
+When complete, report:
+- canonical model implemented
+- exact schema/model changes
+- migration created
+- backfill behavior
+- write paths changed
+- consumers changed vs intentionally unchanged
+- tests and pass counts
+- migration validation status
+- exact files changed
+- any follow-up work still required
+
+Do not create another planning task.
