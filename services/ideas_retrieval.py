@@ -574,6 +574,7 @@ def _availability_candidates(*, user_id, available_days, wishlist_pairs):
                 sa.and_(
                     Resort.__table__.c.id == wishlist_pairs.c.resort_id,
                     Resort.__table__.c.is_active.is_(True),
+                    Resort.__table__.c.is_region.is_(False),
                 ),
             ),
         )
@@ -654,6 +655,7 @@ def _wishlist_candidates(wishlist_pairs):
                 sa.and_(
                     Resort.__table__.c.id == ordered.c.resort_id,
                     Resort.__table__.c.is_active.is_(True),
+                    Resort.__table__.c.is_region.is_(False),
                 ),
             )
         )

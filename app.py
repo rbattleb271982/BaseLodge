@@ -111,6 +111,16 @@ from services.trip_attendance import (
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import get_open_date_matches, get_available_dates_for_user
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
+from services.wishlist import (
+    WISHLIST_LIMIT,
+    WishlistValidationError,
+    canonical_wishlist_resorts,
+    coerce_wishlist_resort_id,
+    eligible_wishlist_resort_ids,
+    normalize_wishlist_resort_ids,
+    remove_wishlist_resort_id,
+    validate_wishlist_resort_ids,
+)
 from services.message_events import create_message_event, is_duplicate_event, should_retry
 from services.messaging_constants import (
     EventName, Category, DeliveryStatus, SuppressionReason, Channel, Provider,
@@ -9846,11 +9856,12 @@ def friend_profile(friend_id):
     show_connect_button = shared_trip_exists and not already_friends
     
     # Get friend's wish list resorts
-    friend_wish_list_ids = friend.wish_list_resorts or []
-    friend_wish_list = Resort.query.filter(Resort.id.in_(friend_wish_list_ids)).all() if friend_wish_list_ids else []
+    friend_wish_list_ids = [resort.id for resort in friend_wishlist_resorts]
+    friend_wish_list = friend_wishlist_resorts
     
     # Calculate wish list overlap with current user
-    user_wish_list_ids = set(user.wish_list_resorts or [])
+    user_wish_list_ids, _ = canonical_wishlist_resorts(user.wish_list_resorts)
+    user_wish_list_ids = set(user_wish_list_ids)
     wish_list_overlap_ids = [rid for rid in friend_wish_list_ids if rid in user_wish_list_ids]
     wish_list_overlap = Resort.query.filter(Resort.id.in_(wish_list_overlap_ids)).all() if wish_list_overlap_ids else []
 
@@ -9891,11 +9902,12 @@ def friend_profile(friend_id):
         has_user_upcoming_trips=has_user_upcoming_trips,
         visited_resorts=friend_visited_resorts,
         wishlist_resorts=friend_wishlist_resorts,
+        canonical_viewer_wishlist_ids=user_wish_list_ids,
         overlap_context=overlap_context,
         stat_upcoming=get_upcoming_trip_count(friend),
         stat_mountains=friend.visited_resorts_count,
         stat_past=get_past_trip_count(friend),
-        stat_wishlist=len(friend.wish_list_resorts or []),
+        stat_wishlist=len(friend_wishlist_resorts),
         stat_trips_total=SkiTrip.query.filter_by(user_id=friend.id).count(),
         is_friend=already_friends,
     )
@@ -11116,6 +11128,7 @@ def _build_home_summary(
     home_rider_disciplines,
     home_gear_by_discipline,
     home_is_renting,
+    wishlist_count=None,
     next_trip_actions=None,
 ):
     """Assemble Home summary data exclusively from already-resolved values."""
@@ -11125,6 +11138,8 @@ def _build_home_summary(
         else user
     )
     resolved_next_trip_actions = list(next_trip_actions or [])
+    if wishlist_count is None:
+        wishlist_count = len(summary_user.wish_list_resorts or [])
     return {
         "about_you": {
             "user": summary_user,
@@ -11138,7 +11153,7 @@ def _build_home_summary(
         "activity": {
             "upcoming_trip_count": len(all_upcoming),
             "mountains_visited_count": summary_user.visited_resorts_count,
-            "wishlist_count": len(summary_user.wish_list_resorts or []),
+            "wishlist_count": wishlist_count,
         },
         "friends_passes": {
             "friend_count": len(friend_ids),
@@ -11717,6 +11732,9 @@ def home():
     if app.debug:
         print(f"[HOME_PERF] gear_summary={time.perf_counter()-_hp_t0:.4f}s")
 
+    home_wishlist_ids, _ = canonical_wishlist_resorts(
+        user.wish_list_resorts
+    )
     home_summary = _build_home_summary(
         user=user,
         all_upcoming=all_upcoming,
@@ -11727,6 +11745,7 @@ def home():
         home_rider_disciplines=home_rider_disciplines,
         home_gear_by_discipline=home_gear_by_discipline,
         home_is_renting=home_is_renting,
+        wishlist_count=len(home_wishlist_ids),
         next_trip_actions=next_trip_actions,
     )
     stat_mountains = home_summary["activity"]["mountains_visited_count"]
@@ -12241,9 +12260,10 @@ def profile():
                 profile_gear_by_discipline[setup.discipline.value] = setup
 
     # Wish list data
-    wish_list_ids = current_user.wish_list_resorts or []
+    wish_list_ids, wish_list_resorts = canonical_wishlist_resorts(
+        current_user.wish_list_resorts
+    )
     wish_list_count = len(wish_list_ids)
-    wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
 
     upcoming_trips_count = get_upcoming_trip_count(current_user)
 
@@ -13072,9 +13092,15 @@ def mountain_detail(slug):
         friend for friend in friends_by_id.values()
         if resort.id in (friend.visited_resort_ids or [])
     ])
+    _wishlist_eligible_resort = bool(resort.is_active and not resort.is_region)
     wishlist_friends = _compact_mountain_friend_summary([
         friend for friend in friends_by_id.values()
-        if resort.id in (friend.wish_list_resorts or [])
+        if (
+            _wishlist_eligible_resort
+            and resort.id in normalize_wishlist_resort_ids(
+                friend.wish_list_resorts, strict=False
+            )
+        )
     ])
 
     availability_overlaps = _build_mountain_availability_overlaps(
@@ -13109,7 +13135,12 @@ def mountain_detail(slug):
             user_pass_covered = True
             user_pass_name = _re.sub(r'\s+[Pp]ass$', '', _up).strip()
             break
-    is_on_wishlist = resort.id in (current_user.wish_list_resorts or [])
+    is_on_wishlist = (
+        _wishlist_eligible_resort
+        and resort.id in normalize_wishlist_resort_ids(
+            current_user.wish_list_resorts, strict=False
+        )
+    )
     has_recorded_visit = resort.id in (current_user.visited_resort_ids or [])
 
     if app.debug:
@@ -13199,11 +13230,10 @@ def settings_wish_list():
         Resort.country_code, Resort.state_code, Resort.name
     ).all()
     
-    # Get current wish list resort IDs
-    wish_list_ids = current_user.wish_list_resorts or []
-    
-    # Get full resort objects for display
-    wish_list_resorts = Resort.query.filter(Resort.id.in_(wish_list_ids)).all() if wish_list_ids else []
+    # Get canonical current wishlist IDs and resort objects.
+    wish_list_ids, wish_list_resorts = canonical_wishlist_resorts(
+        current_user.wish_list_resorts
+    )
     
     # Group and sort wish list resorts for display
     grouped_wish_list = group_resorts_for_display(wish_list_resorts)
@@ -13225,30 +13255,24 @@ def settings_wish_list():
 @login_required
 def settings_wish_list_save():
     validate_csrf_request()
-    data = request.get_json()
-    resort_ids = data.get("resort_ids", [])
-    
-    # Enforce max of 15
-    if len(resort_ids) > 15:
-        return jsonify({"error": "Maximum 15 resorts allowed"}), 400
-    
-    # Validate resort IDs exist
-    valid_ids = []
-    for rid in resort_ids:
-        resort = db.session.get(Resort, rid)
-        if resort:
-            valid_ids.append(rid)
-    
-    _old_wl = list(current_user.wish_list_resorts or [])
-    current_user.wish_list_resorts = valid_ids
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid wishlist request"}), 400
+    try:
+        resort_ids = validate_wishlist_resort_ids(data.get("resort_ids", []))
+    except WishlistValidationError as exc:
+        return jsonify({"error": str(exc), "code": exc.code}), 400
+
+    old_ids, _ = canonical_wishlist_resorts(current_user.wish_list_resorts)
+    current_user.wish_list_resorts = resort_ids
     db.session.commit()
-    if len(valid_ids) > len(_old_wl):
+    if len(resort_ids) > len(old_ids):
         ph_analytics.track(current_user.id, 'wishlist_added', {
-            'added_count': len(valid_ids) - len(_old_wl),
-            'total_count': len(valid_ids),
+            'added_count': len(resort_ids) - len(old_ids),
+            'total_count': len(resort_ids),
             'source':      'settings',
         })
-    return jsonify({"success": True, "count": len(valid_ids)})
+    return jsonify({"success": True, "count": len(resort_ids)})
 
 
 # =====================================================================
@@ -13306,40 +13330,72 @@ def api_mountains_visited_remove():
 @login_required
 def api_wishlist_add():
     validate_csrf_request()
-    data = request.get_json() or {}
-    resort_id = data.get("resort_id")
-    if not resort_id:
-        return jsonify({"error": "resort_id required"}), 400
-    resort = db.session.get(Resort, resort_id)
-    if not resort:
-        return jsonify({"error": "Resort not found"}), 404
-    ids = list(current_user.wish_list_resorts or [])
-    if len(ids) >= 15:
-        return jsonify({"error": "Maximum 15 resorts", "at_limit": True}), 200
-    if resort_id not in ids:
-        ids.append(resort_id)
-        current_user.wish_list_resorts = ids
-        db.session.commit()
-        ph_analytics.track(current_user.id, 'wishlist_added', {
-            'resort_id':   resort_id,
-            'total_count': len(ids),
-            'source':      'mountain_page',
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid wishlist request"}), 400
+    try:
+        resort_id = coerce_wishlist_resort_id(data.get("resort_id"))
+    except WishlistValidationError as exc:
+        return jsonify({"error": str(exc), "code": exc.code}), 400
+
+    ids, _ = canonical_wishlist_resorts(current_user.wish_list_resorts)
+    if resort_id in ids:
+        if current_user.wish_list_resorts != ids:
+            current_user.wish_list_resorts = ids
+            db.session.commit()
+        return jsonify({
+            "success": True,
+            "count": len(ids),
+            "at_limit": len(ids) >= WISHLIST_LIMIT,
         })
-    return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 15})
+
+    try:
+        validate_wishlist_resort_ids([resort_id], maximum=None)
+    except WishlistValidationError:
+        return jsonify({"error": "Resort not found"}), 404
+    if len(ids) >= WISHLIST_LIMIT:
+        return jsonify({
+            "error": f"Maximum {WISHLIST_LIMIT} resorts",
+            "at_limit": True,
+        }), 200
+
+    ids.append(resort_id)
+    current_user.wish_list_resorts = ids
+    db.session.commit()
+    ph_analytics.track(current_user.id, 'wishlist_added', {
+        'resort_id':   resort_id,
+        'total_count': len(ids),
+        'source':      'mountain_page',
+    })
+    return jsonify({
+        "success": True,
+        "count": len(ids),
+        "at_limit": len(ids) >= WISHLIST_LIMIT,
+    })
 
 
 @app.route("/api/wishlist/remove", methods=["POST"])
 @login_required
 def api_wishlist_remove():
     validate_csrf_request()
-    data = request.get_json() or {}
-    resort_id = data.get("resort_id")
-    if not resort_id:
-        return jsonify({"error": "resort_id required"}), 400
-    ids = [i for i in (current_user.wish_list_resorts or []) if i != resort_id]
-    current_user.wish_list_resorts = ids
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"error": "Invalid wishlist request"}), 400
+    try:
+        resort_id = coerce_wishlist_resort_id(data.get("resort_id"))
+    except WishlistValidationError as exc:
+        return jsonify({"error": str(exc), "code": exc.code}), 400
+    stored_ids = remove_wishlist_resort_id(
+        current_user.wish_list_resorts, resort_id
+    )
+    current_user.wish_list_resorts = stored_ids
     db.session.commit()
-    return jsonify({"success": True, "count": len(ids), "at_limit": len(ids) >= 3})
+    ids, _ = canonical_wishlist_resorts(stored_ids)
+    return jsonify({
+        "success": True,
+        "count": len(ids),
+        "at_limit": len(ids) >= WISHLIST_LIMIT,
+    })
 
 
 # =====================================================================
@@ -13364,7 +13420,9 @@ def friend_mountains_visited(user_id):
     grouped = group_resorts_for_display(visited_resorts)
 
     # Current user's wishlist for "On your wishlist" indicator
-    user_wishlist_ids = set(current_user.wish_list_resorts or [])
+    user_wishlist_ids = {
+        resort.id for resort in current_user.get_wishlist_resorts()
+    }
 
     return render_template(
         "mountains_visited.html",
@@ -13393,8 +13451,8 @@ def friend_wishlist(user_id):
         abort(403)
 
     # Friend's wishlist
-    wish_ids = friend.wish_list_resorts or []
-    wish_resorts = Resort.query.filter(Resort.id.in_(wish_ids)).all() if wish_ids else []
+    wish_resorts = friend.get_wishlist_resorts()
+    wish_ids = [resort.id for resort in wish_resorts]
     grouped = group_resorts_for_display(wish_resorts)
 
     # Current user's visited for "You've been here" indicator
@@ -14159,13 +14217,20 @@ def trip_detail(trip_id):
 
     # Count how many of the user's friends have this resort on their wishlist
     friends_wishlist_count = 0
-    if trip.resort_id:
+    if (
+        trip.resort_id
+        and trip.resort
+        and trip.resort.is_active
+        and not trip.resort.is_region
+    ):
         _friend_ids = [f.friend_id for f in Friend.query.filter_by(user_id=current_user.id).all()]
         if _friend_ids:
             _wl_friends = User.query.filter(User.id.in_(_friend_ids)).all()
             friends_wishlist_count = sum(
                 1 for u in _wl_friends
-                if trip.resort_id in (u.wish_list_resorts or [])
+                if trip.resort_id in normalize_wishlist_resort_ids(
+                    u.wish_list_resorts, strict=False
+                )
             )
 
     resorts_json = get_resorts_for_trip_form() if is_owner else []
@@ -19696,16 +19761,34 @@ def admin_merge_resorts():
                     stats['visited_lists_updated'] += 1
             
             # 4. Update User.wish_list_resorts (JSON array)
-            users_with_wishlist = User.query.filter(User.wish_list_resorts.isnot(None)).all()
+            users_with_wishlist = User.query.filter(
+                User.wish_list_resorts.isnot(None)
+            ).all()
+            rewritten_wishlists = {}
+            rewritten_candidate_ids = set()
             for user in users_with_wishlist:
-                if user.wish_list_resorts and dup_id in user.wish_list_resorts:
-                    new_list = list(user.wish_list_resorts)  # Copy to new list
-                    new_list = [rid for rid in new_list if rid != dup_id]
-                    if canonical_id not in new_list:
-                        new_list.append(canonical_id)
-                    user.wish_list_resorts = new_list
-                    flag_modified(user, 'wish_list_resorts')
-                    stats['wishlist_updated'] += 1
+                normalized = normalize_wishlist_resort_ids(
+                    user.wish_list_resorts, strict=False
+                )
+                if dup_id in normalized:
+                    replaced = [
+                        canonical_id if resort_id == dup_id else resort_id
+                        for resort_id in normalized
+                    ]
+                    new_list = normalize_wishlist_resort_ids(replaced)
+                    rewritten_wishlists[user.id] = (user, new_list)
+                    rewritten_candidate_ids.update(new_list)
+
+            eligible_ids = eligible_wishlist_resort_ids(
+                rewritten_candidate_ids
+            )
+            for user, rewritten in rewritten_wishlists.values():
+                user.wish_list_resorts = [
+                    resort_id for resort_id in rewritten
+                    if resort_id in eligible_ids
+                ][:WISHLIST_LIMIT]
+                flag_modified(user, 'wish_list_resorts')
+                stats['wishlist_updated'] += 1
             
             # 5. Mark duplicate as inactive
             dup.is_active = False

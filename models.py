@@ -162,7 +162,7 @@ class User(UserMixin, db.Model):
     home_resort_id = db.Column(db.Integer, db.ForeignKey('resort.id'), nullable=True)  # FK to Resort table
     visited_resort_ids = db.Column(db.JSON, default=list)  # List of Resort IDs (normalized)
     open_dates = db.Column(db.JSON, default=list)  # List of YYYY-MM-DD strings
-    wish_list_resorts = db.Column(db.JSON, default=list)  # List of resort IDs (max 3)
+    wish_list_resorts = db.Column(db.JSON, default=list)  # Ordered set of resort IDs (max 15)
     terrain_preferences = db.Column(db.JSON, default=list)  # List of terrain types (max 2): Groomers, Trees, Park, Backcountry
     equipment_status = db.Column(db.String(20), default='have_own_equipment')  # have_own_equipment or needs_rentals
     buddy_passes = db.Column(db.JSON, default=dict)  # {"epic": true, "ikon": false} - availability per supported pass
@@ -410,18 +410,15 @@ class User(UserMixin, db.Model):
     
     def get_wishlist_resorts(self):
         """
-        Return list of Resort objects for wishlist mountains.
-        Uses wish_list_resorts (list of resort IDs).
+        Return canonical active, non-region wishlist resorts in stored order.
         """
-        if not self.wish_list_resorts or len(self.wish_list_resorts) == 0:
-            return []
-        from models import Resort
-        return Resort.query.filter(Resort.id.in_(self.wish_list_resorts)).all()
+        from services.wishlist import canonical_wishlist_resorts
+        return canonical_wishlist_resorts(self.wish_list_resorts)[1]
     
     @property
     def wishlist_resorts_count(self):
-        """Return count of wishlist resorts."""
-        return len(self.wish_list_resorts or [])
+        """Return count of unique, eligible wishlist resorts."""
+        return len(self.get_wishlist_resorts())
     
     # ─────────────────────────────────────────────────────────────────────────
     # PROGRESSIVE PROFILE COMPLETION (Dec 2025)

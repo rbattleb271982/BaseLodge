@@ -5,7 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from app import _build_home_summary, app
-from conftest import _login, _make_trip, _make_user
+from conftest import _login, _make_resort, _make_trip, _make_user
 from models import DismissedInsightCard, Friend, db
 
 
@@ -216,8 +216,9 @@ def test_home_summary_matches_flat_values_and_reuses_loaded_trips(client):
         viewer = _make_user(
             "summary-owner",
             visited_resort_ids=[101, 102],
-            wish_list_resorts=[201],
         )
+        wishlist_resort = _make_resort("Summary Wishlist")
+        viewer.wish_list_resorts = [wishlist_resort.id]
         trip = _make_trip(viewer)
         viewer_id = viewer.id
         trip_id = trip.id
@@ -246,8 +247,9 @@ def test_home_renders_your_activity_from_shared_summary(client):
         viewer = _make_user(
             "activity-disclosure",
             visited_resort_ids=[101, 102],
-            wish_list_resorts=[201],
         )
+        wishlist_resort = _make_resort("Activity Wishlist")
+        viewer.wish_list_resorts = [wishlist_resort.id]
         _make_trip(viewer)
         viewer_id = viewer.id
         db.session.commit()

@@ -18,7 +18,7 @@
 
 {# Compute wishlist overlap indicators (only for friend profiles) #}
 {% if not is_owner and current_user.is_authenticated %}
-    {% set viewer_wishlist_ids = current_user.wish_list_resorts or [] %}
+    {% set viewer_wishlist_ids = canonical_viewer_wishlist_ids|default([], true) %}
     
     {# Overlap: friend's visited ∩ viewer's wishlist #}
     {% set visited_on_viewer_wishlist = [] %}
