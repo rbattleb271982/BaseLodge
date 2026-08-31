@@ -1,0 +1,343 @@
+REPLIT: MAX + BUILD
+Estimated total BaseLodge workload completed after this step: ~37%
+
+BL-78 — Preserve RSVP status transitions
+
+The BL-78 investigation is APPROVED.
+
+Proceed directly to implementation.
+Do not create another planning task.
+Do not expand into BL-140.
+Do not resume BL-70.
+
+Task #390 is the Replit implementation representation of BL-78, not a separate BaseLodge backlog item.
+
+IMPLEMENT THE APPROVED DESIGN
+
+1. Add a private `ski_trip_rsvp_transition` model/table.
+
+Required semantics:
+
+- trip_id: required, ON DELETE CASCADE
+- user_id / RSVP subject: required, ON DELETE CASCADE
+- previous_status: nullable only for approved initial guest-state establishment
+- new_status: required
+- changed_at: server-generated UTC timestamp
+- actor_user_id: nullable, ON DELETE SET NULL
+- source: required and restricted to a bounded internal vocabulary
+
+Use portable string status columns with database constraints.
+
+Only canonical participant statuses may be written:
+
+- pending
+- interested
+- going
+- declined
+- removed
+
+Do NOT write legacy:
+
+- invited
+- accepted
+
+Do not store:
+- attendance dates
+- names/emails
+- request payloads
+- IP/device data
+- invite tokens
+- free-text reasons
+
+Add the approved trip/user timeline indexes without unnecessary indexes.
+
+2. Create an additive reversible Alembic migration.
+
+Requirements:
+
+- create only the new BL-78 schema
+- do not alter existing SkiTripParticipant rows
+- no backfill
+- no synthetic baseline events
+- reversible downgrade
+- supported PostgreSQL behavior
+- SQLite-compatible migration tests where legitimately supported
+- keep revision identifier within project limits
+
+Do NOT execute this migration against Supabase Development or Production.
+
+Disposable/local migration testing is allowed.
+
+3. Add the focused non-committing RSVP transition writer/helper.
+
+The helper must:
+
+- operate inside the caller's existing transaction
+- lock in the approved order: trip first, then participant
+- read authoritative participant status after locking
+- compare canonical current state to requested target
+- no-op on same-state submissions
+- preserve existing validation/authorization behavior
+- apply existing status-coupled attendance-date cleanup
+- update current participant status
+- add exactly one matching transition row
+- never call commit itself
+
+Current-state mutation and history insertion must commit or roll back together.
+
+4. Preserve concurrency and retry safety.
+
+For PostgreSQL:
+- serialize competing mutations against the current participant relationship
+- preserve consistent trip -> participant lock order
+
+For SQLite/tests:
+- use existing transaction conventions
+- do not invent PostgreSQL row-lock behavior
+- do not create a generalized locking framework
+
+Do not add client idempotency keys.
+
+Expected behavior:
+
+same target retry:
+Going -> Going
+= no new transition
+
+legitimate reversal:
+Interested -> Going -> Interested
+= two real transition rows
+
+For concurrent first-time participant creation, preserve the existing unique `(trip_id, user_id)` constraint and safely recover/re-read after uniqueness races where required.
+
+5. Route all canonical RSVP mutation paths through the writer.
+
+Cover the paths identified in investigation:
+
+- trip creation guest invitation / initial Pending establishment
+- direct organizer invite
+- invite cancellation
+- external token RSVP
+- direct invite response
+- active self RSVP
+- organizer guest RSVP changes
+- organizer removal
+- reinvitation
+- accepted join request
+- guest leaving
+
+Do not modify legacy GroupTrip/TripGuest behavior.
+
+Do not record automatic owner initialization.
+
+Later explicit organizer Interested/Going transitions remain valid history.
+
+6. Record only approved history.
+
+Initial guest establishment may record:
+
+NULL -> pending
+NULL -> interested
+NULL -> going
+NULL -> declined
+
+Record meaningful real transitions supported by existing product behavior.
+
+Do NOT record:
+
+- same-state submissions
+- rejected/unauthorized actions
+- duplicate retries
+- legacy startup normalization
+- attendance-only updates
+- automatic owner initialization
+- existing participant rows during migration
+- trip deletion as a synthetic RSVP transition
+
+7. Preserve existing product behavior.
+
+Trip Detail must continue reading only current `SkiTripParticipant.status`.
+
+Do not change:
+
+- UI
+- API response payloads
+- HTTP status behavior
+- authorization
+- notifications
+- analytics
+- Activity behavior
+- messaging
+- native behavior
+
+No native build should be required.
+
+8. Actor/source semantics.
+
+Use explicit bounded source values derived from actual mutation paths.
+
+Do not persist arbitrary endpoint/request strings.
+
+Actor behavior:
+
+- self RSVP: actor = subject user
+- organizer action: actor = organizer/actioning user
+- system action without a real actor: actor = null
+
+Test these semantics.
+
+9. Deletion/privacy.
+
+Subject account deletion:
+- all history where that user is the RSVP subject must be deleted
+
+Actor account deletion:
+- surviving other-user history remains
+- actor_user_id becomes NULL
+
+Trip deletion:
+- all associated RSVP transition history is deleted
+
+Declined/Removed participant:
+- history remains while both user and trip still exist
+
+IMPORTANT TASK #77 BOUNDARY
+
+The investigation identified overlap with Task #77 around delete-account FK handling.
+
+Make only the BL-78-specific account/trip deletion changes necessary so the new transition table:
+- cannot block deletion
+- cannot leave orphaned user/trip history
+
+Do NOT absorb Task #77.
+Do NOT broadly refactor account deletion.
+If a pre-existing deletion failure unrelated to the new BL-78 table is encountered, report it separately.
+
+10. Existing data.
+
+Do not reconstruct history.
+
+Immediately after migration:
+- existing participant rows remain unchanged
+- history table contains no fabricated events
+
+Only future known events create history.
+
+11. Tests.
+
+Add focused BL-78 coverage for:
+
+- every supported meaningful transition
+- initial Pending/Interested/Going/Declined establishment
+- no owner bootstrap history
+- same-state no-op
+- retry no duplication
+- legitimate reversions
+- rejected/unauthorized actions create no history
+- concurrent same-target behavior
+- concurrent different-target serialization
+- concurrent first-participant creation
+- actor attribution
+- source attribution
+- atomic rollback
+- history insertion failure rollback
+- attendance-date cleanup
+- decline
+- removal
+- reinvitation
+- accepted join request
+- leaving
+- subject account deletion
+- actor account deletion / SET NULL
+- trip deletion
+- no history for pre-existing rows
+- migration upgrade
+- migration downgrade
+- unchanged Trip Detail/current-state behavior
+
+Run existing regression coverage including:
+
+tests/test_trip_self_rsvp.py
+tests/test_trip_organizer_participants.py
+tests/test_trip_create_invite_authorization.py
+tests/test_invite_flow_e2e.py
+tests/test_participant_attendance_dates.py
+tests/test_trip_deletion.py
+tests/test_trip_rsvp_migration.py
+
+Also run relevant account deletion/privacy tests.
+
+Then run the full suite.
+
+The known unrelated PostgreSQL-vs-SQLite guarded migration failure may remain.
+Do not fix it as part of BL-78.
+
+12. Scope guards.
+
+DO NOT implement:
+
+- BL-140 generalized history/event architecture
+- Task #77 broadly
+- RSVP activity UI
+- attendance-date history
+- participant coordination-field history
+- new notifications
+- analytics changes
+- GroupTrip/TripGuest history
+- BL-70 migration/backfill
+- Production migration
+- Development migration
+- unrelated cleanup/refactors
+
+13. Stop conditions.
+
+STOP and report if:
+
+- a current RSVP route cannot use the writer without changing product semantics
+- physical participant deletion conflicts with the approved history behavior
+- safe concurrency requires architecture substantially beyond BL-78
+- the actual canonical status vocabulary differs materially from the investigation
+- the new migration conflicts with the current migration chain
+- account deletion requires solving Task #77 broadly rather than simply accommodating the new history table
+
+Otherwise complete BL-78.
+
+14. Verification and commit.
+
+Before commit:
+
+- inspect full diff
+- ensure only BL-78-related changes are present
+- run focused tests
+- run adjacent regressions
+- run full suite
+- run Python compilation/checks as appropriate
+- run git diff --check
+
+Commit:
+
+BL-78 Preserve RSVP transition history
+
+RETURN
+
+Report:
+
+- schema/model added
+- migration revision and parent
+- status constraint vocabulary
+- source vocabulary
+- every mutation path changed
+- helper behavior
+- concurrency/retry behavior
+- actor semantics
+- deletion/privacy behavior
+- Task #77 interaction, if any
+- whether any product/API/UI behavior changed
+- focused test results
+- adjacent regression results
+- full-suite result
+- known unrelated failures
+- git diff --check result
+- commit hash
+- confirmation that neither Supabase Development nor Production was migrated
+- whether BL-78 is complete from the code side
