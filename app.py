@@ -44,6 +44,7 @@ from services.ski_seasons import (
     get_ski_season_year,
 )
 from services.user_season_passes import upsert_user_season_pass
+from services.equipment_validation import parse_nullable_measurement
 from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDING_TYPES, BINDING_BRANDS_BY_TYPE
 
 # ── Admin timezone helpers — America/Denver display ───────────────────────────
@@ -12710,6 +12711,22 @@ def settings_equipment_save():
     if not discipline_str:
         return jsonify({"error": "Discipline required"}), 400
 
+    try:
+        parsed_length_cm = parse_nullable_measurement(
+            length_cm,
+            field_label="Length",
+            minimum=50,
+            maximum=250,
+        )
+        parsed_width_mm = parse_nullable_measurement(
+            width_mm,
+            field_label="Width",
+            minimum=50,
+            maximum=400,
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
     discipline = EquipmentDiscipline.SKIER if discipline_str == "Skier" else EquipmentDiscipline.SNOWBOARDER
 
     existing_setups = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
@@ -12741,8 +12758,8 @@ def settings_equipment_save():
     equipment.label = label
     equipment.brand = brand if brand else None
     equipment.model = model_val if model_val else None
-    equipment.length_cm = int(length_cm) if length_cm else None
-    equipment.width_mm = int(width_mm) if width_mm else None
+    equipment.length_cm = parsed_length_cm
+    equipment.width_mm = parsed_width_mm
     equipment.binding_type = binding_type if binding_type else None
     equipment.binding_brand = binding_brand if binding_brand else None
     equipment.binding_model = binding_model if binding_model else None
@@ -17436,6 +17453,22 @@ def save_equipment():
     if not brand or slot_name not in ["PRIMARY", "SECONDARY"] or discipline_name not in ["SKIER", "SNOWBOARDER"]:
         return jsonify({"success": False, "error": "Invalid input"}), 400
     
+    try:
+        parsed_length_cm = parse_nullable_measurement(
+            length_cm,
+            field_label="Length",
+            minimum=50,
+            maximum=250,
+        )
+        parsed_width_mm = parse_nullable_measurement(
+            width_mm,
+            field_label="Width",
+            minimum=50,
+            maximum=400,
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+
     # Convert to enums
     try:
         slot = EquipmentSlot[slot_name]
@@ -17454,8 +17487,8 @@ def save_equipment():
     
     equipment.discipline = discipline
     equipment.brand = brand
-    equipment.length_cm = int(length_cm) if length_cm else None
-    equipment.width_mm = int(width_mm) if width_mm else None
+    equipment.length_cm = parsed_length_cm
+    equipment.width_mm = parsed_width_mm
     
     db.session.add(equipment)
     db.session.commit()
