@@ -1,0 +1,243 @@
+Investigate BL-189 — HOME — Define canonical Next Trip action contract.
+
+This is PLAN / INVESTIGATION ONLY.
+
+Do not implement yet.
+Do not change application code.
+Do not change database schema or migrations.
+Do not change secrets or environment variables.
+Do not commit anything.
+
+Goal:
+Define one canonical, server-side Next Trip action contract that BL-194 can render on Home without duplicating RSVP, organizer-follow-up, trip-state, or eligibility logic.
+
+This task is about action eligibility and action payload structure only.
+
+Do not redesign the UI.
+Do not implement BL-194.
+
+1. Map all existing Next Trip action-like behavior.
+
+Identify current code paths for:
+- trip RSVP / attendance status
+- RSVP deadlines, if any current implementation exists
+- organizer follow-up or participant-state tracking
+- trip edit/detail actions
+- pending invite behavior
+- owner vs guest behavior
+- interested vs going behavior
+- any existing “needs attention” or incomplete-trip logic
+- any current Home action rows or placeholders
+- any notification/action helpers that already determine user-specific trip work
+
+Identify:
+- routes
+- models
+- helpers/services
+- template logic
+- existing tests
+- current eligibility predicates
+
+2. Distinguish implemented behavior from backlog behavior.
+
+BL-83 and BL-84 may eventually enrich this contract.
+
+Determine which actions are actually supported TODAY and which are not yet implemented.
+
+Do not invent future actions merely because BL-83/BL-84 exist.
+
+For each possible action, classify:
+- currently supported and safe to expose
+- currently derivable but not yet product-approved
+- blocked on BL-83
+- blocked on BL-84
+- out of scope
+
+3. Define the action contract.
+
+Design the smallest server-side structure BL-194 can consume.
+
+For example:
+
+home_summary["next_trip"]["actions"] = [
+  {
+    "key": ...,
+    "type": ...,
+    "label": ...,
+    "destination": ...,
+    "priority": ...,
+    "eligibility_reason": ...,
+    "metadata": {...}
+  }
+]
+
+Do not treat this example as mandatory.
+
+The contract should:
+- contain only actions actually eligible for the current user
+- be deterministic
+- be ordered canonically
+- avoid template-side eligibility logic
+- avoid exposing private participant data
+- support an action count for the collapsed Home row
+- support zero actions cleanly
+
+4. Canonical eligibility.
+
+Trace exactly what determines:
+- owner actions
+- guest actions
+- RSVP-related actions
+- trip-edit actions
+- participant-management actions
+- invite-related actions
+
+Preserve current semantics.
+
+Do not create a new authorization model.
+BL-133 remains authoritative for auth/visibility.
+
+5. Explicitly exclude “Add pass”.
+
+“Add pass” must NOT be a Next Trip action.
+
+Pass/profile completion belongs to About You/Profile-level behavior, not trip actions.
+
+Do not add:
+- Add pass
+- Add gear
+- profile completion actions
+- unrelated account setup actions
+
+6. Destination behavior.
+
+Each action should point to an existing authoritative route/action.
+
+Do not invent destinations.
+
+Determine whether each action should:
+- navigate to trip detail
+- navigate to trip edit
+- invoke an existing RSVP endpoint
+- invoke another existing safe endpoint
+
+Do not add new mutation endpoints in BL-189.
+
+7. Query / performance behavior.
+
+Determine whether action eligibility can be derived from already-loaded BL-187/BL-193 Home data.
+
+Identify:
+- any additional query required
+- whether one bounded query is sufficient
+- any risk of N+1 behavior
+- whether participant/action state is already loaded elsewhere
+
+Do not add caching.
+
+8. Privacy / authorization.
+
+For every proposed action confirm:
+- current user is authorized to see it
+- no hidden participant information leaks
+- private trips remain private
+- owner-only actions remain owner-only
+- guest-only actions remain guest-appropriate
+
+9. Ordering.
+
+Define a canonical action order.
+
+The order should be based on actual urgency/product meaning, not arbitrary template order.
+
+Do not invent deadline urgency if BL-83 has not implemented deadline semantics.
+
+10. Relationship to BL-83 and BL-84.
+
+Be explicit about:
+- what BL-189 can support now
+- what BL-83 can append later
+- what BL-84 can append later
+- whether the contract can be extended without redesign
+
+BL-189 should not absorb either task.
+
+11. Tests.
+
+Propose focused tests covering:
+- owner with no actions
+- owner with supported actions
+- guest with supported actions
+- Interested vs Going behavior
+- pending invite behavior
+- private trip behavior
+- unauthorized action exclusion
+- action ordering
+- zero-action state
+- action count
+- no duplicate actions
+- no Add pass action
+- existing route/destination correctness
+- no N+1
+- BL-193 next-trip behavior preserved
+
+12. Expected implementation scope.
+
+Return:
+- files likely to change
+- helpers/services likely to be added or refactored
+- tests likely to change
+- files that should remain untouched
+- whether schema/migration change is required
+
+No schema/migration should be required.
+
+13. Stop conditions.
+
+Return NEEDS PRODUCT/ARCHITECTURE DECISION if:
+- there is no clear currently-supported action set
+- a new mutation endpoint is required
+- action eligibility depends on unresolved BL-83/BL-84 semantics
+- owner/guest eligibility is ambiguous
+- privacy/auth rules need to change
+- a schema/migration is needed
+
+Return READY FOR BUILD only if a minimal canonical action contract can be implemented now without inventing product behavior.
+
+Return:
+
+CURRENT ACTION-LIKE BEHAVIOR
+
+CURRENTLY SUPPORTED ACTIONS
+
+BLOCKED / FUTURE ACTIONS
+
+PROPOSED NEXT_TRIP ACTION CONTRACT
+
+ELIGIBILITY RULES
+
+DESTINATIONS
+
+ORDERING
+
+QUERY / PERFORMANCE IMPACT
+
+PRIVACY / AUTHORIZATION CHECK
+
+BL-83 / BL-84 EXTENSION POINTS
+
+TEST PLAN
+
+FILES EXPECTED TO CHANGE
+
+RISKS / OPEN QUESTIONS
+
+RECOMMENDED BUILD SCOPE
+
+End with exactly one:
+
+BL-189 READY FOR BUILD
+
+or
+
+BL-189 NEEDS PRODUCT/ARCHITECTURE DECISION
