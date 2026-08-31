@@ -1,0 +1,162 @@
+Finalize and merge BL-189 — HOME — Define canonical Next Trip actions.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+Approved BL-189 files:
+- app.py
+- tests/test_home_empty_states.py
+- tests/test_home_next_trip_actions.py
+
+Exclude unrelated working-tree files from the BL-189 commit.
+
+2. Confirm the canonical action contract.
+
+The existing Home Next Trip summary must expose:
+- actions
+- action_count
+
+Each action must contain:
+- key
+- type
+- label
+- destination
+- priority
+
+Confirm:
+- action_count == len(actions)
+- zero-action state is [] and 0
+- no duplicate actions
+- ordering is deterministic
+- fixed priority is followed by stable key ordering
+
+3. Confirm approved action eligibility.
+
+Interested guest:
+- exactly one action
+- label: Review RSVP
+- destination: Trip Detail `#td-self-rsvp`
+
+Going guest:
+- zero actions
+
+Owner with at least one pending join request:
+- exactly one action
+- label: Review join requests
+- destination: Trip Detail `#td-join-requests`
+
+Owner without pending join requests:
+- zero actions
+
+Pending invitees:
+- no Next Trip action
+- remain in separate invite flow
+
+Declined/removed users:
+- no action
+
+4. Confirm exclusions.
+
+There must be no actions for:
+- View trip
+- Edit trip
+- Add pass
+- Add gear
+- profile completion
+- general navigation
+- pending invite response
+- RSVP deadlines
+- organizer follow-up
+
+BL-83 and BL-84 remain separate future extensions.
+
+5. Confirm query/performance behavior.
+
+Interested guest path:
+- zero extra action queries
+
+Owner path:
+- at most one bounded SQL EXISTS query
+- only for the selected trip
+
+Confirm:
+- no N+1
+- no lazy relationship loading
+- no unnecessary roster or participant-name retrieval
+
+6. Confirm boundaries.
+
+Do not change:
+- Home presentation
+- templates
+- Next Trip selection
+- RSVP mutation behavior
+- join-request mutation behavior
+- invite flow
+- Happening
+- Ideas
+- privacy/authorization
+- schema/migrations
+- native configuration
+- caching
+
+BL-194 owns rendering of Actions to take.
+
+7. Run final validation.
+
+Run:
+- focused BL-189 action contract tests
+- BL-193 Next Trip regressions
+- Home empty-state regressions
+- RSVP regressions
+- participant-management regressions
+- join-request regressions
+- invite regressions
+- authorization/privacy regressions
+- `git diff --check`
+
+The PostgreSQL smoke check does not need to be repeated unless query construction changed after the successful implementation check.
+
+8. Commit only the approved BL-189 implementation.
+
+Commit message:
+
+BL-189: define canonical Next Trip actions
+
+9. Report:
+
+BL-189 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Canonical actions contract present: YES/NO
+- Interested guest action correct: YES/NO
+- Going guest action count:
+- Owner pending join-request action correct: YES/NO
+- Owner without pending requests action count:
+- Pending invite actions added: YES/NO
+- View/Edit actions added: YES/NO
+- Add pass/profile actions added: YES/NO
+- Deterministic ordering preserved: YES/NO
+- Owner action query count:
+- Guest extra action query count:
+- N+1 queries: YES/NO
+- Template eligibility logic added: YES/NO
+- Home presentation changed: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-189 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-189 MERGED
