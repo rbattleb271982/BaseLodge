@@ -1,0 +1,111 @@
+Finalize and merge BL-191 — HOME — Add Your Activity disclosure.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not create Task #376 or any duplicate Friends’ Passes task as part of this closeout.
+
+Before committing:
+
+1. Review the current diff.
+
+Approved BL-191 files:
+- templates/partials/home/_activity.html
+- templates/partials/home/_header.html
+- templates/partials/home/_header_empty.html
+- templates/home.html
+- tests/test_home_empty_states.py
+
+Exclude unrelated working-tree files from the BL-191 commit.
+
+2. Confirm the BL-191 contract.
+
+Your Activity:
+- uses the BL-188 disclosure foundation
+- collapsed by default
+- collapsed summary uses BL-187 activity values
+- correct singular/plural grammar is used
+- expanded content contains:
+  - Trips
+  - Mountains Visited
+  - Wishlist Mountains
+- zero values render cleanly
+- layout remains compact
+
+Data:
+- uses `home_summary["activity"]`
+- no new Home queries
+- no call to `get_upcoming_trip_count()`
+- no alternate wishlist counting
+- no alternate mountains-visited counting
+- no duplicated BL-187 assembly logic
+
+3. Confirm unrelated Home behavior is unchanged.
+
+Do not change:
+- About You & Your Gear
+- Friends’ Passes
+- Your Next Trip
+- Ideas
+- Happening
+- Friends’ Trips
+- navigation
+- privacy/authorization
+- schema/migrations
+- native configuration
+
+Do not implement BL-192 in this commit.
+
+4. Deferred follow-up check.
+
+A proposed Task #376 described as:
+“Give users a compact view of friends’ pass coverage on Home.”
+
+Do NOT create or retain this as a separate new task if it represents the same product scope as existing BL-192 — Friends’ Passes collapsed disclosure.
+
+Report whether #376 already exists anywhere:
+- If it does not exist, do nothing.
+- If it exists only as an uncommitted/draft proposal, leave it uncreated/remove the duplicate draft if that can be done without affecting unrelated work.
+- If it already exists as a persisted task, report its task ID/title and do not modify it during BL-191 closeout.
+
+Do not perform any Friends’ Passes implementation here.
+
+5. Run final validation:
+- focused BL-191 tests
+- BL-188 disclosure regressions
+- BL-187 Home summary regressions
+- BL-190 regressions
+- relevant Home empty-state tests
+- `git diff --check`
+
+6. Commit only the approved BL-191 implementation.
+
+Commit message:
+
+BL-191: add Your Activity Home disclosure
+
+7. Report:
+
+BL-191 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- BL-187 summary contract used: YES/NO
+- BL-188 disclosure foundation used: YES/NO
+- New Home queries: YES/NO
+- Other Home modules changed: YES/NO
+- Product semantics changed: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-191 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Task #376 status:
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-191 MERGED

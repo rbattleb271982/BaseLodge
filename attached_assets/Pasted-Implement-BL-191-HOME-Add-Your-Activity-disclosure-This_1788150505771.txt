@@ -1,0 +1,182 @@
+Implement BL-191 — HOME — Add Your Activity disclosure.
+
+This is BUILD.
+
+Do not create another planning task.
+Use the completed BL-187 Home summary contract and BL-188 disclosure foundation.
+Do not redesign the broader Home page.
+
+Goal:
+Replace the current Home activity/statistics presentation with one compact collapsed “Your Activity” disclosure.
+
+PRODUCT CONTRACT
+
+Collapsed state:
+
+Your Activity
+4 trips · 36 mountains visited · 9 wishlist mountains
+
+Use the user’s actual existing values, not hardcoded text.
+
+The collapsed summary should communicate:
+- upcoming trip count
+- mountains visited count
+- wishlist mountain count
+
+Use the values already provided by:
+
+home_summary["activity"]
+
+Do not recalculate or reinterpret these values in the template.
+
+Expanded state:
+
+Show three compact activity metrics:
+- Trips
+- Mountains Visited
+- Wishlist Mountains
+
+Keep the expanded layout visually compact and easy to scan.
+
+A simple horizontal or stacked metric presentation is acceptable as long as:
+- it does not create excessive vertical height
+- labels remain readable on small screens
+- values remain visually prominent
+- it fits the existing Home visual language
+
+Do not add links unless an existing destination and interaction are already part of the current Home behavior.
+
+IMPORTANT DESIGN CONSTRAINTS
+
+- Use the BL-188 disclosure macro/foundation.
+- Collapsed by default.
+- Do not add custom disclosure JavaScript.
+- Do not persist disclosure state.
+- Do not add analytics in this task.
+- Do not add photographs.
+- Do not add image placeholders.
+- Do not add thumbnails.
+- Do not add profile bubbles/avatars.
+- Do not add decorative mountain illustrations.
+- Do not add gratuitous icons.
+- Keep vertical space tight so Your Next Trip and lower Home sections remain visible.
+
+COUNT / LABEL BEHAVIOR
+
+Use concise, grammatically correct labels.
+
+Examples:
+- 0 trips
+- 1 trip
+- 4 trips
+
+- 0 mountains visited
+- 1 mountain visited
+- 36 mountains visited
+
+- 0 wishlist mountains
+- 1 wishlist mountain
+- 9 wishlist mountains
+
+Do not change the underlying counting semantics.
+
+DATA CONTRACT
+
+Consume:
+
+home_summary["activity"]["upcoming_trip_count"]
+home_summary["activity"]["mountains_visited_count"]
+home_summary["activity"]["wishlist_count"]
+
+Do not introduce new Home queries.
+
+Do not call:
+- get_upcoming_trip_count()
+- alternate wishlist helpers
+- alternate visited-mountain helpers
+
+BL-187 remains authoritative for assembly and semantics.
+
+CURRENT CONTENT
+
+Replace only the existing Home activity/statistics content necessary to create the disclosure.
+
+Do not alter:
+- About You & Your Gear
+- Friends’ Passes
+- Your Next Trip
+- Ideas
+- Happening
+- Friends’ Trips
+- navigation/header behavior
+
+Do not implement BL-192 or later Home redesign tasks as part of BL-191.
+
+PRODUCT SEMANTICS
+
+Do not change:
+- what qualifies as an upcoming trip
+- participant attendance status rules
+- trip deduplication
+- mountains-visited semantics
+- wishlist semantics
+- privacy/authorization
+- Home query behavior
+- Ideas/Happening logic
+- schema/migrations
+- native configuration
+
+TESTS
+
+Add or extend focused tests covering at minimum:
+- Your Activity disclosure exists
+- collapsed by default
+- collapsed summary uses BL-187 values
+- trip singular/plural
+- mountains visited singular/plural
+- wishlist mountains singular/plural
+- zero values render cleanly
+- expanded content exposes all three metrics
+- no new Home queries
+- BL-187 activity semantics remain unchanged
+- BL-188 disclosure behavior remains intact
+- BL-190 About You & Your Gear remains intact
+
+Prefer extending existing Home/empty-state/disclosure tests rather than creating redundant broad suites.
+
+VALIDATION
+
+Run:
+- focused BL-191 tests
+- BL-188 disclosure regressions
+- BL-187 Home summary regressions
+- BL-190 regressions
+- relevant Home empty-state tests
+- `git diff --check`
+
+Do not commit yet.
+
+Return:
+
+BL-191 IMPLEMENTATION RESULT
+
+- Files changed:
+- Existing Home activity content replaced:
+- Collapsed summary implemented:
+- Expanded three-metric view implemented:
+- BL-187 summary contract used:
+- New Home queries added:
+- Custom disclosure JavaScript added:
+- Product semantics changed:
+- Privacy/authorization changed:
+- Other Home modules changed:
+- Schema/migration changed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Scope deviations:
+- Commit created: NO
+
+If implementation is complete and clean, end with exactly:
+
+BL-191 READY TO MERGE
