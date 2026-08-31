@@ -1,0 +1,115 @@
+Finalize and merge BL-190 — HOME — Add About You & Your Gear disclosure.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not redesign or expand the implementation.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+The approved BL-190 files are:
+- templates/partials/home/_about_you_gear.html
+- templates/partials/home/_header.html
+- templates/partials/home/_header_empty.html
+- templates/home.html
+- tests/test_home_gear.py
+- tests/test_home_empty_states.py
+
+Confirm any other working-tree files are unrelated and exclude them from the BL-190 commit.
+
+2. Confirm the final BL-190 contract.
+
+About You & Your Gear:
+- uses the BL-188 disclosure foundation
+- collapsed by default
+- collapsed summary uses actual rider type, skill level, and canonical pass display
+- missing pass displays “No pass added”
+- expanded content is single-column
+- expanded content appropriately represents:
+  - Rider Type
+  - Skill Level
+  - Pass
+  - Skis
+  - Boots
+  - Bindings
+- missing gear is handled gracefully
+- existing rental behavior is preserved
+
+Data:
+- consumes `home_summary["about_you"]`
+- does not add Home queries
+- does not duplicate BL-187 assembly logic
+- does not introduce new rider, gear, or pass semantics
+
+Presentation:
+- old flat profile/gear presentation has been replaced where necessary
+- no two-column label/value grid
+- no custom disclosure JavaScript
+- no persistence
+- no analytics
+- no photos
+- no image placeholders
+- no thumbnails
+- no profile bubbles/avatars
+- no decorative mountain illustrations
+- no gratuitous decorative icons
+
+3. Confirm nothing else changed.
+
+BL-190 must not change:
+- Your Activity
+- Friends’ Passes
+- Your Next Trip
+- Ideas
+- Happening
+- Friends’ Trips
+- navigation
+- Home query behavior
+- privacy/authorization
+- schema/migrations
+- native configuration
+
+Do not implement BL-191 or BL-192 as part of this commit.
+
+4. Run final validation.
+
+Run:
+- focused BL-190 tests
+- BL-188 disclosure regressions
+- BL-187 Home summary regressions
+- directly affected Home/gear/empty-state tests
+- `git diff --check`
+
+Do not broaden the implementation based on test results unless required to fix a BL-190 regression.
+
+5. Commit only the approved BL-190 implementation.
+
+Commit message:
+
+BL-190: add About You and Gear Home disclosure
+
+6. Report:
+
+BL-190 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- BL-187 summary contract used: YES/NO
+- BL-188 disclosure foundation used: YES/NO
+- New Home queries: YES/NO
+- Custom disclosure JavaScript: YES/NO
+- Other Home modules changed: YES/NO
+- Product semantics changed: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-190 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-190 MERGED
