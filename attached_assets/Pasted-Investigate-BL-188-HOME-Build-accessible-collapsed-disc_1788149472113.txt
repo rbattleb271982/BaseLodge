@@ -1,0 +1,370 @@
+Investigate BL-188 — HOME — Build accessible collapsed disclosure foundation.
+
+This is PLAN / INVESTIGATION ONLY.
+
+Do not implement yet.
+Do not change application code.
+Do not change database schema or migrations.
+Do not change secrets or environment variables.
+Do not commit anything.
+
+Context:
+BL-187 is complete and introduced the shared server-provided Home summary contract.
+
+BL-188 now creates the reusable presentation/interaction foundation that later Home modules will consume.
+
+Initial consumers:
+- BL-190 — About You & Your Gear
+- BL-191 — Your Activity
+- BL-192 — Friends’ Passes
+
+Goal:
+Design the smallest reusable collapsed disclosure pattern for Home that is compact, accessible, mobile-safe, and appropriate for reuse across those three modules.
+
+The disclosure pattern must be:
+- collapsed by default
+- single-column
+- compact
+- accessible
+- mobile-first
+- compatible with the existing server-rendered Home architecture
+- safe inside the Capacitor shell
+- client-state only unless investigation proves persistent state is genuinely necessary
+
+Do not implement the individual BL-190/191/192 module content in this task.
+
+Investigate and return an implementation-ready plan covering:
+
+1. CURRENT HOME INTERACTION ARCHITECTURE
+
+Identify:
+- Home template structure
+- Home partial structure
+- existing JavaScript used by Home
+- existing expandable/collapsible UI patterns anywhere in the app
+- whether Bootstrap, native <details>/<summary>, custom JS, Alpine, or another interaction mechanism is already used
+- relevant CSS/component conventions
+- how Home JavaScript is loaded and initialized
+- whether Turbo/PJAX/partial replacement or similar behavior affects initialization
+- any Capacitor-specific interaction considerations
+
+Prefer reuse of an existing proven BaseLodge pattern where appropriate rather than creating an unnecessary new interaction system.
+
+2. RECOMMENDED DISCLOSURE IMPLEMENTATION
+
+Determine the best implementation approach.
+
+Evaluate at minimum:
+- semantic <details>/<summary>
+- button + controlled content region
+- any existing BaseLodge disclosure/accordion component
+
+Recommend one.
+
+The recommendation must account for:
+- accessibility
+- keyboard interaction
+- screen readers
+- mobile tap targets
+- long labels
+- Dynamic Type / text scaling
+- narrow mobile widths
+- maintainability
+- reuse by BL-190, BL-191, and BL-192
+- Capacitor shell behavior
+- avoiding unnecessary JavaScript
+
+Do not choose a custom JS solution merely because it is possible.
+
+3. ACCESSIBILITY CONTRACT
+
+Define the exact accessibility behavior.
+
+Collapsed/expanded state must be understandable to:
+- screen readers
+- keyboard users
+- touch users
+
+Specify as appropriate:
+- semantic element choice
+- aria-expanded
+- aria-controls
+- accessible labeling
+- focus behavior
+- keyboard activation
+- content hiding semantics
+- reduced-motion behavior if animation exists
+
+The entire disclosure header must function as a clear mobile-appropriate tap target.
+
+Do not rely on a tiny chevron as the only interactive area.
+
+4. COLLAPSED / EXPANDED STATE
+
+Required behavior:
+- collapsed by default
+- client-only state is preferred
+- no database persistence
+- no user-preference schema
+- no server-side persistence unless a concrete architecture constraint makes that unavoidable
+
+Determine:
+- whether state should survive a Home partial refresh
+- whether state should survive navigation away/back
+- whether browser-native disclosure behavior already handles the appropriate lifecycle
+
+Do not add persistence merely for convenience.
+
+5. VISUAL / LAYOUT FOUNDATION
+
+This task establishes the reusable structural pattern, not the final content design.
+
+The foundation should support:
+
+Collapsed:
+[Module title]
+[compact one-line summary]                       [chevron]
+
+Expanded:
+[Module title]
+[expanded single-column content]
+                                                   [chevron]
+
+Exact module summaries/content belong to later tasks.
+
+Design constraints:
+- warm/clean existing BaseLodge Home styling
+- compact vertical footprint
+- white rounded-card treatment where consistent with current Home
+- single-column content
+- no two-column value grid
+- no layouts that become awkward with long pass names or gear names
+- no clipped text
+- no fixed heights that break with text scaling
+
+Absolutely no:
+- photographs
+- image placeholders
+- thumbnails
+- friend avatars
+- profile bubbles
+- decorative mountain illustrations
+
+Do not introduce those elements.
+
+6. DISCLOSURE HEADER
+
+Determine the reusable header structure.
+
+It should support:
+- module title
+- compact collapsed summary
+- expandable indicator
+- long summary strings
+- multi-line wrapping if required on narrow devices
+
+Investigate whether title and summary should be:
+- stacked
+- inline where space allows
+- responsive between the two
+
+Prefer robustness over trying to force everything onto one line.
+
+7. CHEVRON / EXPANSION INDICATOR
+
+Determine:
+- whether an existing icon library/component should be reused
+- expanded vs collapsed orientation
+- whether rotation should animate
+- reduced-motion behavior
+- ensuring the icon is decorative rather than separately focusable if the whole header is the control
+
+Do not add another standalone button solely for the chevron.
+
+8. REUSABLE COMPONENT/PATTERN BOUNDARY
+
+Determine the cleanest reusable implementation boundary.
+
+Possibilities may include:
+- a Home partial
+- a macro
+- shared markup convention + CSS
+- small JS helper
+- another existing project component mechanism
+
+The abstraction should make BL-190, BL-191, and BL-192 easy to implement without forcing unrelated Home modules into it.
+
+Define:
+- required inputs
+- optional inputs
+- content slot/block approach
+- IDs/ARIA linkage
+- any JS initialization contract
+
+Do not over-engineer a general app-wide design system in BL-188.
+
+9. BL-187 INTEGRATION
+
+Inspect the newly implemented BL-187 `home_summary` contract.
+
+Confirm how later consumers can populate disclosure summaries/content using:
+- `home_summary.about_you`
+- `home_summary.activity`
+- `home_summary.friends_passes`
+
+BL-188 itself should not duplicate or reinterpret those data semantics.
+
+Do not add new Home database queries.
+
+10. SCROLL / LAYOUT BEHAVIOR
+
+Investigate how expansion affects Home position.
+
+Goal:
+- expanding/collapsing should feel stable
+- avoid unnecessary page jumps
+- do not force-scroll the user
+- preserve normal browser scroll behavior
+- avoid content re-render strategies that reset Home position
+
+If animation would materially worsen layout stability, prefer no animation or minimal animation.
+
+11. CAPACITOR / MOBILE SHELL
+
+Confirm the recommended implementation works inside BaseLodge’s existing Capacitor shell.
+
+Inspect:
+- touch behavior
+- focus behavior
+- viewport behavior
+- text scaling
+- safe interaction targets
+- any known WebView issues with the recommended semantic pattern
+
+This should remain a web/server deployment unless investigation discovers a real native dependency.
+
+Do not require a new iOS/Android build merely to implement BL-188 unless there is a genuine technical reason.
+
+12. TEST STRATEGY
+
+Propose focused tests covering:
+- disclosures collapsed by default
+- semantic accessibility attributes
+- correct expanded/collapsed relationship
+- full header is interactive
+- keyboard behavior where custom JS is involved
+- long title
+- long summary
+- narrow viewport
+- text scaling/Dynamic Type resilience where practical
+- multiple disclosure instances on the same page
+- unique IDs/ARIA relationships
+- no cross-instance state collision
+- BL-187 data contract remains unchanged
+- no additional database queries
+- existing Home functionality unaffected
+
+Determine which tests should be:
+- server-render/template tests
+- browser/interaction tests
+- Capacitor/manual QA
+
+Prefer extending existing Home test infrastructure rather than creating redundant suites.
+
+13. ANALYTICS
+
+BL-117 remains the analytics umbrella.
+
+Determine whether disclosure expand/collapse is meaningful enough to instrument now.
+
+If yes:
+- propose the smallest existing PostHog-compatible event
+- avoid duplicate analytics systems
+- do not block BL-188 on analytics if tracking is not necessary for the foundation
+
+Do not implement a separate analytics architecture.
+
+14. FILES EXPECTED TO CHANGE
+
+Return the likely implementation files.
+
+Identify:
+- templates/partials
+- CSS
+- JS if necessary
+- tests
+
+Also state files that should remain untouched.
+
+Expected:
+- no models
+- no schema
+- no migrations
+- no new data aggregation
+
+15. SCOPE BOUNDARIES
+
+BL-188 must NOT implement:
+- BL-190 About You & Your Gear content
+- BL-191 Your Activity content
+- BL-192 Friends’ Passes content conversion
+- BL-193 Next Trip redesign
+- BL-194 Next Trip Actions
+- BL-195 Happening carousel
+- Ideas ranking/matching
+- new Home queries
+- caching
+- profile data semantics
+- pass-count semantics
+- persistent disclosure preferences
+- broad design-system refactor
+
+16. RISK / BUILD READINESS
+
+Classify implementation risk.
+
+Call out any discovery that would require a product or architecture decision before Build.
+
+If the existing architecture supports a clean reusable disclosure pattern and no unresolved decision exists, recommend Build immediately.
+
+Return:
+
+CURRENT STATE
+
+EXISTING REUSABLE PATTERNS
+
+RECOMMENDED DISCLOSURE APPROACH
+
+ACCESSIBILITY CONTRACT
+
+STATE BEHAVIOR
+
+LAYOUT / MOBILE BEHAVIOR
+
+REUSABLE COMPONENT CONTRACT
+
+BL-187 INTEGRATION
+
+CAPACITOR CHECK
+
+ANALYTICS RECOMMENDATION
+
+TEST PLAN
+
+FILES EXPECTED TO CHANGE
+
+FILES TO REMAIN UNTOUCHED
+
+RISKS / OPEN QUESTIONS
+
+RECOMMENDED BUILD SCOPE
+
+Do not implement.
+
+End with exactly one:
+
+BL-188 READY FOR BUILD
+
+or
+
+BL-188 NEEDS PRODUCT/ARCHITECTURE DECISION
