@@ -1,7 +1,8 @@
 <!--
 Component: Happening Section
 Purpose: Quiet ambient awareness of friend ski activity. One row per friend,
-         two-line layout: [Name — Activity] / [Resort · Recency].
+          compact horizontal cards with a two-line layout:
+          [Name — Activity] / [Resort · Recency].
          Resort is never truncated; recency wraps below if the combined
          Resort · Recency content cannot fit on a single line.
 Used on: Home screen (only when happening_signals is non-empty)
@@ -26,7 +27,7 @@ Inputs:
     <div class="bl-section-header">
         <span class="bl-section-title">Happening</span>
     </div>
-    <div class="bl-happening-rows">
+    <div class="bl-happening-rows" role="region" aria-label="Happening updates">
         {% for signal in happening_signals %}
         {%- set _hap_id = 'hap-row-' ~ loop.index -%}
         <div class="bl-happening-card" id="{{ _hap_id }}">
