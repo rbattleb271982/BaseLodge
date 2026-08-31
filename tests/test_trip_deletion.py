@@ -12,7 +12,7 @@ from datetime import datetime
 from app import app
 from models import (
     db, SkiTrip, SkiTripParticipant, SkiTripPlanningPost,
-    TripInviteToken, Invitation, Activity, ActivityType,
+    SkiTripRsvpTransition, TripInviteToken, Invitation, Activity, ActivityType,
     GuestStatus, User,
 )
 from tests.conftest import (
@@ -60,6 +60,23 @@ def full_trip_setup(client):
         ))
         survivor   = _make_user("survivor")
         other_trip = _make_trip(survivor, resort=resort)
+        deleted_history = SkiTripRsvpTransition(
+            trip_id=trip.id,
+            user_id=accepted.id,
+            previous_status="pending",
+            new_status="interested",
+            actor_user_id=accepted.id,
+            source="invite_response",
+        )
+        surviving_history = SkiTripRsvpTransition(
+            trip_id=other_trip.id,
+            user_id=survivor.id,
+            previous_status="interested",
+            new_status="going",
+            actor_user_id=survivor.id,
+            source="self_rsvp",
+        )
+        db.session.add_all([deleted_history, surviving_history])
         db.session.commit()
         data = {
             "trip_id":       trip.id,
@@ -68,6 +85,8 @@ def full_trip_setup(client):
             "invited_id":    invited.id,
             "survivor_id":   survivor.id,
             "other_trip_id": other_trip.id,
+            "deleted_history_id": deleted_history.id,
+            "surviving_history_id": surviving_history.id,
         }
     yield data
 
@@ -93,6 +112,9 @@ def test_api_delete_removes_all_linked_data(client, full_trip_setup):
         assert Activity.query.filter_by(
             object_type="trip", object_id=trip_id
         ).count() == 0
+        assert SkiTripRsvpTransition.query.get(
+            full_trip_setup["deleted_history_id"]
+        ) is None
 
 
 def test_api_delete_unrelated_data_survives(client, full_trip_setup):
@@ -103,6 +125,9 @@ def test_api_delete_unrelated_data_survives(client, full_trip_setup):
     with app.app_context():
         assert SkiTrip.query.get(full_trip_setup["other_trip_id"]) is not None
         assert User.query.get(full_trip_setup["survivor_id"]) is not None
+        assert SkiTripRsvpTransition.query.get(
+            full_trip_setup["surviving_history_id"]
+        ) is not None
 
 
 def test_non_owner_cannot_delete_via_api(client, full_trip_setup):

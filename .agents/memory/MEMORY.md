@@ -17,3 +17,4 @@
 - [Cross-dialect SQL runtime checks](cross-dialect-sql-runtime-validation.md) — custom SQL compilers need execution tests on SQLite and PostgreSQL; compilation alone misses driver/runtime failures.
 - [Managed browser QA](managed-browser-qa.md) — local Playwright may lack container GUI libraries; use the managed app preview screenshot path for visual checks.
 - [Season-specific pass history](season-pass-history.md) — normalized per-season rows are canonical history; current product reads remain on User.pass_type during rollout.
+- [RSVP transition history](rsvp-transition-history.md) — private canonical audit history; BL-78 precedes deferred BL-70 and must be targeted exactly for an independent rollout.

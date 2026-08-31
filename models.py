@@ -1188,7 +1188,8 @@ class SkiTripParticipant(db.Model):
                 return "Train / Bus"
             return labels.get(self.transportation_status, "Ride: Not set")
         return "Ride: Not set"
-    
+
+
     def get_display_equipment(self):
         """Get equipment status for display with fallback to profile."""
         if self.equipment_status:
@@ -1209,6 +1210,77 @@ class SkiTripParticipant(db.Model):
     
     def __repr__(self):
         return f'<SkiTripParticipant trip={self.trip_id} user={self.user_id} status={self.status.value}>'
+
+
+class SkiTripRsvpTransition(db.Model):
+    """Private audit record for canonical SkiTrip guest RSVP changes."""
+    __tablename__ = "ski_trip_rsvp_transition"
+
+    id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ski_trip.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    previous_status = db.Column(db.String(16), nullable=True)
+    new_status = db.Column(db.String(16), nullable=False)
+    changed_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    actor_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source = db.Column(db.String(32), nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "previous_status IS NULL OR previous_status IN "
+            "('pending', 'interested', 'going', 'declined', 'removed')",
+            name="ck_strt_previous_status",
+        ),
+        db.CheckConstraint(
+            "new_status IN "
+            "('pending', 'interested', 'going', 'declined', 'removed')",
+            name="ck_strt_new_status",
+        ),
+        db.CheckConstraint(
+            "previous_status IS NULL OR previous_status <> new_status",
+            name="ck_strt_status_changed",
+        ),
+        db.CheckConstraint(
+            "previous_status IS NOT NULL OR source IN "
+            "('trip_creation_invite', 'organizer_invite', 'token_response', "
+            "'join_request_accept')",
+            name="ck_strt_initial_source",
+        ),
+        db.CheckConstraint(
+            "source IN ('trip_creation_invite', 'organizer_invite', "
+            "'invite_cancel', 'token_response', 'invite_response', "
+            "'self_rsvp', 'organizer_rsvp', 'organizer_remove', "
+            "'organizer_reinvite', 'join_request_accept', "
+            "'participant_leave')",
+            name="ck_strt_source",
+        ),
+        db.Index(
+            "ix_strt_trip_changed_at",
+            "trip_id",
+            "changed_at",
+        ),
+        db.Index(
+            "ix_strt_user_changed_at",
+            "user_id",
+            "changed_at",
+        ),
+    )
 
 
 class InviteType(PyEnum):

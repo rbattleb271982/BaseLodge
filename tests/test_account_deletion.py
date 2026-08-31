@@ -10,7 +10,7 @@ import pytest
 from app import app
 from models import (
     db, User, SkiTrip, SkiDay, SkiTripParticipant, SkiTripPlanningPost,
-    TripInviteToken, Invitation, Friend, GuestStatus,
+    SkiTripRsvpTransition, TripInviteToken, Invitation, Friend, GuestStatus,
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
@@ -45,6 +45,35 @@ def deletion_setup(client):
 
         other_trip = _make_trip(other, resort=resort)
         _add_participant(other_trip, user, GuestStatus.ACCEPTED)
+        subject_history = SkiTripRsvpTransition(
+            trip_id=other_trip.id,
+            user_id=user.id,
+            previous_status="pending",
+            new_status="interested",
+            actor_user_id=user.id,
+            source="invite_response",
+        )
+        surviving_actor_history = SkiTripRsvpTransition(
+            trip_id=other_trip.id,
+            user_id=other.id,
+            previous_status="interested",
+            new_status="going",
+            actor_user_id=user.id,
+            source="organizer_rsvp",
+        )
+        owned_trip_history = SkiTripRsvpTransition(
+            trip_id=owned_trip.id,
+            user_id=other.id,
+            previous_status="pending",
+            new_status="going",
+            actor_user_id=user.id,
+            source="invite_response",
+        )
+        db.session.add_all([
+            subject_history,
+            surviving_actor_history,
+            owned_trip_history,
+        ])
         db.session.add_all([
             SkiDay(
                 user_id=user.id,
@@ -68,6 +97,9 @@ def deletion_setup(client):
             "other_id":      other.id,
             "owned_trip_id": owned_trip.id,
             "other_trip_id": other_trip.id,
+            "subject_history_id": subject_history.id,
+            "surviving_actor_history_id": surviving_actor_history.id,
+            "owned_trip_history_id": owned_trip_history.id,
         }
     yield data
 
@@ -125,6 +157,24 @@ def test_delete_account_other_users_data_survives(client, deletion_setup):
         assert SkiTrip.query.get(s["other_trip_id"]) is not None
         assert User.query.get(s["other_id"]) is not None
         assert SkiDay.query.filter_by(user_id=s["other_id"]).count() == 1
+
+
+def test_delete_account_erases_subject_and_owned_trip_history_but_nulls_actor(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert SkiTripRsvpTransition.query.get(s["subject_history_id"]) is None
+        assert SkiTripRsvpTransition.query.get(s["owned_trip_history_id"]) is None
+        surviving = SkiTripRsvpTransition.query.get(
+            s["surviving_actor_history_id"]
+        )
+        assert surviving is not None
+        assert surviving.user_id == s["other_id"]
+        assert surviving.actor_user_id is None
 
 
 def test_delete_account_removes_only_deleted_users_ski_days(client, deletion_setup):
