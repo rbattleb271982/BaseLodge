@@ -1,0 +1,409 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~30%
+
+TASK: BL-161 — Reduce authenticated-page query overhead
+
+INVESTIGATE AND DESIGN ONLY.
+Do not implement yet.
+
+==================================================
+GOAL
+==================================================
+
+Measure database-query behavior across the primary authenticated BaseLodge pages and identify the highest-value repeated, redundant, lazy-loaded, or unnecessarily expensive query patterns.
+
+This is a performance/architecture cleanup task.
+
+Do NOT redesign product behavior.
+Do NOT absorb pagination tasks.
+Do NOT create a generalized caching system.
+
+==================================================
+1. FIND AUTHORITATIVE BL-161 REQUIREMENTS
+==================================================
+
+Locate BL-161 in the existing task/backlog documentation if available.
+
+Use its exact requirements as authoritative.
+
+Also inspect related tasks only to clarify boundaries:
+
+- BL-155 Trip Detail N+1 cleanup — completed
+- BL-156 Home candidate bounding
+- BL-158 My Trips pagination
+- BL-159 Friends pagination/progressive loading
+- BL-157 mutation full-page reloads
+- BL-172 targeted Trip Detail UI updates
+
+Keep those separate.
+
+==================================================
+2. INVENTORY PRIMARY AUTHENTICATED PAGES
+==================================================
+
+Measure the major signed-in request paths.
+
+At minimum inspect:
+
+- Home
+- My Trips
+- Friends
+- Mountains
+- Mountain Detail
+- Profile
+- Friend Profile
+- Ideas
+- Idea Detail variants
+- Notifications
+- Trip Detail only as a regression baseline after BL-155
+
+Include other materially used authenticated pages if they clearly belong in BL-161.
+
+Do not expand into admin-only tooling unless BL-161 explicitly requires it.
+
+==================================================
+3. MEASURE QUERY COUNTS
+==================================================
+
+Instrument representative warmed requests in disposable test/development fixtures.
+
+For every page record:
+
+- total SQL queries
+- User queries
+- relationship/lazy-load queries
+- repeated normalized statements
+- duplicate lookups
+- queries scaling with list/card count
+- query count under representative data volume
+
+Separate cold startup/auth/cache work from warmed request behavior.
+
+Do not use Production.
+
+==================================================
+4. IDENTIFY TRUE PERFORMANCE PROBLEMS
+==================================================
+
+Classify findings as:
+
+A. true N+1
+B. fixed duplicate query
+C. repeated helper query
+D. template-triggered lazy load
+E. unnecessary repeated current-user lookup
+F. bounded intentional query
+G. pagination/candidate-volume issue belonging to another task
+H. acceptable behavior
+
+Do not treat every multi-query page as defective.
+
+==================================================
+5. CARDINALITY SCALING
+==================================================
+
+Where relevant, test representative growth such as:
+
+- 1 item
+- 5 items
+- 20 items
+
+Examples:
+
+- trips
+- friends
+- mountains
+- Ideas cards
+- notifications
+- social-context users
+
+Determine whether query count grows with N.
+
+If the dominant issue is result-set size rather than query count, route it to BL-156/158/159 instead of fixing it here.
+
+==================================================
+6. CURRENT-USER / FRIENDSHIP REUSE
+==================================================
+
+Audit repeated retrieval of:
+
+- current user
+- reciprocal friend IDs
+- friend User rows
+- season pass
+- wishlist
+- visited mountains
+- profile information
+
+BL-133 requires current reciprocal friendship for friend-only data.
+
+Any reuse must preserve that exact authorization boundary.
+
+History tables must never authorize.
+
+==================================================
+7. HOME
+==================================================
+
+Measure Home query behavior but DO NOT absorb BL-156 candidate bounding.
+
+Identify only:
+
+- repeated queries
+- lazy loads
+- redundant User/friend retrieval
+- duplicate helper work
+- avoidable serialization/query overhead
+
+If the primary problem is too many candidates being considered, document it for BL-156.
+
+==================================================
+8. MY TRIPS
+==================================================
+
+Measure My Trips query behavior.
+
+Identify repeated/lazy queries and unnecessary work.
+
+Do NOT implement pagination or progressive loading; that belongs to BL-158.
+
+If volume rather than query shape is the issue, report it separately.
+
+==================================================
+9. FRIENDS
+==================================================
+
+Measure Friends and Friend Profile behavior.
+
+Preserve BL-133 reciprocal-current friendship policy.
+
+Do NOT implement Friends pagination/progressive loading; that belongs to BL-159.
+
+Identify only query-shape and repeated-query problems in BL-161.
+
+==================================================
+10. MOUNTAINS
+==================================================
+
+Measure Mountains and Mountain Detail.
+
+Audit:
+
+- friend counts
+- social context
+- wishlist/pass context
+- trip context
+- availability overlap
+- resort lookup
+- repeated friend/User loading
+
+Preserve existing privacy boundaries.
+
+Do not redesign caching.
+
+==================================================
+11. IDEAS
+==================================================
+
+Measure Ideas and Idea Detail variants.
+
+Audit:
+
+- repeated friend retrieval
+- repeated wishlist/pass/trip eligibility checks
+- detail-route revalidation
+- User hydration
+- repeated Resort loads
+
+Preserve BL-133 hardening.
+
+Do not redesign Ideas ranking.
+
+==================================================
+12. NOTIFICATIONS
+==================================================
+
+Measure notification-center request behavior.
+
+Identify:
+
+- per-notification User loads
+- per-notification Trip loads
+- repeated recipient/context queries
+- lazy relationships
+
+Preserve recipient-only privacy.
+
+Do not redesign notification delivery.
+
+==================================================
+13. TEMPLATE-LAZY-LOAD AUDIT
+==================================================
+
+Inspect templates for ORM relationship/property access that causes SQL during rendering.
+
+For each case identify:
+
+- template
+- relationship/property
+- query generated
+- cardinality
+- whether eager/batched loading is appropriate
+
+Prefer prepared view-model data where practical.
+
+==================================================
+14. CROSS-PAGE DUPLICATION
+==================================================
+
+Identify helpers repeatedly performing the same lookups across multiple authenticated pages.
+
+Recommend only narrowly reusable helpers where they reduce repeated work without creating a giant page-data framework.
+
+Do not build a generic request cache unless clearly justified.
+
+==================================================
+15. PRIORITIZE FINDINGS
+==================================================
+
+Rank findings by:
+
+1. query growth with N
+2. absolute wasted query count
+3. frequency of page usage
+4. implementation risk
+5. privacy/authorization sensitivity
+
+Separate:
+
+- BL-161 implementation candidates
+- BL-156 candidates
+- BL-158 candidates
+- BL-159 candidates
+- unrelated follow-ups
+
+==================================================
+16. QUERY BUDGETS
+==================================================
+
+Recommend stable regression budgets for pages BL-161 will actually change.
+
+Prefer:
+
+- bounded-growth assertions
+- normalized statement-category assertions
+
+over brittle exact totals.
+
+Trip Detail BL-155 should remain at its new bounded baseline and should not regress.
+
+==================================================
+17. IMPLEMENTATION ARCHITECTURE
+==================================================
+
+For each BL-161 candidate recommend the smallest fix, such as:
+
+- selectinload
+- joinedload for scalar relationships
+- batched ID retrieval
+- reused current-friend set
+- precomputed maps
+- prepared view models
+- removal of duplicate helper calls
+
+Avoid:
+
+- global eager loading
+- enormous multi-collection joins
+- unnecessary caching
+- query-count optimization that increases sensitive-data exposure
+
+==================================================
+18. PRIVACY / AUTHORIZATION
+==================================================
+
+BL-133 is a hard boundary.
+
+Optimizations must preserve:
+
+- reciprocal current friendship
+- public friend-trip policy
+- private-trip policy
+- roster privacy
+- raw availability privacy
+- wishlist/pass/profile visibility
+- history-is-not-authorization
+
+No optimization may broaden loaded or serialized data merely to reduce query count.
+
+==================================================
+19. SCHEMA / DATABASE SAFETY
+==================================================
+
+Strong expectation:
+
+NO schema change.
+NO migration.
+
+Do not:
+
+- create Alembic revisions
+- apply BL-70
+- mutate persistent development databases
+- access Production
+
+If an index/schema change appears useful, report it as a separate recommendation rather than implementing it in BL-161.
+
+==================================================
+20. TEST PLAN
+==================================================
+
+Design focused tests covering:
+
+- warmed page query counts
+- 1/5/20 scaling where relevant
+- normalized SQL categories
+- no hidden N+1s
+- privacy-safe eager loading
+- BL-133 authorization preservation
+- BL-155 Trip Detail non-regression
+- page-content regression
+
+Use disposable fixtures.
+
+==================================================
+21. DELIVERABLE
+==================================================
+
+Return:
+
+A. authoritative BL-161 requirements
+B. authenticated-page inventory
+C. baseline query counts by page
+D. scaling results
+E. confirmed N+1 findings
+F. duplicate/redundant query findings
+G. template-triggered lazy loads
+H. cross-page repeated helper work
+I. Home findings
+J. My Trips findings
+K. Friends findings
+L. Mountains findings
+M. Ideas findings
+N. Notifications findings
+O. BL-161 implementation candidates
+P. items routed to BL-156
+Q. items routed to BL-158
+R. items routed to BL-159
+S. proposed query budgets
+T. exact implementation scope
+U. explicit out-of-scope list
+V. test plan
+W. privacy/authorization assessment
+X. schema/migration impact
+Y. risks/dependencies
+Z. recommended Replit tier for implementation
+
+Do not implement yet.
+
+The investigation must include measured query behavior, not just code inspection.
