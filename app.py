@@ -11105,6 +11105,54 @@ def _home_gear_disciplines(user):
     return disciplines
 
 
+def _build_home_summary(
+    *,
+    user,
+    all_upcoming,
+    next_trip,
+    friend_ids,
+    friend_pass_counts,
+    home_rider_disciplines,
+    home_gear_by_discipline,
+    home_is_renting,
+):
+    """Assemble Home summary data exclusively from already-resolved values."""
+    summary_user = (
+        user._get_current_object()
+        if hasattr(user, "_get_current_object")
+        else user
+    )
+    return {
+        "about_you": {
+            "user": summary_user,
+            "display_rider_type": summary_user.display_rider_type,
+            "skill_level": summary_user.skill_level,
+            "pass_type": summary_user.pass_type,
+            "rider_disciplines": home_rider_disciplines,
+            "gear_by_discipline": home_gear_by_discipline,
+            "is_renting": home_is_renting,
+        },
+        "activity": {
+            "upcoming_trip_count": len(all_upcoming),
+            "mountains_visited_count": summary_user.visited_resorts_count,
+            "wishlist_count": len(summary_user.wish_list_resorts or []),
+        },
+        "friends_passes": {
+            "friend_count": len(friend_ids),
+            "counts": friend_pass_counts,
+            "other_pass_slugs_url": OTHER_PASS_SLUGS_URL,
+        },
+        "next_trip": (
+            {
+                "trip": next_trip,
+                "is_owner": next_trip.user_id == summary_user.id,
+            }
+            if next_trip
+            else None
+        ),
+    }
+
+
 @app.route("/home")
 @login_required
 def home():
@@ -11579,6 +11627,20 @@ def home():
     if app.debug:
         print(f"[HOME_PERF] gear_summary={time.perf_counter()-_hp_t0:.4f}s")
 
+    home_summary = _build_home_summary(
+        user=user,
+        all_upcoming=all_upcoming,
+        next_trip=next_trip,
+        friend_ids=friend_ids,
+        friend_pass_counts=friend_pass_counts,
+        home_rider_disciplines=home_rider_disciplines,
+        home_gear_by_discipline=home_gear_by_discipline,
+        home_is_renting=home_is_renting,
+    )
+    stat_mountains = home_summary["activity"]["mountains_visited_count"]
+    stat_trips_total = home_summary["activity"]["upcoming_trip_count"]
+    stat_wishlist = home_summary["activity"]["wishlist_count"]
+
     for _row in dest_feed:
         if _row.get('idea_type') == 'availability_overlap' and _row.get('anchor_friend_id'):
             _row['_url'] = url_for('friend_profile', friend_id=_row['anchor_friend_id'])
@@ -11605,9 +11667,9 @@ def home():
         has_availability=has_availability,
         user_avail_ranges=_home_avail_ranges,
         user_avail_overflow=_home_avail_overflow,
-        stat_mountains=user.visited_resorts_count,
-        stat_trips_total=get_upcoming_trip_count(user),
-        stat_wishlist=len(user.wish_list_resorts or []),
+        stat_mountains=stat_mountains,
+        stat_trips_total=stat_trips_total,
+        stat_wishlist=stat_wishlist,
         stat_trips_url=url_for('my_trips'),
         stat_mountains_url=url_for('mountains_visited'),
         stat_wishlist_url=url_for('settings_wish_list'),
@@ -11624,6 +11686,7 @@ def home():
         is_admin=is_admin,
         show_ideas_diagnostic=show_ideas_diagnostic,
         ideas_diag=ideas_diag,
+        home_summary=home_summary,
     )
     if app.debug:
         print(f"[HOME_PERF] render_template={time.perf_counter()-_hp_t0:.4f}s")
