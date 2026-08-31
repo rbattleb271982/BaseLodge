@@ -3,11 +3,13 @@
 from datetime import date, timedelta
 
 import app as app_module
+import pytest
 
 from app import (
     app,
     build_friend_at_mountain_card,
     build_trip_overlap_today_card,
+    check_trip_invite_eligibility,
     format_trip_dates,
 )
 from models import Friend, GuestStatus, SkiTripParticipant, db
@@ -124,6 +126,63 @@ def test_home_friend_at_mountain_uses_effective_past_attendance(client):
         shared_trip.is_public = False
         db.session.commit()
         assert build_friend_at_mountain_card(user, today, [friend.id]) is None
+
+
+@pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
+def test_home_intelligence_ignores_terminal_trip_inputs(client, lifecycle_state):
+    today = date.today()
+    with app.app_context():
+        resort = _make_resort()
+        user = _make_user(f"terminal-intel-user-{lifecycle_state}",
+                          wish_list_resorts=[resort.id])
+        friend = _make_user(f"terminal-intel-friend-{lifecycle_state}")
+        _link_friends(user, friend)
+
+        user_today = _make_trip(
+            user, resort=resort, start_date=today, end_date=today
+        )
+        friend_today = _make_trip(
+            friend, resort=resort, start_date=today, end_date=today
+        )
+        user_future = _make_trip(
+            user, resort=resort,
+            start_date=today + timedelta(days=3),
+            end_date=today + timedelta(days=4),
+        )
+        friend_past = _make_trip(
+            friend, resort=resort,
+            start_date=today - timedelta(days=4),
+            end_date=today - timedelta(days=2),
+        )
+        for trip in (user_today, friend_today, user_future, friend_past):
+            trip.lifecycle_state = lifecycle_state
+        db.session.commit()
+
+        assert build_trip_overlap_today_card(user, today, [friend.id]) is None
+        assert build_friend_at_mountain_card(user, today, [friend.id]) is None
+        assert not check_trip_invite_eligibility(user.id, friend.id)
+
+
+@pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
+def test_friend_profile_hides_terminal_future_trip_comparisons(client, lifecycle_state):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user(f"profile-terminal-viewer-{lifecycle_state}")
+        friend = _make_user(f"profile-terminal-friend-{lifecycle_state}")
+        resort = _make_resort(f"Profile Terminal {lifecycle_state} Peak")
+        trip = _make_trip(
+            friend, resort=resort,
+            start_date=today + timedelta(days=3),
+            end_date=today + timedelta(days=4),
+        )
+        trip.lifecycle_state = lifecycle_state
+        _link_friends(viewer, friend)
+        db.session.commit()
+        viewer_id, friend_id = viewer.id, friend.id
+
+    _login(client, viewer_id)
+    html = client.get(f"/friends/{friend_id}").get_data(as_text=True)
+    assert f"Profile Terminal {lifecycle_state} Peak" not in html
 
 
 def test_my_trips_friend_grouping_uses_going_guest_effective_dates(client, monkeypatch):

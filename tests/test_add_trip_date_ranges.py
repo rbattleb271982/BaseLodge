@@ -1,10 +1,53 @@
 """Regression guards for the add-trip date-range interaction."""
 
+from datetime import date, timedelta
+import json
 from pathlib import Path
 import re
 
+import pytest
+
+from app import app
+from models import SkiTrip, db
+from tests.conftest import _login, _make_resort, _make_trip, _make_user, form_post
+
 
 ADD_TRIP_TEMPLATE = Path("templates/add_trip.html").read_text()
+
+
+@pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
+def test_batch_creation_can_replace_terminal_retained_range(client, lifecycle_state):
+    start = date.today() + timedelta(days=20)
+    end = start + timedelta(days=2)
+    with app.app_context():
+        owner = _make_user(f"batch-terminal-owner-{lifecycle_state}")
+        resort = _make_resort()
+        retained = _make_trip(
+            owner, resort=resort, start_date=start, end_date=end
+        )
+        retained.lifecycle_state = lifecycle_state
+        db.session.commit()
+        owner_id, resort_id, retained_id = owner.id, resort.id, retained.id
+
+    _login(client, owner_id)
+    response = form_post(client, "/add_trip", {
+        "resort_id": str(resort_id),
+        "date_ranges_json": json.dumps([{
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+        }]),
+        "trip_status": "planning",
+        "is_public": "on",
+    })
+    assert response.status_code == 302
+
+    with app.app_context():
+        matching = SkiTrip.query.filter_by(
+            user_id=owner_id, start_date=start, end_date=end
+        ).order_by(SkiTrip.id).all()
+        assert {trip.id for trip in matching} != {retained_id}
+        assert len(matching) == 2
+        assert any((trip.lifecycle_state or "active") == "active" for trip in matching)
 
 
 def test_completed_standard_selection_auto_stages_without_confirmation():

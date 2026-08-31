@@ -188,7 +188,7 @@ def test_ski_day_stays_independent_when_trip_changes(client):
         assert day.trip_id == trip.id
 
 
-def test_trip_deletion_preserves_ski_day_and_nulls_trip_reference(client):
+def test_trip_cancellation_preserves_ski_day_and_trip_reference(client):
     with app.app_context():
         _enable_sqlite_foreign_keys()
         owner = _make_user("trip-delete")
@@ -215,7 +215,7 @@ def test_trip_deletion_preserves_ski_day_and_nulls_trip_reference(client):
     with app.app_context():
         stored = db.session.get(SkiDay, day_id)
         assert stored is not None
-        assert stored.trip_id is None
+        assert stored.trip_id == trip_id
 
 
 def test_ski_day_resort_fk_restricts_history_destroying_delete(client):

@@ -19,3 +19,4 @@
 - [Season-specific pass history](season-pass-history.md) — normalized per-season rows are canonical history; current product reads remain on User.pass_type during rollout.
 - [RSVP transition history](rsvp-transition-history.md) — private canonical audit history; BL-78 precedes deferred BL-70 and must be targeted exactly for an independent rollout.
 - [Connection lifecycle history](connection-lifecycle-history.md) — private pair history never grants access; lock users canonically; BL-79 sits between BL-78 and deferred BL-70.
+- [Terminal trip isolation](terminal-trip-isolation.md) — retained terminal trips require explicit exclusion from every live surface; dates, visibility, and RSVP status are not substitutes.

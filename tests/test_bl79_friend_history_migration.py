@@ -51,13 +51,15 @@ def test_revision_reparents_bl70_and_is_the_sole_head():
     script = ScriptDirectory.from_config(
         Config(str(Path(__file__).parents[1] / "migrations" / "alembic.ini"))
     )
+    bl80 = script.get_revision("bl80_trip_lifecycle")
     bl70 = script.get_revision("bl70_user_season_pass")
 
     assert migration.revision == "bl79_friend_history"
     assert migration.down_revision == "bl78_rsvp_transition"
     assert migration.branch_labels is None
     assert len(migration.revision) <= 32
-    assert bl70.down_revision == migration.revision
+    assert bl80.down_revision == migration.revision
+    assert bl70.down_revision == bl80.revision
     assert script.get_heads() == ["bl70_user_season_pass"]
 
 

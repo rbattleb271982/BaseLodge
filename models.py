@@ -744,9 +744,19 @@ class SkiTrip(db.Model):
     created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # Organizer (null = legacy, use user_id)
     created_in_batch_id = db.Column(db.String(36), nullable=True)  # Analytics: UUID shared across batch-created trips; never used for grouping logic
     notes = db.Column(db.Text, nullable=True)  # Free-text trip notes; owner-editable, accepted-participant-readable
+    lifecycle_state = db.Column(db.String(10), nullable=True, default="active")
+    terminal_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     participants = db.relationship('SkiTripParticipant', backref='trip', lazy=True, cascade='all, delete-orphan')
     created_by = db.relationship('User', foreign_keys=[created_by_user_id], lazy=True)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "lifecycle_state IS NULL OR lifecycle_state IN "
+            "('active', 'completed', 'cancelled')",
+            name="ck_ski_trip_lifecycle_state",
+        ),
+    )
 
     def __repr__(self):
         return f'<SkiTrip {self.mountain}>'
@@ -806,8 +816,8 @@ class SkiTrip(db.Model):
     
     @property
     def organizer_id(self):
-        """Return the organizer user ID. Uses created_by_user_id if set, else user_id."""
-        return self.created_by_user_id or self.user_id
+        """Return the canonical owner ID used for all organizer authority."""
+        return self.user_id
     
     def get_organizer(self):
         """Return the organizer User object."""
@@ -1331,6 +1341,59 @@ class SkiTripRsvpTransition(db.Model):
             "ix_strt_user_changed_at",
             "user_id",
             "changed_at",
+        ),
+    )
+
+
+class SkiTripLifecycleEvent(db.Model):
+    """Private append-only history for terminal SkiTrip lifecycle changes."""
+    __tablename__ = "ski_trip_lifecycle_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    trip_id = db.Column(
+        db.Integer,
+        db.ForeignKey("ski_trip.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    event_type = db.Column(db.String(10), nullable=False)
+    source = db.Column(db.String(32), nullable=False)
+    occurred_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    actor_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    trip = db.relationship("SkiTrip", backref=db.backref(
+        "lifecycle_events",
+        lazy=True,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    ))
+    actor = db.relationship("User", foreign_keys=[actor_user_id])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "event_type IN ('completed', 'cancelled')",
+            name="ck_stle_event_type",
+        ),
+        db.CheckConstraint(
+            "source IN ('organizer_action')",
+            name="ck_stle_source",
+        ),
+        db.Index(
+            "ix_stle_trip_occurred_at",
+            "trip_id",
+            "occurred_at",
+        ),
+        db.Index(
+            "ix_stle_actor_occurred_at",
+            "actor_user_id",
+            "occurred_at",
         ),
     )
 

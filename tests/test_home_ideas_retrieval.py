@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 
 import sqlalchemy as sa
+import pytest
 from sqlalchemy.dialects import postgresql, sqlite
 
 from app import app
@@ -15,6 +16,7 @@ from models import (
     db,
 )
 from services.ideas_engine import build_destination_feed
+from services.skills.trip_overlap import trip_overlap_skill
 from services.ideas_retrieval import (
     _build_home_ideas_statement,
     get_home_ideas,
@@ -27,6 +29,30 @@ TODAY = date(2026, 9, 1)
 
 def _connect(viewer, friend):
     db.session.add(Friend(user_id=viewer.id, friend_id=friend.id))
+
+
+@pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
+def test_trip_overlap_skill_ignores_terminal_future_friend_trip(
+    client, lifecycle_state
+):
+    with app.app_context():
+        resort = _make_resort()
+        viewer = _make_user(
+            f"skill-terminal-viewer-{lifecycle_state}",
+            wish_list_resorts=[resort.id],
+        )
+        friend = _make_user(f"skill-terminal-friend-{lifecycle_state}")
+        trip = _make_trip(
+            friend,
+            resort=resort,
+            start_date=date.today() + timedelta(days=5),
+            end_date=date.today() + timedelta(days=7),
+        )
+        trip.lifecycle_state = lifecycle_state
+        db.session.commit()
+
+        with app.test_request_context():
+            assert trip_overlap_skill(viewer, [friend]) == []
 
 
 def test_statement_compiles_json_expansion_and_final_limit_for_both_dialects():

@@ -58,6 +58,28 @@ def _render_next_trip(start, end, *, today, friends=0):
         )
 
 
+@pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
+def test_terminal_future_pending_invite_is_absent_from_home_requests(
+    client, lifecycle_state
+):
+    with app.app_context():
+        viewer = _make_user(f"home-terminal-viewer-{lifecycle_state}")
+        owner = _make_user(f"home-terminal-owner-{lifecycle_state}")
+        trip = _make_trip(
+            owner,
+            mountain=f"Home Terminal {lifecycle_state} Peak",
+            start_date=date.today() + timedelta(days=10),
+            end_date=date.today() + timedelta(days=12),
+        )
+        trip.lifecycle_state = lifecycle_state
+        _add_participant(trip, viewer, GuestStatus.PENDING)
+        db.session.commit()
+        viewer_id = viewer.id
+
+    html = _home_response(client, viewer_id).get_data(as_text=True)
+    assert f"Home Terminal {lifecycle_state} Peak" not in html
+
+
 def test_friend_count_is_one_bounded_going_only_aggregate(client):
     with app.app_context():
         viewer = _make_user("next-count-viewer")

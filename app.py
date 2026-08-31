@@ -109,7 +109,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.trip_attendance import (
     effective_attendance_dates,
     participant_is_going,
@@ -129,6 +129,51 @@ from services.wishlist import (
     validate_wishlist_resort_ids,
 )
 from services.rsvp_transitions import RsvpCurrentStateError, transition_rsvp
+from services.trip_lifecycle import (
+    TripLifecycleAuthorizationError,
+    TripLifecycleConflictError,
+    TripLifecycleEligibilityError,
+    cancel_trip,
+    complete_trip,
+)
+
+
+def active_or_legacy_trip_predicate():
+    """SQL predicate for live SkiTrip surfaces (NULL is legacy active)."""
+    return db.or_(
+        SkiTrip.lifecycle_state.is_(None),
+        SkiTrip.lifecycle_state == "active",
+    )
+
+
+def non_cancelled_trip_predicate():
+    """SQL predicate for retained trip history that excludes cancellations."""
+    return db.or_(
+        SkiTrip.lifecycle_state.is_(None),
+        SkiTrip.lifecycle_state.in_(("active", "completed")),
+    )
+
+
+def is_terminal_trip(trip):
+    return (trip.lifecycle_state or "active") in {"completed", "cancelled"}
+
+
+def _terminal_trip_json():
+    return jsonify({
+        "success": False,
+        "error": "This trip is read-only because it has ended.",
+    }), 409
+
+
+def _lock_mutable_trip(trip_id):
+    """Lock a SkiTrip before a route validates or writes trip-owned state."""
+    trip = (
+        SkiTrip.query.filter_by(id=trip_id)
+        .populate_existing()
+        .with_for_update()
+        .first_or_404()
+    )
+    return trip, is_terminal_trip(trip)
 from services.connection_transitions import transition_connection
 from services.message_events import create_message_event, is_duplicate_event, should_retry
 from services.messaging_constants import (
@@ -263,6 +308,49 @@ def redirect_to_canonical_domain():
             1
         )
         return redirect(new_url, code=301)
+
+
+_SKI_TRIP_MUTATION_ENDPOINTS = frozenset({
+    "update_trip_dates",
+    "update_participant_dates",
+    "update_trip_resort",
+    "update_trip_pass",
+    "update_trip_visibility",
+    "update_trip_status",
+    "update_participant_settings",
+    "update_trip_stay",
+    "planning_posts_create",
+    "planning_posts_update",
+    "planning_posts_delete",
+    "update_trip_accommodation",
+    "update_trip_notes",
+    "cancel_trip_invite",
+    "send_trip_invites",
+    "request_to_join_trip",
+    "respond_to_trip_invite",
+    "update_own_trip_rsvp",
+    "organizer_update_trip_rsvp",
+    "organizer_remove_trip_participant",
+    "organizer_reinvite_trip_participant",
+    "update_participant_signals",
+    "leave_trip",
+})
+
+
+@app.before_request
+def reject_terminal_trip_mutations():
+    """Serialize direct SkiTrip writes and reject terminal history changes."""
+    if (
+        current_user.is_authenticated
+        and request.method in {"POST", "PATCH", "PUT", "DELETE"}
+    ):
+        endpoint = request.endpoint
+        trip_id = (request.view_args or {}).get("trip_id")
+        if endpoint in _SKI_TRIP_MUTATION_ENDPOINTS and trip_id is not None:
+            validate_csrf_request()
+            _trip, terminal = _lock_mutable_trip(trip_id)
+            if terminal:
+                return _terminal_trip_json()
 
 # ============================================================================
 # SESSION & SECURITY CONFIGURATION
@@ -430,6 +518,7 @@ def get_upcoming_trip_count(user):
     owned_ids = {
         row[0] for row in db.session.query(SkiTrip.id).filter(
             SkiTrip.user_id == user.id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today
         ).all()
     }
@@ -440,6 +529,7 @@ def get_upcoming_trip_count(user):
     ).filter(
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.active_status_filter(),
+            active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today
     ).all()
     participant_ids = {
@@ -457,6 +547,7 @@ def get_past_trip_count(user):
         return 0
     return SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
+        non_cancelled_trip_predicate(),
         SkiTrip.end_date < date.today()
     ).count()
 
@@ -1109,14 +1200,19 @@ def emit_trip_pass_changed_activities(trip, actor_user_id, pass_display):
 
 def check_and_emit_trip_overlap_activities(trip, actor_user_id):
     """Check for overlapping trips with friends and emit TRIP_OVERLAP activities."""
+    if is_terminal_trip(trip) or not trip.start_date or not trip.end_date:
+        return
     friend_ids = get_friend_ids(actor_user_id)
     if not friend_ids:
         return
     
     overlapping_trips = SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
+        active_or_legacy_trip_predicate(),
         SkiTrip.start_date <= trip.end_date,
         SkiTrip.end_date >= trip.start_date,
+        SkiTrip.end_date >= date.today(),
+        SkiTrip.is_public.is_(True),
         db.or_(
             SkiTrip.resort_id == trip.resort_id,
             SkiTrip.mountain == trip.mountain
@@ -1227,7 +1323,9 @@ def emit_carpool_activity(user, trip, seats):
     Only emits to friends with trips that overlap dates and location.
     Group trips do not emit carpool activities (handled at caller).
     """
-    if user.is_seeded:
+    # This helper can be reached from several mutation paths; never emit from
+    # retained terminal history even if a caller used a stale trip instance.
+    if user.is_seeded or is_terminal_trip(trip):
         return
     
     friend_ids = get_friend_ids(user.id)
@@ -1239,6 +1337,7 @@ def emit_carpool_activity(user, trip, seats):
     for friend_id in friend_ids:
         friend_trips = SkiTrip.query.filter(
             SkiTrip.user_id == friend_id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.start_date <= trip.end_date,
             SkiTrip.end_date >= trip.start_date,
             db.or_(
@@ -1323,6 +1422,7 @@ def compute_friend_trip_availability_overlaps(user):
     
     friend_trips = SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
+        active_or_legacy_trip_predicate(),
         SkiTrip.end_date >= date.today(),
         SkiTrip.is_public == True,
     ).all()
@@ -4829,6 +4929,7 @@ def build_trip_detail_friend_overlaps(
         SkiTrip.query
         .filter(
             SkiTrip.id != trip.id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.resort_id == trip.resort_id,
             SkiTrip.is_public.is_(True),
             SkiTrip.start_date.isnot(None),
@@ -5000,6 +5101,7 @@ def my_trips():
             SkiTrip.query
             .options(db.joinedload(SkiTrip.resort))
             .filter(SkiTrip.user_id == current_user.id)
+            .filter(active_or_legacy_trip_predicate())
             .filter(SkiTrip.end_date >= today)
             .order_by(SkiTrip.start_date.asc())
             .all()
@@ -5012,14 +5114,18 @@ def my_trips():
 
     _t = time.perf_counter()
     try:
-        past_trips = (
+        owned_history_trips = (
             SkiTrip.query
             .options(db.joinedload(SkiTrip.resort))
             .filter(SkiTrip.user_id == current_user.id)
-            .filter(SkiTrip.end_date < today)
+            .filter(db.or_(
+                SkiTrip.end_date < today,
+                SkiTrip.lifecycle_state.in_(("completed", "cancelled")),
+            ))
             .order_by(SkiTrip.start_date.desc())
             .all()
         ) or []
+        past_trips = owned_history_trips
     except Exception:
         past_trips = []
     if app.debug:
@@ -5039,6 +5145,7 @@ def my_trips():
                 db.joinedload(SkiTrip.resort)
             ).filter(
                 SkiTrip.id.in_(invited_trip_ids),
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today
             ).order_by(SkiTrip.start_date.asc()).all() or []
             # Batch-load inviters (trip owner = inviter) — one query, no N+1
@@ -5053,6 +5160,7 @@ def my_trips():
 
     # Get trips where the user is an active guest (not owner).
     accepted_guest_trips = []
+    accepted_trip_ids = []
     try:
         accepted_participations = SkiTripParticipant.query.filter(
             SkiTripParticipant.user_id == current_user.id,
@@ -5067,6 +5175,7 @@ def my_trips():
             ).filter(
                 SkiTrip.id.in_(accepted_trip_ids),
                 SkiTrip.user_id != current_user.id,
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today
             ).all() or []
             accepted_guest_trips = [
@@ -5079,6 +5188,26 @@ def my_trips():
             )
     except Exception:
         accepted_guest_trips = []
+
+    # Historical guest trips retain only active participants. Terminal trips
+    # are intentionally shown here, alongside ordinary past trips.
+    try:
+        historical_guest_trips = SkiTrip.query.options(
+            db.joinedload(SkiTrip.resort)
+        ).filter(
+            SkiTrip.id.in_(accepted_trip_ids or [-1]),
+            SkiTrip.user_id != current_user.id,
+            db.or_(
+                SkiTrip.end_date < today,
+                SkiTrip.lifecycle_state.in_(("completed", "cancelled")),
+            ),
+        ).order_by(SkiTrip.start_date.desc()).all() or []
+        past_trips.extend(
+            trip for trip in historical_guest_trips
+            if trip.id not in {existing.id for existing in past_trips}
+        )
+    except Exception:
+        pass
 
     # Get friends — single join query (replaces get_friend_ids + User.query, saves 1 round trip)
     _t = time.perf_counter()
@@ -5106,6 +5235,7 @@ def my_trips():
                 db.joinedload(SkiTrip.resort)
             ).filter(
                 SkiTrip.user_id.in_(friend_ids),
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
                 SkiTrip.is_public == True
             ).order_by(SkiTrip.start_date.asc()).all() or []
@@ -5124,6 +5254,7 @@ def my_trips():
                     SkiTripParticipant.status == GuestStatus.GOING,
                     SkiTripParticipant.user_id != SkiTrip.user_id,
                     SkiTrip.user_id.in_(friend_ids),
+                    active_or_legacy_trip_predicate(),
                     SkiTrip.is_public == True,
                     SkiTrip.end_date >= today,
                 )
@@ -5589,6 +5720,7 @@ def api_mountains_data():
             SkiTrip.user_id.in_(friend_ids),
             SkiTrip.resort_id.isnot(None),
             SkiTrip.is_public.is_(True),
+            active_or_legacy_trip_predicate(),
         ).group_by(SkiTrip.resort_id).all()
         friend_resort_counts = {rid: cnt for rid, cnt in _counts}
     if app.debug:
@@ -5883,6 +6015,9 @@ def idea_detail_trip(trip_id):
     user = current_user
 
     trip = SkiTrip.query.get_or_404(trip_id)
+    # Idea cards are a live-planning surface, never terminal history.
+    if is_terminal_trip(trip):
+        abort(404)
 
     # Must be a public trip belonging to a friend
     if not trip.is_public:
@@ -6042,6 +6177,7 @@ def create_trip():
     
     overlapping = SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
+        active_or_legacy_trip_predicate(),
         SkiTrip.start_date <= end_date,
         SkiTrip.end_date >= start_date
     ).first()
@@ -6062,6 +6198,7 @@ def create_trip():
         pass_type=pass_type,
         is_public=is_public,
         trip_status='planning',
+        lifecycle_state="active",
         is_group_trip=is_group_trip or (friend_id is not None),
         created_by_user_id=user.id
     )
@@ -6149,6 +6286,8 @@ def update_trip_dates(trip_id):
     # a guest range cannot race a shortened core range between validation and
     # commit.
     trip = SkiTrip.query.filter_by(id=trip_id).with_for_update().first_or_404()
+    if is_terminal_trip(trip):
+        return _terminal_trip_json()
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     data = request.get_json(silent=True) or {}
@@ -6168,6 +6307,7 @@ def update_trip_dates(trip_id):
     overlapping = SkiTrip.query.filter(
         SkiTrip.user_id == current_user.id,
         SkiTrip.id != trip_id,
+        active_or_legacy_trip_predicate(),
         SkiTrip.start_date <= end_date,
         SkiTrip.end_date >= start_date
     ).first()
@@ -6235,6 +6375,8 @@ def update_participant_dates(trip_id):
     # Lock the parent trip before validating the range. This uses the same lock
     # order as update_trip_dates, which serializes concurrent core-date edits.
     trip = SkiTrip.query.filter_by(id=trip_id).with_for_update().first_or_404()
+    if is_terminal_trip(trip):
+        return _terminal_trip_json()
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id,
         user_id=current_user.id,
@@ -6337,7 +6479,9 @@ def update_participant_dates(trip_id):
 @login_required
 def update_trip_resort(trip_id):
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return _terminal_trip_json()
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     data = request.get_json(silent=True) or {}
@@ -6407,7 +6551,9 @@ def update_trip_pass(trip_id):
     SkiTrip.pass_type is preserved as a legacy field but is no longer written here.
     """
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return _terminal_trip_json()
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
     ).first()
@@ -6445,9 +6591,9 @@ def update_trip_visibility(trip_id):
     for visibility-only changes.
     """
     validate_csrf_request()
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"success": False, "error": "Trip not found."}), 404
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return _terminal_trip_json()
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Only the trip owner can change visibility."}), 403
     data = request.get_json(silent=True) or {}
@@ -6474,9 +6620,9 @@ def update_trip_status(trip_id):
     owner) when the value changes. No notification is sent when unchanged.
     """
     validate_csrf_request()
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"success": False, "error": "Trip not found."}), 404
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return _terminal_trip_json()
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Only the trip owner can change status."}), 403
     data = request.get_json(silent=True) or {}
@@ -6529,10 +6675,10 @@ def update_trip_status(trip_id):
     })
 
 
-def _delete_trip_related_data(trip):
-    """Perform all pre-delete cleanup for a SkiTrip before db.session.delete(trip).
+def _cancel_trip_live_artifacts(trip):
+    """Remove only live delivery/social artifacts when cancelling a SkiTrip.
 
-    Must be called inside the same transaction that will delete the trip.
+    Must be called inside the same transaction that marks the trip cancelled.
     Does NOT commit — the caller is responsible for commit and rollback.
 
     Handles:
@@ -6542,21 +6688,11 @@ def _delete_trip_related_data(trip):
     - FRIEND_TRIP_OVERLAPS_AVAILABILITY activity rows referencing this trip
     - General activity rows (object_type='trip', object_id=trip.id)
 
-    SkiTripParticipant and SkiTripPlanningPost are handled automatically by the
-    ORM 'all, delete-orphan' cascade on db.session.delete(trip).
-
-    SkiDay rows are intentionally not deleted.  Their nullable trip_id FK uses
-    ON DELETE SET NULL so confirmed ski history remains independent of planning
-    data after a trip is removed.
-
-    MessageEventLog rows that reference the trip via object_type/object_id are
-    intentional audit-history records with no FK constraint — they are preserved.
+    Participants, RSVP transitions, planning posts, notes, Stay fields, and the
+    SkiTrip itself are retained as historical data.
     """
     Invitation.query.filter(Invitation.trip_id == trip.id).delete(synchronize_session=False)
     TripInviteToken.query.filter_by(trip_id=trip.id).delete(synchronize_session=False)
-    SkiTripRsvpTransition.query.filter_by(
-        trip_id=trip.id
-    ).delete(synchronize_session=False)
     delete_availability_overlap_activities_for_trip(trip.id)
     delete_activities_for_trip(trip.id)
 
@@ -6565,26 +6701,29 @@ def _delete_trip_related_data(trip):
 @login_required
 def delete_trip(trip_id):
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
-    if trip.user_id != current_user.id:
-        return jsonify({"success": False, "error": "Unauthorized"}), 403
-
-    # Capture notification data before hard delete
-    # Only notify ACCEPTED participants — pending invitees, declined, and removed users excluded
-    _del_resort = trip.mountain or "your trip"
-    _del_trip_id = trip.id
-    _del_notify_ids = [
-        p.user_id for p in SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.active_status_filter(),
-            SkiTripParticipant.user_id != trip.user_id,
-        ).all()
-    ]
-
     try:
-        _delete_trip_related_data(trip)
-        db.session.delete(trip)
+        result = cancel_trip(trip_id=trip_id, actor_user_id=current_user.id)
+        if result.changed:
+            # Read recipients only after the lifecycle service has locked and
+            # authorized the trip; this is the cancellation transaction's
+            # authoritative membership snapshot.
+            _del_resort = result.trip.mountain or "your trip"
+            _del_trip_id = result.trip.id
+            _del_notify_ids = [
+                p.user_id for p in SkiTripParticipant.query.filter(
+                    SkiTripParticipant.trip_id == result.trip.id,
+                    SkiTripParticipant.active_status_filter(),
+                    SkiTripParticipant.user_id != result.trip.user_id,
+                ).all()
+            ]
+            _cancel_trip_live_artifacts(result.trip)
         db.session.commit()
+    except TripLifecycleAuthorizationError:
+        db.session.rollback()
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    except TripLifecycleConflictError as exc:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(exc)}), 409
     except Exception as e:
         db.session.rollback()
         app.logger.error(
@@ -6594,7 +6733,7 @@ def delete_trip(trip_id):
         return jsonify({"success": False, "error": "Failed to delete trip. Please try again."}), 500
 
     # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
-    for _uid in _del_notify_ids:
+    for _uid in (_del_notify_ids if result.changed else []):
         emit_messaging_event(
             event_name=EventName.TRIP_CANCELLED,
             actor_user_id=current_user.id,
@@ -6608,7 +6747,7 @@ def delete_trip(trip_id):
             source_route="delete_trip",
         )
 
-    return jsonify({"success": True})
+    return jsonify({"success": True, "changed": result.changed, "state": "cancelled"})
 
 
 @app.route("/api/trip/<int:trip_id>/participant/settings", methods=["POST"])
@@ -9364,6 +9503,7 @@ def friends():
             .options(joinedload(SkiTrip.user), joinedload(SkiTrip.resort))
             .filter(
                 SkiTrip.user_id.in_(friend_ids),
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
                 SkiTrip.is_public == True
             )
@@ -9380,6 +9520,7 @@ def friends():
         .options(joinedload(SkiTrip.resort))
         .filter(
             SkiTrip.user_id == user.id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today
         )
         .all()
@@ -9400,6 +9541,7 @@ def friends():
             _user_guest_trips = SkiTrip.query.filter(
                 SkiTrip.id.in_(_user_accepted_ids),
                 SkiTrip.user_id != user.id,
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today
             ).all()
             user_trips = user_trips + _user_guest_trips
@@ -9469,6 +9611,7 @@ def friends():
             .options(joinedload(SkiTrip.resort))
             .filter(
                 SkiTrip.user_id.in_(friend_ids),
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
             )
             .all()
@@ -9490,6 +9633,7 @@ def friends():
             .filter(
                 SkiTripParticipant.user_id.in_(friend_ids),
                 SkiTripParticipant.active_status_filter(),
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
             )
             .all()
@@ -9835,7 +9979,7 @@ def friend_profile(friend_id):
     trips = (
         SkiTrip.query
         .filter_by(user_id=friend.id, is_public=True)
-        .filter(SkiTrip.end_date >= today)
+        .filter(active_or_legacy_trip_predicate(), SkiTrip.end_date >= today)
         .order_by(SkiTrip.start_date.asc())
         .all()
     )
@@ -9844,7 +9988,7 @@ def friend_profile(friend_id):
     user_trips = (
         SkiTrip.query
         .filter_by(user_id=user.id)
-        .filter(SkiTrip.end_date >= today)
+        .filter(active_or_legacy_trip_predicate(), SkiTrip.end_date >= today)
         .all()
     )
     try:
@@ -9858,6 +10002,7 @@ def friend_profile(friend_id):
             _fp_guest_trips = SkiTrip.query.filter(
                 SkiTrip.id.in_(_fp_accepted_ids),
                 SkiTrip.user_id != user.id,
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today
             ).all()
             _fp_participants = SkiTripParticipant.query.filter(
@@ -10766,10 +10911,14 @@ def check_trip_invite_eligibility(user_id, friend_id):
         return True
     
     # Check 2: Trip overlap (any trip, past or upcoming)
-    user_trips = SkiTrip.query.filter_by(user_id=user_id).all()
+    user_trips = SkiTrip.query.filter(
+        SkiTrip.user_id == user_id,
+        active_or_legacy_trip_predicate(),
+    ).all()
     friend_trips = SkiTrip.query.filter(
         SkiTrip.user_id == friend_id,
-        SkiTrip.is_public == True
+        SkiTrip.is_public == True,
+        active_or_legacy_trip_predicate(),
     ).all()
     
     for ut in user_trips:
@@ -10877,6 +11026,7 @@ def build_trip_overlap_today_card(user, today, friend_ids):
         (trip, None)
         for trip in SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
+        active_or_legacy_trip_predicate(),
         SkiTrip.resort_id.isnot(None),
         SkiTrip.start_date <= today,
         SkiTrip.end_date >= today,
@@ -10889,6 +11039,7 @@ def build_trip_overlap_today_card(user, today, friend_ids):
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.status == GuestStatus.GOING,
             SkiTripParticipant.user_id != SkiTrip.user_id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.resort_id.isnot(None),
             # This is only a SQL superset. The effective window below is the
             # deciding physical-presence check.
@@ -10924,6 +11075,7 @@ def build_trip_overlap_today_card(user, today, friend_ids):
         (trip, None, trip.user_id)
         for trip in SkiTrip.query.filter(
         SkiTrip.user_id.in_(friend_ids),
+        active_or_legacy_trip_predicate(),
         SkiTrip.resort_id == resort_id,
         SkiTrip.start_date <= today,
         SkiTrip.end_date >= today,
@@ -10936,6 +11088,7 @@ def build_trip_overlap_today_card(user, today, friend_ids):
             SkiTripParticipant.user_id.in_(friend_ids),
             SkiTripParticipant.status == GuestStatus.GOING,
             SkiTripParticipant.user_id != SkiTrip.user_id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.resort_id == resort_id,
             # Do not disclose a friend's attendance on a private shared trip.
             SkiTrip.is_public == True,
@@ -11022,6 +11175,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
         (trip, None)
         for trip in SkiTrip.query.filter(
         SkiTrip.user_id == user.id,
+        active_or_legacy_trip_predicate(),
         SkiTrip.resort_id.isnot(None),
         SkiTrip.start_date >= today
         ).order_by(SkiTrip.start_date.asc()).all()
@@ -11033,6 +11187,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
             SkiTripParticipant.user_id == user.id,
             SkiTripParticipant.status == GuestStatus.GOING,
             SkiTripParticipant.user_id != SkiTrip.user_id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.resort_id.isnot(None),
             SkiTrip.end_date >= today,
         )
@@ -11061,6 +11216,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
                 SkiTrip.query
             .filter(
                 SkiTrip.user_id.in_(friend_ids),
+                active_or_legacy_trip_predicate(),
                 SkiTrip.resort_id == trip.resort_id,
                 SkiTrip.end_date < today
             )
@@ -11075,6 +11231,7 @@ def build_friend_at_mountain_card(user, today, friend_ids):
                 SkiTripParticipant.user_id.in_(friend_ids),
                 SkiTripParticipant.status == GuestStatus.GOING,
                 SkiTripParticipant.user_id != SkiTrip.user_id,
+                active_or_legacy_trip_predicate(),
                 SkiTrip.resort_id == trip.resort_id,
                 # Do not disclose a friend's attendance on a private shared trip.
                 SkiTrip.is_public == True,
@@ -11460,6 +11617,7 @@ def home():
             .options(db.joinedload(SkiTrip.resort))
             .filter(
                 SkiTrip.user_id == user.id,
+                active_or_legacy_trip_predicate(),
                 SkiTrip.end_date >= today,
             )
             .order_by(SkiTrip.start_date.asc())
@@ -11490,6 +11648,7 @@ def home():
                 .filter(
                     SkiTrip.id.in_(accepted_trip_ids),
                     SkiTrip.user_id != user.id,
+                    active_or_legacy_trip_predicate(),
                     SkiTrip.end_date >= today,
                 )
                 .all()
@@ -11550,10 +11709,12 @@ def home():
         _hp_t0 = time.perf_counter()
         invited_participations = (
             SkiTripParticipant.query
+            .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
             .options(db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort))
             .filter(
                 SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.status == GuestStatus.PENDING
+                SkiTripParticipant.status == GuestStatus.PENDING,
+                active_or_legacy_trip_predicate(),
             )
             .all()
         )
@@ -12085,6 +12246,19 @@ def friend_trip_details(trip_id):
     trip = SkiTrip.query.get_or_404(trip_id)
     friend = db.session.get(User, trip.user_id)
 
+    # Terminal records are retained history, not friend-discoverable content.
+    # Delegate their access policy to the canonical, read-only trip detail:
+    # only the owner or an active retained participant can reach it.
+    if is_terminal_trip(trip):
+        terminal_participant = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip.id,
+            SkiTripParticipant.user_id == current_user.id,
+            SkiTripParticipant.active_status_filter(),
+        ).first()
+        if trip.user_id != current_user.id and not terminal_participant:
+            abort(404)
+        return redirect(url_for("trip_detail", trip_id=trip.id))
+
     # Prevent users from viewing trips of non-friends (unless it's their own)
     if trip.user_id != current_user.id:
         is_friend = Friend.query.filter_by(
@@ -12105,7 +12279,10 @@ def friend_trip_details(trip_id):
     # so individual physical-presence claims use effective attendance dates.
     your_trip_contexts = [
         (user_trip, None)
-        for user_trip in SkiTrip.query.filter_by(user_id=current_user.id).all()
+        for user_trip in SkiTrip.query.filter(
+            SkiTrip.user_id == current_user.id,
+            active_or_legacy_trip_predicate(),
+        ).all()
     ]
     your_going_participations = (
         SkiTripParticipant.query
@@ -12114,6 +12291,7 @@ def friend_trip_details(trip_id):
             SkiTripParticipant.user_id == current_user.id,
             SkiTripParticipant.status == GuestStatus.GOING,
             SkiTripParticipant.user_id != SkiTrip.user_id,
+            active_or_legacy_trip_predicate(),
         )
         .all()
     )
@@ -12574,7 +12752,10 @@ def notifications():
         _trip_rows = (
             SkiTrip.query
             .options(joinedload(SkiTrip.resort))
-            .filter(SkiTrip.id.in_(_trip_ids))
+            .filter(
+                SkiTrip.id.in_(_trip_ids),
+                active_or_legacy_trip_predicate(),
+            )
             .all()
         )
         _trips_map = {t.id: t for t in _trip_rows}
@@ -12585,6 +12766,11 @@ def notifications():
     notifs = []
     today = datetime.utcnow()
     for act in raw_activities:
+        # A trip-backed activity is a live notification only while its trip
+        # still exists and is active. Never turn terminal/deleted references
+        # into generic text or a stale Trip Detail action.
+        if act.object_type == 'trip' and act.object_id not in _trips_map:
+            continue
         actor = act.actor
         actor_first = (actor.first_name or 'Someone') if actor else 'Someone'
         actor_name = f"{actor.first_name or ''} {actor.last_name or ''}".strip() if actor else 'Someone'
@@ -12943,6 +13129,7 @@ def _build_mountain_availability_overlaps(
         )
         .filter(
             SkiTrip.resort_id == resort_id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today,
             db.or_(
                 SkiTrip.user_id == user.id,
@@ -13058,6 +13245,7 @@ def mountain_detail(slug):
         SkiTrip.query
         .filter(
             SkiTrip.resort_id == resort.id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today,
             SkiTrip.start_date >= season_start,
             SkiTrip.start_date <= season_end,
@@ -13825,6 +14013,7 @@ def add_trip():
             for _pr in _parsed:
                 _existing = SkiTrip.query.filter(
                     SkiTrip.user_id == current_user.id,
+                    active_or_legacy_trip_predicate(),
                     SkiTrip.end_date >= _today,
                     SkiTrip.start_date <= _pr['end'],
                     SkiTrip.end_date >= _pr['start'],
@@ -13859,6 +14048,7 @@ def add_trip():
                         end_date=_pr['end'],
                         is_public=is_public,
                         trip_status=trip_status_form,
+                        lifecycle_state="active",
                         trip_duration=_dur,
                         trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
                         is_group_trip=False,
@@ -13949,6 +14139,7 @@ def add_trip():
         
         overlapping = SkiTrip.query.filter(
             SkiTrip.user_id == current_user.id,
+            active_or_legacy_trip_predicate(),
             SkiTrip.resort_id == resort.id,
             SkiTrip.end_date >= today,
             SkiTrip.start_date <= end_date,
@@ -13985,6 +14176,7 @@ def add_trip():
             end_date=end_date,
             is_public=is_public,
             trip_status=trip_status_form,
+            lifecycle_state="active",
             ride_intent=ride_intent,
             trip_duration=trip_duration,
             trip_equipment_status=trip_equipment_status if trip_equipment_status != 'use_default' else None,
@@ -14159,6 +14351,7 @@ def trip_detail(trip_id):
     # participants can use the full trip experience; Pending users can view
     # only to make their RSVP choice.
     is_owner = trip.user_id == current_user.id
+    is_terminal = is_terminal_trip(trip)
     participant = SkiTripParticipant.query.filter_by(
         trip_id=trip_id, user_id=current_user.id
     ).first()
@@ -14170,7 +14363,9 @@ def trip_detail(trip_id):
     # Organizers, active guests, and pending invitees can view the trip detail.
     # Declined and Removed relationships remain private until an organizer
     # explicitly reinvites them.
-    if not is_owner and not is_guest and not is_invited:
+    if is_terminal and not is_owner and not is_guest:
+        abort(404)
+    if not is_terminal and not is_owner and not is_guest and not is_invited:
         abort(404)
     
     # Load all RSVP rows once, then provide explicit UI groups. Removed is
@@ -14202,7 +14397,7 @@ def trip_detail(trip_id):
     
     # Get connected friends for invite modal (owner only)
     friends_for_invite = []
-    if is_owner:
+    if is_owner and not is_terminal:
         friend_links = Friend.query.filter_by(user_id=current_user.id).all()
         friend_ids = [f.friend_id for f in friend_links]
         if friend_ids:
@@ -14255,7 +14450,7 @@ def trip_detail(trip_id):
     
     # Get pending join requests (owner only)
     pending_requests = []
-    if is_owner:
+    if is_owner and not is_terminal:
         pending_requests = Invitation.query.filter_by(
             trip_id=trip_id,
             invite_type=InviteType.REQUEST,
@@ -14346,7 +14541,7 @@ def trip_detail(trip_id):
     resorts_json = get_resorts_for_trip_form() if is_owner else []
 
     # Planning board access + post count
-    can_plan = can_access_trip_planning(trip, current_user)
+    can_plan = not is_terminal and can_access_trip_planning(trip, current_user)
     planning_preview_posts = []
     planning_post_count = (
         SkiTripPlanningPost.query.filter_by(trip_id=trip_id).count()
@@ -14366,8 +14561,10 @@ def trip_detail(trip_id):
             )
 
     # My Setup: current user is editable only while actively participating.
-    is_member = is_owner or is_guest
+    is_member = (is_owner or is_guest) and not is_terminal
     can_edit_attendance_dates = bool(
+        not is_terminal
+        and
         is_guest
         and current_user_participant
         and current_user_participant.status == GuestStatus.GOING
@@ -14463,7 +14660,37 @@ def trip_detail(trip_id):
         my_pass_display=my_pass_display,
         is_overnight=is_overnight,
         attention_items=attention_items,
+        is_terminal=is_terminal,
+        can_complete=bool(
+            is_owner
+            and not is_terminal
+            and trip.end_date
+            and trip.end_date < today
+        ),
     )
+
+
+@app.route("/trips/<int:trip_id>/complete", methods=["POST"])
+@login_required
+def complete_trip_form(trip_id):
+    """Organizer action that archives an ended SkiTrip as completed."""
+    validate_csrf_request()
+    try:
+        result = complete_trip(
+            trip_id=trip_id,
+            actor_user_id=current_user.id,
+            today=date.today(),
+        )
+        db.session.commit()
+    except TripLifecycleAuthorizationError:
+        db.session.rollback()
+        abort(403)
+    except (TripLifecycleConflictError, TripLifecycleEligibilityError) as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id)), 409
+    flash("Trip marked complete.", "trip")
+    return redirect(url_for("trip_detail", trip_id=result.trip.id))
 
 
 @app.route("/trips/<int:trip_id>/planning")
@@ -14537,9 +14764,9 @@ def _validate_planning_link_url(raw):
 def update_trip_stay(trip_id):
     """Create, edit, or clear the organizer's shared overnight Stay."""
     validate_csrf_request()
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"success": False, "error": "Trip not found."}), 404
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return _terminal_trip_json()
     if trip.user_id != current_user.id:
         return jsonify({
             "success": False,
@@ -14644,8 +14871,16 @@ def update_trip_stay(trip_id):
 def planning_posts_create(trip_id):
     """Create a new planning post. Accepted members only."""
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
-    if not can_access_trip_planning(trip, current_user):
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return jsonify({"error": "This trip is read-only because it has ended."}), 409
+    member = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id, user_id=current_user.id
+    ).with_for_update().first()
+    if not (
+        trip.user_id == current_user.id
+        or (member and member.is_active)
+    ):
         return jsonify({"error": "Access denied"}), 403
 
     data = request.get_json(silent=True) or {}
@@ -14711,10 +14946,16 @@ def planning_posts_create(trip_id):
 def planning_posts_update(trip_id, post_id):
     """Edit a planning post. Author only."""
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return jsonify({"error": "This trip is read-only because it has ended."}), 409
     if not can_access_trip_planning(trip, current_user):
         return jsonify({"error": "Access denied"}), 403
-    post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
+    post = (
+        SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id)
+        .with_for_update()
+        .first_or_404()
+    )
 
     if post.user_id != current_user.id:
         return jsonify({"error": "Only the post author can edit this post"}), 403
@@ -14747,10 +14988,16 @@ def planning_posts_update(trip_id, post_id):
 def planning_posts_delete(trip_id, post_id):
     """Delete a planning post. Author or trip owner."""
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return jsonify({"error": "This trip is read-only because it has ended."}), 409
     if not can_access_trip_planning(trip, current_user):
         return jsonify({"error": "Access denied"}), 403
-    post = SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id).first_or_404()
+    post = (
+        SkiTripPlanningPost.query.filter_by(id=post_id, trip_id=trip_id)
+        .with_for_update()
+        .first_or_404()
+    )
 
     if post.user_id != current_user.id and trip.user_id != current_user.id:
         return jsonify({"error": "Access denied"}), 403
@@ -14765,6 +15012,16 @@ def planning_posts_delete(trip_id, post_id):
 def trip_invite_detail(trip_id):
     """Invite detail page - view trip invitation before accepting or after accepting."""
     trip = SkiTrip.query.get_or_404(trip_id)
+    if is_terminal_trip(trip):
+        if trip.user_id == current_user.id:
+            return redirect(url_for("trip_detail", trip_id=trip.id))
+        participant = SkiTripParticipant.query.filter_by(
+            trip_id=trip_id, user_id=current_user.id
+        ).first()
+        if participant and participant.is_active:
+            return redirect(url_for("trip_detail", trip_id=trip.id))
+        flash("This trip is no longer accepting responses.", "error")
+        return redirect(url_for("my_trips"))
     today = date.today()
     
     # Check if invite has expired (trip start date has passed)
@@ -14841,9 +15098,9 @@ def update_trip_accommodation(trip_id):
     URL validation or notification-silence guarantees.
     """
     validate_csrf_request()
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"status": "error", "message": "Trip not found"}), 404
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return jsonify({"status": "error", "message": "This trip is read-only because it has ended."}), 409
     
     if trip.user_id != current_user.id:
         return jsonify({"status": "error", "message": "Only the trip organizer can manage accommodations"}), 403
@@ -14916,9 +15173,9 @@ def update_trip_accommodation(trip_id):
 def update_trip_notes(trip_id):
     """Update trip notes (owner-only write)."""
     validate_csrf_request()
-    trip = db.session.get(SkiTrip, trip_id)
-    if not trip:
-        return jsonify({"status": "error", "message": "Trip not found"}), 404
+    trip, terminal = _lock_mutable_trip(trip_id)
+    if terminal:
+        return jsonify({"status": "error", "message": "This trip is read-only because it has ended."}), 409
     if trip.user_id != current_user.id:
         return jsonify({"status": "error", "message": "Only the trip organizer can edit notes"}), 403
     data = request.json or {}
@@ -14957,6 +15214,11 @@ def trip_invite_token_landing(token):
     if not trip:
         return render_template("invite_invalid.html",
                                message="This trip invite link is no longer valid.")
+    if is_terminal_trip(trip):
+        return render_template(
+            "invite_invalid.html",
+            message="This trip invite link is no longer valid.",
+        ), 409
     inviter = db.session.get(User, tit.inviter_user_id)
     if not inviter:
         return render_template("invite_invalid.html",
@@ -15017,10 +15279,12 @@ def trip_invite_token_accept(token):
     if _tit_is_expired(tit):
         return render_template("invite_invalid.html",
                                message="This trip invite link has expired.")
-    trip = db.session.get(SkiTrip, tit.trip_id)
-    if not trip:
-        return render_template("invite_invalid.html",
-                               message="This trip invite link is no longer valid.")
+    trip, terminal = _lock_mutable_trip(tit.trip_id)
+    if terminal:
+        return render_template(
+            "invite_invalid.html",
+            message="This trip is no longer accepting responses.",
+        ), 409
 
     # Owner guard
     if current_user.id == trip.user_id:
@@ -15351,7 +15615,9 @@ def respond_to_join_request(request_id):
     if invitation.invite_type != InviteType.REQUEST:
         return jsonify({"success": False, "error": "Invalid invitation type."}), 400
         
-    trip = SkiTrip.query.get_or_404(invitation.trip_id)
+    trip, terminal = _lock_mutable_trip(invitation.trip_id)
+    if terminal:
+        return _terminal_trip_json()
     
     # Only the trip owner can respond
     if trip.user_id != current_user.id:
@@ -15414,6 +15680,9 @@ def cancel_join_request(request_id):
     """Cancel a pending join request."""
     validate_csrf_request()
     invitation = Invitation.query.get_or_404(request_id)
+    _trip, terminal = _lock_mutable_trip(invitation.trip_id)
+    if terminal:
+        return _terminal_trip_json()
     
     if invitation.sender_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
@@ -15871,28 +16140,22 @@ def update_participant_signals(trip_id):
 @login_required
 def delete_trip_form(trip_id):
     validate_csrf_request()
-    trip = SkiTrip.query.get_or_404(trip_id)
-    if trip.user_id != current_user.id:
-        abort(403)
-
-    # Capture notification data before hard delete (participant records cascade-delete with trip)
-    # Only notify active participants — pending, declined, and removed users excluded.
-    _del_resort = trip.mountain or "your trip"
-    _del_trip_id = trip.id
-    _del_notify_ids = [
-        p.user_id for p in SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.active_status_filter(),
-            SkiTripParticipant.user_id != trip.user_id,
-        ).all()
-    ]
-
     try:
-        _delete_trip_related_data(trip)
-        db.session.delete(trip)
+        result = cancel_trip(trip_id=trip_id, actor_user_id=current_user.id)
+        if result.changed:
+            _del_resort = result.trip.mountain or "your trip"
+            _del_trip_id = result.trip.id
+            _del_notify_ids = [
+                p.user_id for p in SkiTripParticipant.query.filter(
+                    SkiTripParticipant.trip_id == result.trip.id,
+                    SkiTripParticipant.active_status_filter(),
+                    SkiTripParticipant.user_id != result.trip.user_id,
+                ).all()
+            ]
+            _cancel_trip_live_artifacts(result.trip)
         db.session.commit()
         # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
-        for _uid in _del_notify_ids:
+        for _uid in (_del_notify_ids if result.changed else []):
             emit_messaging_event(
                 event_name=EventName.TRIP_CANCELLED,
                 actor_user_id=current_user.id,
@@ -15909,8 +16172,15 @@ def delete_trip_form(trip_id):
             "[delete_trip_form] success route=delete_trip_form trip_id=%s user_id=%s",
             trip_id, current_user.id
         )
-        flash("Trip deleted.", "trip")
+        flash("Trip cancelled.", "trip")
         return redirect(url_for("my_trips"))
+    except TripLifecycleAuthorizationError:
+        db.session.rollback()
+        abort(403)
+    except TripLifecycleConflictError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id)), 409
     except Exception as e:
         db.session.rollback()
         app.logger.error(
@@ -16363,6 +16633,15 @@ def delete_account():
             synchronize_session=False,
         )
 
+        # Lifecycle history on surviving trips is retained but anonymized.
+        # Events for owned trips are removed by the trip hard delete below.
+        SkiTripLifecycleEvent.query.filter_by(
+            actor_user_id=user_id
+        ).update(
+            {SkiTripLifecycleEvent.actor_user_id: None},
+            synchronize_session=False,
+        )
+
         # 1c. Connection history belongs to both relationship subjects. Erase
         # any pair involving this account and anonymize actor-only references
         # on unrelated surviving pairs.
@@ -16444,6 +16723,9 @@ def delete_account():
             # authored by the deleting user were already removed in step 10b).
             SkiTripPlanningPost.query.filter(
                 SkiTripPlanningPost.trip_id.in_(owned_trip_ids)
+            ).delete(synchronize_session=False)
+            SkiTripLifecycleEvent.query.filter(
+                SkiTripLifecycleEvent.trip_id.in_(owned_trip_ids)
             ).delete(synchronize_session=False)
             # Trip invite tokens for owned trips (any inviter).  Tokens created
             # by the deleting user were already removed in step 6b.
@@ -17950,7 +18232,8 @@ def seed_full_demo_world():
                     start_date=start,
                     end_date=end,
                     pass_type=random.choice(user.pass_type.split(",")),
-                    is_public=True
+                    is_public=True,
+                    lifecycle_state="active",
                 )
                 db.session.add(trip)
                 trip_count += 1

@@ -33,7 +33,7 @@ def _operations(connection):
 def test_revision_is_linear_and_within_version_identifier_limit():
     migration = _load_migration()
     assert migration.revision == "bl70_user_season_pass"
-    assert migration.down_revision == "bl79_friend_history"
+    assert migration.down_revision == "bl80_trip_lifecycle"
     assert len(migration.revision) <= 32
 
 

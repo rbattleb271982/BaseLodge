@@ -310,6 +310,10 @@ def _trip_candidates(*, user_id, today, available_days):
             )
         )
         .where(
+            sa.or_(
+                trip.c.lifecycle_state.is_(None),
+                trip.c.lifecycle_state == "active",
+            ),
             trip.c.end_date >= today,
             trip.c.is_public.is_(True),
             trip.c.resort_id.is_not(None),
@@ -350,6 +354,10 @@ def _trip_candidates(*, user_id, today, available_days):
         .where(
             participant.c.status.in_(
                 (GuestStatus.INTERESTED, GuestStatus.GOING)
+            ),
+            sa.or_(
+                trip.c.lifecycle_state.is_(None),
+                trip.c.lifecycle_state == "active",
             ),
             trip.c.user_id != participant.c.user_id,
             trip.c.end_date >= today,
@@ -761,6 +769,10 @@ def _build_home_ideas_statement(
         trip.c.end_date.label("end_date"),
     ).where(
         trip.c.user_id == user_id,
+        sa.or_(
+            trip.c.lifecycle_state.is_(None),
+            trip.c.lifecycle_state == "active",
+        ),
         trip.c.resort_id.is_not(None),
         trip.c.end_date >= today,
     )
@@ -784,6 +796,10 @@ def _build_home_ideas_statement(
         .select_from(trip.join(participant, participant.c.trip_id == trip.c.id))
         .where(
             participant.c.user_id == user_id,
+            sa.or_(
+                trip.c.lifecycle_state.is_(None),
+                trip.c.lifecycle_state == "active",
+            ),
             participant.c.status.in_(
                 (GuestStatus.INTERESTED, GuestStatus.GOING)
             ),

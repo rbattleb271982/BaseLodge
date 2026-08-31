@@ -112,6 +112,45 @@ def test_past_and_future_public_friend_trips_still_count(client):
     assert _friend_count(client, resort_id) == 2
 
 
+def test_terminal_public_friend_trips_do_not_count(client):
+    with app.app_context():
+        viewer = _make_user("terminal-date-viewer")
+        completed_friend = _make_user("completed-friend")
+        cancelled_friend = _make_user("cancelled-friend")
+        active_friend = _make_user("active-friend")
+        resort = _make_resort("Terminal Count Peak")
+        for friend in (completed_friend, cancelled_friend, active_friend):
+            _connect(viewer, friend)
+
+        today = date.today()
+        completed = _make_trip(
+            completed_friend,
+            resort=resort,
+            start_date=today - timedelta(days=10),
+            end_date=today - timedelta(days=8),
+        )
+        completed.lifecycle_state = "completed"
+        cancelled = _make_trip(
+            cancelled_friend,
+            resort=resort,
+            start_date=today + timedelta(days=10),
+            end_date=today + timedelta(days=12),
+        )
+        cancelled.lifecycle_state = "cancelled"
+        _make_trip(
+            active_friend,
+            resort=resort,
+            start_date=today + timedelta(days=20),
+            end_date=today + timedelta(days=22),
+        )
+        db.session.commit()
+        viewer_id = viewer.id
+        resort_id = resort.id
+
+    _login(client, viewer_id)
+    assert _friend_count(client, resort_id) == 1
+
+
 @pytest.mark.parametrize(
     "participant_status",
     [

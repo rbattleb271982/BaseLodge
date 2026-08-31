@@ -24,6 +24,14 @@ from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_l
 _BAD_PASSES = {None, "", "no_pass", "no_pass_yet", "other"}
 
 
+def _active_or_legacy_trip_predicate():
+    """Keep terminal SkiTrip history out of live idea generation."""
+    return db.or_(
+        SkiTrip.lifecycle_state.is_(None),
+        SkiTrip.lifecycle_state == "active",
+    )
+
+
 def _norm_pass(pt):
     """
     Return the display label for the first real pass in pt.
@@ -780,7 +788,11 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
     _booked_windows: dict = {}
     if user_trips is not None:
         for t in user_trips:
-            if t.resort_id is None or t.end_date < today:
+            if (
+                t.resort_id is None
+                or t.end_date < today
+                or (t.lifecycle_state or "active") != "active"
+            ):
                 continue
             if t.resort_id not in _booked_windows:
                 _booked_windows[t.resort_id] = []
@@ -791,6 +803,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
                 SkiTrip.query
                 .filter(
                     SkiTrip.user_id == user.id,
+                    _active_or_legacy_trip_predicate(),
                     SkiTrip.resort_id.isnot(None),
                     SkiTrip.end_date >= today,
                 )
@@ -889,6 +902,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
         SkiTrip.query
         .filter(
             SkiTrip.user_id.in_(friend_ids),
+            _active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today,
             SkiTrip.is_public == True,
             SkiTrip.resort_id.isnot(None),
@@ -907,6 +921,7 @@ def build_destination_feed(user, all_friends, user_avail_dates=None, user_trips=
             SkiTripParticipant.user_id.in_(friend_ids),
             SkiTripParticipant.active_status_filter(),
             SkiTrip.user_id != SkiTripParticipant.user_id,
+            _active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today,
             SkiTrip.is_public == True,
             SkiTrip.resort_id.isnot(None),
@@ -1194,6 +1209,7 @@ def build_ranked_idea_feed(user, all_friends):
     _friend_trips = (
         SkiTrip.query.filter(
             SkiTrip.user_id.in_(friend_ids),
+            _active_or_legacy_trip_predicate(),
             SkiTrip.end_date >= today,
         ).all()
         if friend_ids else []

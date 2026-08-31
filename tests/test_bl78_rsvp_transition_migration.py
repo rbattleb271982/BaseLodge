@@ -65,6 +65,7 @@ def test_revision_precedes_deferred_bl70_in_single_linear_graph():
     config = Config(str(Path(__file__).parents[1] / "migrations" / "alembic.ini"))
     script = ScriptDirectory.from_config(config)
     bl79 = script.get_revision("bl79_friend_history")
+    bl80 = script.get_revision("bl80_trip_lifecycle")
     deferred_bl70 = script.get_revision("bl70_user_season_pass")
 
     assert migration.revision == "bl78_rsvp_transition"
@@ -72,7 +73,8 @@ def test_revision_precedes_deferred_bl70_in_single_linear_graph():
     assert migration.branch_labels is None
     assert len(migration.revision) <= 32
     assert bl79.down_revision == "bl78_rsvp_transition"
-    assert deferred_bl70.down_revision == "bl79_friend_history"
+    assert bl80.down_revision == "bl79_friend_history"
+    assert deferred_bl70.down_revision == "bl80_trip_lifecycle"
     assert script.get_heads() == ["bl70_user_season_pass"]
 
 

@@ -1783,6 +1783,20 @@
             line-height: 1.5;
             margin: 0;
         }
+        .td-terminal button,
+        .td-terminal form {
+            display: none !important;
+        }
+        .td-lifecycle-banner {
+            margin: 0 0 16px;
+            padding: 12px 14px;
+            border: 1px solid #D8D1C6;
+            border-radius: 10px;
+            background: #F2EFEA;
+            color: #4E473F;
+            font-size: 14px;
+            font-weight: 650;
+        }
     </style>
 {% endblock %}
 
@@ -1802,7 +1816,7 @@
     </div>
     {% endif %}
 
-    <div class="page-container td-hub-page{% if is_invited %} page-container-with-sticky{% endif %}">
+    <div class="page-container td-hub-page{% if is_invited %} page-container-with-sticky{% endif %}{% if is_terminal %} td-terminal{% endif %}">
 
 
         <!-- Trip header -->
@@ -1810,6 +1824,11 @@
         {% set state_abbr = trip.resort|state_abbrev if trip.resort else trip.state %}
         {% set people = all_participants|length if all_participants else 0 %}
         {% set ts = trip.trip_status or 'planning' %}
+        {% if is_terminal %}
+        <div class="td-lifecycle-banner" role="status">
+            {{ 'Completed' if trip.lifecycle_state == 'completed' else 'Cancelled' }} trip · Read-only history
+        </div>
+        {% endif %}
 
         <div class="td-header td-hub-block">
             <div class="td-mountain-header">
@@ -1818,11 +1837,11 @@
                 {% else %}
                 <span></span>
                 {% endif %}
-                {% if is_owner %}
+                {% if is_owner and not is_terminal %}
                 <button type="button" class="td-edit-link" id="td-edit-toggle-btn" onclick="tdToggleEditMode()">Edit trip</button>
                 {% endif %}
             </div>
-            {% if is_owner %}
+            {% if is_owner and not is_terminal %}
             <button type="button" class="td-header-dates td-header-dates--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
                 <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}<span class="td-date-chevron">›</span></span>
             </button>
@@ -1830,6 +1849,12 @@
             <div>
                 <p class="td-header-dates">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</p>
             </div>
+            {% endif %}
+            {% if can_complete %}
+            <form method="POST" action="{{ url_for('complete_trip_form', trip_id=trip.id) }}" style="margin-top:12px;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="bl-cta-trip">Mark trip complete</button>
+            </form>
             {% endif %}
             {% if is_invited %}
             <p class="td-header-notice">{{ (owner.first_name if owner else 'Someone') | format_name }} invited you</p>

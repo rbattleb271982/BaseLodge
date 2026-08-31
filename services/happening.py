@@ -79,6 +79,10 @@ def _build_happening_candidates_statement(
         )
         .where(
             trip.c.user_id.in_(unique_friend_ids),
+            sa.or_(
+                trip.c.lifecycle_state.is_(None),
+                trip.c.lifecycle_state == "active",
+            ),
             trip.c.end_date >= today,
             trip.c.is_public.is_(True),
             trip.c.resort_id.is_not(None),
@@ -127,6 +131,10 @@ def _build_happening_candidates_statement(
         )
         .where(
             participant.c.user_id.in_(unique_friend_ids),
+            sa.or_(
+                trip.c.lifecycle_state.is_(None),
+                trip.c.lifecycle_state == "active",
+            ),
             participant.c.status.in_(
                 (GuestStatus.INTERESTED, GuestStatus.GOING)
             ),

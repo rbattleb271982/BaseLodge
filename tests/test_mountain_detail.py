@@ -582,6 +582,31 @@ def test_mountain_availability_ignores_past_own_trips(client):
     assert "are free during your" not in html
 
 
+@pytest.mark.parametrize("lifecycle_state", ["completed", "cancelled"])
+def test_mountain_excludes_terminal_future_social_rows_and_availability(
+    client, lifecycle_state
+):
+    with app.app_context():
+        viewer = _make_user(f"terminal-mountain-viewer-{lifecycle_state}")
+        friend = _friend(f"terminal-mountain-friend-{lifecycle_state}", "Terminal")
+        resort = _make_resort(f"Terminal Mountain {lifecycle_state} Peak")
+        start = date.today() + timedelta(days=10)
+        own_trip = _make_trip(viewer, resort=resort, start_date=start, end_date=start)
+        friend_trip = _make_trip(friend, resort=resort, start_date=start, end_date=start)
+        own_trip.lifecycle_state = lifecycle_state
+        friend_trip.lifecycle_state = lifecycle_state
+        _connect(viewer, friend)
+        _add_availability(friend, start)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+    assert "Terminal-Mountain-Friend" not in html
+    assert "is free during your" not in html
+    assert "are free during your" not in html
+
+
 def test_mountain_availability_uses_inclusive_partial_and_full_overlap(client):
     with app.app_context():
         viewer = _make_user("availability-owner")

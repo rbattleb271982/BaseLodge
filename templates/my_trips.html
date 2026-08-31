@@ -498,6 +498,26 @@
             {% endfor %}
             {% endif %}
 
+            {% if past_trips %}
+            <p class="sub-section-label">Past Trips</p>
+            {% for trip in past_trips %}
+                {% set resort = trip.resort %}
+                {% set mountain_name = resort.name if resort else (trip.mountain or 'Mountain TBD') %}
+                <a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="past-row" style="text-decoration:none;">
+                    <div class="past-row-content">
+                        <p class="past-row-dest">{{ mountain_name }}</p>
+                        <p class="past-row-dates">
+                            {{ format_trip_dates(trip) }}
+                            {% if trip.lifecycle_state == 'completed' %} · Completed
+                            {% elif trip.lifecycle_state == 'cancelled' %} · Cancelled
+                            {% endif %}
+                            {% if trip.user_id != current_user.id %} · You're a guest{% endif %}
+                        </p>
+                    </div>
+                </a>
+            {% endfor %}
+            {% endif %}
+
         </div>
 
         <!-- ── FRIENDS' TRIPS ── -->

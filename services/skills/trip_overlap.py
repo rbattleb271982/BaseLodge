@@ -84,6 +84,10 @@ def trip_overlap_skill(user, all_friends):
             SkiTrip.end_date >= today,
             SkiTrip.is_public == True,
             or_(
+                SkiTrip.lifecycle_state.is_(None),
+                SkiTrip.lifecycle_state == "active",
+            ),
+            or_(
                 SkiTrip.trip_status.in_(["planning", "going"]),
                 SkiTrip.trip_status.is_(None),
             ),
