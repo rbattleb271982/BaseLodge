@@ -1,0 +1,152 @@
+Finalize and merge BL-194 — HOME — Render Next Trip Actions.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+Approved BL-194 files:
+- templates/partials/home/_next_trip.html
+- templates/macros/home_disclosure.html
+- templates/home.html
+- tests/test_home_next_trip_actions_presentation.py
+
+Exclude unrelated working-tree files from the BL-194 commit.
+
+2. Confirm the presentation contract.
+
+When `action_count > 0`:
+- render one compact disclosure row at the bottom of the Next Trip card
+- collapsed summary is exactly:
+  `Actions to take · N`
+- disclosure is collapsed by default
+- use native `<details>` / `<summary>` behavior
+- down-arrow indicator is present
+- existing `View trip` CTA remains separate and unchanged
+
+When `action_count == 0`:
+- render no Actions to take row
+- do not render `Actions to take · 0`
+- do not render an empty placeholder
+
+3. Confirm canonical action consumption.
+
+The template must consume:
+- `home_summary["next_trip"]["actions"]`
+- `home_summary["next_trip"]["action_count"]`
+
+Confirm:
+- actions render in server-provided order
+- canonical labels are used directly
+- canonical destinations are used directly
+- no template-side eligibility logic exists
+- no client-side sorting/filtering exists
+- internal key/type/priority values are not shown to users
+
+4. Confirm current approved actions render generically.
+
+Current BL-189 actions include:
+- Review RSVP
+- Review join requests
+
+Do NOT hard-code product eligibility around those labels.
+
+The presentation must remain extensible so BL-83/BL-84 can add canonical actions later without redesigning this component.
+
+5. Confirm disclosure macro change is safe.
+
+Because `templates/macros/home_disclosure.html` changed:
+- confirm the extension is backward compatible
+- confirm About You & Gear behavior remains intact
+- confirm Your Activity behavior remains intact
+- confirm Friends’ Passes behavior remains intact
+- confirm no existing disclosure unexpectedly changed copy, default state, accessibility, or interaction
+
+Do not broaden the macro further during merge cleanup.
+
+6. Confirm design boundaries.
+
+Do not add:
+- photographs
+- image placeholders
+- thumbnails
+- avatars/profile bubbles
+- decorative mountain illustrations
+- new semantic badges
+- gratuitous icons
+- Add pass
+- Add gear
+- profile actions
+- generic View/Edit actions inside the action list
+
+7. Confirm technical boundaries.
+
+There must be:
+- no new Home queries
+- no relationship lazy loading
+- no custom JavaScript
+- no new dependency
+- no BL-189 eligibility changes
+- no Next Trip selection changes
+- no RSVP behavior changes
+- no join-request behavior changes
+- no privacy/authorization changes
+- no schema/migration changes
+- no native configuration changes
+- no caching changes
+
+8. Run final validation.
+
+Run:
+- focused BL-194 presentation tests
+- BL-189 action-contract regressions
+- BL-193 Next Trip regressions
+- Home disclosure regressions
+- Home empty-state regressions
+- relevant Home module regressions
+- `git diff --check`
+
+If presentation code has not changed since the successful mobile/desktop validation, do not repeat unnecessary manual testing.
+
+9. Commit only the approved BL-194 implementation.
+
+Commit message:
+
+BL-194: render Next Trip actions on Home
+
+10. Report:
+
+BL-194 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Actions row implemented: YES/NO
+- Hidden at zero actions: YES/NO
+- Collapsed by default: YES/NO
+- Summary copy:
+- Down-arrow indicator preserved: YES/NO
+- Existing disclosure primitive reused: YES/NO
+- Disclosure macro backward compatible: YES/NO
+- Canonical action order preserved: YES/NO
+- Canonical destinations preserved: YES/NO
+- Template eligibility logic added: YES/NO
+- New Home queries: YES/NO
+- Custom JavaScript: YES/NO
+- New dependency: YES/NO
+- Existing View trip CTA preserved: YES/NO
+- Other Home modules behavior changed: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-194 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-194 MERGED
