@@ -1,0 +1,123 @@
+Finalize and merge BL-195 — HOME — Convert Happening to a horizontal dismissible carousel.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+Approved BL-195 files:
+- templates/home.html
+- templates/partials/home/_section_happening.html
+- tests/test_home_happening_carousel.py
+
+Exclude unrelated working-tree files from the BL-195 commit.
+
+2. Confirm the final carousel contract.
+
+Happening:
+- renders as a horizontal carousel
+- uses native horizontal scrolling
+- cards are approximately 78% width
+- next card visibly peeks into view
+- no page-level horizontal overflow
+- no new carousel dependency
+- no custom carousel JavaScript
+- current server-provided ordering is preserved
+- maximum five-card result remains unchanged
+
+3. Confirm dismissal behavior.
+
+Preserve exactly:
+- existing dismiss control
+- X remains accessible in upper-right
+- existing dismissal endpoint/behavior
+- user-specific dismissal
+- BL-177 winner-before-dismissal semantics
+- no older-trip fallback after dismissal
+
+Do not modify server-side dismissal behavior.
+
+4. Confirm design boundaries.
+
+Do not add:
+- photographs
+- image placeholders
+- thumbnails
+- profile bubbles/avatars
+- decorative mountain illustrations
+- gratuitous decorative icons
+- bookmarks
+- new semantic badges
+- fake “See all” destination
+
+Confirm no unrelated Home sections changed:
+- About You & Your Gear
+- Your Activity
+- Friends’ Passes
+- Your Next Trip
+- Ideas
+- Friends’ Trips
+- navigation/header
+
+5. Confirm data/performance boundaries.
+
+- BL-177 retrieval remains unchanged
+- no new Home queries
+- no client-side re-sorting
+- no relationship loading from the template
+- no changes to Ideas retrieval
+- no privacy/authorization changes
+- no schema/migration changes
+- no native configuration changes
+
+6. Run final validation.
+
+Run:
+- focused BL-195 carousel tests
+- BL-177 Happening retrieval regressions
+- Home empty-state regressions
+- relevant Home module regressions
+- Ideas/feed regressions
+- dismissal regressions
+- authorization/privacy regressions
+- `git diff --check`
+
+If no code affecting presentation has changed since the successful mobile/desktop preview validation, do not repeat unnecessary manual testing.
+
+7. Commit only the approved BL-195 implementation.
+
+Commit message:
+
+BL-195: add Happening Home carousel
+
+8. Report:
+
+BL-195 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Native horizontal scrolling: YES/NO
+- Approximate card width:
+- Next-card peek preserved: YES/NO
+- New carousel dependency: YES/NO
+- Custom carousel JavaScript: YES/NO
+- Existing dismissal behavior preserved: YES/NO
+- Happening ordering changed: YES/NO
+- Happening retrieval changed: YES/NO
+- New Home queries: YES/NO
+- Other Home modules changed: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-195 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-195 MERGED
