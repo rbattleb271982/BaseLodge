@@ -109,7 +109,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, SkiDay, Friend, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.trip_attendance import (
     effective_attendance_dates,
     participant_is_going,
@@ -129,6 +129,7 @@ from services.wishlist import (
     validate_wishlist_resort_ids,
 )
 from services.rsvp_transitions import RsvpCurrentStateError, transition_rsvp
+from services.connection_transitions import transition_connection
 from services.message_events import create_message_event, is_duplicate_event, should_retry
 from services.messaging_constants import (
     EventName, Category, DeliveryStatus, SuppressionReason, Channel, Provider,
@@ -4374,11 +4375,14 @@ def _apply_invite_token(invite, user):
     inviter = db.session.get(User, invite.inviter_id)
     connected = False
     if inviter and inviter.id != user.id:
-        existing = Friend.query.filter_by(user_id=user.id, friend_id=inviter.id).first()
-        if not existing:
-            f1 = Friend(user_id=user.id, friend_id=inviter.id)
-            f2 = Friend(user_id=inviter.id, friend_id=user.id)
-            db.session.add_all([f1, f2])
+        transition = transition_connection(
+            user_id=user.id,
+            other_user_id=inviter.id,
+            connected=True,
+            source="invite_token_accept",
+            actor_user_id=user.id,
+        )
+        if transition.formed:
             if not user.invited_by_user_id:
                 user.invited_by_user_id = inviter.id
             connected = True
@@ -4455,12 +4459,17 @@ def invite_token_landing(token):
         flash("That's your own invite link.", "info")
         return redirect(url_for("friends"))
 
-    # 4. Already friends — show success screen (token stays reusable for others)
+    # 4. Fully reciprocal friends — show success screen. A one-sided row is
+    # intentionally sent through confirmation so the POST can repair it under
+    # the canonical pair lock without recording another formation event.
     if current_user.is_authenticated:
-        existing = Friend.query.filter_by(
+        existing_outgoing = Friend.query.filter_by(
             user_id=current_user.id, friend_id=inviter.id
         ).first()
-        if existing:
+        existing_incoming = Friend.query.filter_by(
+            user_id=inviter.id, friend_id=current_user.id
+        ).first()
+        if existing_outgoing and existing_incoming:
             app.logger.info(
                 "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
                 current_user.id, inviter.id, token,
@@ -4534,10 +4543,13 @@ def invite_token_confirm(token):
 
     # ── Authenticated: create the friendship now ──────────────────────────────
     if current_user.is_authenticated:
-        existing = Friend.query.filter_by(
+        existing_outgoing = Friend.query.filter_by(
             user_id=current_user.id, friend_id=inviter.id
         ).first()
-        if existing:
+        existing_incoming = Friend.query.filter_by(
+            user_id=inviter.id, friend_id=current_user.id
+        ).first()
+        if existing_outgoing and existing_incoming:
             # Already connected — show success screen (token stays reusable for others).
             app.logger.info(
                 "[invite_already_connected] user_id=%s inviter_id=%s token=%.8s...",
@@ -7002,25 +7014,18 @@ def accept_invitation(invitation_id):
     if invitation.status not in ('pending', 'accepted'):
         return jsonify({"success": False, "error": "This invitation is no longer active"}), 409
 
-    # Idempotency: if users are already friends (double-tap, retry, or QR path raced ahead),
-    # mark the invitation accepted and return success without creating duplicate Friend rows
-    # or firing duplicate activity/messaging events.
-    already_friends = Friend.query.filter_by(
-        user_id=current_user.id, friend_id=invitation.sender_id
-    ).first()
-    if already_friends:
-        if invitation.status != 'accepted':
-            invitation.status = 'accepted'
-            db.session.commit()
+    invitation.status = 'accepted'
+    transition = transition_connection(
+        user_id=current_user.id,
+        other_user_id=invitation.sender_id,
+        connected=True,
+        source="friend_request_accept",
+        actor_user_id=current_user.id,
+    )
+    if transition.preexisting_row_count:
+        db.session.commit()
         return jsonify({"success": True, "message": "Already friends"}), 200
 
-    invitation.status = 'accepted'
-
-    friend_relationship = Friend(user_id=current_user.id, friend_id=invitation.sender_id)
-    reverse_friend = Friend(user_id=invitation.sender_id, friend_id=current_user.id)
-
-    db.session.add(friend_relationship)
-    db.session.add(reverse_friend)
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
     db.session.commit()
     _fc_count = Friend.query.filter_by(user_id=current_user.id).count()
@@ -7108,10 +7113,13 @@ def remove_friend(friend_id):
     if not friend1 and not friend2:
         return jsonify({"success": False, "error": "Friendship not found"}), 404
 
-    if friend1:
-        db.session.delete(friend1)
-    if friend2:
-        db.session.delete(friend2)
+    transition_connection(
+        user_id=current_user.id,
+        other_user_id=friend_id,
+        connected=False,
+        source="api_unfriend",
+        actor_user_id=current_user.id,
+    )
 
     # Cancel pending AND accepted friend invitations between the two users in
     # either direction so no invitation row can produce a ghost connected-state
@@ -9995,11 +10003,13 @@ def remove_friend_web(friend_id):
         flash("Friend not found.", "info")
         return redirect(url_for("friends"))
 
-    # Delete both directions — friendship is always stored as mirrored rows
-    row_b = Friend.query.filter_by(user_id=friend_id, friend_id=current_user.id).first()
-    db.session.delete(row_a)
-    if row_b:
-        db.session.delete(row_b)
+    transition_connection(
+        user_id=current_user.id,
+        other_user_id=friend_id,
+        connected=False,
+        source="web_unfriend",
+        actor_user_id=current_user.id,
+    )
 
     # Cancel pending AND accepted friend invitations between the two users in
     # either direction so no invitation row can produce a ghost connected-state
@@ -10606,16 +10616,13 @@ def connect_add(user_id):
     validate_csrf_request()
     inviter = User.query.get_or_404(user_id)
 
-    existing_a_to_b = Friend.query.filter_by(user_id=current_user.id, friend_id=inviter.id).first()
-    existing_b_to_a = Friend.query.filter_by(user_id=inviter.id, friend_id=current_user.id).first()
-
-    if not existing_a_to_b:
-        new_a_to_b = Friend(user_id=current_user.id, friend_id=inviter.id)
-        db.session.add(new_a_to_b)
-
-    if not existing_b_to_a:
-        new_b_to_a = Friend(user_id=inviter.id, friend_id=current_user.id)
-        db.session.add(new_b_to_a)
+    transition_connection(
+        user_id=current_user.id,
+        other_user_id=inviter.id,
+        connected=True,
+        source="qr_connect",
+        actor_user_id=current_user.id,
+    )
 
     # Mark any pending invitations between these two users as accepted,
     # since the connection was successfully established via QR/direct link.
@@ -16356,6 +16363,22 @@ def delete_account():
             synchronize_session=False,
         )
 
+        # 1c. Connection history belongs to both relationship subjects. Erase
+        # any pair involving this account and anonymize actor-only references
+        # on unrelated surviving pairs.
+        FriendConnectionEvent.query.filter(
+            db.or_(
+                FriendConnectionEvent.user_a_id == user_id,
+                FriendConnectionEvent.user_b_id == user_id,
+            )
+        ).delete(synchronize_session=False)
+        FriendConnectionEvent.query.filter_by(
+            actor_user_id=user_id
+        ).update(
+            {FriendConnectionEvent.actor_user_id: None},
+            synchronize_session=False,
+        )
+
         # 2. EmailLog rows for this user
         EmailLog.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
@@ -17432,13 +17455,16 @@ def accept_group_trip_invite(trip_id):
         
         # Create bidirectional friend connection with trip host if not already friends
         host = trip.host
-        existing = Friend.query.filter_by(user_id=current_user.id, friend_id=host.id).first()
-        if not existing:
-            f1 = Friend(user_id=current_user.id, friend_id=host.id)
-            f2 = Friend(user_id=host.id, friend_id=current_user.id)
-            db.session.add(f1)
-            db.session.add(f2)
+        transition = transition_connection(
+            user_id=current_user.id,
+            other_user_id=host.id,
+            connected=True,
+            source="group_trip_accept",
+            actor_user_id=current_user.id,
+        )
+        if transition.changed:
             db.session.commit()
+        if transition.formed:
             flash(f"Trip accepted! You're now connected with {host.first_name}.", "success")
         else:
             flash("Trip accepted!", "success")
@@ -17497,17 +17523,19 @@ def connect_from_trip(user_id):
         flash("You don't share an upcoming trip with this user.", "error")
         return redirect(url_for("friend_profile", friend_id=user_id))
     
-    # Check if already friends
-    existing = Friend.query.filter_by(user_id=current_user.id, friend_id=user_id).first()
-    if existing:
+    transition = transition_connection(
+        user_id=current_user.id,
+        other_user_id=user_to_connect.id,
+        connected=True,
+        source="shared_trip_connect",
+        actor_user_id=current_user.id,
+    )
+    if transition.preexisting_row_count:
+        if transition.changed:
+            db.session.commit()
         flash("You're already connected with this user.", "info")
         return redirect(url_for("friend_profile", friend_id=user_id))
-    
-    # Create bidirectional friend connection
-    f1 = Friend(user_id=current_user.id, friend_id=user_to_connect.id)
-    f2 = Friend(user_id=user_to_connect.id, friend_id=current_user.id)
-    db.session.add(f1)
-    db.session.add(f2)
+
     # Same helper + same argument order as accept_invitation: actor=current_user, other=them
     emit_connection_accepted_activity(current_user.id, user_to_connect.id)
     db.session.commit()

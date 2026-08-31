@@ -1,7 +1,7 @@
 """Add canonical season-specific user pass ownership.
 
 Revision ID: bl70_user_season_pass
-Revises: bl78_rsvp_transition
+Revises: bl79_friend_history
 Create Date: 2026-08-31
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 revision = "bl70_user_season_pass"
-down_revision = "bl78_rsvp_transition"
+down_revision = "bl79_friend_history"
 branch_labels = None
 depends_on = None
 

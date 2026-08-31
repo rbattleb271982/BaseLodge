@@ -11,6 +11,7 @@ from app import app
 from models import (
     db, User, SkiTrip, SkiDay, SkiTripParticipant, SkiTripPlanningPost,
     SkiTripRsvpTransition, TripInviteToken, Invitation, Friend, GuestStatus,
+    FriendConnectionEvent,
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
@@ -24,6 +25,8 @@ def deletion_setup(client):
         resort = _make_resort()
         user   = _make_user("doomed")
         other  = _make_user("other")
+        unrelated_a = _make_user("unrelated-a")
+        unrelated_b = _make_user("unrelated-b")
 
         owned_trip = _make_trip(user, resort=resort)
         _add_participant(owned_trip, other, GuestStatus.ACCEPTED)
@@ -42,6 +45,20 @@ def deletion_setup(client):
         ))
         db.session.add(Friend(user_id=user.id,  friend_id=other.id))
         db.session.add(Friend(user_id=other.id, friend_id=user.id))
+        pair_connection_event = FriendConnectionEvent(
+            user_a_id=min(user.id, other.id),
+            user_b_id=max(user.id, other.id),
+            event_type="formed",
+            actor_user_id=user.id,
+            source="qr_connect",
+        )
+        actor_only_connection_event = FriendConnectionEvent(
+            user_a_id=min(unrelated_a.id, unrelated_b.id),
+            user_b_id=max(unrelated_a.id, unrelated_b.id),
+            event_type="formed",
+            actor_user_id=user.id,
+            source="shared_trip_connect",
+        )
 
         other_trip = _make_trip(other, resort=resort)
         _add_participant(other_trip, user, GuestStatus.ACCEPTED)
@@ -73,6 +90,8 @@ def deletion_setup(client):
             subject_history,
             surviving_actor_history,
             owned_trip_history,
+            pair_connection_event,
+            actor_only_connection_event,
         ])
         db.session.add_all([
             SkiDay(
@@ -100,6 +119,8 @@ def deletion_setup(client):
             "subject_history_id": subject_history.id,
             "surviving_actor_history_id": surviving_actor_history.id,
             "owned_trip_history_id": owned_trip_history.id,
+            "pair_connection_event_id": pair_connection_event.id,
+            "actor_only_connection_event_id": actor_only_connection_event.id,
         }
     yield data
 
@@ -174,6 +195,38 @@ def test_delete_account_erases_subject_and_owned_trip_history_but_nulls_actor(
         )
         assert surviving is not None
         assert surviving.user_id == s["other_id"]
+        assert surviving.actor_user_id is None
+
+
+def test_delete_account_erases_pair_connection_history_without_removed_event(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert db.session.get(
+            FriendConnectionEvent, s["pair_connection_event_id"]
+        ) is None
+        # Account deletion erases history; it is not an unfriend lifecycle action.
+        assert FriendConnectionEvent.query.filter_by(
+            event_type="removed", actor_user_id=s["user_id"]
+        ).count() == 0
+
+
+def test_delete_account_nulls_actor_on_unrelated_connection_history(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        surviving = db.session.get(
+            FriendConnectionEvent, s["actor_only_connection_event_id"]
+        )
+        assert surviving is not None
         assert surviving.actor_user_id is None
 
 

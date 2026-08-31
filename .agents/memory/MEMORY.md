@@ -18,3 +18,4 @@
 - [Managed browser QA](managed-browser-qa.md) — local Playwright may lack container GUI libraries; use the managed app preview screenshot path for visual checks.
 - [Season-specific pass history](season-pass-history.md) — normalized per-season rows are canonical history; current product reads remain on User.pass_type during rollout.
 - [RSVP transition history](rsvp-transition-history.md) — private canonical audit history; BL-78 precedes deferred BL-70 and must be targeted exactly for an independent rollout.
+- [Connection lifecycle history](connection-lifecycle-history.md) — private pair history never grants access; lock users canonically; BL-79 sits between BL-78 and deferred BL-70.

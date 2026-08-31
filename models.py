@@ -1114,6 +1114,58 @@ class Friend(db.Model):
         return f'<Friend {self.user_id} -> {self.friend_id}>'
 
 
+class FriendConnectionEvent(db.Model):
+    """Private append-only history for direct connection lifecycle changes."""
+    __tablename__ = "friend_connection_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_a_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_b_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    event_type = db.Column(db.String(8), nullable=False)
+    occurred_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        server_default=sa.func.now(),
+    )
+    actor_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    source = db.Column(db.String(32), nullable=False)
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "user_a_id < user_b_id",
+            name="ck_fce_canonical_pair",
+        ),
+        db.CheckConstraint(
+            "event_type IN ('formed', 'removed')",
+            name="ck_fce_event_type",
+        ),
+        db.CheckConstraint(
+            "source IN ('friend_request_accept', 'invite_token_accept', "
+            "'qr_connect', 'group_trip_accept', 'shared_trip_connect', "
+            "'api_unfriend', 'web_unfriend')",
+            name="ck_fce_source",
+        ),
+        db.Index(
+            "ix_fce_pair_occurred_at",
+            "user_a_id",
+            "user_b_id",
+            "occurred_at",
+        ),
+    )
+
+
 class SkiTripParticipant(db.Model):
     """Participant in a shared/group SkiTrip."""
     __tablename__ = 'ski_trip_participant'
