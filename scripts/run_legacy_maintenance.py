@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 import json
 import os
 from pathlib import Path
@@ -26,6 +26,8 @@ from runtime_config import (  # noqa: E402
     resolve_maintenance_database_config,
 )
 from services.search_utils import normalize_for_search  # noqa: E402
+from services.pass_utils import normalize_pass_selection  # noqa: E402
+from services.ski_seasons import get_ski_season_start_year  # noqa: E402
 
 
 ADVISORY_LOCK_KEY = 31720260821
@@ -241,6 +243,19 @@ def _friend_search_backfill(cursor, apply):
 
 
 def _pass_system_backfill(cursor, apply):
+    season_start_year = get_ski_season_start_year(date.today())
+    cursor.execute(
+        'SELECT id, pass_type FROM "user" '
+        "WHERE pass_type IN (%s, %s) ORDER BY id",
+        ("Epic", "Not Sure"),
+    )
+    affected_users = [
+        (
+            user_id,
+            "epic" if raw_pass == "Epic" else "no_pass_yet",
+        )
+        for user_id, raw_pass in cursor.fetchall()
+    ]
     details = {
         "legacy_epic_users": _scalar(
             cursor, 'SELECT count(*) FROM "user" WHERE pass_type = %s', ("Epic",)
@@ -261,6 +276,8 @@ def _pass_system_backfill(cursor, apply):
             "AND NOT EXISTS (SELECT 1 FROM resort_pass rp "
             "WHERE rp.resort_id=r.id AND rp.pass_name='MountainCollective')",
         ),
+        "season_history_rows": len(affected_users),
+        "season_start_year": season_start_year,
     }
     if apply:
         cursor.execute(
@@ -270,6 +287,15 @@ def _pass_system_backfill(cursor, apply):
             'UPDATE "user" SET pass_type=%s WHERE pass_type=%s',
             ("no_pass_yet", "Not Sure"),
         )
+        for user_id, canonical_pass in affected_users:
+            cursor.execute(
+                "INSERT INTO user_season_pass "
+                "(user_id,season_start_year,pass_type,created_at,updated_at) "
+                "VALUES (%s,%s,%s,NOW(),NOW()) "
+                "ON CONFLICT (user_id,season_start_year) DO UPDATE "
+                "SET pass_type=EXCLUDED.pass_type,updated_at=NOW()",
+                (user_id, season_start_year, canonical_pass),
+            )
         for label, pattern in (
             ("Indy", "%Indy%"),
             ("MountainCollective", "%MountainCollective%"),
@@ -511,6 +537,66 @@ def _pass_mapping_correction(cursor, apply, spec_file):
     return OperationResult("pass-mapping-correction", details)
 
 
+def _user_season_pass_backfill(cursor, apply):
+    """Backfill only authoritative current pass values into the active season."""
+    season_start_year = get_ski_season_start_year(date.today())
+    cursor.execute(
+        'SELECT id, pass_type FROM "user" '
+        "WHERE pass_type IS NOT NULL AND BTRIM(pass_type) <> '' "
+        "ORDER BY id"
+    )
+    source_rows = cursor.fetchall()
+    cursor.execute(
+        "SELECT user_id FROM user_season_pass WHERE season_start_year = %s",
+        (season_start_year,),
+    )
+    existing_user_ids = {row[0] for row in cursor.fetchall()}
+
+    candidates = []
+    invalid_count = 0
+    existing_count = 0
+    for user_id, raw_pass in source_rows:
+        canonical_pass = normalize_pass_selection(raw_pass)
+        if not canonical_pass:
+            invalid_count += 1
+            continue
+        if user_id in existing_user_ids:
+            existing_count += 1
+            continue
+        candidates.append((user_id, season_start_year, canonical_pass))
+
+    inserted_count = 0
+    conflict_count = 0
+    if apply:
+        for user_id, season_year, canonical_pass in candidates:
+            cursor.execute(
+                "INSERT INTO user_season_pass "
+                "(user_id,season_start_year,pass_type,created_at,updated_at) "
+                "VALUES (%s,%s,%s,NOW(),NOW()) "
+                "ON CONFLICT (user_id,season_start_year) DO NOTHING "
+                "RETURNING id",
+                (user_id, season_year, canonical_pass),
+            )
+            if cursor.fetchone():
+                inserted_count += 1
+            else:
+                conflict_count += 1
+
+    return OperationResult(
+        "user-season-pass-backfill",
+        {
+            "season_start_year": season_start_year,
+            "source_nonblank_count": len(source_rows),
+            "candidate_count": len(candidates),
+            "inserted_count": inserted_count,
+            "existing_count": existing_count,
+            "invalid_count": invalid_count,
+            "conflict_count": conflict_count,
+            "historical_seasons_inferred": 0,
+        },
+    )
+
+
 OPERATIONS = {
     "equipment-backfill": _equipment_backfill,
     "push-sandbox-tokens": _push_sandbox_tokens,
@@ -521,6 +607,7 @@ OPERATIONS = {
     "trip-rsvp-repair": _trip_rsvp_repair,
     "participant-pass-backfill": _participant_pass_backfill,
     "connection-toast-backfill": _connection_toast_backfill,
+    "user-season-pass-backfill": _user_season_pass_backfill,
 }
 
 

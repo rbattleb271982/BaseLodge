@@ -480,6 +480,55 @@ class User(UserMixin, db.Model):
         return login_count <= 2
 
 
+class UserSeasonPass(db.Model):
+    """Canonical pass ownership state for one user and one ski season."""
+
+    __tablename__ = 'user_season_pass'
+    __table_args__ = (
+        db.UniqueConstraint(
+            'user_id',
+            'season_start_year',
+            name='uq_user_season_pass_user_season',
+        ),
+        db.Index(
+            'ix_user_season_pass_season_pass',
+            'season_start_year',
+            'pass_type',
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+    season_start_year = db.Column(db.Integer, nullable=False)
+    pass_type = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    user = db.relationship(
+        'User',
+        backref=db.backref(
+            'season_pass_history',
+            cascade='all, delete-orphan',
+            lazy='dynamic',
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f'<UserSeasonPass user_id={self.user_id} '
+            f'season={self.season_start_year} pass_type={self.pass_type!r}>'
+        )
+
+
 class UserAvailability(db.Model):
     """Per-day availability for a user. Replaces the legacy open_dates JSON column."""
     __tablename__ = 'user_availability'

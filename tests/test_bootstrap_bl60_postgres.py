@@ -292,7 +292,7 @@ def test_fresh_bootstrap_stamps_and_upgrades_to_head(
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT version_num FROM alembic_version")
-            assert cursor.fetchone()[0] == "bl52_trip_stay"
+            assert cursor.fetchone()[0] == "bl70_user_season_pass"
             cursor.execute(
                 """
                 SELECT column_name
@@ -332,7 +332,7 @@ def test_existing_bl60_path_upgrades_without_bootstrap(
     try:
         with connection.cursor() as cursor:
             cursor.execute("SELECT version_num FROM alembic_version")
-            assert cursor.fetchone()[0] == "bl52_trip_stay"
+            assert cursor.fetchone()[0] == "bl70_user_season_pass"
         assert _foreign_key_actions(connection, "ski_day") == {
             ("user", "CASCADE"),
             ("resort", "RESTRICT"),

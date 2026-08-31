@@ -1,12 +1,13 @@
 """Disposable PostgreSQL coverage for guarded legacy maintenance."""
 
-from datetime import datetime
+from datetime import date, datetime
 import json
 
 import psycopg2
 
 from runtime_config import database_identity_hash
 from scripts import run_legacy_maintenance as maintenance
+from services.ski_seasons import get_ski_season_start_year
 from test_import_reference_data_postgres import (
     _initialized_database,
     disposable_postgres,
@@ -221,6 +222,96 @@ def test_explicit_apply_preserves_legacy_data_behavior(
                 (seeded["resort_id"],),
             )
             assert cursor.fetchone()[0] == ["Ikon"]
+    finally:
+        connection.close()
+
+
+def test_user_season_pass_backfill_is_guarded_authoritative_and_idempotent(
+    disposable_postgres, monkeypatch, capsys
+):
+    database_url = _initialized_database(
+        disposable_postgres, monkeypatch, "season-pass-backfill"
+    )
+    connection = psycopg2.connect(database_url)
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    'INSERT INTO "user" '
+                    "(first_name,email,pass_type,previous_pass) "
+                    "VALUES ('Current','current-pass@example.test','Epic',"
+                    "'Ikon') RETURNING id"
+                )
+                current_user_id = cursor.fetchone()[0]
+                cursor.execute(
+                    'INSERT INTO "user" '
+                    "(first_name,email,pass_type,previous_pass) "
+                    "VALUES ('Previous Only','previous-only@example.test',"
+                    "NULL,'Ikon') RETURNING id"
+                )
+                previous_only_user_id = cursor.fetchone()[0]
+    finally:
+        connection.close()
+
+    _maintenance_environment(monkeypatch, database_url)
+    assert maintenance.main(["user-season-pass-backfill"]) == 0
+    dry_run = json.loads(capsys.readouterr().out)
+    assert dry_run["mode"] == "dry-run"
+    assert dry_run["result"]["candidate_count"] == 1
+    assert dry_run["result"]["inserted_count"] == 0
+    assert dry_run["result"]["historical_seasons_inferred"] == 0
+
+    connection = psycopg2.connect(database_url)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT count(*) FROM user_season_pass")
+            assert cursor.fetchone()[0] == 0
+    finally:
+        connection.close()
+
+    _maintenance_environment(monkeypatch, database_url, writes=True)
+    assert _apply("user-season-pass-backfill") == 0
+    applied = json.loads(capsys.readouterr().out)
+    assert applied["result"]["inserted_count"] == 1
+
+    season_start_year = get_ski_season_start_year(date.today())
+    connection = psycopg2.connect(database_url)
+    try:
+        with connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "SELECT season_start_year,pass_type "
+                    "FROM user_season_pass WHERE user_id=%s",
+                    (current_user_id,),
+                )
+                assert cursor.fetchone() == (season_start_year, "epic")
+                cursor.execute(
+                    "SELECT count(*) FROM user_season_pass WHERE user_id=%s",
+                    (previous_only_user_id,),
+                )
+                assert cursor.fetchone()[0] == 0
+                cursor.execute(
+                    'UPDATE "user" SET pass_type=%s WHERE id=%s',
+                    ("ikon", current_user_id),
+                )
+    finally:
+        connection.close()
+
+    assert _apply("user-season-pass-backfill") == 0
+    second_apply = json.loads(capsys.readouterr().out)
+    assert second_apply["result"]["candidate_count"] == 0
+    assert second_apply["result"]["existing_count"] == 1
+    assert second_apply["result"]["inserted_count"] == 0
+
+    connection = psycopg2.connect(database_url)
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*),min(pass_type) FROM user_season_pass "
+                "WHERE user_id=%s",
+                (current_user_id,),
+            )
+            assert cursor.fetchone() == (1, "epic")
     finally:
         connection.close()
 

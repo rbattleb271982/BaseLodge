@@ -38,6 +38,12 @@ from services.pass_utils import (
     PASS_NORM_MAP, PASS_DISPLAY_MAP, CANONICAL_PASS_ORDER,
     OTHER_PASS_SLUGS_URL,
 )
+from services.ski_seasons import (
+    get_ski_season_label,
+    get_ski_season_window,
+    get_ski_season_year,
+)
+from services.user_season_passes import upsert_user_season_pass
 from constants.equipment import SKI_BRANDS, SNOWBOARD_BRANDS, BOOT_BRANDS, BINDING_TYPES, BINDING_BRANDS_BY_TYPE
 
 # ── Admin timezone helpers — America/Denver display ───────────────────────────
@@ -3427,40 +3433,6 @@ def get_seasonal_empty_state(context_type='trip'):
     return ""
 
 
-# ── Season Snapshot helpers (BL-8) ────────────────────────────────────────────
-# Local inference rule for /season-snapshot only.
-# Season window: June 1 of year N through May 31 of year N+1.
-# NOT a global BaseLodge canonical season definition — candidate for promotion
-# to a shared utility if BaseLodge later formalises season membership.
-
-def get_ski_season_year(d):
-    """Return (start_year, end_year) for the ski season containing date d.
-
-    Season runs June 1 through May 31 of the following calendar year.
-
-    Examples:
-        Aug 2026 → (2026, 2027)  "2026/27"
-        Jan 2027 → (2026, 2027)  "2026/27"
-        May 2027 → (2026, 2027)  "2026/27"
-        Jun 2027 → (2027, 2028)  "2027/28"
-    """
-    if d.month < 6:
-        return (d.year - 1, d.year)
-    return (d.year, d.year + 1)
-
-
-def get_ski_season_label(d):
-    """Return a display label like '2026/27' for the ski season containing date d."""
-    start_year, end_year = get_ski_season_year(d)
-    return f"{start_year}/{str(end_year)[2:]}"
-
-
-def get_ski_season_window(d):
-    """Return (season_start, season_end) date objects for the season containing date d."""
-    start_year, end_year = get_ski_season_year(d)
-    return date(start_year, 6, 1), date(end_year, 5, 31)
-
-
 def distribute_columns_ss(month_groups, n_cols):
     """Distribute month groups into n_cols columns for the Season Snapshot card.
 
@@ -4292,7 +4264,13 @@ def onboarding():
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
 
         # Save all onboarding data — normalize, dedupe, and canonically order passes
-        normalized_pass = normalize_pass_selection(pass_type) or pass_type
+        normalized_pass = normalize_pass_selection(pass_type)
+        if not normalized_pass:
+            flash("Please select a valid pass option.")
+            return render_template(
+                "identity_setup.html",
+                grouped_locations=get_grouped_locations(),
+            )
         if count_real_passes(normalized_pass) > 3:
             flash("You can select up to 3 passes.")
             return render_template("identity_setup.html", grouped_locations=get_grouped_locations())
@@ -4302,6 +4280,7 @@ def onboarding():
         current_user.home_state = home_state
         current_user.backcountry_capable = backcountry_capable
         current_user.avi_certified = avi_certified
+        upsert_user_season_pass(current_user, normalized_pass)
 
         db.session.commit()
         ph_analytics.track(current_user.id, 'onboarding_completed', {
@@ -4663,6 +4642,7 @@ def edit_profile():
         user.update_lifecycle_stage()
         
         try:
+            upsert_user_season_pass(user, normalized_passes)
             db.session.commit()
 
             # Emit profile_completed event
@@ -10306,10 +10286,17 @@ def update_profile():
         user.primary_rider_type = data.get("primary_rider_type", "").strip()
     if "pass_type" in data:
         _raw_pt = data.get("pass_type", "").strip()
-        _norm_pt = normalize_pass_selection(_raw_pt) or _raw_pt
+        _norm_pt = normalize_pass_selection(_raw_pt)
+        if _raw_pt and not _norm_pt:
+            return jsonify({
+                "success": False,
+                "message": "Please select a valid pass option.",
+            }), 400
         if count_real_passes(_norm_pt) > 3:
             return jsonify({"success": False, "message": "You can select up to 3 passes."}), 400
-        user.pass_type = _norm_pt
+        if _norm_pt:
+            user.pass_type = _norm_pt
+            upsert_user_season_pass(user, _norm_pt)
     if "discoverable_in_friend_search" in data:
         user.discoverable_in_friend_search = bool(data["discoverable_in_friend_search"])
 
@@ -16427,13 +16414,17 @@ def select_pass():
     if request.method == "POST":
         validate_csrf_request()
         chosen = request.form.get("pass_type", "")
-        normalized_chosen = normalize_pass_selection(chosen) or chosen
+        normalized_chosen = normalize_pass_selection(chosen)
+        if not normalized_chosen:
+            flash("Please select a pass option.", "error")
+            return redirect(url_for("select_pass"))
         if count_real_passes(normalized_chosen) > 3:
             flash("You can select up to 3 passes.", "error")
             return redirect(url_for("select_pass"))
         _old_pass_sp = current_user.pass_type  # capture before overwrite for change detection
         current_user.pass_type = normalized_chosen
         try:
+            upsert_user_season_pass(current_user, normalized_chosen)
             db.session.commit()
             session["pass_prompt_skipped"] = False
             if _ph_is_real_pass(normalized_chosen):

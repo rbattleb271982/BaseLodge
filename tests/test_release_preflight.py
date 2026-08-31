@@ -29,7 +29,7 @@ def _environment(runtime_env="development", **overrides):
 
 
 def _snapshot(
-    revision="bl52_trip_stay",
+    revision="bl70_user_season_pass",
     *,
     stay_name=_DEFAULT,
     stay_description=_DEFAULT,
@@ -60,7 +60,7 @@ def _snapshot(
 def _run(environment=None, **overrides):
     arguments = {
         "identity": ReleaseIdentity(GIT_SHA, "VERIFIED"),
-        "source_heads": ("bl52_trip_stay",),
+        "source_heads": ("bl70_user_season_pass",),
         "live_database": _snapshot(),
     }
     arguments.update(overrides)
@@ -92,7 +92,7 @@ def test_production_preflight_uses_candidate_checkout_identity(monkeypatch):
 
     report = release_preflight.run_preflight(
         _environment("production"),
-        source_heads=("bl52_trip_stay",),
+        source_heads=("bl70_user_season_pass",),
         live_database=_snapshot(),
     )
 
@@ -281,7 +281,7 @@ def test_each_stay_description_schema_mismatch_fails(
 
 def test_missing_stay_description_fails():
     snapshot = release_preflight.LiveDatabaseSnapshot(
-        revisions=("bl52_trip_stay",),
+        revisions=("bl70_user_season_pass",),
         columns={
             "stay_name": release_preflight.ColumnSnapshot(
                 "character varying", 200, True
@@ -301,7 +301,7 @@ def test_database_query_failure_fails_closed():
     report = release_preflight.run_preflight(
         _environment(),
         identity=ReleaseIdentity(GIT_SHA, "VERIFIED"),
-        source_heads=("bl52_trip_stay",),
+        source_heads=("bl70_user_season_pass",),
         database_reader=fail_reader,
     )
 
@@ -319,7 +319,7 @@ def test_failed_prerequisite_does_not_open_database():
     report = release_preflight.run_preflight(
         _environment(),
         identity=ReleaseIdentity(None, "UNVERIFIED"),
-        source_heads=("bl52_trip_stay",),
+        source_heads=("bl70_user_season_pass",),
         database_reader=unexpected_reader,
     )
 
@@ -399,7 +399,7 @@ def test_database_reader_uses_read_only_sql(monkeypatch):
         def execute(self, statement, params=None):
             statements.append(str(statement))
             if "version_num" in str(statement):
-                return FakeResult([("bl52_trip_stay",)])
+                return FakeResult([("bl70_user_season_pass",)])
             return FakeResult(
                 [
                     ("stay_description", "character varying", 500, "YES"),
@@ -434,7 +434,7 @@ def test_database_reader_uses_read_only_sql(monkeypatch):
     )
     snapshot = release_preflight.read_live_database(configuration)
 
-    assert snapshot.revisions == ("bl52_trip_stay",)
+    assert snapshot.revisions == ("bl70_user_season_pass",)
     assert "BEGIN READ ONLY" in statements
     assert "ROLLBACK" in statements
     assert not any(

@@ -16,3 +16,4 @@
 - [Migration backup custody](migration-backup-custody.md) — BL-135 backups use private Replit App Storage with authenticated direct streaming and post-upload checksum verification.
 - [Cross-dialect SQL runtime checks](cross-dialect-sql-runtime-validation.md) — custom SQL compilers need execution tests on SQLite and PostgreSQL; compilation alone misses driver/runtime failures.
 - [Managed browser QA](managed-browser-qa.md) — local Playwright may lack container GUI libraries; use the managed app preview screenshot path for visual checks.
+- [Season-specific pass history](season-pass-history.md) — normalized per-season rows are canonical history; current product reads remain on User.pass_type during rollout.
