@@ -1,0 +1,593 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~70%
+
+TASK: BL-158 — Bound My Trips retrieval with pagination/progressive loading
+
+INVESTIGATE AND DESIGN ONLY.
+Do not implement yet.
+
+==================================================
+GOAL
+==================================================
+
+Determine how My Trips retrieval, Python processing, and rendered card volume scale as a user's trip history grows, then design the smallest safe pagination/progressive-loading approach.
+
+BL-161 established that My Trips query shape is already reasonably bounded:
+
+- warmed baseline: 14 SQL statements
+- 2 User SELECTs
+
+Therefore BL-158 is primarily a RESULT-VOLUME and RENDERING task, not a query-count cleanup.
+
+Do not optimize SQL statement count for its own sake.
+
+==================================================
+1. FIND AUTHORITATIVE BL-158 REQUIREMENTS
+==================================================
+
+Locate any existing BL-158 task/backlog requirements.
+
+Use them as authoritative if found.
+
+Review related completed work only for boundaries:
+
+- BL-80 terminal trip history
+- BL-133 authenticated social visibility
+- BL-155 Trip Detail query cleanup
+- BL-161 authenticated-page query overhead
+- BL-156 Home candidate bounding
+
+Keep BL-159 Friends pagination separate.
+
+==================================================
+2. MAP CURRENT MY TRIPS PIPELINE
+==================================================
+
+Trace the complete authenticated:
+
+/my-trips
+
+request.
+
+Document:
+
+SOURCE RECORDS
+→ SQL ELIGIBILITY
+→ ORM MATERIALIZATION
+→ PYTHON PROCESSING
+→ GROUPING/SORTING
+→ TEMPLATE DATA
+→ RENDERED CARDS
+
+Identify every trip source contributing to the page, including:
+
+- trips organized by viewer
+- trips where viewer is Going
+- trips where viewer is Interested
+- pending invitations/requests if applicable
+- completed trips
+- cancelled trips
+- any other historical state currently displayed
+
+Do not infer states that the current product does not show.
+
+==================================================
+3. DOCUMENT CURRENT PRODUCT SEMANTICS
+==================================================
+
+Establish exactly how My Trips currently separates and orders:
+
+- upcoming/current trips
+- historical trips
+- completed trips
+- cancelled trips
+- owned trips
+- participant trips
+
+Document:
+
+- section order
+- within-section ordering
+- tie behavior
+- empty states
+- counts
+- labels
+- actions
+- links
+
+BL-158 must preserve these semantics unless an existing authoritative requirement explicitly changes them.
+
+==================================================
+4. MEASURE CURRENT SCALING
+==================================================
+
+Use disposable fixtures only.
+
+At minimum test eligible trip populations of:
+
+- 10
+- 50
+- 100
+- 500
+
+Where practical distinguish:
+
+A. all upcoming
+B. all historical
+C. mixed upcoming + historical
+D. owned + participant mix
+
+Measure:
+
+- SQL statement count
+- Trip ORM objects loaded
+- participant objects loaded
+- Resort objects loaded
+- Python trip/card structures created
+- rendered trip cards
+- approximate response HTML size
+- directional request time
+
+Timing is diagnostic only.
+
+Do not use timing as the acceptance budget.
+
+==================================================
+5. IDENTIFY THE ACTUAL VOLUME PROBLEM
+==================================================
+
+Determine whether My Trips currently retrieves and renders every qualifying trip.
+
+Quantify patterns such as:
+
+500 eligible trips
+→ 500 Trip objects
+→ 500 card models
+→ 500 rendered cards
+
+Do not assume this is the exact behavior before measuring it.
+
+Identify separately:
+
+- database retrieval volume
+- ORM materialization
+- Python processing
+- template rendering volume
+- response size
+
+==================================================
+6. UPCOMING VS HISTORY
+==================================================
+
+Determine whether upcoming/current and historical trips should have the same loading strategy.
+
+Investigate whether a safe design should:
+
+A. keep all upcoming trips immediately visible while paginating history
+
+B. paginate both sections independently
+
+C. use another existing product-compatible boundary
+
+Base the recommendation on measured cardinality and current semantics.
+
+Do not arbitrarily hide imminent trips.
+
+==================================================
+7. TERMINAL TRIP SEMANTICS
+==================================================
+
+BL-80 is authoritative for completed/cancelled trip history.
+
+Verify:
+
+- completed trips remain discoverable where currently intended
+- cancelled trips remain discoverable where currently intended
+- terminal trips remain read-only
+- historical access rules remain unchanged
+- terminal lifecycle events/history never authorize access
+
+Pagination must not accidentally make retained historical trips inaccessible.
+
+==================================================
+8. PARTICIPANT ATTENDANCE
+==================================================
+
+Preserve current attendance semantics for participant trips.
+
+Determine how My Trips eligibility uses:
+
+- Going
+- Interested
+- Pending
+- Declined
+- Removed
+- effective attendance dates
+
+Do not broaden visibility.
+
+Pending/Declined/Removed must retain current behavior.
+
+==================================================
+9. ORDERING AND PAGINATION CORRECTNESS
+==================================================
+
+Document the exact deterministic ordering required before designing pagination.
+
+Identify all ordering keys, such as:
+
+- effective attendance date
+- trip start/end
+- lifecycle state
+- created ID or trip ID tie breaker
+- owned vs participant behavior
+
+Pagination must use a deterministic total ordering.
+
+Do not use OFFSET/LIMIT on an incompletely ordered dataset.
+
+==================================================
+10. OFFSET VS CURSOR/KEYSET
+==================================================
+
+Evaluate the smallest appropriate mechanism.
+
+Compare:
+
+A. OFFSET/LIMIT
+B. cursor/keyset pagination
+
+Consider:
+
+- expected trip counts
+- implementation complexity
+- deterministic ordering
+- duplicate/missing cards if records change between requests
+- compatibility with upcoming/history sections
+- browser navigation
+- existing BaseLodge architecture
+
+Do not choose cursor pagination merely because it is theoretically more scalable.
+
+Recommend the simplest mechanism that is safe for BaseLodge's expected scale.
+
+==================================================
+11. PAGE SIZE
+==================================================
+
+Recommend an initial card/page size based on:
+
+- current mobile layout
+- response/render cost
+- typical trip volume
+- usability
+- implementation complexity
+
+Evaluate reasonable sizes such as:
+
+10
+15
+20
+
+Do not invent an arbitrary size without explaining the tradeoff.
+
+==================================================
+12. PROGRESSIVE LOADING UX
+==================================================
+
+Inspect existing BaseLodge frontend patterns.
+
+Determine the least disruptive interaction:
+
+- Load more button
+- automatic progressive loading
+- conventional pagination
+- separate history expansion
+
+Prefer an existing application pattern if one exists.
+
+Do not redesign My Trips.
+
+Preserve the current visual system.
+
+==================================================
+13. JAVASCRIPT / ENDPOINT REQUIREMENTS
+==================================================
+
+Determine whether implementation requires:
+
+- a new authenticated endpoint
+- partial HTML response
+- JSON response
+- existing endpoint parameters
+- minimal client-side JavaScript
+- no JavaScript at all
+
+Recommend the smallest architecture.
+
+Do not introduce a frontend framework.
+
+==================================================
+14. URL / NAVIGATION BEHAVIOR
+==================================================
+
+Determine whether pagination state should be reflected in the URL.
+
+Consider:
+
+- refresh
+- back button
+- deep linking
+- progressive loading
+- mobile web behavior
+
+Preserve existing trip-detail links and navigation.
+
+==================================================
+15. COUNTS
+==================================================
+
+Identify every My Trips count displayed or used elsewhere.
+
+Pagination must distinguish:
+
+TOTAL ELIGIBLE TRIPS
+
+from
+
+CURRENTLY LOADED CARDS
+
+Do not accidentally change a full trip count into page length.
+
+If counts currently represent the complete dataset, preserve them.
+
+==================================================
+16. EAGER LOADING / RELATED DATA
+==================================================
+
+Determine what each visible card requires.
+
+Examples:
+
+- Resort
+- organizer
+- participant state
+- attendance dates
+- lifecycle state
+
+Design page-scoped eager/batch loading so related data remains bounded with page size.
+
+Avoid introducing a per-card N+1.
+
+BL-161 query-shape expectations remain a regression boundary.
+
+==================================================
+17. PRIVACY / AUTHORIZATION
+==================================================
+
+BL-133 remains a hard boundary.
+
+Pagination must happen AFTER authoritative eligibility is established or within an equivalent privacy-safe SQL query.
+
+Do not:
+
+- retrieve unauthorized trips and filter them client-side
+- expose hidden participant identities
+- broaden private-trip access
+- use history as authorization
+
+==================================================
+18. LARGE HISTORY BEHAVIOR
+==================================================
+
+Create representative fixtures for a user with:
+
+- many completed trips
+- many cancelled trips
+- many past nonterminal/legacy trips if supported
+- upcoming trips mixed with history
+
+Determine how many records My Trips currently retrieves and how the proposed design bounds them.
+
+==================================================
+19. EMPTY / PARTIAL STATES
+==================================================
+
+Cover:
+
+- no trips
+- only upcoming
+- only history
+- fewer than one page
+- exactly one page
+- page size + 1
+- multiple pages
+- final partial page
+
+Ensure no duplicate or missing cards.
+
+==================================================
+20. CONCURRENT DATA CHANGES
+==================================================
+
+Reason through what happens if between page loads:
+
+- a trip is created
+- a trip is cancelled
+- a trip becomes completed
+- RSVP changes
+- attendance dates change
+
+The solution does not need snapshot isolation.
+
+It should avoid obvious duplicate/missing-card behavior where reasonably possible.
+
+==================================================
+21. PERFORMANCE BUDGETS
+==================================================
+
+Recommend deterministic budgets.
+
+Examples:
+
+Initial request:
+- <= page-size Trip/card materialization per paginated section
+- bounded related-object loading
+- bounded HTML/card rendering
+
+Subsequent page:
+- <= page size additional cards
+- bounded SQL statements
+- no N+1 growth
+
+Preserve the equivalent BL-161 warmed baseline as a reference:
+
+14 SQL statements
+
+If pagination architecture requires a small stable change in query count, explain and justify it.
+
+Cardinality matters more than preserving exactly 14.
+
+==================================================
+22. REGRESSION EQUIVALENCE
+==================================================
+
+For a fixture smaller than the chosen page size, before and after behavior should be effectively identical:
+
+- same cards
+- same order
+- same sections
+- same actions
+- same links
+- same counts
+- same privacy
+- same empty states
+
+For larger fixtures, concatenating all pages must produce the same ordered eligible card set as the current unbounded implementation.
+
+==================================================
+23. OUT OF SCOPE
+==================================================
+
+Do not implement:
+
+- BL-159 Friends pagination
+- Home changes
+- Trip Detail changes
+- trip ranking redesign
+- new trip filters
+- search
+- archive controls
+- new history taxonomy
+- global caching
+- infinite-scroll framework
+- frontend framework
+- database denormalization
+- generalized pagination framework unless existing architecture clearly warrants reuse
+
+Keep BL-158 specific to My Trips.
+
+==================================================
+24. SCHEMA / DATABASE SAFETY
+==================================================
+
+Strong expectation:
+
+NO schema change
+NO migration
+NO index change
+
+Do not:
+
+- create Alembic revisions
+- apply BL-70
+- mutate Supabase Development
+- mutate persistent Replit
+- access Production
+
+If an index/schema change appears beneficial, report it separately rather than implementing it.
+
+==================================================
+25. TEST PLAN
+==================================================
+
+Design deterministic coverage for:
+
+- 10/50/100/500 eligible trips
+- upcoming-only
+- history-only
+- mixed
+- owned/participant mix
+- lifecycle states
+- attendance overrides
+- exact page boundary
+- page size + 1
+- multiple pages
+- final partial page
+- ordering ties
+- counts
+- unauthorized states
+- full-page concatenation equivalence
+- no duplicate cards
+- no missing cards
+- query/cardinality budgets
+
+Re-run:
+
+- My Trips suites
+- BL-80
+- BL-133
+- BL-161 query budgets
+- attendance/lifecycle regressions
+
+==================================================
+26. PRIORITIZE FINDINGS
+==================================================
+
+Classify findings:
+
+HIGH
+- volume grows materially and can safely be bounded
+
+MEDIUM
+- measurable but not currently worth complexity
+
+LOW
+- theoretical or already bounded
+
+Do not add complexity without a demonstrated benefit.
+
+==================================================
+27. DELIVERABLE
+==================================================
+
+Return:
+
+A. authoritative BL-158 requirements
+B. current My Trips pipeline
+C. current sections and semantics
+D. current ordering rules
+E. 10/50/100/500 scaling measurements
+F. ORM/materialization measurements
+G. rendered-card/HTML growth
+H. upcoming-vs-history findings
+I. lifecycle findings
+J. attendance/RSVP findings
+K. count semantics
+L. confirmed over-retrieval problems
+M. recommended pagination boundary
+N. OFFSET vs cursor recommendation
+O. recommended page size
+P. recommended progressive-loading UX
+Q. endpoint/client architecture
+R. URL/navigation behavior
+S. related-data loading strategy
+T. proposed cardinality/query budgets
+U. correctness/equivalence argument
+V. privacy/authorization assessment
+W. schema/index assessment
+X. exact implementation scope
+Y. risks/dependencies
+Z. recommended Replit tier for BUILD
+
+Do not implement yet.
