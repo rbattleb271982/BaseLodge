@@ -1,0 +1,133 @@
+Task #384 — Prevent links from signing users out or triggering push maintenance
+
+Mode: PLAN
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~36%
+
+Investigate only. Do not implement yet.
+
+Objective:
+Audit and define the smallest safe fix for BaseLodge routes that perform state-changing authentication, push-maintenance, or notification actions through GET requests.
+
+Known concern:
+BL-132 identified that GET /logout deactivates the user’s device tokens and terminates the session. Because SameSite=Lax cookies can accompany top-level navigation, a cross-site link can potentially force logout and token deactivation.
+
+BL-132 also identified admin push-maintenance/test routes that perform mutations or sends through GET.
+
+Please:
+
+1. Inventory all relevant GET routes that mutate state
+Search for GET or GET/POST endpoints that can:
+- log users out
+- deactivate or modify push-device tokens
+- deduplicate tokens
+- send test notifications
+- mutate notification state
+- modify authentication/session state
+- perform other push-maintenance actions
+
+For each route document:
+- route/path
+- HTTP methods
+- authentication/authorization
+- CSRF behavior
+- exact side effect
+- current caller/UI/link
+- whether browser, native WebView, admin, or multiple callers use it
+
+2. Investigate /logout end to end
+Determine:
+- why logout currently deactivates all user push tokens
+- whether token deactivation is required on normal logout
+- what happens when the same account remains logged in on another device
+- whether logging out of one device currently disables notifications on all devices
+- whether any tests or product assumptions depend on that behavior
+
+Do not assume the current token-deactivation behavior is correct merely because it exists.
+
+3. Determine the safest logout contract
+Recommend whether logout should:
+A. only terminate the current session,
+B. terminate the current session and deactivate only the current device token,
+C. continue deactivating all tokens,
+or another architecture supported by the existing BaseLodge model.
+
+Separate the HTTP-method/CSRF issue from the token-lifecycle question.
+
+4. Audit callers
+Identify every place that links or submits to /logout and each affected admin maintenance/test route.
+
+Determine what would need to change if state-changing GET routes become POST-only:
+- HTML/forms
+- JavaScript
+- native WebView behavior
+- admin screens
+- tests
+- redirects/response behavior
+
+5. Evaluate admin mutation routes
+For each GET-based admin maintenance or test-send route:
+- determine whether it actually mutates state or sends external notifications
+- recommend POST + CSRF where appropriate
+- preserve existing admin authorization
+- identify any route that should remain GET because it is truly read-only
+
+6. Define the canonical contract
+Recommend a BaseLodge rule such as:
+- GET = read-only
+- session-authenticated mutations = non-GET + CSRF
+- admin mutations/sends = non-GET + CSRF + admin authorization
+- logout = explicit protected state-changing action
+
+Confirm whether this rule is compatible with browser and native WebView behavior.
+
+7. Separate findings into:
+- actual security bugs
+- token-lifecycle/product bugs
+- architectural inconsistencies
+- defense-in-depth improvements
+- test/documentation gaps
+
+8. Recommend the smallest safe implementation plan
+Do not combine unrelated messaging redesign work.
+
+If logout token behavior needs a separate product decision, explicitly isolate it rather than guessing.
+
+9. Specify required regressions for:
+- normal browser logout
+- native iOS logout
+- native Android logout
+- cross-site/top-level GET to logout no longer mutating state
+- token state before/after logout
+- multiple-device account behavior
+- authenticated admin
+- non-admin
+- CSRF
+- GET rejection
+- valid POST maintenance/test operations
+- existing provider behavior where relevant
+
+10. Scope implications
+Confirm whether eventual implementation requires:
+- schema changes
+- migrations
+- JavaScript changes
+- native iOS changes
+- native Android changes
+- authentication-model changes
+- configuration/dependencies
+- data cleanup
+
+Do not modify code, tests, schema, migrations, JS, native projects, configuration, dependencies, or data during this investigation.
+
+Return:
+- endpoint inventory
+- logout/token lifecycle findings
+- security root cause
+- recommended canonical HTTP/CSRF contract
+- any product decision required
+- smallest safe implementation plan
+- affected files/functions
+- regression coverage
+- risks and scope boundaries
