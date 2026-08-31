@@ -1,0 +1,660 @@
+REPLIT: MAX + BUILD
+Estimated Batch completion after this step: ~25%
+
+TASK: BL-133 — Enforce authenticated social visibility
+
+The investigation and canonical visibility policy in Task #400 are approved.
+
+Proceed to implementation.
+
+Do not create another plan.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Enforce one consistent server-side visibility policy across authenticated BaseLodge social surfaces.
+
+The most important defect to close is:
+
+HIGH SEVERITY:
+Many friend-only reads currently authorize using a single directed Friend row.
+
+A stale one-sided Friend row must NOT authorize:
+
+- detailed profile data
+- wishlist
+- visited mountains
+- season pass
+- riding/equipment data
+- availability context
+- public friend trips
+- friend APIs
+- derived social data
+
+Canonical friend authorization requires CURRENT RECIPROCAL FRIENDSHIP.
+
+Pending, declined, former, historical, and one-sided relationships grant no friend-only access.
+
+==================================================
+CANONICAL FRIENDSHIP POLICY
+==================================================
+
+A confirmed friend relationship exists only when BOTH current Friend rows exist:
+
+viewer → target
+target → viewer
+
+History is irrelevant to current authorization.
+
+Do NOT consult:
+
+- BL-78 RSVP history
+- BL-79 friendship history
+- BL-80 lifecycle history
+- BL-87 wishlist history
+
+to determine current access.
+
+FriendConnectionEvent and other history tables are audit/history only.
+
+==================================================
+IMPLEMENTATION ARCHITECTURE
+==================================================
+
+Create the smallest maintainable set of domain-specific visibility helpers.
+
+At minimum centralize:
+
+1. reciprocal current friendship
+2. trip-view capability/policy
+3. social field/view-model disclosure where needed
+
+Do NOT create:
+
+- a generic permissions framework
+- a generalized ACL system
+- a new authorization database model
+- schema migrations
+
+Prefer:
+
+- reusable current-state predicates
+- EXISTS/join-based query filtering
+- pre-retrieval route authorization
+- explicit response allowlists
+
+Avoid loading sensitive records and merely hiding them in templates when practical.
+
+==================================================
+FRIEND-ONLY SURFACES
+==================================================
+
+Replace directed-row friendship authorization with the reciprocal-current rule everywhere friend-only information is exposed.
+
+Audit and update all relevant paths, including:
+
+- Friend Profile
+- Wishlist
+- Visited Mountains
+- Friend trip surfaces
+- Home social data
+- Ideas
+- Mountains
+- availability-derived context
+- invitation eligibility
+- relevant APIs
+- direct URL access
+
+A stale one-sided Friend row must fail closed.
+
+Do not use friendship history as a fallback.
+
+==================================================
+PUBLIC TRIP POLICY
+==================================================
+
+Preserve the approved meaning of "public":
+
+Public does NOT mean globally public.
+
+Current public trips are discoverable/viewable through friend-oriented surfaces only by CURRENT CONFIRMED FRIENDS, subject to the existing surface rules.
+
+Unrelated authenticated users must not be able to open a public trip merely by guessing its URL.
+
+Public → private:
+remove friend-only discovery/access immediately.
+
+Private → public:
+grant confirmed-friend discovery only.
+
+Do not make public trips globally accessible.
+
+==================================================
+PRIVATE TRIP POLICY
+==================================================
+
+Current private trip access remains available to:
+
+- organizer
+- current Going participant
+- current Interested participant
+- current Pending invitee for that specific trip
+
+Friendship is not required for direct trip membership access.
+
+Friendship alone does not grant private-trip access.
+
+==================================================
+TERMINAL TRIP POLICY
+==================================================
+
+Preserve BL-80 exactly.
+
+Completed/cancelled trip detail remains available only to:
+
+- organizer
+- retained active Going/Interested participants
+
+Read-only.
+
+Do NOT grant terminal access based on:
+
+- friendship
+- pending invite
+- declined invite
+- removed participation
+- trip history events
+
+Do not reinterpret legacy `accepted` RSVP values in BL-133.
+
+If legacy `accepted` rows are encountered, document them separately.
+
+==================================================
+ROSTER POLICY
+==================================================
+
+Approved policy:
+
+Going and Interested identities:
+visible to admitted trip viewers.
+
+Pending and Declined identities:
+ORGANIZER ONLY.
+
+Removed participant identities:
+not shown in normal user-facing rosters.
+
+Important:
+
+For non-organizers, exclude Pending/Declined roster records BEFORE their User records are hydrated or serialized where practical.
+
+Do not merely hide them in the template after loading.
+
+Preserve organizer invitation-management functionality.
+
+==================================================
+PROFILE / FIELD DISCLOSURE
+==================================================
+
+Confirmed friends may continue seeing the existing friend-profile data already approved, including current:
+
+- wishlist
+- visited mountains
+- pass
+- riding profile
+- equipment fields
+
+Do not expose these to:
+
+- pending friends
+- declined friends
+- former friends
+- stale one-sided Friend rows
+- unrelated users
+
+Email is NOT friend-visible information.
+
+==================================================
+REMOVE EMAIL FROM /api/friends
+==================================================
+
+The current `/api/friends` response appears to return email with no repository consumer requiring it.
+
+Remove email from the response.
+
+Use an explicit minimal field allowlist.
+
+Do not replace it with another contact identifier.
+
+If implementation discovers a real repository dependency on email:
+
+STOP and report the dependency rather than silently preserving unnecessary PII.
+
+==================================================
+DIRECTORY SEARCH
+==================================================
+
+Preserve authenticated user discovery/search.
+
+Search may return only the intended minimal directory identity, such as:
+
+- user ID
+- display name
+- home state where currently intended
+- mutual count where currently intended
+- viewer-relative relationship/request state
+
+Do NOT expose through search:
+
+- email
+- raw wishlist
+- raw availability
+- private trips
+- detailed riding/equipment profile
+- hidden friend-only fields
+
+==================================================
+WISHLIST / PASS VISIBILITY
+==================================================
+
+Current raw wishlist and pass:
+
+- self: allowed
+- reciprocal confirmed friend: allowed
+- everyone else: denied
+
+BL-87 wishlist history remains private and must not populate these views.
+
+BL-70 remains deferred.
+
+Do NOT migrate or apply BL-70.
+
+==================================================
+AVAILABILITY POLICY
+==================================================
+
+Raw availability/open dates remain private.
+
+Another user must not receive the full underlying date list.
+
+Confirmed friends may receive only bounded derived overlap where the current product permits it.
+
+Derived overlap must be based on:
+
+- current reciprocal friendship
+- current authoritative availability
+- viewer-relevant eligible trip/date context
+
+Do not expose raw availability through APIs or detail views.
+
+==================================================
+IDEAS / DERIVED DATA
+==================================================
+
+Derived Ideas/social context must use CURRENT AUTHORIZED STATE.
+
+Wishlist Ideas:
+
+- use reciprocal current friends
+- resort must be current canonical shared wishlist state
+- resort must be active/non-region as existing product requires
+- named friends must actually satisfy the shared wishlist condition
+
+Availability Ideas:
+
+- current reciprocal friends only
+- authoritative future availability
+- expose overlap only, not raw date inventories
+
+Trip Ideas:
+
+- current reciprocal friends where friendship is required
+- current visible public trips only
+- active/legacy-current trip semantics as already approved
+- participant-derived context requires current Going/Interested status
+- terminal/private/removed/pending/declined records must not leak
+
+History tables must not participate.
+
+==================================================
+HARDEN WISHLIST IDEAS DETAIL
+==================================================
+
+The current Ideas generation path is stricter than its wishlist detail route.
+
+Treat query-string parameters only as locators.
+
+Do NOT trust:
+
+- resort ID
+- friend IDs
+- trip IDs
+
+as authorization claims.
+
+Recompute server-side:
+
+- reciprocal current friendship
+- shared current wishlist membership
+- resort eligibility
+- any other current-state conditions used to generate the original Idea
+
+If the manipulated detail request is no longer valid:
+
+fail safely using the repository’s established behavior.
+
+Do not render unsupported social claims.
+
+==================================================
+TRIP POLICY REUSE
+==================================================
+
+Reduce duplicated trip authorization where safely possible.
+
+Use one consistent capability decision across relevant:
+
+- canonical Trip Detail
+- friend-trip detail
+- planning
+- invitation-related views
+- terminal detail
+
+Do NOT over-refactor unrelated trip functionality.
+
+Preserve existing authorized behavior.
+
+==================================================
+HISTORY MUST NEVER AUTHORIZE
+==================================================
+
+Explicitly verify no authorization helper/query consults:
+
+- RSVP transition events
+- friendship history events
+- trip lifecycle events
+- wishlist events
+
+These are audit/history only.
+
+A historical relationship must never grant current access.
+
+==================================================
+DIRECT URL / API SECURITY
+==================================================
+
+Authorization tests must include direct requests, not merely UI navigation.
+
+Test at minimum:
+
+FRIEND DATA
+- reciprocal confirmed friend succeeds
+- stale one-sided Friend row denied
+- pending incoming denied
+- pending outgoing denied
+- declined denied
+- former friend denied
+- unrelated authenticated user denied
+
+TRIPS
+- organizer access
+- Going access
+- Interested access
+- Pending invitee access to current invited trip
+- Declined denied where appropriate
+- Removed denied
+- confirmed-friend public-trip access
+- unrelated public-trip direct URL denied
+- private-trip friend-only denial
+- BL-80 terminal authorization preserved
+
+ROSTERS
+- Going/Interested visible to admitted viewers
+- Pending/Declined visible to organizer
+- Pending/Declined absent for non-organizers
+- Removed absent from normal roster
+
+==================================================
+QUERY / SERIALIZATION SAFETY
+==================================================
+
+Prefer authorization at the earliest practical boundary.
+
+For list queries:
+filter unauthorized rows in SQL/bounded query logic.
+
+For direct resource routes:
+perform capability authorization before loading unrelated sensitive social records.
+
+For APIs:
+serialize from explicit field allowlists.
+
+For rosters:
+do not hydrate unauthorized Pending/Declined identities for non-organizers where practical.
+
+Do not rely on CSS/template hiding as authorization.
+
+==================================================
+PERFORMANCE
+==================================================
+
+Do not create obvious N+1 regressions.
+
+Reciprocal friendship checks should use:
+
+- EXISTS
+- joins
+- bounded reusable current-friend ID sets
+
+rather than per-record friendship queries.
+
+Preserve bounded/batched behavior in:
+
+- Home
+- Ideas
+- Mountains
+- availability/social loading
+
+Do not absorb BL-155, BL-156, BL-159, or BL-161.
+
+If a broader performance refactor is needed, document it separately.
+
+==================================================
+OUT OF SCOPE
+==================================================
+
+Do NOT implement:
+
+- BL-168 auth/session lifecycle
+- BL-169 CSRF contract
+- BL-170 rate limiting
+- broad security hardening
+- BL-70 migration
+- legacy `accepted` RSVP repair
+- Season Snapshot policy
+- mountain cache invalidation redesign
+- pass alias/scoring redesign
+- notification redesign
+- messaging redesign
+- account deletion FK cleanup beyond visibility preservation
+- Groups/Clubs
+- analytics
+- UI redesign
+- history schema changes
+
+Task #401 and Task #402 remain separate.
+
+==================================================
+SCHEMA / DATABASE SAFETY
+==================================================
+
+Expected schema impact:
+
+NONE.
+
+Expected migration:
+
+NONE.
+
+Do not create an Alembic migration.
+
+Do not access Production.
+
+Do not mutate persistent Replit or Supabase Development data.
+
+Do not migrate BL-70.
+
+If implementation reveals a genuine need for new schema state to represent authorization:
+
+STOP and return the blocker for review.
+
+==================================================
+TEST PLAN
+==================================================
+
+Add matrix-driven focused tests covering:
+
+FRIENDSHIP
+- self
+- reciprocal friend
+- one-sided drift
+- pending
+- declined
+- former
+- unrelated
+- history does not authorize
+
+PROFILE / SOCIAL DATA
+- profile
+- wishlist
+- visited mountains
+- pass
+- equipment/riding fields
+- availability-derived context
+
+API
+- `/api/friends` no email
+- stale one-sided row denied
+- minimal search payload preserved
+- no unauthorized field serialization
+
+TRIPS
+- public confirmed-friend discovery
+- unrelated public-trip denial
+- private trip access
+- current participant access
+- pending invitee access
+- declined/removed denial
+- terminal BL-80 behavior
+
+ROSTER
+- Going/Interested active roster
+- organizer Pending/Declined visibility
+- non-organizer Pending/Declined exclusion
+- Removed excluded
+
+IDEAS
+- reciprocal-current friend requirement
+- manipulated wishlist resort/friend params rejected
+- availability remains derived-only
+- private/terminal/ineligible trip data excluded
+
+HISTORY
+- BL-78 does not authorize
+- BL-79 does not authorize
+- BL-80 event history does not authorize
+- BL-87 does not authorize
+
+PERFORMANCE
+- no obvious N+1 regressions
+- retain existing bounded Home/Ideas/Mountain behavior
+
+Run strong adjacent regressions for:
+
+- authorization
+- Friends
+- Home
+- Ideas
+- Mountains
+- Trip Detail
+- invitations
+- notifications
+- wishlist
+- availability
+- terminal trips
+
+Then run the full suite.
+
+Also run:
+
+- py_compile
+- git diff --check
+
+==================================================
+INDEPENDENT AUTHORIZATION REVIEW
+==================================================
+
+Before commit, perform an independent review specifically against the approved matrix.
+
+Review:
+
+- one-sided Friend rows cannot authorize
+- history cannot authorize
+- email is removed from `/api/friends`
+- manipulated Ideas detail parameters cannot bypass current-state eligibility
+- Pending/Declined identities do not reach non-organizer responses
+- authorized trip participants retain access
+- public trips remain friend-public, not globally public
+- terminal BL-80 behavior is unchanged
+- no schema/migration was introduced
+- BL-70 remains deferred
+
+If any HIGH privacy/auth defect remains unresolved:
+
+STOP.
+
+Do not commit an unsafe partial implementation.
+
+==================================================
+COMMIT
+==================================================
+
+If implementation and validation pass:
+
+Commit with:
+
+BL-133 Enforce authenticated social visibility
+
+Exclude unrelated pasted prompt assets.
+
+==================================================
+RETURN
+==================================================
+
+Return:
+
+A. authorization helpers/policy contracts added
+B. friend-only routes/queries updated
+C. reciprocal-friend enforcement behavior
+D. trip authorization changes
+E. roster filtering behavior
+F. `/api/friends` payload change
+G. Ideas/detail hardening
+H. wishlist/pass/availability behavior
+I. direct URL/API protection results
+J. history-is-not-authorization verification
+K. performance review
+L. focused test results
+M. adjacent regression results
+N. full-suite results
+O. py_compile / git diff --check
+P. independent authorization review result
+Q. confirmation no schema/migration was added
+R. confirmation BL-70 remains deferred
+S. confirmation Production/persistent DBs were untouched
+T. commit hash
+U. unrelated findings
+V. whether BL-133 is code-side complete and safe to close
+
+Do not begin Task #401 or Task #402.
+Do not begin another backlog task.
