@@ -1,0 +1,590 @@
+REPLIT: MAX + PLAN
+Estimated total BaseLodge workload completed after this step: ~38%
+
+BL-79 — Preserve connection formed/removed history
+
+PLAN / INVESTIGATION ONLY.
+
+Do not modify code, tests, migrations, schema, database state, configuration, dependencies, or data.
+Do not commit anything.
+Do not access or modify Production.
+Do not run migrations against Development or Production.
+
+GOAL
+
+Quietly preserve when a BaseLodge connection existed so historical trips and future intelligence can later be interpreted correctly.
+
+NOTION REQUIREMENTS
+
+- Preserve connection-created and connection-removed events internally.
+- Never create a public Former Friends concept.
+- Removed connections must not regain access to current/private information because historical relationship data exists.
+- Respect account deletion/privacy requirements.
+
+USER DATA SAFETY GATE
+
+This changes persisted social-graph history.
+
+Before implementation we need:
+
+- explicit access-control review;
+- migration/backfill decision;
+- rollback strategy;
+- duplicate-event/idempotency strategy;
+- privacy/account deletion behavior;
+- verification before any intelligence feature consumes the data.
+
+IMPORTANT CURRENT BASELODGE CONTEXT
+
+BL-78 has just been implemented code-side.
+
+BL-78 added private RSVP transition history and established a narrow domain-specific history pattern rather than implementing BL-140.
+
+Current Alembic ordering is:
+
+bl52_trip_stay
+-> BL-78 RSVP transition migration
+-> BL-70 season-pass migration
+
+BL-70 remains intentionally unapplied and deferred.
+
+The repository has ONE Alembic head:
+bl70_user_season_pass
+
+No BL-78 or BL-70 migrations have been applied to Supabase Development or Production.
+
+The persistent Replit database was verified at bl52_trip_stay before BL-70 was reparented.
+
+Do not disturb this migration ordering during PLAN.
+Do not resume BL-70.
+Do not execute any migrations.
+
+BL-140 exists separately to define generalized append-only history/event conventions.
+
+BL-79 must NOT silently become BL-140.
+
+INVESTIGATE THE CURRENT CONNECTION ARCHITECTURE
+
+1. Identify the canonical social-graph model.
+
+Determine exactly how BaseLodge currently represents a direct connection/friendship.
+
+For every relevant model/table report:
+
+- model/table name;
+- primary key;
+- user references;
+- directionality;
+- status/state fields;
+- timestamps;
+- uniqueness constraints;
+- indexes;
+- foreign-key behavior;
+- cascade/delete behavior.
+
+Determine whether the canonical relationship is:
+
+- one undirected row;
+- two directional rows;
+- a request row that changes state;
+- separate request and friendship records;
+- or another architecture.
+
+Do not infer. Derive from current code and tests.
+
+2. Identify all related social models.
+
+Inspect any models that participate in:
+
+- friend requests;
+- connection requests;
+- acceptance;
+- rejection;
+- cancellation;
+- unfriending/removal;
+- blocking if it exists;
+- account deletion;
+- friend recommendations;
+- connection-based visibility;
+- invitation authorization.
+
+Distinguish clearly between:
+
+A. current relationship truth;
+B. request/workflow state;
+C. notification/activity records;
+D. any existing historical/audit data.
+
+3. Define exactly when a “connection is formed.”
+
+Trace the full request -> accepted -> connected flow.
+
+Determine the exact transaction/event at which BaseLodge considers two users direct friends.
+
+Report:
+
+- route/function;
+- records created/updated/deleted;
+- commit boundary;
+- side effects;
+- notifications;
+- analytics;
+- messaging;
+- any race/retry handling.
+
+Determine whether connection creation can happen through more than one path, such as:
+
+- accepting a friend request;
+- QR/invite flow;
+- connection codes;
+- wallet/scan flow if implemented;
+- admin/dev tooling;
+- test/baseline seed paths;
+- legacy routes.
+
+Only include actual current product paths.
+
+4. Define exactly when a “connection is removed.”
+
+Trace every canonical removal/unfriend path.
+
+Determine:
+
+- route/function;
+- records changed/deleted;
+- whether the current friendship row is physically deleted or status-mutated;
+- transaction boundary;
+- notifications/analytics;
+- whether requests are also cleaned up;
+- whether both directional representations are deleted if applicable.
+
+Also determine whether account deletion currently removes friendships via:
+- explicit cleanup;
+- ORM cascade;
+- database cascade;
+- bulk delete.
+
+5. Investigate reconnection behavior.
+
+This is especially important for history semantics.
+
+Determine what happens today when:
+
+User A and User B:
+- become friends;
+- remove connection;
+- later become friends again.
+
+Does BaseLodge create a brand-new friendship row?
+Does it restore a prior row?
+Does request history remain?
+Does uniqueness prevent duplicates?
+
+Recommend whether BL-79 should record each distinct interval:
+
+formed
+removed
+formed
+removed
+
+rather than treating friendship as a one-time historical fact.
+
+6. Build the actual connection lifecycle matrix.
+
+Based strictly on current code, enumerate meaningful lifecycle events.
+
+Examples may include:
+
+NONE -> REQUESTED
+REQUESTED -> CONNECTED
+CONNECTED -> REMOVED
+REMOVED -> CONNECTED
+
+But do NOT assume these states exist.
+
+Separate:
+
+- connection request lifecycle;
+- actual direct-friend lifecycle.
+
+BL-79 is about when a connection existed, not generic friend-request history unless request state is necessary to establish formation/removal correctly.
+
+Recommend exactly which events BL-79 should persist and which it should not.
+
+7. Access-control review.
+
+This is the highest-risk part of BL-79.
+
+Map how current friend status is used to authorize or expose:
+
+- private trips;
+- friends-only trips;
+- friend trip counts;
+- Ideas;
+- Happening;
+- friend passes;
+- wishlist overlap;
+- availability overlap;
+- invitations;
+- messaging;
+- profile information;
+- private/current social information;
+- any APIs that accept a user ID and check friendship.
+
+Identify the canonical helper(s) or query patterns that answer:
+
+“Are these users currently friends?”
+
+BL-79 history MUST NEVER become a substitute for current friendship authorization.
+
+Explicitly identify every risk where future code could accidentally do something like:
+
+“they were once friends, therefore show private data.”
+
+Recommend architectural boundaries to prevent that.
+
+At minimum evaluate whether:
+
+- history model should have NO `is_friend` convenience property;
+- current authorization helpers must continue querying only the live relationship table;
+- history should never be joined into current visibility queries;
+- history service should expose time-bounded historical questions only;
+- direct access to history should remain internal/server-side.
+
+8. Define the historical question BL-79 should eventually support.
+
+The goal says historical trips and future intelligence need to know whether a connection existed.
+
+Recommend the narrowest historical query semantics, such as:
+
+“Were users A and B connected at timestamp T?”
+
+or
+
+“What intervals existed between A and B?”
+
+Do NOT implement this yet.
+
+Determine what fields are minimally necessary to answer that safely and unambiguously.
+
+9. Investigate BL-140 dependency.
+
+Notion says BL-78, BL-79, BL-80, and BL-87 should eventually conform to BL-140’s append-only history/event conventions.
+
+BL-78 already proceeded before BL-140 using a narrow domain-specific history table.
+
+Assess whether BL-79 should:
+
+A. follow the same narrow domain-specific pattern now;
+B. wait for BL-140;
+C. reuse something introduced by BL-78;
+D. use an existing social-history model if one already exists.
+
+Do not implement BL-140.
+
+Do not create a generalized event store.
+
+Explain whether proceeding with BL-79 now would create architecture likely to be replaced later.
+
+10. Investigate BL-78 pattern reuse.
+
+Review the newly implemented BL-78 transition-history architecture.
+
+Determine which conventions are appropriate to mirror, for example:
+
+- private domain-specific table;
+- server timestamp;
+- actor attribution;
+- bounded source;
+- explicit cascade/privacy behavior;
+- non-committing domain helper;
+- append-only rows;
+- no synthetic backfill;
+- migration style.
+
+Also identify which BL-78 concepts should NOT be copied because friendship intervals differ from RSVP state transitions.
+
+Do not force artificial consistency.
+
+11. Propose minimum safe BL-79 schema.
+
+Evaluate whether the best design is:
+
+A. event rows:
+   connection_formed
+   connection_removed
+
+B. explicit interval rows:
+   connected_at
+   disconnected_at
+
+C. both;
+D. another design supported by current architecture.
+
+For the recommended design, evaluate whether fields are needed for:
+
+- id;
+- user_a_id;
+- user_b_id;
+- event_type;
+- occurred_at;
+- actor_user_id;
+- source;
+- relationship/current-row reference;
+- prior-event reference;
+- reason;
+- request/invite reference.
+
+Do not assume they are all necessary.
+
+Minimize stored social data.
+
+Consider canonical ordering of the user pair, for example lower user ID first, if useful to prevent direction duplicates.
+
+Explain the purpose and privacy implications of every proposed field.
+
+12. Duplicate-event and concurrency prevention.
+
+Determine how BL-79 can ensure:
+
+- accepting the same request twice does not create duplicate formed events;
+- repeated removal requests do not create duplicate removed events;
+- concurrent acceptance requests do not create two formed events;
+- concurrent remove/reconnect actions serialize correctly;
+- A/B and B/A representations cannot produce duplicated history;
+- legitimate reconnection produces a NEW formed event.
+
+Recommend the narrowest reliable strategy.
+
+Evaluate whether this should rely on:
+
+- row locking;
+- current relationship uniqueness;
+- canonical pair ordering;
+- helper-based compare/write;
+- constraints;
+- transaction isolation;
+- or another existing pattern.
+
+Do not add client idempotency keys unless truly required.
+
+13. Atomicity.
+
+Determine the appropriate transaction boundary.
+
+We must not allow:
+
+- connection exists but formed history failed;
+- formed history exists but friendship creation rolled back;
+- connection was removed but removed history failed;
+- removed history exists but current friendship remains.
+
+History and current relationship mutation must commit/rollback together.
+
+Determine where that logic belongs.
+
+14. Backfill / existing connections.
+
+BL-79 requires an explicit migration/backfill decision.
+
+Inspect current data availability.
+
+Determine whether existing live friendships have trustworthy formation timestamps.
+
+Possible sources may include:
+
+- friendship row created_at;
+- accepted friend request timestamp;
+- Activity;
+- notifications;
+- messaging events;
+- other historical tables.
+
+Do not assume these are reliable.
+
+Recommend one of:
+
+A. no backfill;
+B. create a baseline formed event from a trustworthy existing timestamp;
+C. create an “unknown-before-deployment” baseline marker;
+D. another defensible approach.
+
+Do NOT invent friendship history.
+
+Also determine whether previously removed friendships can be reconstructed at all.
+
+15. Privacy and account deletion.
+
+Trace current account-deletion behavior for:
+
+- live connections;
+- friend requests;
+- activities;
+- messages;
+- invitations;
+- any social graph records.
+
+For BL-79, determine what should happen when either user deletes their account.
+
+Strong default for investigation:
+
+If a user deletes their account, historical friendship data involving that user should not remain identifiable unless an existing explicit BaseLodge retention policy requires otherwise.
+
+Assess:
+
+- cascade deletion;
+- anonymization;
+- retaining only the surviving user's side;
+- full deletion of pair history.
+
+Recommend the behavior most consistent with existing BaseLodge privacy policy.
+
+Also consider actor references if actor differs from the two subjects.
+
+16. Removal semantics versus privacy deletion.
+
+Distinguish carefully:
+
+A. ordinary unfriend/remove connection;
+B. account deletion.
+
+Ordinary removal should likely preserve historical connection existence for internal historical interpretation.
+
+Account deletion may require actual erasure.
+
+Document the distinction.
+
+17. Migration design and current Alembic chain.
+
+Current code-side migration chain is:
+
+bl52_trip_stay
+-> BL-78
+-> BL-70
+
+BL-70 is unapplied and deferred.
+
+If BL-79 needs a migration, determine the safest ancestry.
+
+IMPORTANT:
+
+Do NOT modify migration ancestry during PLAN.
+
+Assess whether BL-79 should ultimately be inserted before deferred BL-70, similar to BL-78.
+
+Because BL-70 remains unapplied, we may need another safe reparenting step later to retain one Alembic head.
+
+Report the exact recommended migration ordering, but do not modify it yet.
+
+Explicitly check whether any persistent Replit/local database has advanced beyond bl52_trip_stay since BL-78 implementation.
+
+Do not assume.
+
+Do not access Supabase Development or Production.
+
+18. Rollback strategy.
+
+Recommend:
+
+- migration downgrade behavior;
+- application rollback ordering;
+- what happens to newly created history if application is rolled back;
+- whether rollback can safely drop history without touching current friendships;
+- whether dual-write deployment sequencing matters.
+
+No rollout execution yet.
+
+19. Consumer isolation.
+
+Confirm that BL-79 implementation should NOT immediately change:
+
+- Home;
+- Ideas;
+- Happening;
+- trip visibility;
+- Friends pages;
+- friend counts;
+- invitations;
+- matching;
+- recommendations;
+- notifications;
+- analytics.
+
+History should be written now but not consumed by intelligence features until a separate task explicitly adopts it.
+
+This is required by the Notion safety gate.
+
+20. Tests.
+
+Specify required tests for:
+
+- connection formation;
+- connection removal;
+- reconnection;
+- duplicate accept;
+- duplicate removal;
+- concurrent acceptance;
+- concurrent removal/reconnection if applicable;
+- actor/source attribution if used;
+- current friend authorization unchanged;
+- former friends cannot see current private data;
+- current friend visibility remains unchanged;
+- account deletion privacy;
+- no fabricated existing history;
+- migration upgrade/downgrade;
+- rollback atomicity;
+- pair directionality/canonicalization;
+- existing friend-request flows unchanged.
+
+21. Scope/dependency assessment.
+
+Explicitly answer:
+
+- Can BL-79 proceed before BL-140?
+- Should BL-79 mirror BL-78’s narrow history pattern?
+- Does BL-79 require a native app build?
+- Does BL-79 require UI changes?
+- Does BL-79 require Production access?
+- Does BL-79 require a backfill?
+- Can historical removed friendships actually be reconstructed?
+- What should happen on reconnection?
+- What should happen on account deletion?
+- Where should BL-79 sit in the Alembic chain relative to BL-78 and deferred BL-70?
+
+RETURN
+
+Provide a concise but complete investigation report containing:
+
+1. Current connection/social-graph architecture
+2. Current friendship truth source
+3. Request lifecycle vs connection lifecycle
+4. Every connection-formation path
+5. Every connection-removal path
+6. Reconnection behavior
+7. Actual lifecycle/event matrix
+8. Access-control/visibility review
+9. Recommended historical semantics
+10. BL-140 dependency assessment
+11. BL-78 pattern reuse assessment
+12. Recommended minimum schema
+13. Atomicity + concurrency + duplicate-prevention strategy
+14. Backfill recommendation
+15. Privacy/account-deletion behavior
+16. Migration ancestry recommendation
+17. Rollback/deployment sequencing
+18. Consumer isolation requirements
+19. Exact files/models/routes likely involved
+20. Test plan
+21. Risks/open questions
+22. Recommended Replit tier for BUILD
+
+STOP after investigation.
+
+Do not implement BL-79.
+Do not create a migration.
+Do not alter migration ancestry.
+Do not create a generalized event/history framework.
+Do not alter current friend authorization.
+Do not expose historical connections in UI or APIs.
+Do not use historical friendship data in matching/intelligence.
+Do not touch Supabase Development or Production.
