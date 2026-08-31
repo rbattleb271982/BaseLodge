@@ -1,0 +1,408 @@
+REPLIT: MAX + PLAN
+Estimated total BaseLodge workload completed after this step: ~38%
+
+TASK: BL-80 — ⚠️ USER DATA / SCHEMA — Preserve completed and cancelled trip history
+
+Investigate and design only. DO NOT implement yet.
+
+BL-80 goal from Notion:
+
+Ensure past trips remain a reliable historical record rather than disappearing or losing important semantics after completion/cancellation.
+
+Requirements:
+- Define completed vs cancelled historical states.
+- Preserve participant/date/trip references required for historical display.
+- Do not duplicate the trip into a second historical object.
+- Existing Trip Detail remains the canonical trip record.
+- Respect deletion/privacy behavior.
+
+USER DATA SAFETY GATE:
+This changes retention/semantics of persisted trip/user data. Require compatibility review, migration/backfill decision, rollback strategy, tests, and post-change verification.
+
+BL-140 HISTORY CONTRACT IS NOW CANONICAL
+
+Repository documentation:
+docs/history-event-conventions.md
+
+BL-80 must conform to that contract.
+
+Important principles:
+- history is private/domain-specific
+- existing current-state models remain authoritative
+- history does not become authorization truth
+- no generalized event store
+- no synthetic backfill by default
+- current-state mutation and event history should share a transaction
+- bounded event/source vocabularies
+- server-generated timezone-aware timestamps
+- privacy subject deletion must erase/anonymize appropriately
+- actor-only deletion should anonymize actor
+- deterministic locking/concurrency where races are possible
+- unknown-before-cutover semantics
+
+Current migration graph:
+
+bl52_trip_stay
+→ bl78_rsvp_transition
+→ bl79_friend_history
+→ bl70_user_season_pass
+
+BL-70 remains implemented but rollout/migration is deferred.
+
+Do not change migration ancestry during PLAN.
+
+INVESTIGATE THE CURRENT TRIP LIFECYCLE COMPLETELY.
+
+1. CURRENT TRIP MODEL AND LIFECYCLE
+
+Inspect the canonical trip model(s), fields, relationships, routes, services, scheduled/background behavior, and relevant tests.
+
+Determine exactly:
+
+- what represents a trip today
+- whether there is any explicit lifecycle/status field
+- how upcoming vs past trips are currently determined
+- whether “completed” exists as an explicit concept anywhere
+- whether completion is inferred from dates
+- whether cancelled exists as an explicit concept anywhere
+- whether cancelled trips are currently hard-deleted
+- whether trips may be deleted for reasons other than cancellation
+- whether organizer deletion/account deletion deletes trips
+- how Trip Detail behaves for past trips
+- whether past trips remain accessible today
+- what My Trips/Home/Happening/Ideas/etc do with past trips
+- whether public/private semantics change after a trip ends
+
+Map every path that can:
+- create a trip
+- modify dates
+- remove/delete/cancel a trip
+- transition a trip into any terminal/past state
+- remove participants
+- delete organizer/user accounts
+
+2. DEFINE COMPLETED VS CANCELLED
+
+Do not assume the answer.
+
+Determine the cleanest BaseLodge semantics for:
+
+COMPLETED
+- Is completion automatic based on end_date passing?
+- Is there currently any explicit action?
+- Should completion be persisted or derived?
+- If persisted, exactly when/who sets it?
+- What happens if dates are later corrected?
+- What happens to trips with missing/incomplete dates?
+- Can an organizer manually complete a trip?
+
+CANCELLED
+- Is cancellation currently identical to deletion?
+- Is there a cancel action distinct from delete?
+- If not, should BL-80 introduce one?
+- Should a cancelled trip remain as the same canonical trip row?
+- What historical fields must remain for Trip Detail?
+- What user-facing behavior should a cancelled trip have?
+- Should cancelled trips remain visible to former participants?
+
+Clearly distinguish:
+- ordinary trip cancellation
+- organizer deleting a trip
+- account/privacy deletion
+- data cleanup/admin deletion
+
+3. CANONICAL RECORD DESIGN
+
+Notion explicitly requires:
+
+“Do not duplicate the trip into a second historical object.”
+“Existing Trip Detail remains the canonical trip record.”
+
+Determine the smallest safe model change needed.
+
+Evaluate options such as:
+- lifecycle/status field on the canonical trip
+- cancellation timestamp
+- completion timestamp
+- terminal state plus append-only lifecycle history
+- soft deletion
+- retained canonical row with restricted behavior
+- another narrow design
+
+Do NOT create a second archived-trip model.
+
+Recommend the smallest design that:
+- preserves Trip Detail as canonical
+- preserves necessary historical semantics
+- avoids history becoming authorization truth
+- supports future intelligence safely
+
+4. HISTORY EVENT DESIGN
+
+If an append-only trip lifecycle history table is appropriate under BL-140, define:
+
+- subject(s)
+- event types
+- actor
+- source vocabulary
+- timestamp
+- current-state source of truth
+- constraints
+- indexes
+- duplicate prevention
+- locking strategy
+- transaction boundary
+- correction behavior
+- privacy deletion
+- actor anonymization
+
+Likely event candidates may include:
+- completed
+- cancelled
+
+But do not add events merely because BL-140 suggested them. Validate against actual lifecycle behavior.
+
+Explicitly decide whether:
+- automatic date passage should create a completed event
+- completion requires a persisted lifecycle transition
+- editing a completed trip back into the future requires a new transition/event
+- cancellation can be reversed
+- reopening/restoring a trip is supported or out of scope
+
+5. HISTORICAL DISPLAY REQUIREMENTS
+
+Inspect Trip Detail and relevant trip-history surfaces.
+
+Identify exactly what must survive for a completed/cancelled trip to render historical context, including as applicable:
+
+- trip ID
+- organizer
+- title/name
+- mountain/resort
+- start/end dates
+- participant roster
+- participant-specific dates
+- RSVP states
+- privacy/public status
+- accommodation/stay information
+- messages
+- invite information
+- photos/attachments if any
+- trip metadata currently shown on Trip Detail
+
+Categorize each field/relationship:
+
+A. must remain on canonical trip
+B. can continue referencing existing related rows
+C. should be removed/anonymized on privacy deletion
+D. should not be retained merely for history
+
+Do not invent new historical snapshots unless required.
+
+6. PARTICIPANT HISTORY INTERACTION
+
+BL-78 already preserves RSVP transitions.
+
+Determine how BL-80 should interact with:
+- current SkiTripParticipant rows
+- BL-78 RSVP history
+- participant removal
+- former participants
+- rejected/declined participants
+- organizer status
+- participant-specific dates
+
+Answer:
+- must participant rows remain after completion/cancellation?
+- if some are currently deleted, what would need to change?
+- does BL-78 history provide enough information when current participant rows disappear?
+- what is required to render historical participants safely?
+
+Do not let RSVP history become current authorization truth.
+
+7. AUTHORIZATION / PRIVACY REVIEW
+
+Map current Trip Detail authorization and visibility behavior.
+
+Determine rules for:
+- completed public trip
+- completed private trip
+- cancelled public trip
+- cancelled private trip
+- former participant
+- removed participant
+- organizer
+- current friend vs former friend
+- account deletion
+- organizer deletion
+
+Important:
+Historical retention must not accidentally grant new access.
+
+Explicitly identify which live/current relationships remain authorization truth.
+
+If cancellation requires changing existing access semantics, call that out as a product decision rather than silently choosing.
+
+8. HARD DELETE / SOFT DELETE ANALYSIS
+
+This is a key BL-80 question.
+
+Find every place canonical trips are physically deleted.
+
+For each deletion path classify:
+- user cancellation
+- user explicit delete
+- account/privacy deletion
+- admin/maintenance cleanup
+- test/seed/setup
+
+Determine which paths, if any, should become lifecycle transitions instead of physical deletion.
+
+Do not weaken privacy deletion.
+
+If retaining cancelled trips requires changing an existing hard-delete path, explain all downstream consequences:
+- child rows
+- messages
+- invitations
+- notifications
+- analytics
+- activities
+- foreign keys
+- UI assumptions
+- queries that currently expect deleted trips to disappear
+
+9. BACKFILL DECISION
+
+Follow BL-140.
+
+Default answer is no synthetic backfill.
+
+Investigate whether existing data can reliably establish:
+- completed
+- cancelled
+
+Dates alone may establish that a trip is in the past, but do not assume that proves an explicit “completed” event.
+
+Deleted rows cannot prove cancellation.
+
+Return:
+- recommended backfill policy
+- whether any current rows can safely receive a lifecycle state without fabricating events
+- whether history before rollout should remain unknown
+
+10. MIGRATION DESIGN
+
+Inspect actual persistent migration assumptions, repository graph, and current models.
+
+Do not mutate databases.
+
+Propose:
+- exact migration placement
+- whether BL-80 should revise bl79_friend_history and reparent BL-70 after it
+- any required columns/table/constraints/indexes
+- upgrade behavior
+- downgrade behavior
+- data-loss implications
+
+IMPORTANT MIGRATION SAFETY:
+
+Before any future BUILD reparenting of BL-70:
+- persistent Replit alembic_version must be rechecked
+- if BL-70 has been applied to any persistent/shared environment, STOP
+- disposable PostgreSQL test databases do not count
+
+Do not access Supabase Development or Production during PLAN.
+
+11. CONCURRENCY / TRANSACTION DESIGN
+
+Determine race scenarios such as:
+- cancel vs edit
+- complete vs date change
+- cancel vs participant mutation
+- two cancellation requests
+- account deletion vs cancellation
+
+Define:
+- authoritative row(s) to lock
+- deterministic ordering
+- same-transaction guarantees
+- no-op retry behavior
+
+Use PostgreSQL semantics, not SQLite assumptions.
+
+12. CONSUMER IMPACT
+
+Identify all consumers that may need adjustment or explicit isolation:
+
+- Trip Detail
+- My Trips
+- Home
+- Ideas
+- Happening
+- mountain/social intelligence
+- messaging
+- invitations
+- push notifications
+- analytics
+- post-trip survey/ratings
+- future historical intelligence
+
+For each, classify:
+A. must change in BL-80
+B. must remain unchanged
+C. follow-up task
+D. uncertain/product decision
+
+Keep BL-80 narrowly scoped.
+
+13. TEST PLAN
+
+Define focused tests required for the eventual implementation.
+
+At minimum consider:
+
+- completed transition
+- cancelled transition
+- duplicate/no-op
+- rollback
+- date-edit edge cases
+- participant retention
+- current authorization isolation
+- private trip behavior
+- account deletion/privacy erasure
+- actor anonymization
+- migration upgrade/downgrade
+- no backfill
+- PostgreSQL concurrency
+- existing Trip Detail regression
+- existing trip create/edit/delete regression
+- current Home/My Trips/etc behavior where unchanged
+
+14. DELIVERABLE
+
+Return:
+
+A. current trip lifecycle map
+B. current deletion-path map
+C. proposed completed semantics
+D. proposed cancelled semantics
+E. canonical record design
+F. history event design
+G. participant retention design
+H. authorization/privacy rules
+I. hard-delete/soft-delete recommendation
+J. backfill decision
+K. migration plan
+L. concurrency plan
+M. consumer impact matrix
+N. exact implementation scope
+O. exact out-of-scope list
+P. test plan
+Q. risks/open product decisions
+R. recommended implementation tier
+
+Do not implement yet.
+
+If the investigation shows BL-80 cannot be safely implemented without first making a separate foundational trip-lifecycle change, say so explicitly.
+
+If you discover a material privacy/data-loss/authorization defect in current behavior, STOP and report it rather than silently expanding BL-80.
