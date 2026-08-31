@@ -1,0 +1,52 @@
+BL-126 — BUG: Harden admin push broadcast safety and opt-out handling
+
+Mode: PLAN
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~35%
+
+Investigate only. Do not implement yet.
+
+Objective:
+Audit BaseLodge's current admin push-broadcast flow and determine the smallest safe fix needed to ensure broadcasts respect notification eligibility and user opt-outs without creating duplicate sends or broadening delivery.
+
+Please:
+
+1. Trace the complete admin push-broadcast path from the admin action through recipient selection, subscription lookup, OneSignal dispatch, and result handling.
+
+2. Identify every eligibility/suppression rule currently applied, including:
+   - push notification preference / opt-out state
+   - active vs inactive subscriptions
+   - invalid or stale subscriptions
+   - duplicate subscriptions/devices
+   - authenticated user association
+   - any environment or development-vs-production safeguards
+
+3. Determine whether an opted-out user can currently receive an admin broadcast and identify the exact path that allows or prevents it.
+
+4. Determine whether broadcasts can currently:
+   - send more than once to the same user/device
+   - target stale or unowned subscriptions
+   - bypass normal notification suppression rules
+   - accidentally operate against the wrong environment
+
+5. Compare the admin broadcast path with the canonical delivery/suppression behavior used by normal BaseLodge push notifications. Identify any duplicated or inconsistent logic.
+
+6. Recommend the smallest safe implementation that makes admin broadcasts honor the appropriate canonical eligibility and suppression rules without redesigning the notification system.
+
+7. Specify regression tests required for:
+   - opted-in eligible recipient
+   - opted-out recipient
+   - inactive/stale subscription
+   - duplicate subscription/device conditions if applicable
+   - recipient with no valid subscription
+   - environment safeguards
+   - existing successful admin-broadcast behavior
+
+8. Identify exact files/functions that would change and any performance/query implications.
+
+9. Confirm whether schema, migration, data cleanup, UI, authentication, or dependency changes are required.
+
+Do not modify code, tests, schema, migrations, dependencies, configuration, or data during this investigation.
+
+Return a concise implementation plan with the root cause, canonical eligibility contract, affected files, regression coverage, and risks.
