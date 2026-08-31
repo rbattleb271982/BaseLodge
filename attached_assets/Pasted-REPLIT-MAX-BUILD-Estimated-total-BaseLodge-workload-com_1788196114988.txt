@@ -1,0 +1,168 @@
+REPLIT: MAX + BUILD
+Estimated total BaseLodge workload completed after this step: ~38%
+
+TASK: BL-80 — Apply and verify the BL-80 migration on the persistent Replit development database
+
+BL-80 implementation is complete and committed:
+
+27514825 — BL-80 Preserve terminal trip history
+
+Current repository migration graph is expected to be:
+
+bl52_trip_stay
+→ bl78_rsvp_transition
+→ bl79_friend_history
+→ bl80_trip_lifecycle
+→ bl70_user_season_pass
+
+The application is currently showing the generic error page for authenticated development requests because the persistent Replit database has NOT yet received the BL-80 schema.
+
+This step is ONLY to safely bring the persistent Replit development database through BL-78, BL-79, and BL-80 as required by the current repository state.
+
+DO NOT apply BL-70.
+
+DO NOT access or modify:
+- Supabase Development
+- Production
+
+==================================================
+1. PREFLIGHT
+==================================================
+
+Inspect the persistent Replit development database.
+
+Report:
+- exact database target
+- dialect
+- current alembic_version
+- whether BL-70 has ever been applied
+
+Expected historical persistent version:
+bl52_trip_stay
+
+If the persistent database is already at:
+bl70_user_season_pass
+
+or anything inconsistent with the approved graph:
+
+STOP.
+
+Do not mutate anything.
+
+Return the discovered state.
+
+==================================================
+2. SAFETY BACKUP
+==================================================
+
+Before migration, create an appropriate local/persistent Replit database backup or snapshot using the supported mechanism available for this database.
+
+Do not use Supabase.
+
+Record:
+- backup location/reference
+- database size if available
+- successful readability/creation verification
+
+If a safe backup cannot be made, STOP before migration and report why.
+
+==================================================
+3. MIGRATE ONLY THROUGH BL-80
+==================================================
+
+If preflight and backup are safe:
+
+Upgrade the persistent Replit database explicitly to:
+
+bl80_trip_lifecycle
+
+Do NOT run an unrestricted `upgrade head`, because repository head is BL-70 and BL-70 rollout remains deferred.
+
+Expected migration path from the historical baseline:
+
+bl52_trip_stay
+→ bl78_rsvp_transition
+→ bl79_friend_history
+→ bl80_trip_lifecycle
+
+Do not apply:
+bl70_user_season_pass
+
+==================================================
+4. VERIFY DATABASE STATE
+==================================================
+
+After migration verify:
+
+- alembic_version = bl80_trip_lifecycle
+- SkiTrip contains the BL-80 lifecycle fields
+- SkiTripLifecycleEvent exists
+- BL-78 RSVP history schema still exists
+- BL-79 friendship history schema still exists
+- BL-70 schema has NOT been applied
+- one coherent schema state
+- no synthetic BL-80 lifecycle history was created
+- existing trip rows were not assigned fabricated completed/cancelled states
+
+Do not manually alter existing trip data.
+
+==================================================
+5. APPLICATION VERIFICATION
+==================================================
+
+Restart the Flask workflow.
+
+Verify authenticated development behavior, including at minimum:
+
+- Home loads
+- My Trips loads
+- Trip Detail loads for an existing trip
+- Friends loads
+- Mountains loads
+
+Confirm the generic “Something went wrong” error caused by the missing BL-80 schema is gone.
+
+Check server logs and browser console for new errors.
+
+Do not exercise destructive cancellation/completion actions against meaningful persistent user data just to test this migration.
+
+Use automated/disposable tests for mutation verification rather than changing existing development trip history.
+
+==================================================
+6. REGRESSION SAFETY
+==================================================
+
+Run a small post-migration smoke suite sufficient to prove the persistent schema and current application code agree.
+
+Do not rerun the entire 1,276-test suite unless a new problem appears. That suite already passed on commit 27514825.
+
+Run:
+- relevant BL-80 schema/model smoke checks
+- py_compile if code changed
+- git diff --check
+
+There should be NO code change required for this step.
+
+If code modification appears necessary, STOP and report it rather than silently changing BL-80.
+
+==================================================
+7. RETURN
+==================================================
+
+Return:
+
+A. pre-migration persistent alembic_version
+B. backup result/reference
+C. exact migrations applied
+D. post-migration alembic_version
+E. confirmation BL-70 was NOT applied
+F. schema verification
+G. authenticated application smoke results
+H. browser/server error status
+I. confirmation no existing trip lifecycle data was fabricated
+J. confirmation Supabase Development and Production were untouched
+K. whether BL-80 is now fully complete and safe to close
+
+Do not begin BL-87.
+Do not implement Task #395.
+Do not change code unless a migration incompatibility requires stopping and reporting.
