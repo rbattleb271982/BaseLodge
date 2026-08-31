@@ -1,0 +1,138 @@
+BL-70 — Apply and verify season-pass history in Supabase Development
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~37%
+
+BL-70 implementation is approved and committed at:
+
+0ff92fe5 — Implement season-specific pass history
+
+The source migration head is:
+bl70_user_season_pass
+
+Supabase Development currently remains at:
+bl52_trip_stay
+
+This is an execution/verification step. Do not create another planning task.
+
+Objective:
+Safely apply the already-approved BL-70 schema migration and active-season backfill to Supabase Development only, verify the result, and leave Production completely untouched.
+
+1. Verify prerequisites before mutation
+
+Before applying anything:
+
+- Confirm the database target is Supabase Development.
+- Confirm BASELODGE migration-target guards identify Development correctly.
+- Confirm Production confirmation flags are NOT set.
+- Confirm the existing verified BL-135 Development backup is still available and usable according to the documented migration process.
+- Record the exact backup object/path, timestamp, size, and checksum being relied upon.
+- Confirm current Development Alembic head is bl52_trip_stay.
+- Confirm source migration head is bl70_user_season_pass.
+
+If any identity/backup/environment check fails, STOP before mutation and report.
+
+2. Apply the BL-70 migration to Supabase Development only
+
+- Upgrade Development from bl52_trip_stay to bl70_user_season_pass.
+- Do not bypass migration safeguards.
+- Do not access or modify Production.
+- Record the exact migration result.
+
+3. Verify schema
+
+Confirm the new UserSeasonPass structure matches the approved implementation, including:
+- expected columns
+- user foreign key
+- season key
+- pass representation
+- timestamps
+- uniqueness constraint
+- indexes
+- cascade behavior
+
+Confirm Alembic Development head is now:
+bl70_user_season_pass
+
+4. Run the approved active-season backfill
+
+First run the backfill in dry-run mode and record:
+- users inspected
+- rows that would be inserted
+- rows that would be updated
+- rows skipped
+- invalid/unknown values
+- any conflicts
+
+Review the dry-run result for anything unexpected.
+
+If the dry-run matches the approved non-fabricating BL-70 rules, execute the backfill against Development.
+
+Rules:
+- Use only authoritative current pass information.
+- Do not infer older seasons.
+- Do not infer history from trips, signup dates, analytics, previous_pass, or uncertain JSON history.
+- Preserve explicit no-pass semantics exactly as implemented.
+- Backfill must remain idempotent.
+
+5. Verify data after backfill
+
+Confirm:
+- expected active-season rows exist
+- no duplicate user/season rows
+- User.pass_type remains unchanged
+- historical seasons were not fabricated
+- null/no-pass behavior matches the approved contract
+- current product-facing reads remain unchanged
+
+Run the backfill a second time or its verification/idempotency mode and confirm it produces no unintended additional mutations.
+
+6. Application regression verification
+
+Run:
+- focused BL-70 season-pass tests
+- profile/onboarding pass tests
+- Home Friends' Passes tests
+- Ideas/matching compatibility tests where applicable
+- migration/backfill tests
+- Python compilation
+- git diff --check
+
+Restart Flask against Development and verify:
+- application starts normally
+- profile/pass flows render
+- Home renders
+- no browser-console errors
+- no unexpected consumer behavior changes
+
+7. Production prohibition
+
+Do NOT:
+- migrate Production
+- backfill Production
+- inspect or mutate Production data beyond anything strictly required by existing environment-identity safeguards
+- change schema beyond the committed BL-70 migration
+- change application code unless an actual migration defect is discovered
+
+If a defect is discovered, STOP and report rather than patching it during migration execution.
+
+8. Return
+
+Report:
+- verified backup details
+- Development database identity
+- pre-migration head
+- post-migration head
+- migration result
+- dry-run backfill counts
+- executed backfill counts
+- idempotency result
+- schema verification
+- regression test counts
+- runtime verification
+- confirmation Production was untouched
+- whether BL-70 is now ready for final closeout
+
+Do not create another planning task.
