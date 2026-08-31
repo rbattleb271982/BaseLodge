@@ -1,0 +1,414 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~35%
+
+TASK: BL-141 — Mountain survey schema
+
+Investigate and design only. DO NOT implement yet.
+
+==================================================
+GOAL
+==================================================
+
+Design the canonical data model for BaseLodge's post-trip mountain survey/rating system.
+
+BL-141 should establish the schema and data contract that later survey-response/product work can safely build on.
+
+This is a persisted-user-data/schema task.
+
+Do not implement the survey UI or response experience yet.
+
+==================================================
+1. FIND AUTHORITATIVE BL-141 REQUIREMENTS
+==================================================
+
+Locate BL-141 in the BaseLodge task/backlog system.
+
+Use its exact requirements as authoritative.
+
+Also inspect directly related tasks, especially:
+
+- BL-142
+- BL-68 post-trip mountain ratings
+- any existing post-trip survey/rating tasks
+
+Determine the intended dependency relationship.
+
+Do not implement those tasks.
+
+==================================================
+2. AUDIT EXISTING MOUNTAIN / TRIP DATA
+==================================================
+
+Inspect the existing models and services for:
+
+- Resort/Mountain
+- SkiTrip
+- TripParticipant
+- RSVP/attendance state
+- completed/cancelled trip lifecycle
+- trip dates
+- participant attendance windows
+- visited mountains
+- any existing rating/review fields
+- any existing survey tables
+- any analytics records that resemble survey responses
+
+Identify what can be reused versus what BL-141 actually needs to add.
+
+==================================================
+3. DEFINE SURVEY SUBJECT
+==================================================
+
+Determine exactly what a survey/rating belongs to.
+
+Potential dimensions include:
+
+- user
+- mountain/resort
+- trip
+- ski day/date
+- completed attendance
+
+Do not assume the answer.
+
+Use the authoritative requirements and existing BaseLodge product model.
+
+Define the canonical subject keys precisely.
+
+==================================================
+4. ELIGIBILITY CONTRACT
+==================================================
+
+Determine what proves a user is eligible to submit a mountain survey.
+
+Inspect:
+
+- organizer attendance
+- Going/Interested status
+- effective participant attendance dates
+- completed trips
+- cancelled trips
+- past trips
+- visited mountains
+- manually recorded skiing
+
+Separate:
+
+A. eligibility to receive a survey
+B. eligibility to submit a response
+C. evidence that the user actually skied the mountain
+
+Do not let historical event tables become authorization/current-state truth.
+
+==================================================
+5. SURVEY QUESTION MODEL
+==================================================
+
+Determine whether the survey questions are:
+
+- fixed schema columns
+- normalized question definitions
+- versioned survey definitions
+- another bounded structure
+
+Use the simplest architecture that satisfies the known product requirements.
+
+Avoid building a generalized survey platform unless BL-141 explicitly requires it.
+
+Identify:
+
+- question identifiers
+- response types
+- allowed values/ranges
+- required vs optional answers
+- survey versioning needs
+- future extensibility requirements
+
+==================================================
+6. RESPONSE OWNERSHIP
+==================================================
+
+Determine whether one user may have:
+
+- one response per mountain
+- one response per trip
+- one response per ski day
+- multiple responses to the same mountain over time
+
+Resolve how repeat visits should behave.
+
+Do not add uniqueness constraints until the intended product semantics are clear.
+
+==================================================
+7. EDIT / RESUBMISSION SEMANTICS
+==================================================
+
+Determine whether responses can be:
+
+- edited
+- replaced
+- resubmitted
+- appended as new observations
+
+If requirements do not specify this, identify it as a product decision rather than inventing behavior.
+
+==================================================
+8. PRIVACY
+==================================================
+
+Determine whether mountain survey responses are:
+
+- private
+- aggregated
+- friend-visible
+- publicly attributable
+- anonymous in aggregates
+
+BL-141 should default to the minimum exposure supported by requirements.
+
+Do not create public review/profile functionality unless explicitly required.
+
+Identify deletion/privacy behavior for:
+
+- user deletion
+- resort deletion
+- trip deletion/cancellation
+- account privacy erasure
+
+==================================================
+9. TRIP HISTORY INTERACTION
+==================================================
+
+BL-80 preserves completed/cancelled trips.
+
+Determine how BL-141 should reference trip state without making lifecycle history authoritative.
+
+Current SkiTrip state should remain operational truth.
+
+Clarify behavior when:
+
+- trip completes
+- trip is cancelled
+- participant is removed
+- participant attendance changes
+- user account is deleted
+- resort is deactivated/deleted
+
+==================================================
+10. VISITED-MOUNTAIN INTERACTION
+==================================================
+
+Audit the existing visited-mountain model.
+
+Determine whether submitting a survey:
+
+- requires an existing visited record
+- creates/updates a visited record
+- remains independent
+- provides future evidence for a visited record
+
+Do not silently change visited-mountain behavior in BL-141.
+
+==================================================
+11. SCHEMA DESIGN
+==================================================
+
+Propose the smallest safe schema.
+
+For every proposed table/column provide:
+
+- name
+- type
+- nullability
+- FK
+- FK deletion behavior
+- constraints
+- uniqueness
+- indexes
+- timestamps
+
+Avoid:
+
+- copied user PII
+- copied mountain names
+- arbitrary metadata blobs
+- free-text structures unless requirements genuinely require them
+
+==================================================
+12. MIGRATION GRAPH
+==================================================
+
+Inspect the ACTUAL current repository Alembic graph.
+
+Expected relevant ancestry currently includes:
+
+bl52
+→ bl78
+→ bl79
+→ bl80
+→ bl87
+→ bl70
+
+Supabase Development is currently expected at:
+
+bl87_wishlist_history
+
+BL-70 remains intentionally deferred.
+
+Determine where BL-141 should be inserted.
+
+Do NOT alter migration ancestry during PLAN.
+
+Do NOT migrate any database.
+
+Do NOT access Production.
+
+If inserting BL-141 before BL-70 would require reparenting BL-70, explicitly identify the safety preconditions before BUILD.
+
+==================================================
+13. BACKFILL
+==================================================
+
+Determine whether any historical data can truthfully populate the new schema.
+
+Strong default:
+
+NO synthetic survey responses.
+
+Existing trips, visited mountains, attendance, analytics, or wishlist data must not be converted into survey answers unless they prove the exact response.
+
+If any non-response structural backfill is proposed, justify it separately.
+
+==================================================
+14. DUPLICATES / IDEMPOTENCY
+==================================================
+
+Define how the eventual response-writing layer should handle:
+
+- duplicate submissions
+- browser retries
+- concurrent submissions
+- edits
+- repeated visits
+- multiple eligible trips to the same mountain
+
+The schema must not accidentally prevent legitimate future observations.
+
+==================================================
+15. DELETION / ROLLBACK
+==================================================
+
+Define:
+
+- user deletion behavior
+- resort deletion behavior
+- trip deletion behavior
+- privacy erasure
+- migration downgrade behavior
+
+If the schema will hold irreplaceable user-generated survey data, assess whether downgrade should refuse destructive data loss once responses exist.
+
+==================================================
+16. BL-142 CONTRACT
+==================================================
+
+Explicitly define what BL-141 will provide to BL-142.
+
+BL-142 should not need to redesign the schema.
+
+Return the expected service/model contract that response collection can use later.
+
+Do not implement BL-142.
+
+==================================================
+17. CONSUMER IMPACT
+==================================================
+
+Identify existing surfaces that should remain unchanged after BL-141.
+
+At minimum inspect:
+
+- Home
+- My Trips
+- Trip Detail
+- Mountains
+- Mountain Detail
+- Profile
+- Friends
+- Ideas
+- visited mountains
+- notifications
+
+BL-141 should preferably be additive and invisible to users until later tasks consume it.
+
+==================================================
+18. TEST PLAN
+==================================================
+
+Define focused tests for:
+
+- migration graph
+- schema constraints
+- FK behavior
+- uniqueness semantics
+- eligible repeated observations
+- privacy deletion
+- resort lifecycle
+- trip lifecycle
+- no synthetic response backfill
+- downgrade safety
+- SQLite compatibility where appropriate
+- disposable PostgreSQL migration behavior
+
+Include concurrency tests if the proposed schema/write contract requires them.
+
+==================================================
+19. DATABASE SAFETY
+==================================================
+
+PLAN only.
+
+Do not:
+
+- change models
+- create migrations
+- edit BL-70 ancestry
+- migrate persistent Replit
+- migrate Supabase Development
+- access Production
+- run upgrade head
+
+If the current persistent/shared migration state creates a blocker for the eventual BL-141 migration, report it.
+
+==================================================
+20. DELIVERABLE
+==================================================
+
+Return:
+
+A. authoritative BL-141 requirements
+B. related-task dependency map
+C. existing mountain/trip/attendance data model
+D. canonical survey subject
+E. eligibility contract
+F. proposed question model
+G. response ownership/cardinality
+H. edit/resubmission semantics
+I. privacy/visibility policy
+J. trip-history interaction
+K. visited-mountain interaction
+L. exact proposed schema
+M. constraints/indexes/FKs
+N. migration placement
+O. backfill decision
+P. duplicate/idempotency strategy
+Q. deletion/privacy/rollback strategy
+R. BL-142 implementation contract
+S. consumer impact
+T. test plan
+U. risks/open product decisions
+V. recommended implementation tier
+
+Do not implement yet.
+
+If the authoritative requirements reveal a product decision that materially changes the schema, surface that decision clearly rather than guessing.
