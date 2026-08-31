@@ -1,0 +1,195 @@
+REPLIT: MAX + BUILD
+Estimated total BaseLodge workload completed after this step: ~38%
+
+TASK: Complete BL-80 rollout to Supabase Development and restore the normal Flask workflow
+
+Context:
+
+- BL-80 code is committed:
+  27514825 — BL-80 Preserve terminal trip history
+- Persistent Replit DB is already safely at:
+  bl80_trip_lifecycle
+- The saved Flask workflow is:
+  env BASELODGE_RUNTIME_ENV=development python app.py
+- That workflow intentionally targets:
+  BASELODGE_DEVELOPMENT_DATABASE_URL
+  = Supabase Development
+- The earlier startup failure was caused by a temporary Flask process holding port 5000.
+- That orphan process has now been terminated and port 5000 is clear.
+- Supabase Development has NOT yet been migrated through BL-80.
+
+The intended development runtime remains Supabase Development.
+
+DO NOT change the workflow to point at the Replit database.
+
+==================================================
+1. SUPABASE DEVELOPMENT PREFLIGHT
+==================================================
+
+Safely inspect Supabase Development.
+
+Report:
+- exact database target identity
+- PostgreSQL version/dialect
+- current alembic_version
+- whether BL-78 exists
+- whether BL-79 exists
+- whether BL-80 exists
+- whether BL-70 exists
+
+Expected historical state is likely:
+bl52_trip_stay
+
+But do not assume.
+
+If Supabase Development is already at:
+bl70_user_season_pass
+
+or has a migration/schema state inconsistent with the approved graph:
+
+STOP.
+
+Do not mutate anything.
+
+Return the exact state for review.
+
+Do NOT access Production.
+
+==================================================
+2. BACKUP BEFORE MUTATION
+==================================================
+
+Before applying any migration, create or verify a safe Supabase Development backup using the supported existing BaseLodge backup mechanism.
+
+Record:
+- backup reference/location
+- timestamp
+- size if available
+- readability/restore verification where supported
+
+If a safe backup cannot be created or verified:
+STOP before migration.
+
+Do not substitute the persistent Replit backup for the Supabase Development backup.
+
+==================================================
+3. APPLY ONLY THROUGH BL-80
+==================================================
+
+If preflight and backup are safe:
+
+Run an explicitly bounded migration targeting:
+
+bl80_trip_lifecycle
+
+Approved graph:
+
+bl52_trip_stay
+→ bl78_rsvp_transition
+→ bl79_friend_history
+→ bl80_trip_lifecycle
+→ bl70_user_season_pass
+
+Apply only the revisions needed to reach:
+
+bl80_trip_lifecycle
+
+DO NOT:
+- run unrestricted `upgrade head`
+- apply bl70_user_season_pass
+- modify BL-70
+- access Production
+
+==================================================
+4. VERIFY SUPABASE DEVELOPMENT
+==================================================
+
+After migration verify:
+
+- alembic_version = bl80_trip_lifecycle
+- BL-78 schema exists
+- BL-79 schema exists
+- ski_trip.lifecycle_state exists
+- ski_trip.terminal_at exists
+- ski_trip_lifecycle_event exists
+- required constraints/FKs/indexes exist
+- BL-70 schema is absent
+- no synthetic lifecycle events were created
+- existing trips were not assigned fabricated completed/cancelled history
+
+If existing rows retain NULL lifecycle_state as designed, confirm that explicitly.
+
+==================================================
+5. RESTART THE NORMAL WORKFLOW
+==================================================
+
+Once Supabase Development is confirmed at BL-80:
+
+Restart the existing saved workflow unchanged:
+
+env BASELODGE_RUNTIME_ENV=development python app.py
+
+Do not add command-local DB overrides.
+
+Do not change workflow configuration.
+
+Verify port 5000 is owned only by the intended Flask workflow.
+
+==================================================
+6. APPLICATION SMOKE TEST
+==================================================
+
+Using the normal Supabase Development-backed application, verify:
+
+- login page loads
+- authenticated Home loads
+- My Trips loads
+- Friends loads
+- Mountains loads
+- at least one existing Trip Detail loads if Supabase Development contains trips
+- no generic “Something went wrong” page
+- no missing-column/table errors
+- no HTTP 5xx
+- no browser console errors
+- no server tracebacks
+
+Do not perform destructive completion or cancellation against meaningful development trips just for smoke testing.
+
+==================================================
+7. SAFETY / REGRESSION
+==================================================
+
+No code changes should be required.
+
+Run:
+- focused BL-80 schema/runtime smoke tests
+- git diff --check
+
+Do not rerun the full suite unless a new problem appears.
+
+If code changes appear necessary:
+STOP and report why rather than silently modifying BL-80.
+
+==================================================
+8. RETURN
+==================================================
+
+Return:
+
+A. pre-migration Supabase Development alembic_version
+B. backup result/reference
+C. exact revisions applied
+D. post-migration alembic_version
+E. confirmation BL-70 was NOT applied
+F. schema verification
+G. existing trip/lifecycle data verification
+H. normal Flask workflow restart result
+I. authenticated smoke-test results
+J. server/browser error status
+K. confirmation workflow still targets Supabase Development
+L. confirmation Production was untouched
+M. whether BL-80 is now fully rolled out in the intended Development environment and safe to consider complete
+
+Do not begin BL-87.
+Do not implement Task #395.
+Do not change the development runtime architecture.
