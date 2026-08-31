@@ -1,0 +1,13 @@
+{% set trip = row.trip %}
+<a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="past-row" data-trip-id="{{ trip.id }}" style="text-decoration:none;">
+    <div class="past-row-content">
+        <p class="past-row-dest">{{ row.mountain_name }}</p>
+        <p class="past-row-dates">
+            {{ format_trip_dates(trip) }}
+            {% if row.lifecycle_state == 'completed' %} · Completed
+            {% elif row.lifecycle_state == 'cancelled' %} · Cancelled
+            {% endif %}
+            {% if row.is_guest %} · You're a guest{% endif %}
+        </p>
+    </div>
+</a>

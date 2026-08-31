@@ -152,6 +152,10 @@ from services.trip_lifecycle import (
     cancel_trip,
     complete_trip,
 )
+from services.my_trips_paging import (
+    MyTripsCursorError,
+    load_my_trips_page,
+)
 
 
 def active_or_legacy_trip_predicate():
@@ -5123,42 +5127,27 @@ def my_trips():
     active_tab = request.args.get("tab", "my_trips")
     _rp_t0 = time.perf_counter()
 
-    # Trip queries (wrapped for production safety)
+    # Viewer-owned and active-participant feeds are independently bounded.
     _t = time.perf_counter()
-    try:
-        upcoming_trips = (
-            SkiTrip.query
-            .options(db.joinedload(SkiTrip.resort))
-            .filter(SkiTrip.user_id == current_user.id)
-            .filter(active_or_legacy_trip_predicate())
-            .filter(SkiTrip.end_date >= today)
-            .order_by(SkiTrip.start_date.asc())
-            .all()
-        ) or []
-        upcoming_trips = [set_effective_attendance_dates(trip) for trip in upcoming_trips]
-    except Exception:
-        upcoming_trips = []
+    upcoming_page = load_my_trips_page(user.id, "upcoming", today=today)
+    upcoming_rows = upcoming_page.rows
+    upcoming_trips = [row.trip for row in upcoming_rows if not row.is_guest]
+    accepted_guest_trips = [row.trip for row in upcoming_rows if row.is_guest]
     if app.debug:
-        print(f"[ROUTE_PERF] my_trips.upcoming={time.perf_counter()-_t:.4f}s count={len(upcoming_trips)}")
+        print(
+            f"[ROUTE_PERF] my_trips.upcoming={time.perf_counter()-_t:.4f}s "
+            f"count={len(upcoming_rows)}"
+        )
 
     _t = time.perf_counter()
-    try:
-        owned_history_trips = (
-            SkiTrip.query
-            .options(db.joinedload(SkiTrip.resort))
-            .filter(SkiTrip.user_id == current_user.id)
-            .filter(db.or_(
-                SkiTrip.end_date < today,
-                SkiTrip.lifecycle_state.in_(("completed", "cancelled")),
-            ))
-            .order_by(SkiTrip.start_date.desc())
-            .all()
-        ) or []
-        past_trips = owned_history_trips
-    except Exception:
-        past_trips = []
+    history_page = load_my_trips_page(user.id, "history", today=today)
+    history_rows = history_page.rows
+    past_trips = [row.trip for row in history_rows]
     if app.debug:
-        print(f"[ROUTE_PERF] my_trips.past={time.perf_counter()-_t:.4f}s count={len(past_trips)}")
+        print(
+            f"[ROUTE_PERF] my_trips.past={time.perf_counter()-_t:.4f}s "
+            f"count={len(history_rows)}"
+        )
 
     # Get trips where the user has a Pending RSVP.
     invited_trips = []
@@ -5186,57 +5175,6 @@ def my_trips():
         print(f"  ERROR fetching invited trips: {e}")
         invited_trips = []
         invite_inviters = {}
-
-    # Get trips where the user is an active guest (not owner).
-    accepted_guest_trips = []
-    accepted_trip_ids = []
-    try:
-        accepted_participations = SkiTripParticipant.query.filter(
-            SkiTripParticipant.user_id == current_user.id,
-            SkiTripParticipant.active_status_filter()
-        ).all()
-        accepted_by_trip_id = {p.trip_id: p for p in accepted_participations}
-        accepted_trip_ids = list(accepted_by_trip_id)
-        if accepted_trip_ids:
-            # Exclude trips the user owns (they're already in upcoming_trips)
-            accepted_guest_trips = SkiTrip.query.options(
-                db.joinedload(SkiTrip.resort)
-            ).filter(
-                SkiTrip.id.in_(accepted_trip_ids),
-                SkiTrip.user_id != current_user.id,
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today
-            ).all() or []
-            accepted_guest_trips = [
-                set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
-                for trip in accepted_guest_trips
-                if effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[1] >= today
-            ]
-            accepted_guest_trips.sort(
-                key=lambda trip: trip.attendance_start_date or date.max
-            )
-    except Exception:
-        accepted_guest_trips = []
-
-    # Historical guest trips retain only active participants. Terminal trips
-    # are intentionally shown here, alongside ordinary past trips.
-    try:
-        historical_guest_trips = SkiTrip.query.options(
-            db.joinedload(SkiTrip.resort)
-        ).filter(
-            SkiTrip.id.in_(accepted_trip_ids or [-1]),
-            SkiTrip.user_id != current_user.id,
-            db.or_(
-                SkiTrip.end_date < today,
-                SkiTrip.lifecycle_state.in_(("completed", "cancelled")),
-            ),
-        ).order_by(SkiTrip.start_date.desc()).all() or []
-        past_trips.extend(
-            trip for trip in historical_guest_trips
-            if trip.id not in {existing.id for existing in past_trips}
-        )
-    except Exception:
-        pass
 
     # Get friends — single join query (replaces get_friend_ids + User.query, saves 1 round trip)
     _t = time.perf_counter()
@@ -5403,22 +5341,17 @@ def my_trips():
     if app.debug:
         print(f"[ROUTE_PERF] my_trips.tab_build={time.perf_counter()-_t:.4f}s friend_trip_count={len(friend_trips)}")
 
-    # Build overlaps list — include both owned trips and accepted guest trips
-    # so a user who is a guest on a friend's trip at Vail also triggers an overlap
-    # with any other friend going to Vail at the same time.
-    _t = time.perf_counter()
-    try:
-        overlaps = compute_trip_overlaps(upcoming_trips + accepted_guest_trips, friend_trips)
-    except Exception:
-        overlaps = []
-    if app.debug:
-        print(f"[ROUTE_PERF] my_trips.overlaps={time.perf_counter()-_t:.4f}s count={len(overlaps)}")
-
     if app.debug:
         print(f"[ROUTE_PERF] route=my_trips total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         "my_trips.html",
         user=user,
+        upcoming_rows=upcoming_rows,
+        history_rows=history_rows,
+        upcoming_has_more=upcoming_page.has_more,
+        upcoming_next_cursor=upcoming_page.next_cursor,
+        history_has_more=history_page.has_more,
+        history_next_cursor=history_page.next_cursor,
         upcoming_trips=upcoming_trips or [],
         past_trips=past_trips or [],
         invited_trips=invited_trips or [],
@@ -5428,9 +5361,39 @@ def my_trips():
         friends=friends or [],
         friend_trips=friend_trips or [],
         friends_trips_tab=friends_trips_tab,
-        overlaps=overlaps or [],
         today=today
     )
+
+
+@app.route("/api/my-trips/page")
+@login_required
+def my_trips_page():
+    section = request.args.get("section", "")
+    if section not in {"upcoming", "history"}:
+        return jsonify({"error": "Invalid My Trips section."}), 400
+    cursor = request.args.get("cursor")
+    try:
+        page = load_my_trips_page(
+            current_user.id,
+            section,
+            today=date.today(),
+            cursor_value=cursor,
+        )
+    except MyTripsCursorError:
+        return jsonify({"error": "Invalid My Trips cursor."}), 400
+
+    # Render the focused fragment directly so full app-shell context processors
+    # (notification and friend-request badges) do not add unrelated queries.
+    html = app.jinja_env.get_template("components/my_trips_rows.html").render(
+        rows=page.rows,
+        section=section,
+    )
+    return jsonify({
+        "html": html,
+        "has_more": page.has_more,
+        "next_cursor": page.next_cursor,
+        "trip_ids": [row.trip.id for row in page.rows],
+    })
 
 @app.route("/season-snapshot")
 @login_required

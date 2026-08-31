@@ -1,0 +1,14 @@
+{% set trip = row.trip %}
+<a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="trip-row" data-trip-id="{{ trip.id }}">
+    <div class="trip-row-content">
+        <p class="trip-row-dest">{{ row.mountain_name }}{% if row.trip_location %}, {{ row.trip_location }}{% endif %}</p>
+        <p class="trip-row-dates">
+            {%- if row.attendance_start_date and row.attendance_end_date %}{{ format_trip_dates(trip, start_date=row.attendance_start_date, end_date=row.attendance_end_date) }}{% else %}Dates TBD{% endif -%}
+            {%- if row.trip_status == 'going' %} · <span style="color: var(--bl-color-primary); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">Going</span>{% else %} · <span style="color: var(--bl-color-text-tertiary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">Planning</span>{% endif %}
+            {%- if row.is_guest %} · <span style="color: var(--bl-color-text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px;">You're a guest</span>{% endif %}
+        </p>
+        {% if row.active_guest_count > 0 %}
+        <p class="trip-row-people">{{ row.active_guest_count }} {{ 'going' if row.trip_status == 'going' else 'planning' }}</p>
+        {% endif %}
+    </div>
+</a>
