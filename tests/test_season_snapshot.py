@@ -388,6 +388,157 @@ class TestSeasonSnapshotRoute:
         resp = self._get(client)
         assert b"GuestMtn" in resp.data
 
+    def test_cross_season_parent_uses_in_season_going_override(self, client):
+        """A guest override is evaluated before the parent start is excluded."""
+        season_start, _ = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("crossseason-owner")
+            guest = _make_user("crossseason-guest")
+            trip = _make_trip(
+                owner,
+                mountain="CrossSeasonGuestMtn",
+                start_date=season_start - timedelta(days=2),
+                end_date=season_start + timedelta(days=5),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.GOING
+            )
+            participant.start_date = season_start + timedelta(days=1)
+            participant.end_date = season_start + timedelta(days=3)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"CrossSeasonGuestMtn" in html
+        assert b"JUN" in html
+
+    def test_in_season_parent_excludes_out_of_season_going_override(self, client):
+        """A complete guest override outside the season controls inclusion."""
+        season_start, season_end = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("outsideoverride-owner")
+            guest = _make_user("outsideoverride-guest")
+            trip = _make_trip(
+                owner,
+                mountain="OutsideOverrideMtn",
+                start_date=season_start + timedelta(days=10),
+                end_date=season_start + timedelta(days=15),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.GOING
+            )
+            participant.start_date = season_end + timedelta(days=1)
+            participant.end_date = season_end + timedelta(days=3)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"OutsideOverrideMtn" not in html
+        assert b"Nothing planned yet" in html
+
+    @pytest.mark.parametrize(
+        ("boundary_name", "expected_month"),
+        [("start", b"JUN"), ("end", b"MAY")],
+    )
+    def test_going_override_start_includes_season_boundaries(
+        self, client, boundary_name, expected_month
+    ):
+        """Effective starts on June 1 and May 31 are both included."""
+        season_start, season_end = get_ski_season_window(date.today())
+        boundary = season_start if boundary_name == "start" else season_end
+        with app.app_context():
+            owner = _make_user(f"boundary-{boundary_name}-owner")
+            guest = _make_user(f"boundary-{boundary_name}-guest")
+            trip = _make_trip(
+                owner,
+                mountain=f"Boundary{boundary_name.title()}Mtn",
+                start_date=season_start - timedelta(days=2),
+                end_date=season_start + timedelta(days=5),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.GOING
+            )
+            participant.start_date = boundary
+            participant.end_date = boundary + timedelta(days=1)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert f"Boundary{boundary_name.title()}Mtn".encode() in html
+        assert expected_month in html
+
+    def test_going_guest_without_override_uses_parent_dates(self, client):
+        """A Going guest without overrides retains parent-date behavior."""
+        with app.app_context():
+            owner = _make_user("nooverride-owner")
+            guest = _make_user("nooverride-guest")
+            trip = _make_trip(
+                owner,
+                mountain="NoOverrideMtn",
+                start_date=_in_season(12),
+                end_date=_in_season(12, 20),
+            )
+            _add_participant(trip, guest, status=GuestStatus.GOING)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"NoOverrideMtn" in html
+        assert b"DEC" in html
+
+    def test_partial_going_override_falls_back_to_parent_dates(self, client):
+        """One guest override date is ignored in favor of the parent range."""
+        _, season_end = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("partialoverride-owner")
+            guest = _make_user("partialoverride-guest")
+            trip = _make_trip(
+                owner,
+                mountain="PartialOverrideMtn",
+                start_date=_in_season(1, offset_years=1),
+                end_date=_in_season(1, 20, offset_years=1),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.GOING
+            )
+            participant.start_date = season_end + timedelta(days=1)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"PartialOverrideMtn" in html
+        assert b"JAN" in html
+
+    def test_interested_guest_with_stale_overrides_uses_parent_dates(self, client):
+        """Non-Going participants retain the organizer's trip dates."""
+        _, season_end = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("interestedoverride-owner")
+            guest = _make_user("interestedoverride-guest")
+            trip = _make_trip(
+                owner,
+                mountain="InterestedOverrideMtn",
+                start_date=_in_season(2, offset_years=1),
+                end_date=_in_season(2, 20, offset_years=1),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.INTERESTED
+            )
+            participant.start_date = season_end + timedelta(days=1)
+            participant.end_date = season_end + timedelta(days=3)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"InterestedOverrideMtn" in html
+        assert b"FEB" in html
+
     def test_guest_trip_not_duplicated_for_owner(self, client):
         """A trip the owner has already accepted as a participant is not duplicated."""
         with app.app_context():

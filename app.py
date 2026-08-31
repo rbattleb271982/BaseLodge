@@ -5297,21 +5297,24 @@ def season_snapshot():
                 .filter(
                     SkiTrip.id.in_(accepted_trip_ids),
                     SkiTrip.user_id != current_user.id,
-                    SkiTrip.start_date >= season_start,
-                    SkiTrip.start_date <= season_end,
                 )
                 .all()
             ) or []
-            guest_trips = [
-                set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
-                for trip in guest_trips
-                if (
-                    (effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[0] or date.max)
-                    >= season_start
-                    and (effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[0] or date.max)
-                    <= season_end
+            in_season_guest_trips = []
+            for trip in guest_trips:
+                participant = accepted_by_trip_id[trip.id]
+                attendance_start, attendance_end = effective_attendance_dates(
+                    trip, participant
                 )
-            ]
+                if (
+                    attendance_start is not None
+                    and season_start <= attendance_start <= season_end
+                ):
+                    trip.attendance_start_date = attendance_start
+                    trip.attendance_end_date = attendance_end
+                    trip._attendance_participant = participant
+                    in_season_guest_trips.append(trip)
+            guest_trips = in_season_guest_trips
         else:
             guest_trips = []
     except Exception:
