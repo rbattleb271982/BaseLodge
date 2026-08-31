@@ -1,0 +1,120 @@
+BL-126 — BUG: Harden admin push broadcast safety and opt-out handling
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~35.5%
+
+Implement approved Task #382 exactly as investigated.
+
+Approved scope:
+
+1. Guard broadcast execution
+- Make /admin/test-push-broadcast POST-only.
+- Require CSRF validation.
+- Preserve the existing admin authentication/authorization requirement.
+- Block execution in the production runtime before recipient selection or provider dispatch.
+- Return a clear no-send response when blocked in production.
+
+2. Select eligible recipients fail-closed
+Replace the current active-token-only lookup with one bounded query that requires:
+- an existing associated User
+- User.push_notifications_enabled = true
+- PushDeviceToken active
+- existing admin QA-recipient narrowing behavior, if present
+
+Do not broaden recipients.
+
+3. Deduplicate within a single broadcast invocation
+- Preserve most-recent-first ordering.
+- Keep at most the newest token row per user/platform.
+- Never send more than once to the same platform/token pair within one broadcast.
+- Legacy duplicate rows must not create duplicate attempts.
+- Repeated explicit admin broadcasts remain separate intentional sends.
+- Do not change global message-event deduplication behavior.
+
+4. Preserve existing provider behavior
+Do not redesign the route around OneSignal.
+Preserve:
+- direct APNs routing
+- direct FCM routing
+- APNs sandbox/production environment handling
+- provider response handling
+- provider failure reporting
+- existing message-event/audit logging
+- existing response shape as closely as safely possible
+
+5. Fail closed on unsupported or invalid recipients
+Unsupported platforms, inactive tokens, orphaned rows, opted-out users, missing valid tokens, and duplicate rows must never broaden delivery.
+
+6. Add focused regression coverage for:
+- opted-in APNs recipient sends
+- opted-in FCM recipient sends
+- opted-out recipient excluded
+- inactive token excluded
+- orphaned token excluded
+- no-token user excluded
+- duplicate user/platform rows use newest only
+- repeated physical platform/token pair sends once
+- unsupported platform does not dispatch
+- production runtime blocks before recipient/provider activity
+- GET no longer executes broadcast
+- CSRF required
+- unauthenticated user blocked
+- non-admin user blocked
+- QA-recipient override/narrowing remains intact
+- APNs sandbox/production environment forwarded correctly
+- provider failures retain current result/logging behavior
+- successful development broadcast behavior remains intact
+
+7. Keep scope narrow
+Do NOT introduce:
+- OneSignal migration
+- broadcast UI changes
+- scheduling
+- campaign management
+- dry-run UI
+- rate limiting
+- changes to user preference semantics
+- token registration changes
+- credential/configuration changes
+- RSVP/authentication-policy changes
+- schema changes
+- migrations
+- token cleanup/data mutation
+- dependency changes
+- expanded FCM invalid-token lifecycle behavior
+
+Likely implementation areas:
+- app.py
+- existing broadcast-focused tests or a new focused test module if appropriate
+
+Reference-only unless genuinely required:
+- models.py
+- services/push_providers.py
+- services/message_dispatch.py
+- services/messaging_constants.py
+- docs/admin-audit.md
+- docs/messaging-architecture-inventory.md
+
+Validation:
+- Run the focused admin broadcast test suite.
+- Run existing push lifecycle/messaging regressions.
+- Run relevant authentication/admin-authorization tests.
+- Run CSRF regressions.
+- Run Python compilation.
+- Run git diff --check.
+- Confirm only intended tracked files changed.
+
+If implementation reveals a materially different messaging architecture or requires schema/config/auth changes, STOP and report before expanding scope.
+
+When complete, report:
+- exact files changed
+- exact recipient-selection behavior
+- exact deduplication behavior
+- production/POST/CSRF guard behavior
+- tests run and pass count
+- query/performance impact
+- confirmation of no schema/migration/data cleanup/dependency/UI/auth-policy scope expansion
+
+Do not create another planning task. The plan is approved; implement it.

@@ -1,0 +1,68 @@
+BL-126 — Final merge and closeout
+
+Mode: BUILD
+Tier: POWER
+
+Estimated total BaseLodge workload completed after this step: ~35.5%
+
+BL-126 implementation is complete and approved for final code closeout.
+
+Implemented:
+- app.py
+- tests/test_admin_push_broadcast.py
+
+Validated behavior:
+- POST-only admin broadcast
+- CSRF required
+- Existing admin authentication/authorization preserved
+- Production blocked with 403 before recipient selection/provider dispatch
+- Recipients require:
+  - existing User
+  - push_notifications_enabled = true
+  - active PushDeviceToken
+- QA override only narrows eligible recipients
+- Newest token retained per user/platform
+- Duplicate platform/physical-token sends suppressed per invocation
+- Direct APNs/FCM routing preserved
+- APNs environment forwarding preserved
+- Provider failure/reporting and audit logging preserved
+- Repeated explicit broadcasts remain independent sends
+- Global message-event deduplication unchanged
+
+Validation already completed:
+- Focused BL-126 suite: 15 passed
+- Push/messaging/auth/CSRF regressions: 108 passed
+- Full suite: 1,072 passed, 1 unrelated migration-test failure
+- Python compilation passed
+- git diff --check passed
+- Runtime/preview healthy
+
+The full-suite failure is outside BL-126:
+- migration test supplies SQLite while current migration safety requires PostgreSQL
+- Do not modify migration safety or that test as part of BL-126
+- Record this unrelated failure in the closeout rather than expanding scope
+
+Please:
+
+1. Review the final BL-126 diff for unintended scope expansion.
+2. Confirm only app.py and tests/test_admin_push_broadcast.py are intended tracked BL-126 changes.
+3. Confirm git diff --check remains clean.
+4. Leave the supplied untracked specification/prompt untouched.
+5. Do not modify code to address the unrelated migration-test failure.
+6. Commit only the intended BL-126 tracked changes.
+
+Commit message:
+BL-126: harden admin push broadcast safety
+
+7. Return:
+- commit SHA
+- files committed
+- focused and regression test results
+- full-suite result including the unrelated failure
+- confirmation there are no uncommitted tracked BL-126 changes
+- confirmation the untracked specification remains untouched
+- confirmation no schema/migration/data cleanup/dependency/configuration/UI/auth-policy changes were introduced
+
+Do not create another planning task.
+Do not expand scope.
+Do not attempt to fix the unrelated migration test.
