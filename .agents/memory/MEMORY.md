@@ -16,6 +16,7 @@
 - [Migration backup custody](migration-backup-custody.md) — BL-135 backups use private Replit App Storage with authenticated direct streaming and post-upload checksum verification.
 - [Cross-dialect SQL runtime checks](cross-dialect-sql-runtime-validation.md) — custom SQL compilers need execution tests on SQLite and PostgreSQL; compilation alone misses driver/runtime failures.
 - [Managed browser QA](managed-browser-qa.md) — local Playwright may lack container GUI libraries; use the managed app preview screenshot path for visual checks.
+- [Flask debug reloader cleanup](flask-reloader-cleanup.md) — stopping a temporary debug Flask parent can leave its reloader child on port 5000; clear the orphan before workflow diagnosis.
 - [Season-specific pass history](season-pass-history.md) — normalized per-season rows are canonical history; current product reads remain on User.pass_type during rollout.
 - [RSVP transition history](rsvp-transition-history.md) — private canonical audit history; BL-78 precedes deferred BL-70 and must be targeted exactly for an independent rollout.
 - [Connection lifecycle history](connection-lifecycle-history.md) — private pair history never grants access; lock users canonically; BL-79 sits between BL-78 and deferred BL-70.
