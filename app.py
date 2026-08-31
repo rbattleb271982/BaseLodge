@@ -24,7 +24,7 @@ import jwt
 import httpx
 from datetime import datetime, date, timedelta, timezone
 from zoneinfo import ZoneInfo
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.exc import IntegrityError
 from runtime_config import (
     RuntimeConfigurationError,
@@ -4907,7 +4907,13 @@ def compute_trip_overlaps(user_trips, friend_trips):
 
 
 def build_trip_detail_friend_overlaps(
-    trip, viewer, viewer_participant=None, *, today=None
+    trip,
+    viewer,
+    viewer_participant=None,
+    *,
+    today=None,
+    friend_ids=None,
+    friend_users=None,
 ):
     """Return visible separate public friend-trip overlaps for Trip Detail.
 
@@ -4932,7 +4938,11 @@ def build_trip_detail_friend_overlaps(
     if not viewer_start or not viewer_end or viewer_end < today:
         return []
 
-    friend_ids = list(reciprocal_friend_ids(viewer.id))
+    friend_ids = (
+        list(reciprocal_friend_ids(viewer.id))
+        if friend_ids is None
+        else list(friend_ids)
+    )
     if not friend_ids:
         return []
 
@@ -5015,10 +5025,17 @@ def build_trip_detail_friend_overlaps(
     if not attendance_contexts:
         return []
 
-    friend_users = {
-        user.id: user
-        for user in User.query.filter(User.id.in_(friend_ids)).all()
-    }
+    if friend_users is None:
+        friend_users = {
+            user.id: user
+            for user in User.query.filter(User.id.in_(friend_ids)).all()
+        }
+    else:
+        friend_users = {
+            user_id: user
+            for user_id, user in friend_users.items()
+            if user_id in friend_ids
+        }
     representative_by_friend = {}
     for (friend_id, _candidate_id), (
         candidate,
@@ -14495,8 +14512,16 @@ def trip_detail(trip_id):
     
     # Load all RSVP rows once, then provide explicit UI groups. Removed is
     # intentionally excluded from every visible group.
-    participant_query = SkiTripParticipant.query.filter_by(trip_id=trip_id)
-    if not is_owner:
+    participant_query = (
+        SkiTripParticipant.query
+        .filter_by(trip_id=trip_id)
+        .options(selectinload(SkiTripParticipant.user))
+    )
+    if is_owner:
+        participant_query = participant_query.filter(
+            SkiTripParticipant.status != GuestStatus.REMOVED
+        )
+    else:
         participant_query = participant_query.filter(
             SkiTripParticipant.active_status_filter()
         )
@@ -14525,12 +14550,22 @@ def trip_detail(trip_id):
         p for p in participant_rows if p.is_active
     ]
     
+    # Resolve reciprocal friends once for this request. The resulting IDs and
+    # User rows are reused only by existing friend-scoped presentation.
+    friend_ids = list(reciprocal_friend_ids(current_user.id))
+    friend_users = {
+        user.id: user
+        for user in (
+            User.query.filter(User.id.in_(friend_ids)).all()
+            if friend_ids else []
+        )
+    }
+
     # Get connected friends for invite modal (owner only)
     friends_for_invite = []
     if is_owner and not is_terminal:
-        friend_ids = list(reciprocal_friend_ids(current_user.id))
         if friend_ids:
-            friends = User.query.filter(User.id.in_(friend_ids)).all()
+            friends = list(friend_users.values())
             # Sort alphabetically by first name (case-insensitive, leading/trailing
             # spaces stripped), with last name as a tie-breaker — matches the
             # alphabetical ordering used by the Friends page (alpha_groups, line ~7540).
@@ -14569,7 +14604,12 @@ def trip_detail(trip_id):
     owner = db.session.get(User, trip.user_id)
     
     # Get group signals for aggregated view
-    group_signals = trip.get_group_signals()
+    group_signals = trip.get_group_signals(
+        participants=[
+            p for p in participant_rows
+            if p.is_active or p.role == ParticipantRole.OWNER
+        ]
+    )
     
     # Active guests are retained as the legacy display list used by existing
     # setup/overlap widgets. The RSVP groups above drive the people section.
@@ -14589,10 +14629,21 @@ def trip_detail(trip_id):
     # Get current user's participant record for inline editing
     current_user_participant = participant
     if is_owner:
-        # Owner needs their own participant record
-        current_user_participant = SkiTripParticipant.query.filter_by(
-            trip_id=trip_id, user_id=current_user.id, role=ParticipantRole.OWNER
-        ).first()
+        current_user_participant = next(
+            (
+                p for p in participant_rows
+                if p.user_id == current_user.id
+                and p.role == ParticipantRole.OWNER
+            ),
+            None,
+        )
+        if current_user_participant is None:
+            # Compatibility fallback for malformed legacy rows.
+            current_user_participant = SkiTripParticipant.query.filter_by(
+                trip_id=trip_id,
+                user_id=current_user.id,
+                role=ParticipantRole.OWNER,
+            ).first()
     
     # Calculate physical-presence overlaps between the current member and
     # other Going participants. Shared-trip dates remain the organizer's
@@ -14647,6 +14698,8 @@ def trip_detail(trip_id):
             current_user,
             current_user_participant,
             today=today,
+            friend_ids=friend_ids,
+            friend_users=friend_users,
         )
 
     # Count how many of the user's friends have this resort on their wishlist
@@ -14657,11 +14710,9 @@ def trip_detail(trip_id):
         and trip.resort.is_active
         and not trip.resort.is_region
     ):
-        _friend_ids = list(reciprocal_friend_ids(current_user.id))
-        if _friend_ids:
-            _wl_friends = User.query.filter(User.id.in_(_friend_ids)).all()
+        if friend_users:
             friends_wishlist_count = sum(
-                1 for u in _wl_friends
+                1 for u in friend_users.values()
                 if trip.resort_id in normalize_wishlist_resort_ids(
                     u.wish_list_resorts, strict=False
                 )
@@ -14679,6 +14730,7 @@ def trip_detail(trip_id):
     if can_plan:
         planning_preview_posts = (
             SkiTripPlanningPost.query
+            .options(selectinload(SkiTripPlanningPost.author))
             .filter_by(trip_id=trip_id)
             .order_by(SkiTripPlanningPost.created_at.desc())
             .limit(3)

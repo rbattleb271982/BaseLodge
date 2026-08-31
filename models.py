@@ -930,9 +930,10 @@ class SkiTrip(db.Model):
             )
         ).all()
     
-    def get_group_signals(self):
+    def get_group_signals(self, participants=None):
         """Get aggregated transportation and equipment counts for the group."""
-        participants = self.get_all_participants()
+        if participants is None:
+            participants = self.get_all_participants()
         
         transportation = {
             'driving': 0,
