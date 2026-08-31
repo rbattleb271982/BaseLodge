@@ -1,0 +1,64 @@
+{% from 'macros/home_disclosure.html' import home_disclosure %}
+{% set _activity = home_summary.activity %}
+{% set _trips = _activity.upcoming_trip_count %}
+{% set _mountains = _activity.mountains_visited_count %}
+{% set _wishlist = _activity.wishlist_count %}
+{% set _trips_label = 'trip' if _trips == 1 else 'trips' %}
+{% set _mountains_label = 'mountain visited' if _mountains == 1 else 'mountains visited' %}
+{% set _wishlist_label = 'wishlist mountain' if _wishlist == 1 else 'wishlist mountains' %}
+{% set _trips_display_label = 'Trip' if _trips == 1 else 'Trips' %}
+{% set _mountains_display_label = 'Mountain Visited' if _mountains == 1 else 'Mountains Visited' %}
+{% set _wishlist_display_label = 'Wishlist Mountain' if _wishlist == 1 else 'Wishlist Mountains' %}
+{% set _activity_summary = [
+    _trips ~ ' ' ~ _trips_label,
+    _mountains ~ ' ' ~ _mountains_label,
+    _wishlist ~ ' ' ~ _wishlist_label
+] | join(' · ') %}
+
+{% call home_disclosure(
+    'your-activity',
+    'Your Activity',
+    _activity_summary,
+    class_name='home-activity-disclosure'
+) %}
+<div class="home-activity-metrics">
+    {% if stat_trips_url %}
+    <a href="{{ stat_trips_url }}" class="home-activity-metric" aria-label="{{ _trips }} {{ _trips_label }}">
+    {% else %}
+    <div class="home-activity-metric">
+    {% endif %}
+        <span class="home-activity-metric__value">{{ _trips }}</span>
+        <span class="home-activity-metric__label">{{ _trips_display_label }}</span>
+    {% if stat_trips_url %}
+    </a>
+    {% else %}
+    </div>
+    {% endif %}
+
+    {% if stat_mountains_url %}
+    <a href="{{ stat_mountains_url }}" class="home-activity-metric" aria-label="{{ _mountains }} {{ _mountains_label }}">
+    {% else %}
+    <div class="home-activity-metric">
+    {% endif %}
+        <span class="home-activity-metric__value">{{ _mountains }}</span>
+        <span class="home-activity-metric__label">{{ _mountains_display_label }}</span>
+    {% if stat_mountains_url %}
+    </a>
+    {% else %}
+    </div>
+    {% endif %}
+
+    {% if stat_wishlist_url %}
+    <a href="{{ stat_wishlist_url }}" class="home-activity-metric" aria-label="{{ _wishlist }} {{ _wishlist_label }}">
+    {% else %}
+    <div class="home-activity-metric">
+    {% endif %}
+        <span class="home-activity-metric__value">{{ _wishlist }}</span>
+        <span class="home-activity-metric__label">{{ _wishlist_display_label }}</span>
+    {% if stat_wishlist_url %}
+    </a>
+    {% else %}
+    </div>
+    {% endif %}
+</div>
+{% endcall %}

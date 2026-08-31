@@ -12,6 +12,7 @@ from models import DismissedInsightCard, Friend, db
 HOME_TEMPLATE = Path("templates/home.html").read_text()
 POPULATED_HEADER_TEMPLATE = Path("templates/partials/home/_header.html").read_text()
 EMPTY_HEADER_TEMPLATE = Path("templates/partials/home/_header_empty.html").read_text()
+ACTIVITY_TEMPLATE = Path("templates/partials/home/_activity.html").read_text()
 HAPPENING_TEMPLATE = Path("templates/partials/home/_section_happening.html").read_text()
 OPPORTUNITIES_TEMPLATE = Path("templates/partials/home/_section_opportunities.html").read_text()
 PILLS_TEMPLATE = Path("templates/partials/home/_section_pills.html").read_text()
@@ -198,6 +199,26 @@ def test_home_summary_matches_flat_values_and_reuses_loaded_trips(client):
     assert summary["next_trip"]["is_owner"] is True
 
 
+def test_home_renders_your_activity_from_shared_summary(client):
+    with app.app_context():
+        viewer = _make_user(
+            "activity-disclosure",
+            visited_resort_ids=[101, 102],
+            wish_list_resorts=[201],
+        )
+        _make_trip(viewer)
+        viewer_id = viewer.id
+        db.session.commit()
+
+    html = _get_home(client, viewer_id)
+
+    assert html.count('id="your-activity"') == 1
+    assert "1 trip · 2 mountains visited · 1 wishlist mountain" in html
+    assert "Trips" in html
+    assert "Mountains Visited" in html
+    assert "Wishlist Mountain" in html
+
+
 def test_empty_home_summary_matches_existing_zero_values(client):
     with app.app_context():
         viewer = _make_user(
@@ -371,16 +392,17 @@ def test_home_dismissal_is_idempotent_for_happening_and_opportunity(client):
             ).count() == 1
 
 
-def test_home_header_variants_use_about_you_disclosure_and_preserve_stat_contracts():
+def test_home_header_variants_use_about_you_and_activity_disclosures():
     for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
         assert "partials/home/_about_you_gear.html" in header_template
+        assert "partials/home/_activity.html" in header_template
         assert 'class="hc-identity-line"' not in header_template
         assert "partials/home/_gear_summary.html" not in header_template
+        assert "hc-stat-band" not in header_template
 
-        assert "stat_trips_url" in header_template
-        assert "stat_mountains_url" in header_template
-        assert "stat_wishlist_url" in header_template
-        assert "hc-stat-tile--link" in header_template
+    assert "stat_trips_url" in ACTIVITY_TEMPLATE
+    assert "stat_mountains_url" in ACTIVITY_TEMPLATE
+    assert "stat_wishlist_url" in ACTIVITY_TEMPLATE
 
 
 def test_home_header_variants_include_editable_gear_summary_and_pass_summary():
@@ -395,10 +417,55 @@ def test_home_about_you_gear_uses_stacked_single_column_layout():
     assert ".home-about-you-gear__list" in HOME_TEMPLATE
     assert ".home-about-you-gear__row" in HOME_TEMPLATE
     assert "flex-direction: column;" in HOME_TEMPLATE
-    assert "grid-template-columns" not in HOME_TEMPLATE[
+    about_you_css = HOME_TEMPLATE[
         HOME_TEMPLATE.index(".home-about-you-gear__list"):
-        HOME_TEMPLATE.index("@media (prefers-reduced-motion")
+        HOME_TEMPLATE.index(".home-activity-metrics")
     ]
+    assert "grid-template-columns" not in about_you_css
+
+
+def test_home_activity_disclosure_uses_summary_counts_and_grammar():
+    activity = {
+        "upcoming_trip_count": 1,
+        "mountains_visited_count": 36,
+        "wishlist_count": 1,
+    }
+    with app.test_request_context():
+        html = app.jinja_env.get_template(
+            "partials/home/_activity.html"
+        ).render(
+            home_summary={"activity": activity},
+            stat_trips_url="/trips",
+            stat_mountains_url="/mountains",
+            stat_wishlist_url="/wishlist",
+        )
+
+    assert '<details id="your-activity"' in html
+    assert 'id="your-activity"' in html.split(">", 1)[0]
+    assert "open" not in html.split(">", 1)[0]
+    assert "1 trip · 36 mountains visited · 1 wishlist mountain" in html
+    assert "Trips" not in html.split("</summary>", 1)[0]
+    assert "Trip" in html
+    assert "Mountains Visited" in html
+    assert "Wishlist Mountain" in html
+
+
+def test_home_activity_disclosure_renders_zero_values_cleanly():
+    activity = {
+        "upcoming_trip_count": 0,
+        "mountains_visited_count": 0,
+        "wishlist_count": 0,
+    }
+    with app.test_request_context():
+        html = app.jinja_env.get_template(
+            "partials/home/_activity.html"
+        ).render(home_summary={"activity": activity})
+
+    assert "0 trips · 0 mountains visited · 0 wishlist mountains" in html
+    assert html.count('class="home-activity-metric__value">0</span>') == 3
+    assert "Trips" in html
+    assert "Mountains Visited" in html
+    assert "Wishlist Mountains" in html
 
 
 def test_home_uses_scoped_compact_summary_treatment_without_changing_hierarchy():
