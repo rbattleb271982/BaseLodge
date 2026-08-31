@@ -11110,6 +11110,7 @@ def _build_home_summary(
     user,
     all_upcoming,
     next_trip,
+    next_trip_friends_going_count,
     friend_ids,
     friend_pass_counts,
     home_rider_disciplines,
@@ -11146,11 +11147,39 @@ def _build_home_summary(
             {
                 "trip": next_trip,
                 "is_owner": next_trip.user_id == summary_user.id,
+                "friends_going_count": next_trip_friends_going_count,
             }
             if next_trip
             else None
         ),
     }
+
+
+def _count_home_next_trip_friends_going(next_trip, friend_ids, current_user_id):
+    """Count confirmed direct friends attending one authoritative Home trip."""
+    if not next_trip or not friend_ids:
+        return 0
+
+    unique_friend_ids = set(friend_ids)
+    participant_count = (
+        db.session.query(
+            func.count(func.distinct(SkiTripParticipant.user_id))
+        )
+        .filter(
+            SkiTripParticipant.trip_id == next_trip.id,
+            SkiTripParticipant.user_id.in_(unique_friend_ids),
+            SkiTripParticipant.user_id != next_trip.user_id,
+            SkiTripParticipant.user_id != current_user_id,
+            SkiTripParticipant.status == GuestStatus.GOING,
+        )
+        .scalar()
+        or 0
+    )
+    connected_owner_count = int(
+        next_trip.user_id in unique_friend_ids
+        and next_trip.user_id != current_user_id
+    )
+    return int(participant_count) + connected_owner_count
 
 
 @app.route("/home")
@@ -11245,10 +11274,16 @@ def home():
     # --- Next Trip (created or actively joined) ---
     try:
         _hp_t0 = time.perf_counter()
-        my_trips = SkiTrip.query.filter(
-            SkiTrip.user_id == user.id,
-            SkiTrip.end_date >= today
-        ).order_by(SkiTrip.start_date.asc()).all()
+        my_trips = (
+            SkiTrip.query
+            .options(db.joinedload(SkiTrip.resort))
+            .filter(
+                SkiTrip.user_id == user.id,
+                SkiTrip.end_date >= today,
+            )
+            .order_by(SkiTrip.start_date.asc())
+            .all()
+        )
         my_trips = [set_effective_attendance_dates(trip) for trip in my_trips]
         if app.debug:
             print(f"[HOME_PERF] my_trips_query={time.perf_counter()-_hp_t0:.4f}s count={len(my_trips)}")
@@ -11268,11 +11303,16 @@ def home():
         accepted_trip_ids = list(accepted_by_trip_id)
         if accepted_trip_ids:
             _hp_t0 = time.perf_counter()
-            accepted_guest_trips = SkiTrip.query.filter(
-                SkiTrip.id.in_(accepted_trip_ids),
-                SkiTrip.user_id != user.id,
-                SkiTrip.end_date >= today
-            ).all()
+            accepted_guest_trips = (
+                SkiTrip.query
+                .options(db.joinedload(SkiTrip.resort))
+                .filter(
+                    SkiTrip.id.in_(accepted_trip_ids),
+                    SkiTrip.user_id != user.id,
+                    SkiTrip.end_date >= today,
+                )
+                .all()
+            )
             accepted_guest_trips = [
                 set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
                 for trip in accepted_guest_trips
@@ -11308,6 +11348,9 @@ def home():
         friend_ids = []
         all_friends = []
     friend_pass_counts = count_friends_by_pass_group(all_friends)
+    next_trip_friends_going_count = _count_home_next_trip_friends_going(
+        next_trip, friend_ids, user.id
+    )
 
     # --- Trip Invite Banner (soonest active pending trip invite) ---
     banner_invite = None
@@ -11631,6 +11674,7 @@ def home():
         user=user,
         all_upcoming=all_upcoming,
         next_trip=next_trip,
+        next_trip_friends_going_count=next_trip_friends_going_count,
         friend_ids=friend_ids,
         friend_pass_counts=friend_pass_counts,
         home_rider_disciplines=home_rider_disciplines,
@@ -11687,6 +11731,7 @@ def home():
         show_ideas_diagnostic=show_ideas_diagnostic,
         ideas_diag=ideas_diag,
         home_summary=home_summary,
+        home_today=today,
     )
     if app.debug:
         print(f"[HOME_PERF] render_template={time.perf_counter()-_hp_t0:.4f}s")

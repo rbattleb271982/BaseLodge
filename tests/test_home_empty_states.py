@@ -135,6 +135,7 @@ def test_home_summary_assembler_uses_only_resolved_values():
         user=user,
         all_upcoming=[next_trip],
         next_trip=next_trip,
+        next_trip_friends_going_count=2,
         friend_ids=[8, 9],
         friend_pass_counts=pass_counts,
         home_rider_disciplines=["skier"],
@@ -165,7 +166,11 @@ def test_home_summary_assembler_uses_only_resolved_values():
                 "freedom,ski_california,other"
             ),
         },
-        "next_trip": {"trip": next_trip, "is_owner": True},
+        "next_trip": {
+            "trip": next_trip,
+            "is_owner": True,
+            "friends_going_count": 2,
+        },
     }
 
 

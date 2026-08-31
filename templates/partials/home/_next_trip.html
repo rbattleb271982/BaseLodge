@@ -1,0 +1,37 @@
+<!--
+Component: Your Next Trip
+Purpose: Compact summary of the authoritative BL-187 next trip.
+Used on: Home screen when home_summary.next_trip is present
+
+Inputs:
+  home_summary — BL-187 resolved Home summary contract
+  home_today   — server-resolved current date
+-->
+
+{% set _next = home_summary.next_trip %}
+{% set _trip = _next.trip %}
+{% set _start = _trip.attendance_start_date or _trip.start_date %}
+{% set _end = _trip.attendance_end_date or _trip.end_date %}
+{% set _mountain = (_trip.resort | resort_display) if _trip.resort else _trip.mountain %}
+{% set _night_count = (_end - _start).days %}
+{% if _night_count < 1 %}{% set _night_count = 1 %}{% endif %}
+{% set _friend_count = _next.friends_going_count %}
+{% set _days_until = (_start - home_today).days %}
+
+<section id="your-next-trip" class="home-next-trip" aria-labelledby="your-next-trip-title">
+    <div class="home-next-trip__header">
+        <h2 id="your-next-trip-title" class="home-next-trip__eyebrow">Your Next Trip</h2>
+        <a class="home-next-trip__action" href="{{ url_for('trip_detail', trip_id=_trip.id) }}">
+            View trip &gt;
+        </a>
+    </div>
+    <p class="home-next-trip__mountain">{{ _mountain }}</p>
+    <p class="home-next-trip__meta">
+        {{ format_trip_dates(_trip, _start, _end) }} ·
+        {{ _night_count }} {{ 'night' if _night_count == 1 else 'nights' }}
+    </p>
+    <p class="home-next-trip__meta">
+        {{ _friend_count }} {{ 'friend' if _friend_count == 1 else 'friends' }} going ·
+        {% if _days_until <= 0 %}Trip today{% elif _days_until == 1 %}Trip tomorrow{% else %}Trip in {{ _days_until }} days{% endif %}
+    </p>
+</section>
