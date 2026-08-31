@@ -1,0 +1,495 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~50%
+
+TASK: BL-156 — Bound Home candidate retrieval
+
+INVESTIGATE AND DESIGN ONLY.
+Do not implement yet.
+
+==================================================
+GOAL
+==================================================
+
+Measure how Home candidate retrieval scales as BaseLodge data grows and determine whether Home is loading, evaluating, joining, or ranking substantially more candidate records than it can actually display.
+
+BL-161 established that Home's warmed query shape is already bounded:
+
+- 25 total SQL queries
+- 5 User SELECTs
+- Home Ideas retrieval is one bounded SQL statement
+
+This task is therefore about candidate VOLUME and work performed inside those bounded queries, not reducing query count for its own sake.
+
+Do not redesign Home.
+Do not change ranking semantics unless required to safely bound retrieval.
+
+==================================================
+1. FIND AUTHORITATIVE BL-156 REQUIREMENTS
+==================================================
+
+Locate BL-156 in the existing BaseLodge task/backlog documentation if available.
+
+Use its exact requirements as authoritative.
+
+Inspect related tasks only to establish boundaries:
+
+- BL-161 authenticated-page query overhead — complete
+- BL-155 Trip Detail N+1 — complete
+- BL-158 My Trips pagination
+- BL-159 Friends pagination/progressive loading
+
+Keep those tasks separate.
+
+==================================================
+2. MAP HOME DATA PIPELINE
+==================================================
+
+Trace the complete authenticated Home request.
+
+Identify every dataset used to construct Home, including as applicable:
+
+- Upcoming Trip
+- Happening
+- Ideas
+- friend trips
+- organized trips
+- attended trips
+- availability-derived candidates
+- wishlist-derived candidates
+- friend/resort context
+- notifications/toasts
+- any other Home cards or supporting context
+
+For each dataset document:
+
+SOURCE DATA
+→ ELIGIBILITY FILTER
+→ DATABASE RETRIEVAL
+→ PYTHON PROCESSING
+→ RANKING/SORTING
+→ DISPLAY LIMIT
+
+Identify where candidate sets become bounded today.
+
+==================================================
+3. MEASURE CURRENT CANDIDATE VOLUME
+==================================================
+
+Use disposable fixtures only.
+
+Instrument Home with representative dataset sizes.
+
+At minimum test candidate populations around:
+
+- 10
+- 50
+- 100
+- 500
+
+Where practical, include a larger stress fixture if execution remains reasonable.
+
+Measure:
+
+- database rows returned
+- candidate objects materialized
+- candidates processed in Python
+- candidates ranked
+- final candidates rendered
+- SQL query count
+- normalized SQL categories
+- request execution time as a directional development measurement
+
+Do not treat development timing as a production SLA.
+
+==================================================
+4. SEPARATE CARD TYPES
+==================================================
+
+Measure candidate growth independently for the major Home sections.
+
+At minimum:
+
+A. Upcoming Trip
+B. Happening
+C. Ideas
+
+For Ideas, distinguish the actual candidate sources used by the repository, including as applicable:
+
+- future friend trips
+- shared availability/open-date candidates
+- wishlist mountain matches
+- other existing Idea types
+
+Do not invent new Idea types.
+
+==================================================
+5. FIND OVER-RETRIEVAL
+==================================================
+
+For every Home candidate source determine:
+
+- how many records SQL retrieves
+- how many survive eligibility
+- how many are ranked
+- how many Home can actually display
+
+Flag cases where the application retrieves or processes a large candidate universe to display only a small bounded number.
+
+Quantify the ratio.
+
+Example structure:
+
+500 rows retrieved
+→ 120 eligible
+→ 120 ranked
+→ 3 displayed
+
+Do not assume this pattern exists. Measure it.
+
+==================================================
+6. DATABASE VS PYTHON FILTERING
+==================================================
+
+Identify eligibility rules currently applied:
+
+- in SQL
+- in Python after retrieval
+- in both
+
+Determine which filters can safely move earlier without changing semantics.
+
+Pay special attention to:
+
+- future-date requirements
+- public/private trip rules
+- reciprocal-current friendship
+- attendance status
+- trip lifecycle
+- resort presence
+- wishlist membership
+- availability/open-date eligibility
+
+BL-133 authorization/privacy rules are hard boundaries.
+
+==================================================
+7. IDEAS RETRIEVAL
+==================================================
+
+Inspect the existing Ideas retrieval query/service closely.
+
+BL-161 confirmed Home Ideas uses one bounded SQL statement from a query-count perspective.
+
+Now measure:
+
+- rows examined/returned where observable
+- candidate rows produced
+- deduplication
+- ranking inputs
+- Python processing
+- final Home display count
+
+Determine whether the SQL/CTE itself remains bounded as data grows.
+
+==================================================
+8. RANKING CORRECTNESS
+==================================================
+
+Before recommending LIMIT or earlier truncation, determine exactly what information the current ranking algorithm requires.
+
+A database LIMIT must NOT be introduced before ranking if doing so could remove a candidate that should legitimately rank above retained candidates.
+
+For every proposed bound prove either:
+
+A. the bound preserves exact current ranking results
+
+or
+
+B. a deterministic preselection rule safely creates a superset containing every candidate that could reach the final display set.
+
+Do not silently change ranking.
+
+==================================================
+9. SOCIAL GRAPH SCALING
+==================================================
+
+Measure Home behavior as the user's reciprocal friend network grows.
+
+Representative sizes:
+
+- 1 friend
+- 10 friends
+- 50 friends
+- 100 friends where practical
+
+Determine whether work grows because of:
+
+- friend IDs
+- friend trips
+- participant rows
+- wishlist matches
+- availability data
+- resort context
+- ranking
+
+Query count may remain constant while row volume grows substantially.
+
+==================================================
+10. TRIP SCALING
+==================================================
+
+Measure representative growth in:
+
+- future trips
+- past trips
+- private trips
+- public trips
+- terminal trips
+- participant attendance
+
+Verify that irrelevant records are eliminated as early as safely possible.
+
+BL-80 terminal behavior must remain unchanged.
+
+==================================================
+11. WISHLIST SCALING
+==================================================
+
+Measure Home Idea behavior with increasing:
+
+- friend wishlist entries
+- resort overlap
+- duplicate mountain interest
+
+Determine whether wishlist candidate construction loads substantially more rows than required for the final Home Ideas set.
+
+Preserve BL-87 current-state semantics.
+
+History must not participate in current eligibility.
+
+==================================================
+12. AVAILABILITY SCALING
+==================================================
+
+Measure availability/open-date candidate work as:
+
+- friend count grows
+- date ranges grow
+- overlapping dates grow
+
+Preserve:
+
+- raw availability privacy
+- current-state authorization
+- mutual openness rules
+- existing overlap semantics
+
+Do not expose raw UserAvailability merely to optimize candidate retrieval.
+
+==================================================
+13. MEMORY / MATERIALIZATION
+==================================================
+
+Identify places where Home materializes large:
+
+- ORM collections
+- lists
+- dictionaries
+- sets
+- intermediate candidate objects
+
+before reducing them to a small display set.
+
+Estimate cardinality under representative fixtures.
+
+The goal is not micro-optimization. Focus on structures that can grow materially with user/network data.
+
+==================================================
+14. DUPLICATION / DEDUPLICATION
+==================================================
+
+Audit whether the same conceptual candidate can enter Home through multiple source paths.
+
+Determine:
+
+- where deduplication occurs
+- whether it occurs before or after expensive processing
+- whether deduplication can safely happen earlier
+
+Preserve current candidate identity and ranking semantics.
+
+==================================================
+15. DEFINE SAFE BOUNDS
+==================================================
+
+For each confirmed issue recommend the smallest safe bounding strategy.
+
+Possible approaches may include:
+
+- earlier SQL eligibility predicates
+- bounded candidate supersets
+- per-source caps before expensive enrichment
+- deterministic top-K preselection
+- avoiding materialization of irrelevant rows
+- limiting enrichment to candidates that survive cheap eligibility stages
+
+Do NOT automatically add arbitrary LIMIT values.
+
+Every proposed bound must have a correctness argument.
+
+==================================================
+16. PERFORMANCE BUDGETS
+==================================================
+
+Recommend regression budgets based primarily on cardinality rather than exact wall-clock timing.
+
+Examples:
+
+- maximum rows materialized for N source records
+- maximum candidates reaching expensive enrichment
+- bounded final ranking set
+- constant query-count behavior
+- no processing of terminal/ineligible records
+
+Keep BL-161's Home query regression ceiling:
+
+<= 25 warmed SQL queries for the equivalent fixture.
+
+Do not sacrifice row-volume improvements to chase a lower SQL count.
+
+==================================================
+17. PRODUCT REGRESSION SAFETY
+==================================================
+
+Any future BL-156 implementation must preserve:
+
+- Upcoming Trip selection
+- Happening contents/order
+- Ideas contents/order
+- existing Idea ranking
+- friend-trip eligibility
+- public/private behavior
+- reciprocal-current friendship
+- attendance semantics
+- wishlist semantics
+- availability overlap semantics
+- BL-80 lifecycle behavior
+- BL-87 wishlist current state
+- BL-133 privacy/authorization
+
+The same fixture must produce the same visible Home result before and after optimization.
+
+==================================================
+18. OUT OF SCOPE
+==================================================
+
+Do not implement or absorb:
+
+- BL-158 My Trips pagination
+- BL-159 Friends pagination
+- global caching
+- Home visual redesign
+- new Idea types
+- Ideas ranking redesign
+- recommendation/ML systems
+- database denormalization
+- background precomputation
+- generalized performance framework
+
+If one of these would eventually help, document it separately.
+
+==================================================
+19. SCHEMA / DATABASE SAFETY
+==================================================
+
+Strong expectation:
+
+NO schema change.
+NO migration.
+
+Do not:
+
+- create Alembic revisions
+- apply BL-70
+- mutate Supabase Development
+- mutate persistent Replit
+- access Production
+
+If an index or schema change appears valuable, report it separately.
+
+Do not implement it in BL-156 without explicit approval.
+
+==================================================
+20. TEST STRATEGY
+==================================================
+
+Design tests that can prove candidate bounding without relying primarily on timing.
+
+Include:
+
+- small fixture correctness
+- large fixture correctness
+- visible Home equivalence
+- candidate/materialization counts
+- friend-network scaling
+- trip scaling
+- wishlist scaling where applicable
+- availability scaling where applicable
+- terminal/ineligible exclusion
+- BL-133 privacy
+- BL-161 Home query non-regression
+
+Prefer deterministic counters/cardinality assertions over flaky performance-duration assertions.
+
+==================================================
+21. PRIORITIZE FINDINGS
+==================================================
+
+For every confirmed issue classify:
+
+HIGH:
+work grows materially and can be safely bounded now
+
+MEDIUM:
+measurable but unlikely to matter at current scale
+
+LOW:
+theoretical or already adequately bounded
+
+Do not implement low-value complexity merely because it reduces a counter.
+
+==================================================
+22. DELIVERABLE
+==================================================
+
+Return:
+
+A. authoritative BL-156 requirements
+B. complete Home data pipeline
+C. current display limits
+D. baseline candidate counts
+E. 10/50/100/500 scaling results
+F. friend-network scaling results
+G. trip scaling results
+H. Ideas retrieval findings
+I. wishlist candidate findings
+J. availability candidate findings
+K. database-vs-Python filtering findings
+L. materialization/memory findings
+M. deduplication findings
+N. confirmed over-retrieval problems
+O. ranking-correctness constraints
+P. proposed safe bounds
+Q. correctness argument for each bound
+R. proposed cardinality/query budgets
+S. exact BL-156 implementation scope
+T. items explicitly left unchanged
+U. regression test plan
+V. privacy/authorization assessment
+W. schema/index assessment
+X. risks/dependencies
+Y. recommended implementation order
+Z. recommended Replit tier for BUILD
+
+Do not implement yet.
+
+The investigation must measure candidate/row volume, not merely SQL statement count.
