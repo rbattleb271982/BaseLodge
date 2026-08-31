@@ -1,0 +1,184 @@
+Final merge and closeout for BL-196 — Home integration, responsive behavior, and native-shell QA.
+
+This implementation is approved.
+
+Do not create another task.
+Do not return to Plan mode.
+Do not expand scope.
+
+1. REVIEW THE FINAL DIFF
+
+Expected scope:
+
+- templates/home.html
+- tests/test_home_responsive_integration.py
+- permitted engineering memory notes documenting browser-QA environment behavior
+
+Confirm there are no unrelated application changes.
+
+Confirm:
+
+- no services/happening.py changes
+- no Ideas retrieval changes
+- no models changes
+- no migrations
+- no native configuration changes
+- no new dependencies
+- no JavaScript changes
+
+2. VERIFY THE FIXES
+
+Confirm the final diff preserves only the approved integration fixes:
+
+- long Next Trip resort names wrap safely
+- long Ideas text wraps safely
+- Happening cards retain 78% mobile width
+- Happening cards cap at 520px on desktop
+- affected Home controls meet 44px minimum tap target
+- availability-sheet close control meets 44px minimum tap target
+
+Do not make further visual changes unless a regression is found during final validation.
+
+3. VERIFY RESPONSIVE CONTRACT
+
+Confirm validation remains clean at:
+
+Mobile:
+- 320px
+- 360px
+- 390px
+- 430px
+
+Desktop:
+- 768px
+- 1024px
+- 1280px
+
+Confirm:
+
+- no page-level horizontal overflow
+- no clipped important text
+- bottom nav clearance remains intact
+- Happening retains intended mobile next-card peek
+- desktop Happening cards do not become excessively wide
+- disclosure rows remain usable
+- Ideas and Next Trip wrap correctly
+
+4. VERIFY HOME ARCHITECTURE HAS NOT REGRESSED
+
+Confirm:
+
+- BL-177 Happening retrieval remains bounded to five
+- BL-176 Ideas retrieval remains one query and max five rows
+- no new Home queries
+- no N+1
+- no lazy-loading regression
+- no caching introduced
+- no client dependency added
+
+5. VERIFY PRODUCT SEMANTICS REMAIN UNCHANGED
+
+Confirm this task did not change:
+
+- About You & Gear behavior
+- Your Activity behavior
+- Friends’ Passes semantics/navigation
+- Next Trip selection
+- friends-going semantics
+- Next Trip action eligibility
+- Happening ranking/dismissal
+- Ideas matching/ranking/dismissal
+- empty-state product behavior
+- privacy/authorization
+
+6. VERIFY ACCESSIBILITY
+
+Confirm:
+
+- native details/summary disclosure behavior remains intact
+- keyboard behavior remains intact
+- focus styling remains visible
+- affected tap targets are >=44px
+- important text is no longer lost through truncation
+- no duplicate interactive nesting was introduced
+
+7. NATIVE-SHELL CAVEAT
+
+Document the final validation accurately:
+
+- native shell runtime was not available in this workspace
+- existing viewport/safe-area/WebView contract was statically reviewed
+- no native-shell blocker was identified
+- no native configuration was changed
+
+Do not attempt native configuration work as part of this merge.
+
+8. FINAL TESTS
+
+Re-run the relevant Home suite, including:
+
+- Home responsive integration
+- disclosure
+- About You & Gear
+- Friends’ Passes
+- Home empty states
+- Next Trip
+- Next Trip Actions
+- Happening carousel/retrieval
+- Ideas retrieval
+- regression guards
+
+Also run:
+
+- git diff --check
+- Flask startup / Home request smoke validation
+
+Confirm browser console remains clean in the real Flask preview.
+
+9. COMMIT
+
+If everything remains clean, commit only the approved BL-196 files.
+
+Commit message:
+
+BL-196: finalize Home responsive integration
+
+Do not commit unrelated working-tree files.
+
+10. RETURN
+
+BL-196 MERGE RESULT
+
+- Commit:
+- Commit message:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Mobile widths validated:
+- Desktop widths validated:
+- Page horizontal overflow:
+- Bottom-nav clearance:
+- Tap targets preserved:
+- Text wrapping preserved:
+- Happening desktop cap preserved:
+- New Home queries:
+- N+1 introduced:
+- BL-177 bound preserved:
+- BL-176 bound preserved:
+- Product semantics changed:
+- Privacy/authorization changed:
+- JavaScript changed:
+- Native config changed:
+- Schema/migration changed:
+- New dependency:
+- Native-shell caveat documented:
+- Flask workflow:
+- Browser console:
+- Uncommitted BL-196 changes remaining:
+- Unrelated working-tree changes present:
+- Scope deviations:
+
+End exactly:
+
+BL-196 MERGED
