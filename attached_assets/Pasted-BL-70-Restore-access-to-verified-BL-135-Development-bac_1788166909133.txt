@@ -1,0 +1,91 @@
+BL-70 — Restore access to verified BL-135 Development backup
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~37%
+
+This is an operational prerequisite-recovery step. Do not create another planning task and do not apply the BL-70 migration yet.
+
+Context:
+BL-70 is implemented and committed at:
+
+0ff92fe5 — Implement season-specific pass history
+
+Supabase Development remains at:
+bl52_trip_stay
+
+Source migration head is:
+bl70_user_season_pass
+
+The BL-70 Development migration correctly stopped because the existing BL-135 backup could not be verified from the current Repl.
+
+Known BL-135 backup metadata from the completed migration workstream:
+
+- timestamp: 2026-08-29T23:26:25Z
+- object path:
+  bl135/development/current-state-development_bl52_trip_stay_20260829T232625Z.dump
+- size: 341,460 bytes
+- SHA256:
+  a1c553764820b511faa96df6814092be08ac6326a347c2c7204ce7039d34b17d
+
+Objective:
+Restore authenticated access to the existing BL-135 Development backup and verify that exact object before any BL-70 schema mutation.
+
+1. Inspect the current Replit environment for the original App Storage integration or storage attachment used by BL-135.
+
+Do not create a new backup bucket or silently substitute another storage system.
+
+Determine whether the existing storage integration is:
+- disconnected
+- missing from this Repl
+- present but not exposed to the current runtime
+- available through a Replit App Storage integration that needs to be reattached
+
+2. If the existing App Storage integration can be safely reattached/configured through Replit without exposing secrets:
+- restore that integration
+- use the supported App Storage SDK/runtime mechanism
+- do not print secret credentials
+
+3. Locate this exact backup object:
+
+bl135/development/current-state-development_bl52_trip_stay_20260829T232625Z.dump
+
+4. Verify:
+- authenticated access succeeds
+- object exists
+- object timestamp matches the recorded BL-135 artifact as closely as storage metadata permits
+- size = 341460 bytes
+- SHA256 =
+  a1c553764820b511faa96df6814092be08ac6326a347c2c7204ce7039d34b17d
+
+5. If possible, perform a non-destructive usability check:
+- authenticated download/read
+- confirm the dump is readable as the expected PostgreSQL backup artifact
+- do not restore it into Development
+- do not mutate any database
+
+6. Do NOT:
+- apply BL-70 migration
+- run BL-70 backfill
+- access or modify Production
+- create a replacement backup and call it BL-135
+- change application code
+- change schema
+- change migrations
+- expose credentials
+- delete or overwrite the existing backup
+
+7. If the existing storage integration cannot be restored from within the Repl, STOP and report exactly what Replit-side attachment or user action is required.
+
+Return:
+- whether the original App Storage integration was found
+- whether it was reattached/restored
+- exact verified object path
+- object size
+- checksum result
+- usability/readability result
+- whether BL-70 migration prerequisites are now satisfied
+- any user action still required
+
+Do not proceed to the BL-70 migration in this step.
