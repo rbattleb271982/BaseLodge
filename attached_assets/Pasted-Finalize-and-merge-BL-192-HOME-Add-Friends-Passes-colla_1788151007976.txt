@@ -1,0 +1,119 @@
+Finalize and merge BL-192 — HOME — Add Friends’ Passes collapsed disclosure.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+Approved BL-192 files:
+- templates/partials/home/_section_friend_passes.html
+- templates/home.html
+- tests/test_home_friend_passes.py
+- tests/test_home_empty_states.py
+
+Exclude unrelated working-tree files from the BL-192 commit.
+
+2. Confirm the BL-192 contract.
+
+Friends’ Passes:
+- uses the BL-188 disclosure foundation
+- collapsed by default
+- collapsed summary uses the unique direct-friend count from BL-187
+- correct singular/plural grammar
+- expanded view contains:
+  - Epic
+  - Ikon
+  - Other
+- all three buckets remain visible at zero
+- existing BL-19 counting semantics are unchanged
+
+Preserve exactly:
+- direct connected friends only
+- each friend counted once per bucket
+- one friend may appear in multiple buckets
+- Other = canonical supported non-Epic/non-Ikon passes
+- No Pass excluded
+- blank/unknown values excluded
+- Home bucket counts remain equivalent to Friends filter results
+
+3. Confirm navigation behavior.
+
+Preserve:
+- Epic filter navigation
+- Ikon filter navigation
+- canonical underlying Other filter navigation
+- existing unfiltered Friends navigation where currently available
+- no synthetic new “Other” pass semantics
+
+4. Confirm data behavior.
+
+- uses `home_summary["friends_passes"]`
+- no new Home queries
+- no friend-pass recount in the template
+- no changes to the existing Friends’ Passes helper
+- no custom disclosure JavaScript
+- no persistence
+- no analytics
+
+5. Confirm unrelated Home behavior is unchanged.
+
+Do not change:
+- About You & Your Gear
+- Your Activity
+- Your Next Trip
+- Ideas
+- Happening
+- Friends’ Trips
+- navigation/header behavior
+- privacy/authorization
+- schema/migrations
+- native configuration
+
+Do not implement BL-193 in this commit.
+
+6. Run final validation.
+
+Run:
+- focused BL-192 tests
+- BL-19 Friends’ Passes regressions
+- BL-188 disclosure regressions
+- BL-187 Home summary regressions
+- BL-190 regressions
+- BL-191 regressions
+- relevant Home empty-state tests
+- `git diff --check`
+
+7. Commit only the approved BL-192 implementation.
+
+Commit message:
+
+BL-192: add Friends Passes Home disclosure
+
+8. Report:
+
+BL-192 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- BL-19 counting semantics preserved: YES/NO
+- Existing Friends filter navigation preserved: YES/NO
+- BL-187 summary contract used: YES/NO
+- BL-188 disclosure foundation used: YES/NO
+- New Home queries: YES/NO
+- Other Home modules changed: YES/NO
+- Product semantics changed: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-192 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-192 MERGED
