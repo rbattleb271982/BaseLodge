@@ -23,3 +23,4 @@
 - [Terminal trip isolation](terminal-trip-isolation.md) — retained terminal trips require explicit exclusion from every live surface; dates, visibility, and RSVP status are not substitutes.
 - [Wishlist transition history rollout](wishlist-transition-history-rollout.md) — Supabase Development is at BL-87 with empty initial history; other persistent databases were not migrated.
 - [Authenticated social visibility](authenticated-social-visibility.md) — friend-only access requires reciprocal current rows; public trips are friend-social; invitation-state identities stay organizer-only.
+- [Home Next Trip tie policy](home-next-trip-tie-policy.md) — owned beats guest on equal effective starts; same-source ties choose the lowest trip ID.

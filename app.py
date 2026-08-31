@@ -111,6 +111,7 @@ from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
 from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, WishlistResortEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
 from services.trip_attendance import (
+    effective_attendance_date_expressions,
     effective_attendance_dates,
     participant_is_going,
     set_effective_attendance_dates,
@@ -11513,7 +11514,6 @@ def _home_gear_disciplines(user):
 def _build_home_summary(
     *,
     user,
-    all_upcoming,
     next_trip,
     next_trip_friends_going_count,
     friend_ids,
@@ -11521,6 +11521,8 @@ def _build_home_summary(
     home_rider_disciplines,
     home_gear_by_discipline,
     home_is_renting,
+    upcoming_trip_count=None,
+    all_upcoming=None,
     wishlist_count=None,
     next_trip_actions=None,
 ):
@@ -11531,6 +11533,8 @@ def _build_home_summary(
         else user
     )
     resolved_next_trip_actions = list(next_trip_actions or [])
+    if upcoming_trip_count is None:
+        upcoming_trip_count = len(all_upcoming or [])
     if wishlist_count is None:
         wishlist_count = len(summary_user.wish_list_resorts or [])
     return {
@@ -11544,7 +11548,7 @@ def _build_home_summary(
             "is_renting": home_is_renting,
         },
         "activity": {
-            "upcoming_trip_count": len(all_upcoming),
+            "upcoming_trip_count": upcoming_trip_count,
             "mountains_visited_count": summary_user.visited_resorts_count,
             "wishlist_count": wishlist_count,
         },
@@ -11668,6 +11672,86 @@ def _count_home_next_trip_friends_going(next_trip, friend_ids, current_user_id):
     return int(participant_count) + connected_owner_count
 
 
+def _get_home_next_trip_candidate(user_id, today):
+    """Return the winner, selected context, and total from two bounded queries."""
+    owned_row = (
+        db.session.query(
+            SkiTrip,
+            func.count(SkiTrip.id).over().label("candidate_count"),
+        )
+        .options(db.joinedload(SkiTrip.resort))
+        .filter(
+            SkiTrip.user_id == user_id,
+            active_or_legacy_trip_predicate(),
+            SkiTrip.end_date >= today,
+        )
+        .order_by(
+            SkiTrip.start_date.asc().nulls_last(),
+            SkiTrip.id.asc(),
+        )
+        .limit(1)
+        .one_or_none()
+    )
+    owned_trip = owned_row[0] if owned_row is not None else None
+    owned_count = int(owned_row[1]) if owned_row is not None else 0
+
+    effective_start, effective_end = effective_attendance_date_expressions(
+        SkiTrip,
+        SkiTripParticipant,
+    )
+    guest_row = (
+        db.session.query(
+            SkiTrip,
+            SkiTripParticipant,
+            func.count(SkiTrip.id).over().label("candidate_count"),
+        )
+        .join(
+            SkiTripParticipant,
+            SkiTripParticipant.trip_id == SkiTrip.id,
+        )
+        .options(db.joinedload(SkiTrip.resort))
+        .filter(
+            SkiTripParticipant.user_id == user_id,
+            SkiTripParticipant.active_status_filter(),
+            SkiTrip.user_id != user_id,
+            active_or_legacy_trip_predicate(),
+            SkiTrip.end_date >= today,
+            effective_end >= today,
+        )
+        .order_by(
+            effective_start.asc().nulls_last(),
+            SkiTrip.id.asc(),
+            SkiTripParticipant.id.asc(),
+        )
+        .limit(1)
+        .one_or_none()
+    )
+
+    owned_trip = (
+        set_effective_attendance_dates(owned_trip)
+        if owned_trip is not None
+        else None
+    )
+    guest_trip = None
+    guest_participant = None
+    guest_count = 0
+    if guest_row is not None:
+        guest_trip, guest_participant, guest_count = guest_row
+        guest_count = int(guest_count)
+        set_effective_attendance_dates(guest_trip, guest_participant)
+
+    if owned_trip is None:
+        return guest_trip, guest_participant, guest_count
+    if guest_trip is None:
+        return owned_trip, None, owned_count
+
+    owned_start = owned_trip.attendance_start_date or date.max
+    guest_start = guest_trip.attendance_start_date or date.max
+    if owned_start <= guest_start:
+        return owned_trip, None, owned_count + guest_count
+    return guest_trip, guest_participant, owned_count + guest_count
+
+
 @app.route("/home")
 @login_required
 def home():
@@ -11758,68 +11842,24 @@ def home():
         connection_toast_suggest_url = None
 
     # --- Next Trip (created or actively joined) ---
-    accepted_by_trip_id = {}
     try:
         _hp_t0 = time.perf_counter()
-        my_trips = (
-            SkiTrip.query
-            .options(db.joinedload(SkiTrip.resort))
-            .filter(
-                SkiTrip.user_id == user.id,
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today,
-            )
-            .order_by(SkiTrip.start_date.asc())
-            .all()
-        )
-        my_trips = [set_effective_attendance_dates(trip) for trip in my_trips]
+        (
+            next_trip,
+            next_trip_participant,
+            upcoming_trip_count,
+        ) = _get_home_next_trip_candidate(user.id, today)
         if app.debug:
-            print(f"[HOME_PERF] my_trips_query={time.perf_counter()-_hp_t0:.4f}s count={len(my_trips)}")
+            print(
+                "[HOME_PERF] next_trip_candidates="
+                f"{time.perf_counter()-_hp_t0:.4f}s "
+                f"winner={next_trip.id if next_trip else None}"
+            )
     except Exception:
         db.session.rollback()
-        my_trips = []
-
-    try:
-        _hp_t0 = time.perf_counter()
-        accepted_participations = SkiTripParticipant.query.filter(
-            SkiTripParticipant.user_id == user.id,
-            SkiTripParticipant.active_status_filter()
-        ).all()
-        if app.debug:
-            print(f"[HOME_PERF] accepted_participations={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_participations)}")
-        accepted_by_trip_id = {p.trip_id: p for p in accepted_participations}
-        accepted_trip_ids = list(accepted_by_trip_id)
-        if accepted_trip_ids:
-            _hp_t0 = time.perf_counter()
-            accepted_guest_trips = (
-                SkiTrip.query
-                .options(db.joinedload(SkiTrip.resort))
-                .filter(
-                    SkiTrip.id.in_(accepted_trip_ids),
-                    SkiTrip.user_id != user.id,
-                    active_or_legacy_trip_predicate(),
-                    SkiTrip.end_date >= today,
-                )
-                .all()
-            )
-            accepted_guest_trips = [
-                set_effective_attendance_dates(trip, accepted_by_trip_id[trip.id])
-                for trip in accepted_guest_trips
-                if effective_attendance_dates(trip, accepted_by_trip_id[trip.id])[1] >= today
-            ]
-            if app.debug:
-                print(f"[HOME_PERF] accepted_guest_trips={time.perf_counter() - _hp_t0:.4f}s count={len(accepted_guest_trips)}")
-        else:
-            accepted_guest_trips = []
-    except Exception:
-        db.session.rollback()
-        accepted_guest_trips = []
-
-    all_upcoming = sorted(
-        my_trips + accepted_guest_trips,
-        key=lambda trip: getattr(trip, "attendance_start_date", trip.start_date) or date.max,
-    )
-    next_trip = all_upcoming[0] if all_upcoming else None
+        next_trip = None
+        next_trip_participant = None
+        upcoming_trip_count = 0
     # --- Friends (single join query: IDs + objects in one round trip) ---
     try:
         _hp_t0 = time.perf_counter()
@@ -11847,7 +11887,7 @@ def home():
         next_trip=next_trip,
         current_user_id=user.id,
         participant=(
-            accepted_by_trip_id.get(next_trip.id)
+            next_trip_participant
             if next_trip and next_trip.user_id != user.id
             else None
         ),
@@ -12137,7 +12177,7 @@ def home():
     )
     home_summary = _build_home_summary(
         user=user,
-        all_upcoming=all_upcoming,
+        upcoming_trip_count=upcoming_trip_count,
         next_trip=next_trip,
         next_trip_friends_going_count=next_trip_friends_going_count,
         friend_ids=friend_ids,

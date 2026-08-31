@@ -4,6 +4,8 @@ Trip dates remain the organizer's planning window.  A Going guest may narrow
 their own physical attendance with a complete participant date range.
 """
 
+import sqlalchemy as sa
+
 from models import GuestStatus
 
 
@@ -31,6 +33,26 @@ def effective_attendance_dates(trip, participant=None):
     ):
         return participant.start_date, participant.end_date
     return trip.start_date, trip.end_date
+
+
+def effective_attendance_date_expressions(trip, participant):
+    """Return SQL expressions matching ``effective_attendance_dates``."""
+    complete_going_override = sa.and_(
+        participant.user_id != trip.user_id,
+        participant.status == GuestStatus.GOING,
+        participant.start_date.is_not(None),
+        participant.end_date.is_not(None),
+    )
+    return (
+        sa.case(
+            (complete_going_override, participant.start_date),
+            else_=trip.start_date,
+        ),
+        sa.case(
+            (complete_going_override, participant.end_date),
+            else_=trip.end_date,
+        ),
+    )
 
 
 def set_effective_attendance_dates(trip, participant=None):
