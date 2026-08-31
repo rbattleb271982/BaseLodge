@@ -1,0 +1,80 @@
+BL-124 — BUG: Include guest attendance across ski-season boundary
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~35%
+
+Implement the approved Task #381 plan exactly as investigated.
+
+Root cause:
+In season_snapshot(), accepted guest trips are currently filtered by the parent SkiTrip.start_date before participant-specific effective attendance dates are evaluated. This can omit a Going guest whose complete attendance override starts within the active June 1–May 31 season when the parent trip itself starts before June 1.
+
+Approved implementation:
+
+1. Keep the owner-trip query and owner behavior unchanged.
+
+2. In the accepted guest-trip branch:
+   - Remove the parent-trip start_date season predicates from the SQL query.
+   - Continue bounding the query strictly to the current user’s accepted participation trip IDs.
+   - Continue excluding trips owned by the current user.
+   - Do not broaden visibility, authentication, ownership, or participation eligibility.
+
+3. For each resulting guest trip:
+   - Resolve effective attendance dates exactly once using the existing canonical helper in services/trip_attendance.py.
+   - Preserve the existing helper semantics:
+     * owner -> parent trip dates
+     * Going guest with both override dates -> participant dates
+     * Going guest with no overrides -> parent trip dates
+     * Going guest with only one override date -> parent trip dates
+     * Interested/non-Going guest -> parent trip dates even if stale override values exist
+   - Apply the existing inclusive season rule to the effective START date:
+     June 1 <= effective_start <= May 31
+   - Do NOT introduce interval-overlap semantics.
+   - Reuse those same resolved effective dates for sorting/month presentation rather than resolving them again.
+
+4. Add route-level regression coverage in tests/test_season_snapshot.py for:
+   - parent starts before June 1 + complete Going override starts inside season -> included using override month
+   - parent starts inside season + complete Going override starts after May 31 -> excluded
+   - effective start exactly June 1 -> included
+   - effective start exactly May 31 -> included
+   - Going guest with no overrides -> parent dates remain authoritative
+   - Going guest with partial override -> parent-date fallback remains
+   - Interested guest with override values -> parent-date fallback remains
+   - owner trip inside/outside season -> existing owner behavior unchanged
+
+5. Keep services/trip_attendance.py unchanged unless implementation reveals a genuine contradiction with the approved investigation. If that happens, STOP and report before expanding scope.
+
+6. Do not make:
+   - schema changes
+   - migrations
+   - data cleanup
+   - dependency changes
+   - UI redesign
+   - auth/privacy/visibility changes
+   - RSVP or participant-attendance behavior changes
+
+Likely files:
+- app.py, season_snapshot() around lines 5261–5328
+- tests/test_season_snapshot.py
+
+Reference-only:
+- services/trip_attendance.py
+- tests/test_participant_attendance_dates.py
+- models.py
+
+Validation:
+- Run the focused Season Snapshot regression suite.
+- Run participant attendance helper tests.
+- Run relevant authentication coverage.
+- Run git diff --check.
+- Confirm there are no unrelated tracked changes.
+
+When complete, report:
+- exact files changed
+- exact behavior changed
+- tests run and pass counts
+- whether any query-count/performance behavior materially changed
+- confirmation that no schema/migration/auth/privacy/UI/dependency scope was introduced
+
+Do not create another planning task. This plan is approved; implement it.
