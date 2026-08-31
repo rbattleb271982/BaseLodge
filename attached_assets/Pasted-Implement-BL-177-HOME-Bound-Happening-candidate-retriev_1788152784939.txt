@@ -1,0 +1,287 @@
+Implement BL-177 — HOME — Bound Happening candidate retrieval.
+
+This is BUILD.
+
+Use approved Task #377 as the implementation contract.
+Do not create another planning task.
+Do not expand scope beyond BL-177.
+
+Goal:
+Replace Home Happening’s reuse of the Ideas engine’s unbounded friend-trip population with a dedicated, bounded Happening retrieval path.
+
+The implementation must preserve existing Happening semantics while making retrieval independent from BL-176.
+
+APPROVED ARCHITECTURE
+
+Use a dedicated Happening retrieval query/helper.
+
+Ordering:
+1. activity timestamp descending
+2. trip ID descending only when activity timestamps are equal
+
+Activity timestamp must preserve the current rule:
+- use updated_at
+- fall back to created_at
+
+Per-friend behavior:
+- owner and participant occurrences compete together
+- select exactly one winning occurrence per attendance user/friend
+- winner is the newest qualifying occurrence under the approved ordering
+
+Dismissal behavior:
+- winner selection happens BEFORE dismissal
+- if the winning trip for a friend has been dismissed by the current user, do NOT fall back to an older qualifying trip for that friend
+
+Final result:
+- return at most five final Happening candidates
+
+This architecture is independent from BL-176.
+Do not alter Ideas retrieval or ranking.
+
+ELIGIBILITY SEMANTICS — PRESERVE EXACTLY
+
+Direct friends only.
+
+Trip requirements:
+- public trips only
+- resort-backed trips only
+
+Owner occurrence:
+- friend owns trip
+- trip end_date >= today
+- preserve current in-progress behavior
+- do not add a start-date or recency cutoff
+
+Participant occurrence:
+- friend is not the owner
+- status is INTERESTED or GOING
+- pending/declined/removed etc. remain excluded
+- effective attendance end date has not passed
+- preserve existing effective attendance semantics
+
+Per-friend deduplication:
+- each friend appears at most once
+- owned and attended trips compete in the same ranking
+
+Do not change:
+- direct-friend semantics
+- public/private semantics
+- resort requirement
+- RSVP semantics
+- effective-date semantics
+- in-progress eligibility
+- owner/participant competition
+- final display semantics
+- dismissal semantics
+- Opportunity/Happening suppression behavior
+
+Do not add new suppression.
+
+DEDICATED RETRIEVAL
+
+Implement the safest bounded database-side approach.
+
+Expected approach:
+- combine owner and participant qualifying occurrences
+- carry attendance user/friend identity
+- carry trip identity
+- carry effective attendance dates where needed
+- compute activity timestamp using current updated_at/created_at behavior
+- rank rows per friend
+- select rank 1
+- apply user-specific dismissal so dismissed winners disappear without exposing older rows
+- order remaining winners by:
+  - activity timestamp DESC
+  - trip ID DESC
+- limit final results to 5
+
+Do not materialize the full qualifying friend-trip population in Python.
+
+Do not use an arbitrary pre-ranking LIMIT.
+
+Do not introduce a finite overfetch heuristic.
+
+IDEAS BOUNDARY
+
+Ideas must remain unchanged.
+
+Do not modify:
+- Ideas candidate retrieval
+- Ideas ranking
+- Ideas matching
+- Ideas suppression
+- Ideas presentation
+- BL-176 behavior or scope
+
+Home should stop using the Ideas engine’s full raw friend-trip list as the Happening retrieval source.
+
+If the Ideas engine still needs its existing friend-trip population, leave that behavior intact.
+
+QUERY / PERFORMANCE REQUIREMENTS
+
+Prove:
+- Happening final retrieval returns at most five rows/candidates
+- large qualifying friend-trip populations do not get fully materialized for Happening
+- no relationship N+1 queries
+- resort loading remains bounded / no resort N+1
+- query count is explicitly covered by tests
+
+Do not add caching.
+BL-146 remains authoritative for caching.
+
+PRIVACY / AUTHORIZATION
+
+Preserve all current privacy behavior.
+
+Do not:
+- expose private trips
+- broaden friend eligibility
+- broaden participant visibility
+- create new authorization rules
+- couple Happening to a cache
+
+BL-133 remains authoritative for authorization/visibility policy.
+
+TEMPLATES / PRESENTATION
+
+Do not change templates.
+
+Do not change:
+- Happening card design
+- copy
+- dismissal UI
+- ordering presentation
+- card count presentation
+- Home layout
+
+BL-195 owns Happening presentation redesign.
+
+SCHEMA / CONFIGURATION
+
+No:
+- schema changes
+- migrations
+- native configuration changes
+- secret/env changes
+
+TESTS
+
+Add or extend focused tests covering at minimum:
+
+Eligibility:
+- direct friend owner qualifies
+- non-friend owner excluded
+- private friend trip excluded
+- resortless trip excluded
+- owner in-progress trip qualifies
+- past owner trip excluded
+- GOING participant qualifies
+- INTERESTED participant qualifies
+- pending participant excluded
+- declined participant excluded
+- removed participant excluded
+- effective guest attendance end date governs eligibility
+- non-owner participant semantics preserved
+
+Ordering:
+- activity timestamp descending
+- updated_at preferred with created_at fallback
+- equal timestamp tie resolves by descending trip ID
+- owner and participant occurrences compete correctly
+- one winner per friend
+
+Dismissal:
+- winning occurrence dismissed -> friend disappears
+- older occurrence does NOT surface
+- dismissal is user-specific
+- undismissed users still see qualifying winner
+
+Bounding:
+- final candidate count <= 5
+- large candidate population remains bounded
+- full friend-trip population is not materialized for Happening
+- no N+1
+- explicit query-count coverage
+
+Equivalence:
+- ordinary non-tied output remains equivalent to prior behavior
+- Ideas output remains unchanged
+- Home empty-state behavior remains unchanged
+
+Prefer extending:
+- `tests/test_home_empty_states.py`
+- `tests/test_regression_guards.py`
+
+A focused Happening retrieval test file is acceptable if it keeps the performance/ordering coverage clearer.
+
+EXPECTED FILES
+
+Likely:
+- app.py
+- dedicated Happening service/helper file OR tightly scoped existing service location
+- tests/test_home_empty_states.py
+- tests/test_regression_guards.py
+- potentially one focused Happening test file
+
+Avoid changing:
+- templates
+- models
+- migrations
+- native config
+- unrelated Ideas code
+
+STOP CONDITIONS
+
+Stop and report instead of expanding scope if:
+- exact approved eligibility cannot be represented safely
+- winner-before-dismissal cannot be preserved
+- the implementation requires a schema/migration
+- the implementation requires caching
+- Ideas behavior must change
+- privacy/authorization semantics must change
+
+VALIDATION
+
+Run:
+- focused BL-177 tests
+- existing Happening regressions
+- Ideas regressions
+- Home empty-state regressions
+- attendance regressions
+- authorization/privacy regressions
+- dismissal regressions
+- `git diff --check`
+
+Do not commit yet.
+
+Return:
+
+BL-177 IMPLEMENTATION RESULT
+
+- Files changed:
+- Dedicated Happening retrieval added:
+- Happening independent from Ideas retrieval:
+- Final candidate bound:
+- Winner-per-friend ranking implemented:
+- Activity ordering implemented:
+- Equal-timestamp trip-ID tie-break implemented:
+- Winner-before-dismissal preserved:
+- Older-trip fallback after dismissal:
+- Existing eligibility semantics preserved:
+- Ideas behavior changed:
+- Query count:
+- N+1 queries introduced:
+- Full Happening candidate population materialized:
+- Templates changed:
+- Product semantics changed beyond approved tie-break:
+- Privacy/authorization changed:
+- Schema/migration changed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Scope deviations:
+- Commit created: NO
+
+If implementation is complete and clean, end with exactly:
+
+BL-177 READY TO MERGE

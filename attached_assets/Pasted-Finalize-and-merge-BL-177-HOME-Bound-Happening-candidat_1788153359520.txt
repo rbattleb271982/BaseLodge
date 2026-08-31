@@ -1,0 +1,137 @@
+Finalize and merge BL-177 — HOME — Bound Happening candidate retrieval.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+Approved BL-177 files:
+- app.py
+- services/happening.py
+- tests/test_home_happening_retrieval.py
+- tests/test_home_empty_states.py
+
+Exclude unrelated working-tree files from the BL-177 commit.
+
+2. Confirm the dedicated Happening architecture.
+
+Happening:
+- uses dedicated retrieval independent from Ideas
+- executes at most one Happening query when direct friends exist
+- executes zero Happening queries when there are no direct friends
+- performs ranking in the database
+- performs dismissal handling in the database
+- returns at most five final rows from SQL
+- does not materialize the full qualifying friend-trip population
+- introduces no N+1 queries
+
+Ideas retrieval and BL-176 behavior must remain unchanged.
+
+3. Confirm ranking semantics.
+
+For each direct friend:
+- owner and participant occurrences compete together
+- exactly one winning occurrence is selected
+- primary ordering is activity timestamp descending
+- activity timestamp uses updated_at with created_at fallback
+- NULL activity timestamps remain last
+- exact activity-timestamp ties use trip ID descending
+
+Confirm each friend can appear at most once.
+
+4. Confirm dismissal semantics.
+
+Winner selection MUST occur before dismissal.
+
+If a friend's winning occurrence is dismissed:
+- that friend disappears from Happening
+- an older occurrence must NOT replace it
+
+Confirm dismissal remains user-specific.
+
+5. Confirm eligibility remains unchanged.
+
+Preserve:
+- direct friends only
+- public trips only
+- resort-backed trips only
+- owner end_date >= today behavior
+- in-progress owner trips
+- participant Interested/Going eligibility
+- pending/declined/removed exclusion
+- effective participant attendance-date behavior
+- non-owner participant semantics
+- current privacy/authorization behavior
+
+Do not introduce new Opportunity/Happening suppression.
+
+6. Confirm scope boundaries.
+
+There must be:
+- no template changes
+- no Happening presentation changes
+- no Ideas behavior changes
+- no caching
+- no schema changes
+- no migrations
+- no native configuration changes
+- no privacy/authorization changes
+- no product-semantic changes beyond the approved deterministic trip-ID tie-break
+
+BL-195 owns Happening presentation changes.
+BL-176 owns Ideas candidate bounding.
+
+7. Run final validation.
+
+Run:
+- focused BL-177 Happening retrieval tests
+- Home empty-state regressions
+- relevant existing Home regressions
+- Ideas/feed regressions
+- participant attendance regressions
+- authorization/privacy regressions
+- dismissal regressions
+- PostgreSQL dialect compilation check
+- `git diff --check`
+
+The PostgreSQL development smoke query does not need to be repeated if final code has not changed in a way affecting query construction. If it is repeated, it must remain read-only.
+
+8. Commit only the approved BL-177 implementation.
+
+Commit message:
+
+BL-177: bound Home Happening candidate retrieval
+
+9. Report:
+
+BL-177 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Dedicated Happening retrieval: YES/NO
+- Maximum Happening queries per populated Home request:
+- Final SQL candidate bound:
+- Winner-per-friend ranking in database: YES/NO
+- Winner-before-dismissal preserved: YES/NO
+- Older-trip fallback after dismissal: YES/NO
+- Equal-timestamp trip-ID tie-break: YES/NO
+- Full Happening population materialized: YES/NO
+- N+1 queries: YES/NO
+- Ideas behavior changed: YES/NO
+- Templates changed: YES/NO
+- Product semantics changed beyond approved tie-break: YES/NO
+- Privacy/authorization changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-177 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-177 MERGED
