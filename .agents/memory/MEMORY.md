@@ -15,3 +15,4 @@
 - [Production backup client compatibility](production-backup-client-compatibility.md) — verify pg_dump matches the database major version before relying on a local logical backup.
 - [Migration backup custody](migration-backup-custody.md) — BL-135 backups use private Replit App Storage with authenticated direct streaming and post-upload checksum verification.
 - [Cross-dialect SQL runtime checks](cross-dialect-sql-runtime-validation.md) — custom SQL compilers need execution tests on SQLite and PostgreSQL; compilation alone misses driver/runtime failures.
+- [Managed browser QA](managed-browser-qa.md) — local Playwright may lack container GUI libraries; use the managed app preview screenshot path for visual checks.
