@@ -1,0 +1,276 @@
+REPLIT: POWER + BUILD
+Estimated total BaseLodge workload completed after this step: ~38%
+
+TASK: BL-140 — DATA FOUNDATION — Define append-only history/event conventions
+
+The BL-140 investigation is approved.
+
+Proceed directly to implementation.
+
+Task #392 is the Replit representation of BL-140, not a separate BaseLodge backlog task.
+
+APPROVED ARCHITECTURE
+
+BL-140 is a documentation-and-conventions task only.
+
+Do NOT:
+- build a generalized event store
+- create a shared polymorphic event table
+- create an event bus
+- create an event-sourcing framework
+- refactor working BL-78 or BL-79 for cosmetic consistency
+- change application behavior
+- change authorization or visibility behavior
+- create a migration
+- alter BL-70 ancestry
+- implement BL-80
+- implement BL-87
+- access persistent/shared databases
+- access Supabase Development
+- access Production
+
+BL-78 and BL-79 already substantially conform and must remain working reference implementations.
+
+IMPLEMENTATION
+
+1. ADD A REPOSITORY-OWNED HISTORY CONTRACT
+
+Create a focused architecture/documentation file in the most appropriate existing repository documentation location.
+
+Do not invent a new documentation structure if the repo already has an established architecture/docs convention.
+
+The document must define the BaseLodge history-event contract covering:
+
+EVENT IDENTITY
+- immutable database-generated event ID
+- semantic subject keys identify a stream, not an event
+- no external/client idempotency key by default
+- legitimate repeated lifecycle transitions receive new event identities
+
+SUBJECTS
+- explicit privacy/lifecycle subjects
+- required subject FKs where appropriate
+- canonical ordering for unordered pairs
+- deletion semantics for every subject
+
+ACTORS
+- authenticated actor supplied for user-driven transitions
+- nullable actor for defined system actions and anonymization
+- actor and subject are distinct concepts
+- actor never implies authorization or visibility
+
+SOURCES
+- finite, domain-specific source vocabulary
+- source describes trusted product path
+- prohibit arbitrary reason/metadata/request-payload capture unless separately approved
+
+TIMESTAMPS
+- server/database-generated timezone-aware timestamps
+- deterministic ordering by timestamp then event ID
+- caller-supplied historical timestamps allowed only for separately approved import/backfill
+
+APPEND-ONLY / CORRECTIONS
+- ordinary product code does not rewrite historical business fields
+- correction requires a defined compensating event or separately reviewed maintenance
+- privacy deletion and actor anonymization are explicit exceptions
+- privacy erasure must not fabricate product transitions
+
+CURRENT STATE VS HISTORY
+- every domain explicitly defines authoritative current-state truth
+- history does not automatically become authorization, visibility, eligibility, or current-state truth
+- reconstruction only where recording is complete
+- unknown-before-cutover semantics are mandatory
+
+BACKFILL
+- default is no backfill
+- backfill requires reliable event-level evidence, provenance, deterministic idempotency, privacy handling, and rollback validation
+- current-state rows, dates, notifications, analytics, or surviving relationships alone are insufficient evidence
+
+DUPLICATE PREVENTION / CONCURRENCY
+- lock authoritative state deterministically
+- refresh under lock
+- compare current state to requested transition
+- emit at most one event for an actual state change
+- current-state mutation and history write share one transaction
+- constraints validate shape/vocabulary, not legitimate repeated lifecycles
+
+RETENTION / PRIVACY
+- define deletion subjects per stream
+- erase/anonymize history when required by privacy deletion
+- actor-only deletion nulls actor on surviving events
+- ordinary cancellation/removal is different from account/privacy erasure
+- avoid copied PII
+
+INDEXING / QUERY PATTERNS
+- indexes follow demonstrated query patterns
+- baseline subject key + event time
+- event ID is ordering tie-breaker
+- only add actor/event-type/secondary indexes when demonstrated
+- state-at-time queries preserve unknown-before-cutover semantics
+
+AUDITABILITY
+- bounded event types
+- bounded sources
+- explicit actor provenance
+- immutable timestamps
+- avoid PII copies
+
+2. ADD A MANDATORY IMPLEMENTATION CHECKLIST
+
+Include a concise checklist future history tasks must satisfy before implementation/rollout.
+
+Minimum test invariants:
+
+- real transition writes exactly one event
+- duplicate/no-op/rejected request writes none
+- current state and history commit or roll back together
+- repeated legitimate lifecycle transitions create distinct ordered events
+- constraints reject invalid subjects/event types/sources
+- subject deletion erases protected history
+- actor-only deletion anonymizes actor
+- migration upgrade creates empty history table
+- downgrade removes only that history table
+- no synthetic backfill
+- PostgreSQL concurrency coverage where races are possible
+- history alone cannot grant authorization, visibility, eligibility, or current state
+
+3. DOCUMENT BL-78 AND BL-79 AS REFERENCE IMPLEMENTATIONS
+
+Record that both substantially conform.
+
+Preserve intentional differences:
+
+BL-78
+- trip/user status chain
+- previous/new state representation
+- trip then participant locking
+- current participant status is authoritative
+
+BL-79
+- repeated relationship lifecycle for canonical unordered user pair
+- formed/removed events
+- canonical user-pair locking
+- reciprocal Friend rows are authoritative
+- one-sided drift repair does not fabricate formed history
+
+Explicitly state that harmless naming differences such as changed_at vs occurred_at do not justify refactoring.
+
+Do not modify BL-78 or BL-79 code.
+
+4. DOCUMENT BL-80 STARTING GUIDANCE
+
+Do not implement BL-80.
+
+Capture:
+
+- likely subject: trip plus organizer/owner privacy subject
+- likely event types: completed / cancelled
+- actor: organizer for user actions, nullable for approved system actions/anonymization
+- bounded domain-specific sources
+- persisted trip lifecycle state remains current truth
+- trip locking + state comparison likely strategy
+- no backfill from dates/current state/logs/deleted absence
+- likely trip/time and organizer/time indexes
+- unresolved questions:
+  - current hard-delete behavior
+  - soft deletion vs retained terminal record
+  - exact completion trigger
+  - participant visibility
+  - retained non-PII trip attributes
+  - interaction with messaging/deletion behavior
+
+5. DOCUMENT BL-87 STARTING GUIDANCE
+
+Do not implement BL-87.
+
+Capture:
+
+- subject: user/resort pair
+- events: added / removed
+- actor: authenticated user
+- bounded source vocabulary
+- current User.wish_list_resorts interpretation remains product truth
+- lock User row, normalize list, compute before/after diff, append per-resort events atomically
+- duplicate add / absent remove produce no event
+- erase wishlist history on account deletion
+- no copied PII/resort names unless required
+- no backfill from current list
+- likely user/time and user/resort/time indexes
+- unresolved questions:
+  - ordering-only bulk changes
+  - inactive/deleted resorts
+  - atomic bulk-diff behavior
+  - delegated/system changes
+
+6. VALIDATE DOCUMENTATION AGAINST CODE
+
+Before finalizing, recheck the actual current repository guarantees for:
+
+- BL-78 model/service/migration/tests
+- BL-79 model/service/migration/tests
+- account deletion/privacy behavior
+- PostgreSQL concurrency tests
+
+Do not claim guarantees the repository does not actually provide.
+
+If you discover a material code/privacy/concurrency defect:
+STOP.
+
+Do not silently fix it under BL-140.
+Report it for separate tasking.
+
+7. ZERO SCHEMA IMPACT
+
+Verify:
+
+Current graph remains:
+
+bl52_trip_stay
+→ bl78_rsvp_transition
+→ bl79_friend_history
+→ bl70_user_season_pass
+
+Alembic still has one head:
+bl70_user_season_pass
+
+BL-140 creates no migration.
+
+Do not alter migration files.
+
+Do not inspect or mutate shared database environments.
+
+8. VALIDATION
+
+Because this is documentation-only:
+
+- run git diff --check
+- verify documentation references correspond to current repository behavior
+- confirm no application/code/schema/migration files changed
+- confirm Alembic still has one head
+- confirm working tree contains only intended BL-140 documentation changes plus any pre-existing unrelated untracked prompt asset
+
+No full automated suite is required unless code unexpectedly changes.
+
+9. COMMIT
+
+If everything is clean, commit with:
+
+BL-140 Define history event conventions
+
+Do not include the unrelated pasted prompt asset.
+
+RETURN
+
+- documentation file path
+- concise summary of contract
+- confirmation BL-78 and BL-79 remain unchanged/conforming
+- BL-80 guidance included
+- BL-87 guidance included
+- confirmation no code changes
+- confirmation no schema/migration changes
+- confirmation migration graph/head unchanged
+- git diff --check result
+- commit hash
+- statement that BL-140 is complete
+
+Do not start BL-80 or BL-87.
