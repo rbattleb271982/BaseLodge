@@ -1,0 +1,121 @@
+REPLIT: POWER + BUILD
+Estimated total BaseLodge workload completed after this step: ~38%
+
+TASK: PRIVACY — Keep deleted-account email addresses out of logs
+
+This is a narrow privacy bug discovered while planning BL-80.
+
+BL-80 remains paused. Do NOT resume BL-80 in this step.
+
+CONFIRMED DEFECT
+
+The account-deletion route logs the user's raw email address:
+
+- attempt logging around app.py:16334-16337
+- exception logging around app.py:16534-16538
+
+This can retain identifying information in application logs after an account-erasure request.
+
+SCOPE
+
+Fix only the raw-email logging issue.
+
+Do NOT:
+- change account-deletion database cleanup behavior
+- change authorization
+- change redirects or user-facing behavior
+- change deletion transaction semantics
+- absorb unrelated account-deletion FK cleanup work
+- broaden into a general logging refactor
+- modify migrations
+- access Supabase Development or Production
+- resume BL-80
+
+IMPLEMENTATION REQUIREMENTS
+
+1. REMOVE RAW EMAIL PII FROM ACCOUNT-DELETION LOGGING
+
+Inspect the exact current account-deletion route.
+
+Update the identified attempt and exception/error logging paths so they do not log:
+- raw email address
+- normalized email address
+- another directly identifying substitute merely replacing the email
+
+Preserve useful operational diagnostics using non-PII context already safely available, such as:
+- stable internal route/action label
+- non-identifying error category
+- exception information where appropriate
+
+Do not introduce new PII into logs.
+
+2. PRESERVE ACCOUNT-DELETION BEHAVIOR
+
+The change must not alter:
+- which records are deleted/anonymized
+- deletion order
+- transaction behavior
+- success behavior
+- failure behavior
+- authentication requirements
+- redirect/API response behavior
+- privacy cleanup semantics
+
+This is logging-only behavior plus tests.
+
+3. REGRESSION TESTS
+
+Add focused tests proving:
+
+- normal account-deletion attempt logging does not contain the raw email address
+- exception/error logging does not contain the raw email address
+- useful account-deletion logging still occurs
+- existing deletion behavior remains unchanged
+
+Use a distinctive test email so the tests explicitly assert that value is absent from captured logs.
+
+Do not weaken logging globally just to satisfy the test.
+
+4. ADJACENT VERIFICATION
+
+Run:
+- focused new logging/privacy tests
+- existing account-deletion tests
+- adjacent privacy/auth tests affected by this route
+- git diff --check
+
+A full suite is optional if focused + adjacent coverage is strong and no shared helper was changed.
+
+If a shared logging helper must be changed, run the full suite.
+
+5. SAFETY
+
+No database migration.
+No schema changes.
+No persistent/shared database access required.
+No Supabase Development or Production access.
+
+If investigation reveals the raw email is also logged in another directly related branch of this same account-deletion route, include that narrowly.
+
+If you find unrelated PII logging elsewhere in the application, report it separately rather than expanding this task.
+
+6. COMMIT
+
+If validation passes, commit with:
+
+Prevent deleted-account email logging
+
+Exclude the unrelated pasted prompt asset.
+
+RETURN
+
+- exact logging changes
+- tests added
+- validation results
+- confirmation account-deletion behavior is otherwise unchanged
+- confirmation no schema/migration/database changes
+- any separate unrelated PII findings
+- commit hash
+- statement that the privacy blocker for BL-80 is resolved
+
+Do not resume BL-80 yet.
