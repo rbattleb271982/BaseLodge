@@ -23,8 +23,8 @@ def _home_response(client, user_id):
         "services.open_dates.get_available_dates_for_user",
         return_value=[],
     ), patch(
-        "services.ideas_engine.build_destination_feed",
-        return_value=([], {}, []),
+        "services.ideas_retrieval.get_home_ideas",
+        return_value=[],
     ), patch(
         "app.get_all_active_resorts_map",
         return_value={},

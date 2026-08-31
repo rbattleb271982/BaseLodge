@@ -67,12 +67,39 @@ def _get_home(client, user_id, *, feed=None, friend_trips=None, availability=Non
     _login(client, user_id)
     feed = feed or []
     friend_trips = friend_trips or []
+
+    def mocked_home_ideas(**_kwargs):
+        dismissed = {
+            row.card_key
+            for row in DismissedInsightCard.query.filter_by(
+                user_id=user_id, card_type="opportunity"
+            ).all()
+        }
+        result = []
+        for row in feed:
+            candidate = dict(row)
+            if candidate.get("resort_id"):
+                key = f"{candidate['idea_type']}:{candidate['resort_id']}"
+            else:
+                friend_key = "_".join(
+                    str(value)
+                    for value in sorted(candidate.get("friend_ids") or [])
+                )
+                key = (
+                    f"{candidate['idea_type']}:{friend_key}:"
+                    f"{candidate.get('start_date', 'nodate')}"
+                )
+            if key not in dismissed:
+                candidate["_card_key"] = key
+                result.append(candidate)
+        return result[:5]
+
     with patch(
         "services.open_dates.get_available_dates_for_user",
         return_value=availability or [],
     ), patch(
-        "services.ideas_engine.build_destination_feed",
-        return_value=(feed, {}, friend_trips),
+        "services.ideas_retrieval.get_home_ideas",
+        side_effect=mocked_home_ideas,
     ), patch(
         "services.happening.get_happening_candidates",
         return_value=friend_trips,
@@ -96,8 +123,8 @@ def _get_home_context(client, user_id):
         "services.open_dates.get_available_dates_for_user",
         return_value=[],
     ), patch(
-        "services.ideas_engine.build_destination_feed",
-        return_value=([], {}, []),
+        "services.ideas_retrieval.get_home_ideas",
+        return_value=[],
     ), patch(
         "services.happening.get_happening_candidates",
         return_value=[],

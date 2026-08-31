@@ -366,8 +366,8 @@ def test_home_combined_fallback_is_visible_only_without_activity(client):
     with unittest.mock.patch(
         "services.open_dates.get_available_dates_for_user", return_value=[]
     ), unittest.mock.patch(
-        "services.ideas_engine.build_destination_feed",
-        return_value=([mock_feed_row], {}, []),
+        "services.ideas_retrieval.get_home_ideas",
+        return_value=[mock_feed_row],
     ), unittest.mock.patch(
         "app.get_all_active_resorts_map", return_value={}
     ):

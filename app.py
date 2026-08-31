@@ -11525,45 +11525,25 @@ def home():
     dest_feed = []
     _ideas_engine_diag = {}
     try:
-        from services.ideas_engine import build_destination_feed as _build_home_feed
+        from services.ideas_retrieval import (
+            HOME_IDEAS_RENDER_CAP,
+            get_home_ideas,
+        )
         if all_friends:
             _hp_t0 = time.perf_counter()
-            _resort_map = get_all_active_resorts_map()
-            _raw_feed, _ideas_engine_diag, _unused_ideas_friend_trips = _build_home_feed(
-                user, all_friends, user_avail_dates=_user_avail_home,
-                user_trips=all_upcoming, resort_map=_resort_map
+            dest_feed = get_home_ideas(
+                user_id=user.id,
+                today=today,
+                limit=HOME_IDEAS_RENDER_CAP,
             )
-            del _unused_ideas_friend_trips
             if app.debug:
-                print(f"[HOME_PERF] build_destination_feed={time.perf_counter() - _hp_t0:.4f}s raw_count={len(_raw_feed)}")
-            _diag_opp_engine_count = len(_raw_feed)
-            _dismissed_opp_keys = set()
-            try:
-                _hp_t0 = time.perf_counter()
-                _dismissed_cards = DismissedInsightCard.query.filter_by(
-                    user_id=user.id,
-                    card_type='opportunity',
-                ).all()
-                if app.debug:
-                    print(f"[HOME_PERF] dismissed_cards_lookup={time.perf_counter() - _hp_t0:.4f}s count={len(_dismissed_cards)}")
-                _dismissed_opp_keys = {d.card_key for d in _dismissed_cards}
-            except Exception:
-                db.session.rollback()
-            _diag_dismissed_count = len(_dismissed_opp_keys)
-            for _row in _raw_feed:
-                # Dismissal key: resort-pinned cards use type:resort_id;
-                # no-resort cards use type:friend_ids:start_date (BUG-9 fix)
-                if _row.get('resort_id'):
-                    _ck = f"{_row['idea_type']}:{_row['resort_id']}"
-                else:
-                    _fids = "_".join(str(f) for f in sorted(_row.get('friend_ids') or []))
-                    _ck = f"{_row['idea_type']}:{_fids}:{_row.get('start_date', 'nodate')}"
-                if _ck not in _dismissed_opp_keys:
-                    _row['_card_key'] = _ck
-                    dest_feed.append(_row)
+                print(
+                    f"[HOME_PERF] home_ideas_query="
+                    f"{time.perf_counter() - _hp_t0:.4f}s"
+                    f" returned={len(dest_feed)}"
+                )
+            _diag_opp_engine_count = len(dest_feed)
             _diag_opp_after_dismissal = len(dest_feed)
-            dest_feed = dest_feed[:5]
-            print(f"[Ideas] dismissed_keys={_diag_dismissed_count} after_dismissal={_diag_opp_after_dismissal} after_cap={len(dest_feed)}")
     except Exception:
         db.session.rollback()
         dest_feed = []
