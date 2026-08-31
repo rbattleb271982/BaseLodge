@@ -1,0 +1,280 @@
+Implement BL-193 — HOME — Add compact Your Next Trip card.
+
+This is BUILD.
+
+Do not create another planning task.
+Use the completed BL-187 Home summary contract.
+Do not redesign the broader Home page.
+Do not implement BL-194 Next Trip Actions in this task.
+
+Goal:
+Replace the current Home next-trip presentation with a compact, information-dense “Your Next Trip” module that keeps the most useful trip information visible without consuming excessive vertical space.
+
+PRODUCT CONTRACT
+
+The module should include:
+
+Header:
+Your Next Trip
+
+Upper-right action:
+View trip >
+
+Trip content:
+- mountain/resort name
+- trip date range
+- number of nights
+- number of friends going
+- relative countdown such as:
+  - Trip in 12 days
+  - Trip tomorrow
+  - Trip today
+
+Example presentation:
+
+Your Next Trip                    View trip >
+
+Vail
+Jan 13–17 · 4 nights
+4 friends going · Trip in 12 days
+
+This is an example of hierarchy, not hardcoded content.
+
+Use actual trip data and existing canonical semantics.
+
+DATA CONTRACT
+
+Consume:
+
+home_summary["next_trip"]
+
+This contract already provides:
+- the existing authoritative next trip
+- effective attendance attributes
+- ownership boolean
+
+Use the existing trip object and existing effective attendance dates.
+
+Do not:
+- query trips again
+- re-run next-trip selection
+- reinterpret ownership
+- recalculate participant eligibility with new semantics
+- introduce new trip visibility logic
+
+BL-187 remains authoritative for next-trip selection.
+
+DATE BEHAVIOR
+
+Use the user-relevant effective trip dates already attached/resolved for Home.
+
+Preserve:
+- owner trip dates
+- effective guest attendance dates
+- in-progress trip behavior
+- existing trip sorting/selection semantics
+
+Date display should be compact and readable.
+
+Examples:
+- Jan 13–17
+- Jan 30–Feb 2
+- Dec 30–Jan 2
+
+Use existing date/display helpers where appropriate rather than creating conflicting date semantics.
+
+NIGHTS
+
+Show the actual number of nights based on the same user-relevant date window being displayed.
+
+Examples:
+- 1 night
+- 4 nights
+
+Do not use the trip’s full owner window for a guest if Home already has an effective guest attendance window.
+
+FRIENDS GOING
+
+Show a compact count:
+
+1 friend going
+4 friends going
+
+Use existing authoritative participation/friend semantics already available to Home where possible.
+
+Do not create a new participant eligibility definition.
+
+Do not expose identities or avatars.
+
+If the current Home route does not already have the needed count without new queries, inspect whether an existing already-loaded value/helper can supply it.
+
+Do not add N+1 queries.
+
+If the required friends-going count cannot be produced safely from already-loaded/canonical data without a new query or semantic decision, STOP and report that specific issue rather than inventing behavior.
+
+COUNTDOWN
+
+Show a concise relative timing label based on the user-relevant effective start date.
+
+Required states:
+- future >1 day: “Trip in X days”
+- tomorrow: “Trip tomorrow”
+- today/in progress: “Trip today”
+
+Do not add live JavaScript countdown behavior.
+Server-rendered day-level precision is sufficient.
+
+VIEW TRIP
+
+“View trip >” should navigate to the existing authoritative trip detail/edit destination appropriate for current Home behavior.
+
+Do not invent a new destination.
+
+Preserve current ownership/participant access behavior.
+
+DESIGN CONSTRAINTS
+
+The card should remain compact.
+
+Avoid turning the trip into a tall metadata stack.
+
+Prefer:
+- strong resort/mountain name
+- date + nights on one compact line
+- friends + countdown on another compact line
+
+Do not use:
+- photographs
+- image placeholders
+- mountain thumbnails
+- profile bubbles/avatars
+- decorative mountain illustrations
+- pass badges
+- unnecessary icons
+
+Do not add “Add pass” or other profile actions to this card.
+
+NEXT TRIP ACTIONS
+
+BL-194 owns Next Trip Actions.
+
+Do NOT implement:
+- Actions to take · 2
+- expandable action rows
+- RSVP deadline actions
+- organizer follow-up actions
+- pass actions
+- any new eligibility/action contract
+
+BL-193 should leave a clean presentation structure that BL-194 can extend later without requiring another redesign.
+
+EMPTY STATE
+
+When there is no next trip:
+- preserve the current appropriate Home empty-state behavior
+- do not fabricate a trip card
+- do not introduce unrelated trip creation UX unless already part of existing behavior
+
+OTHER HOME MODULES
+
+Do not alter:
+- About You & Your Gear
+- Your Activity
+- Friends’ Passes
+- Ideas
+- Happening
+- Friends’ Trips
+- navigation/header
+
+PRODUCT / AUTHORIZATION BOUNDARIES
+
+Do not change:
+- trip eligibility
+- attendance statuses
+- trip visibility
+- private-trip behavior
+- ownership semantics
+- authorization
+- Ideas/Happening logic
+- Home query architecture beyond what is strictly required by the approved BL-193 presentation
+- schema/migrations
+- native configuration
+
+TESTS
+
+Add or extend focused tests covering at minimum:
+- Your Next Trip module exists when next trip exists
+- no card when no next trip
+- correct trip/resort displayed
+- user-relevant effective date range displayed
+- same-month date range
+- cross-month date range
+- cross-year date range
+- correct singular/plural nights
+- guest uses effective attendance window for nights
+- correct singular/plural friend count
+- future countdown
+- tomorrow countdown
+- today/in-progress countdown
+- View trip destination remains correct
+- private-trip access semantics unchanged
+- owner/participant behavior unchanged
+- no new N+1 queries
+- BL-187 next-trip selection remains authoritative
+- BL-190, BL-191, and BL-192 remain intact
+
+Prefer extending existing Home/next-trip tests rather than creating redundant broad suites.
+
+VALIDATION
+
+Run:
+- focused BL-193 tests
+- BL-187 Home summary regressions
+- BL-190 regressions
+- BL-191 regressions
+- BL-192 regressions
+- relevant Home empty-state tests
+- participant attendance-date regressions
+- authorization regressions
+- `git diff --check`
+
+Do not commit yet.
+
+STOP CONDITION
+
+If “friends going” requires a new product-semantic decision, privacy change, or unsafe new query pattern, stop and report:
+
+BL-193 NEEDS FRIEND-COUNT DECISION
+
+Otherwise complete the implementation.
+
+Return:
+
+BL-193 IMPLEMENTATION RESULT
+
+- Files changed:
+- Existing Next Trip content replaced:
+- Compact layout implemented:
+- BL-187 next_trip contract used:
+- Effective attendance dates preserved:
+- Nights calculation implemented:
+- Friends-going count implemented:
+- Friends-going source:
+- Countdown implemented:
+- View trip destination preserved:
+- New Home queries added:
+- N+1 queries introduced:
+- Product semantics changed:
+- Privacy/authorization changed:
+- Other Home modules changed:
+- BL-194 actions implemented:
+- Schema/migration changed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Scope deviations:
+- Commit created: NO
+
+If implementation is complete and clean, end with exactly:
+
+BL-193 READY TO MERGE
