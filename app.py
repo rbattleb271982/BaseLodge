@@ -5963,6 +5963,12 @@ def create_trip():
     user = current_user
 
     data = request.get_json()
+    if not isinstance(data, dict):
+        return jsonify({
+            "success": False,
+            "error": "Invalid request body.",
+        }), 400
+
     resort_id_raw = data.get("resort_id")
     state = data.get("state")
     mountain = data.get("mountain")

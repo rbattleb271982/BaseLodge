@@ -243,3 +243,130 @@ def test_absent_or_null_friend_id_preserves_solo_trip_creation(client, friend_fi
     messaging.assert_not_called()
     event.assert_called_once()
     analytics.assert_called_once()
+
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        [],
+        "not an object",
+        123,
+        1.5,
+        True,
+        None,
+    ],
+    ids=["array", "string", "integer", "float", "boolean", "null"],
+)
+def test_non_object_json_body_is_rejected_without_side_effects(client, body):
+    with app.app_context():
+        creator = _make_user("invalid-body-creator")
+        db.session.commit()
+        creator_id = creator.id
+
+    _login(client, creator_id)
+    with (
+        mock.patch("app.emit_messaging_event") as messaging,
+        mock.patch("app.emit_event") as event,
+        mock.patch.object(app_module.ph_analytics, "track") as analytics,
+    ):
+        if body is None:
+            response = client.post(
+                "/api/trip/create",
+                data="null",
+                content_type="application/json",
+                headers={"X-CSRF-Token": "test-csrf-fixed-value-baselodge-regression"},
+            )
+        else:
+            response = client.post(
+                "/api/trip/create",
+                json=body,
+                headers={"X-CSRF-Token": "test-csrf-fixed-value-baselodge-regression"},
+            )
+
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "success": False,
+        "error": "Invalid request body.",
+    }
+    _assert_no_side_effects(creator_id, messaging, event, analytics)
+
+
+def test_malformed_json_behavior_remains_flask_bad_request(client):
+    with app.app_context():
+        creator = _make_user("malformed-body-creator")
+        db.session.commit()
+        creator_id = creator.id
+
+    _login(client, creator_id)
+    response = client.post(
+        "/api/trip/create",
+        data='{"mountain":',
+        content_type="application/json",
+        headers={"X-CSRF-Token": "test-csrf-fixed-value-baselodge-regression"},
+    )
+
+    assert response.status_code == 400
+    assert not response.is_json
+    assert "Invalid request body." not in response.get_data(as_text=True)
+    _assert_no_side_effects(creator_id, mock.Mock(), mock.Mock(), mock.Mock())
+
+
+def test_empty_json_body_behavior_remains_flask_bad_request(client):
+    with app.app_context():
+        creator = _make_user("empty-body-creator")
+        db.session.commit()
+        creator_id = creator.id
+
+    _login(client, creator_id)
+    response = client.post(
+        "/api/trip/create",
+        data="",
+        content_type="application/json",
+        headers={"X-CSRF-Token": "test-csrf-fixed-value-baselodge-regression"},
+    )
+
+    assert response.status_code == 400
+    assert not response.is_json
+    assert "Invalid request body." not in response.get_data(as_text=True)
+
+
+def test_missing_non_json_body_behavior_remains_flask_unsupported_media_type(client):
+    with app.app_context():
+        creator = _make_user("missing-body-creator")
+        db.session.commit()
+        creator_id = creator.id
+
+    _login(client, creator_id)
+    response = client.post(
+        "/api/trip/create",
+        headers={"X-CSRF-Token": "test-csrf-fixed-value-baselodge-regression"},
+    )
+
+    assert response.status_code == 415
+    assert not response.is_json
+    assert "Invalid request body." not in response.get_data(as_text=True)
+
+
+def test_valid_json_object_request_remains_compatible(client):
+    with app.app_context():
+        creator = _make_user("valid-object-creator")
+        db.session.commit()
+        creator_id = creator.id
+
+    _login(client, creator_id)
+    response, messaging, event, analytics = _post_with_side_effect_spies(
+        client,
+        _trip_payload(),
+    )
+
+    assert response.status_code == 200
+    body = response.get_json()
+    assert body["success"] is True
+    assert body["trip"]["mountain"] == "Authorization Peak"
+    with app.app_context():
+        assert SkiTrip.query.count() == 1
+        assert SkiTripParticipant.query.count() == 1
+    messaging.assert_not_called()
+    event.assert_called_once()
+    analytics.assert_called_once()
