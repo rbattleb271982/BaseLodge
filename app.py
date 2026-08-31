@@ -8655,15 +8655,15 @@ def admin_backfill_posthog():
     return jsonify(summary), 200
 
 
-@app.route("/admin/test-push-broadcast", methods=["GET"])
+@app.route("/admin/test-push-broadcast", methods=["POST"])
 @login_required
 @admin_required
 def admin_test_push_broadcast():
-    """Send a test push to every active token in the database across all users.
+    """Send a test push to every eligible active token across opted-in users.
 
-    Optional query params:
-      ?title=...   override notification title  (default: "BaseLodge")
-      ?body=...    override notification body   (default: "Test push from BaseLodge")
+    Optional form/JSON fields:
+      title   override notification title  (default: "BaseLodge")
+      body    override notification body   (default: "Test push from BaseLodge")
 
     Routes each token through the correct provider:
       platform='ios'     → APNs  (send_apns_push)
@@ -8675,13 +8675,46 @@ def admin_test_push_broadcast():
     def _tok_preview(t):
         return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
 
-    title = (request.args.get("title") or "BaseLodge").strip()
-    body  = (request.args.get("body")  or "Test push from BaseLodge").strip()
+    validate_csrf_request()
+
+    if is_production:
+        current_app.logger.warning(
+            "[TestPushBroadcast] blocked in production admin_user_id=%d",
+            current_user.id,
+        )
+        return jsonify({
+            "route": "/admin/test-push-broadcast",
+            "admin_user_id": current_user.id,
+            "success": False,
+            "error": "not_available_in_production",
+            "reason": "broadcast_disabled_in_production",
+        }), 403
+
+    request_data = request.get_json(silent=True) or {}
+    title = (
+        request_data.get("title")
+        or request.form.get("title")
+        or request.args.get("title")
+        or "BaseLodge"
+    ).strip()
+    body = (
+        request_data.get("body")
+        or request.form.get("body")
+        or request.args.get("body")
+        or "Test push from BaseLodge"
+    ).strip()
 
     active_tokens = (
         PushDeviceToken.query
-        .filter_by(active=True)
-        .order_by(PushDeviceToken.updated_at.desc())
+        .join(User, User.id == PushDeviceToken.user_id)
+        .filter(
+            PushDeviceToken.active == True,  # noqa: E712
+            User.push_notifications_enabled == True,  # noqa: E712
+        )
+        .order_by(
+            PushDeviceToken.updated_at.desc(),
+            PushDeviceToken.id.desc(),
+        )
         .all()
     )
 
@@ -8695,6 +8728,22 @@ def admin_test_push_broadcast():
             "(qa_user_id=%d email=%s tokens_before=%d tokens_after=%d)",
             _qa_user_bc.id, _QA_PUSH_OVERRIDE_EMAIL, _bc_before, len(active_tokens),
         )
+
+    # Registration normally leaves one active token per user/platform, but
+    # legacy rows can violate that invariant. Keep the newest row in each slot
+    # and never address the same physical platform/token pair twice.
+    deduped_tokens = []
+    seen_user_platforms = set()
+    seen_platform_tokens = set()
+    for row in active_tokens:
+        user_platform = (row.user_id, row.platform)
+        platform_token = (row.platform, row.token)
+        if user_platform in seen_user_platforms or platform_token in seen_platform_tokens:
+            continue
+        seen_user_platforms.add(user_platform)
+        seen_platform_tokens.add(platform_token)
+        deduped_tokens.append(row)
+    active_tokens = deduped_tokens
 
     unique_users = len({row.user_id for row in active_tokens})
 
