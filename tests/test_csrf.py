@@ -8,7 +8,9 @@ import os
 import unittest.mock
 import pytest
 from app import app
-from models import db, User, SkiTrip, SkiTripPlanningPost, GuestStatus
+from models import (
+    db, User, SkiTrip, SkiTripPlanningPost, GuestStatus, PushDeviceToken,
+)
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
     _login, json_post, form_post, _TEST_CSRF,
@@ -51,6 +53,201 @@ def _form_bad_csrf(client, url, data=None):
     payload = dict(data or {})
     payload["csrf_token"] = "bad-token-xyz"
     return client.post(url, data=payload)
+
+
+# ── Native push registration and diagnostics ──────────────────────────────────
+
+def test_push_register_ios_valid_csrf_succeeds(client, csrf_setup):
+    _login(client, csrf_setup["owner_id"])
+    rv = json_post(client, "/api/push/register-token", {
+        "token": "ios-valid-csrf-token",
+        "platform": "ios",
+        "apns_environment": "production",
+    })
+    assert rv.status_code == 200
+    assert rv.get_json()["action"] == "inserted"
+    with app.app_context():
+        row = PushDeviceToken.query.filter_by(
+            user_id=csrf_setup["owner_id"],
+            token="ios-valid-csrf-token",
+        ).one()
+        assert row.platform == "ios"
+        assert row.apns_environment == "production"
+        assert row.active is True
+
+
+def test_push_register_android_valid_csrf_succeeds(client, csrf_setup):
+    _login(client, csrf_setup["owner_id"])
+    rv = json_post(client, "/api/push/register-token", {
+        "token": "android-valid-csrf-token",
+        "platform": "android",
+    })
+    assert rv.status_code == 200
+    with app.app_context():
+        row = PushDeviceToken.query.filter_by(
+            user_id=csrf_setup["owner_id"],
+            token="android-valid-csrf-token",
+        ).one()
+        assert row.platform == "android"
+        assert row.apns_environment == "n/a"
+        assert row.active is True
+
+
+@pytest.mark.parametrize("request_csrf", [None, "wrong-token-xyz"])
+def test_push_register_rejects_bad_csrf_without_token_side_effects(
+        client, csrf_setup, request_csrf):
+    with app.app_context():
+        existing = PushDeviceToken(
+            user_id=csrf_setup["owner_id"],
+            token="existing-active-ios-token",
+            platform="ios",
+            active=True,
+            apns_environment="production",
+        )
+        db.session.add(existing)
+        db.session.commit()
+        existing_id = existing.id
+
+    _login(client, csrf_setup["owner_id"])
+    headers = {"X-CSRF-Token": request_csrf} if request_csrf else {}
+    rv = client.post(
+        "/api/push/register-token",
+        json={
+            "token": "forged-new-ios-token",
+            "platform": "ios",
+            "apns_environment": "production",
+        },
+        headers=headers,
+    )
+    assert rv.status_code == 403
+    with app.app_context():
+        assert PushDeviceToken.query.filter_by(
+            user_id=csrf_setup["owner_id"]
+        ).count() == 1
+        assert db.session.get(PushDeviceToken, existing_id).active is True
+        assert PushDeviceToken.query.filter_by(
+            token="forged-new-ios-token"
+        ).first() is None
+
+
+def test_push_register_unauthenticated_remains_blocked(client):
+    rv = client.post(
+        "/api/push/register-token",
+        json={"token": "unauthenticated-token", "platform": "ios"},
+        headers={"X-CSRF-Token": _TEST_CSRF},
+    )
+    assert rv.status_code in (302, 401)
+    with app.app_context():
+        assert PushDeviceToken.query.filter_by(
+            token="unauthenticated-token"
+        ).first() is None
+
+
+def test_push_register_valid_csrf_preserves_same_platform_deactivation(
+        client, csrf_setup):
+    with app.app_context():
+        old = PushDeviceToken(
+            user_id=csrf_setup["owner_id"],
+            token="old-ios-token",
+            platform="ios",
+            active=True,
+            apns_environment="production",
+        )
+        db.session.add(old)
+        db.session.commit()
+        old_id = old.id
+
+    _login(client, csrf_setup["owner_id"])
+    rv = json_post(client, "/api/push/register-token", {
+        "token": "new-ios-token",
+        "platform": "ios",
+        "apns_environment": "production",
+    })
+    assert rv.status_code == 200
+    with app.app_context():
+        assert db.session.get(PushDeviceToken, old_id).active is False
+        assert PushDeviceToken.query.filter_by(
+            user_id=csrf_setup["owner_id"],
+            token="new-ios-token",
+            active=True,
+        ).count() == 1
+
+
+def test_push_register_valid_csrf_preserves_refresh_reactivation(
+        client, csrf_setup):
+    with app.app_context():
+        existing = PushDeviceToken(
+            user_id=csrf_setup["owner_id"],
+            token="inactive-ios-token",
+            platform="ios",
+            active=False,
+            apns_environment="production",
+        )
+        db.session.add(existing)
+        db.session.commit()
+        existing_id = existing.id
+
+    _login(client, csrf_setup["owner_id"])
+    rv = json_post(client, "/api/push/register-token", {
+        "token": "inactive-ios-token",
+        "platform": "ios",
+        "apns_environment": "production",
+    })
+    assert rv.status_code == 200
+    assert rv.get_json()["action"] == "refreshed"
+    with app.app_context():
+        assert db.session.get(PushDeviceToken, existing_id).active is True
+        assert PushDeviceToken.query.filter_by(
+            user_id=csrf_setup["owner_id"],
+            token="inactive-ios-token",
+        ).count() == 1
+
+
+def test_push_beacon_valid_csrf_logs_diagnostic(client, csrf_setup):
+    _login(client, csrf_setup["owner_id"])
+    with unittest.mock.patch.object(app.logger, "warning") as warning:
+        rv = json_post(client, "/api/push/beacon", {
+            "step": "csrf_valid",
+            "data": {"platform": "ios"},
+        })
+    assert rv.status_code == 200
+    assert rv.get_json() == {"ok": True}
+    assert any(
+        call.args and call.args[0].startswith("[PushBeacon]")
+        for call in warning.call_args_list
+    )
+
+
+@pytest.mark.parametrize("request_csrf", [None, "wrong-token-xyz"])
+def test_push_beacon_rejects_bad_csrf_before_diagnostic_logging(
+        client, csrf_setup, request_csrf):
+    _login(client, csrf_setup["owner_id"])
+    headers = {"X-CSRF-Token": request_csrf} if request_csrf else {}
+    with unittest.mock.patch.object(app.logger, "warning") as warning:
+        rv = client.post(
+            "/api/push/beacon",
+            json={"step": "must_not_log", "data": {"platform": "android"}},
+            headers=headers,
+        )
+    assert rv.status_code == 403
+    assert not any(
+        call.args and call.args[0].startswith("[PushBeacon]")
+        for call in warning.call_args_list
+    )
+
+
+def test_push_beacon_unauthenticated_remains_blocked(client):
+    with unittest.mock.patch.object(app.logger, "warning") as warning:
+        rv = client.post(
+            "/api/push/beacon",
+            json={"step": "unauthenticated"},
+            headers={"X-CSRF-Token": _TEST_CSRF},
+        )
+    assert rv.status_code in (302, 401)
+    assert not any(
+        call.args and call.args[0].startswith("[PushBeacon]")
+        for call in warning.call_args_list
+    )
 
 
 # ── update-visibility ─────────────────────────────────────────────────────────

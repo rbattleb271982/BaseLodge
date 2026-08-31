@@ -23,6 +23,7 @@ from app import app
 from models import db, PushDeviceToken
 
 ADMIN_USER_ID = 2
+TEST_CSRF = "test-push-lifecycle-csrf-token"
 
 
 def _fake_token():
@@ -69,6 +70,7 @@ class PushTokenLifecycleTests(unittest.TestCase):
         with c.session_transaction() as sess:
             sess["_user_id"] = str(user_id)
             sess["_fresh"] = True
+            sess["_csrf_token"] = TEST_CSRF
         return c
 
     def _deactivate_all(self, user_id):
@@ -193,6 +195,7 @@ class PushTokenLifecycleTests(unittest.TestCase):
             "/api/push/register-token",
             json={"token": tok, "platform": "ios", "apns_environment": "production"},
             content_type="application/json",
+            headers={"X-CSRF-Token": TEST_CSRF},
         )
         data = json.loads(resp.data)
 
@@ -222,6 +225,7 @@ class PushTokenLifecycleTests(unittest.TestCase):
                 "/api/push/register-token",
                 json={"token": tok, "platform": "ios", "apns_environment": "production"},
                 content_type="application/json",
+                headers={"X-CSRF-Token": TEST_CSRF},
             )
             self.assertEqual(resp.status_code, 200,
                              f"Registration {i+1} failed: {resp.data}")

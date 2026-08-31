@@ -7270,6 +7270,7 @@ def push_register_token():
     This value is used to select the right token when calling APNs so we never
     send a sandbox token to api.push.apple.com or vice-versa.
     """
+    validate_csrf_request()
     data = request.get_json() or {}
     token = data.get("token", "").strip()
     platform = data.get("platform", "ios").strip() or "ios"
@@ -7390,6 +7391,7 @@ def push_debug_beacon():
     Body: { step: str, data: object }
     Logs: [PushBeacon] user_id=X step=Y data=Z
     """
+    validate_csrf_request()
     body = request.get_json(silent=True) or {}
     step = str(body.get("step", "unknown"))[:64]
     raw_data = body.get("data", {})
