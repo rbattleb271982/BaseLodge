@@ -153,6 +153,83 @@
             padding-bottom: 8px;
         }
 
+        /* ── BL-188 collapsed disclosure foundation ── */
+        .home-disclosure {
+            background: var(--bl-color-surface);
+            border: 1px solid var(--bl-color-border-soft);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            min-width: 0;
+        }
+        .home-disclosure__summary {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            min-height: 44px;
+            box-sizing: border-box;
+            padding: 10px 14px;
+            color: var(--bl-color-text);
+            cursor: pointer;
+            list-style: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .home-disclosure__summary::-webkit-details-marker {
+            display: none;
+        }
+        .home-disclosure__summary:focus-visible {
+            outline: 2px solid var(--bl-color-primary);
+            outline-offset: 2px;
+        }
+        .home-disclosure__copy {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+        .home-disclosure__title {
+            color: var(--bl-color-text);
+            font-size: 15px;
+            font-weight: 650;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
+        }
+        .home-disclosure__collapsed {
+            color: var(--bl-color-text-muted);
+            font-size: 13px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .home-disclosure[open] .home-disclosure__collapsed {
+            display: none;
+        }
+        .home-disclosure__chevron {
+            flex: 0 0 auto;
+            color: var(--bl-color-text-tertiary);
+            font-size: 23px;
+            line-height: 1;
+            transform: rotate(0deg);
+            transition: transform 160ms ease;
+        }
+        .home-disclosure[open] > .home-disclosure__summary .home-disclosure__chevron {
+            transform: rotate(90deg);
+        }
+        .home-disclosure__panel {
+            min-width: 0;
+            padding: 0 14px 14px;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .home-disclosure__chevron {
+                transition: none;
+            }
+        }
+
         /* ── Section label ── */
         .home-section-label {
             font-size: 12px;

@@ -1,0 +1,19 @@
+{% macro home_disclosure(disclosure_id, title, summary, class_name='', content_class='') -%}
+<details id="{{ disclosure_id }}" class="home-disclosure{% if class_name %} {{ class_name }}{% endif %}">
+    <summary class="home-disclosure__summary">
+        <span class="home-disclosure__copy">
+            <span id="{{ disclosure_id }}-title" class="home-disclosure__title">{{ title }}</span>
+            <span class="home-disclosure__collapsed">{{ summary }}</span>
+        </span>
+        <span class="home-disclosure__chevron" aria-hidden="true" focusable="false">›</span>
+    </summary>
+    <div
+        id="{{ disclosure_id }}-panel"
+        class="home-disclosure__panel{% if content_class %} {{ content_class }}{% endif %}"
+        role="region"
+        aria-labelledby="{{ disclosure_id }}-title"
+    >
+        {{ caller() }}
+    </div>
+</details>
+{%- endmacro %}
