@@ -1,0 +1,100 @@
+{% from 'macros/home_disclosure.html' import home_disclosure %}
+{% set _about = home_summary.about_you %}
+{% set _rt_val = _about.display_rider_type or 'Add rider type' %}
+{% set _sl_val = _about.skill_level or 'Add skill level' %}
+{% set _pass_val = (_about.pass_type | pass_display) if _about.pass_type else 'No pass added' %}
+{% set _about_summary = [_rt_val, _sl_val, _pass_val] | join(' · ') %}
+
+{% call home_disclosure(
+    'about-you-gear',
+    'About You & Your Gear',
+    _about_summary,
+    class_name='home-about-you-gear'
+) %}
+<div class="home-about-you-gear__list">
+    <div class="home-about-you-gear__row">
+        <span class="home-about-you-gear__label">Rider Type:</span>
+        <a href="{{ url_for('edit_profile') }}" class="home-about-you-gear__value">
+            {{ _rt_val }}
+        </a>
+    </div>
+    <div class="home-about-you-gear__row">
+        <span class="home-about-you-gear__label">Skill Level:</span>
+        <a href="{{ url_for('edit_profile') }}" class="home-about-you-gear__value">
+            {{ _sl_val }}
+        </a>
+    </div>
+    <div class="home-about-you-gear__row">
+        <span class="home-about-you-gear__label">Pass:</span>
+        <a href="{{ url_for('select_pass') }}" class="home-about-you-gear__value">
+            {{ _pass_val }}
+        </a>
+    </div>
+
+    {% if _about.is_renting %}
+    <div class="home-about-you-gear__row">
+        <span class="home-about-you-gear__label">Gear:</span>
+        <a href="{{ url_for('settings_equipment') }}" class="home-about-you-gear__value">
+            Rental gear
+        </a>
+    </div>
+    {% elif _about.rider_disciplines %}
+        {% for discipline in _about.rider_disciplines %}
+            {% set _setup = _about.gear_by_discipline.get(discipline) %}
+            {% set _gear_label = 'Snowboard' if discipline == 'snowboarder' else 'Skis' %}
+            <div class="home-about-you-gear__row">
+                <span class="home-about-you-gear__label">{{ _gear_label }}:</span>
+                {% if _setup %}
+                    {% set _setup_name = _setup.label or ([_setup.brand, _setup.model] | select | join(' ')) or (_gear_label ~ ' setup') %}
+                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}"
+                       class="home-about-you-gear__value">
+                        {{ _setup_name }}
+                    </a>
+                {% else %}
+                    {% set _add_text = ('Add your ski gear' if discipline == 'skier' else 'Add your snowboard gear') if _about.rider_disciplines | length > 1 else 'Add your gear' %}
+                    <a href="{{ url_for('settings_equipment') }}" class="home-about-you-gear__value">
+                        {{ _add_text }} →
+                    </a>
+                {% endif %}
+            </div>
+
+            {% set _has_boots = _setup and (_setup.boot_brand or _setup.boot_model) %}
+            <div class="home-about-you-gear__row">
+                <span class="home-about-you-gear__label">Boots:</span>
+                {% if _has_boots %}
+                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}"
+                       class="home-about-you-gear__value">
+                        {{ [_setup.boot_brand, _setup.boot_model] | select | join(' ') }}
+                    </a>
+                {% else %}
+                    <span class="home-about-you-gear__value home-about-you-gear__value--empty">
+                        Not added
+                    </span>
+                {% endif %}
+            </div>
+
+            {% set _has_bindings = _setup and (_setup.binding_brand or _setup.binding_model) %}
+            <div class="home-about-you-gear__row">
+                <span class="home-about-you-gear__label">Bindings:</span>
+                {% if _has_bindings %}
+                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}"
+                       class="home-about-you-gear__value">
+                        {{ [_setup.binding_brand, _setup.binding_model] | select | join(' ') }}
+                    </a>
+                {% else %}
+                    <span class="home-about-you-gear__value home-about-you-gear__value--empty">
+                        Not added
+                    </span>
+                {% endif %}
+            </div>
+        {% endfor %}
+    {% else %}
+    <div class="home-about-you-gear__row">
+        <span class="home-about-you-gear__label">Gear:</span>
+        <a href="{{ url_for('settings_equipment') }}" class="home-about-you-gear__value">
+            Add your gear →
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endcall %}

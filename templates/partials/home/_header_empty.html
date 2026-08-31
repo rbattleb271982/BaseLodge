@@ -1,15 +1,11 @@
 <!--
 Component: Home Header (Empty State)
-Purpose: Profile summary card when the user has no upcoming trips. Matches the
+Purpose: Profile/gear disclosure when the user has no upcoming trips. Matches the
          populated header card style with inline stat band.
 Used on: Home screen (empty state only — when next_trip is falsy)
 
 Inputs:
-  user              — User object
-    .first_name           string
-    .display_rider_type   string | None
-    .skill_level          string | None
-    .pass_type            string | None   (rendered via pass_display filter)
+  home_summary       — BL-187 resolved Home summary contract
   stat_trips_total  int
   stat_mountains    int
   stat_wishlist     int
@@ -18,19 +14,7 @@ Inputs:
 <div class="hc-card">
 
 
-    {%- set _rt_val   = user.display_rider_type or 'Add rider type' -%}
-    {%- set _sl_val   = user.skill_level or 'Add skill level' -%}
-    {%- set _pass_val = (user.pass_type | pass_display) if user.pass_type else 'No pass yet' -%}
-    <div class="hc-identity hc-identity--compact">
-        <div class="hc-identity-line" aria-label="Personal profile summary">
-            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit rider type: {{ _rt_val }}">{{ _rt_val }}</a>
-            <span class="hc-identity-separator" aria-hidden="true">·</span>
-            <a href="{{ url_for('edit_profile') }}" class="hc-identity-link" aria-label="Edit skill level: {{ _sl_val }}">{{ _sl_val }}</a>
-            <span class="hc-identity-separator" aria-hidden="true">·</span>
-            <a href="{{ url_for('select_pass') }}" class="hc-identity-link" aria-label="Edit pass: {{ _pass_val }}">{{ _pass_val }}</a>
-        </div>
-    </div>
-    {% include 'partials/home/_gear_summary.html' %}
+    {% include 'partials/home/_about_you_gear.html' %}
 
     <div class="hc-stat-band">
         <div class="hc-stat-tile{% if stat_trips_url %} hc-stat-tile--link{% endif %}"

@@ -72,7 +72,7 @@ def test_home_shows_matching_single_discipline_setup(
 
     html = _home_html(client, user_id)
 
-    assert f"{expected_label}</span>" in html
+    assert f"{expected_label}:" in html
     assert f"{brand} {model}" in html
     assert f'/settings/equipment#setup-{setup_id}' in html
 
@@ -93,7 +93,7 @@ def test_home_shows_both_disciplines_and_missing_specific_add_state(client):
     html = _home_html(client, user_id)
 
     assert f'/settings/equipment#setup-{ski_setup_id}' in html
-    assert "Skis</span>" in html
+    assert "Skis:" in html
     assert "Add your snowboard gear" in html
 
 
@@ -107,7 +107,7 @@ def test_home_shows_single_snowboarder_add_state_when_no_setup_exists(client):
 
     assert "Add your gear" in html
     assert "Add your snowboard gear" not in html
-    assert "Snowboard</span>" not in html
+    assert "Snowboard:" in html
 
 
 def test_home_shows_snowboard_setup_and_ski_add_state_for_dual_profile(client):
@@ -147,7 +147,7 @@ def test_home_excludes_mismatched_setup_and_uses_add_state(client):
 
     assert "Add your gear" in html
     assert "Burton Custom" not in html
-    assert "Snowboard</span>" not in html
+    assert "Snowboard:" not in html
 
 
 def test_home_prefers_matching_global_primary_and_keeps_primary_flags_unchanged(client):
@@ -301,6 +301,67 @@ def test_home_gear_summary_renders_in_populated_header(client):
 
     assert "K2 Mindbender" in html
     assert f'/settings/equipment#setup-{setup_id}' in html
+
+
+def test_home_about_you_gear_disclosure_uses_profile_values_and_gear_details(client):
+    with app.app_context():
+        user = _make_home_user("about", rider_types=["Skier"])
+        user.skill_level = "Advanced"
+        user.pass_type = "epic"
+        setup = _setup(
+            user,
+            EquipmentDiscipline.SKIER,
+            primary=True,
+            brand="K2",
+            model="Mindbender",
+        )
+        setup.boot_brand = "Dalbello"
+        setup.boot_model = "Lupo"
+        setup.binding_brand = "Marker"
+        setup.binding_model = "Griffon"
+        user_id = user.id
+        db.session.commit()
+
+    html = _home_html(client, user_id)
+
+    disclosure = html[html.index('<details id="about-you-gear"'):html.index("</details>", html.index('<details id="about-you-gear"'))]
+    assert 'class="home-disclosure home-about-you-gear"' in disclosure
+    assert "open" not in disclosure.split(">", 1)[0]
+    assert "About You &amp; Your Gear" in disclosure
+    assert "Skier · Advanced · Epic" in disclosure
+    assert "Rider Type:" in disclosure
+    assert "Skill Level:" in disclosure
+    assert "Pass:" in disclosure
+    assert "Skis:" in disclosure
+    assert "K2 Mindbender" in disclosure
+    assert "Boots:" in disclosure
+    assert "Dalbello Lupo" in disclosure
+    assert "Bindings:" in disclosure
+    assert "Marker Griffon" in disclosure
+
+
+def test_home_about_you_gear_disclosure_handles_missing_pass_and_gear():
+    home_summary = {
+        "about_you": {
+            "display_rider_type": "Skier",
+            "skill_level": "Intermediate",
+            "pass_type": None,
+            "rider_disciplines": ["skier"],
+            "gear_by_discipline": {},
+            "is_renting": False,
+        },
+    }
+    with app.test_request_context():
+        html = app.jinja_env.get_template(
+            "partials/home/_about_you_gear.html"
+        ).render(home_summary=home_summary)
+
+    assert "Skier · Intermediate · No pass added" in html
+    assert "Skis:" in html
+    assert "Add your gear" in html
+    assert "Boots:" in html
+    assert "Not added" in html
+    assert "Bindings:" in html
 
 
 def test_gear_page_hash_contract_reuses_existing_edit_form_safely():

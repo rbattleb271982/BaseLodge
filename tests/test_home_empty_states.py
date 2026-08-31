@@ -371,12 +371,11 @@ def test_home_dismissal_is_idempotent_for_happening_and_opportunity(client):
             ).count() == 1
 
 
-def test_home_header_variants_use_compact_identity_and_preserve_stat_contracts():
+def test_home_header_variants_use_about_you_disclosure_and_preserve_stat_contracts():
     for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
-        assert 'class="hc-identity-line"' in header_template
-        assert header_template.count("url_for('edit_profile')") == 2
-        assert "url_for('select_pass')" in header_template
-        assert "hc-identity-separator" in header_template
+        assert "partials/home/_about_you_gear.html" in header_template
+        assert 'class="hc-identity-line"' not in header_template
+        assert "partials/home/_gear_summary.html" not in header_template
 
         assert "stat_trips_url" in header_template
         assert "stat_mountains_url" in header_template
@@ -387,9 +386,19 @@ def test_home_header_variants_use_compact_identity_and_preserve_stat_contracts()
 def test_home_header_variants_include_editable_gear_summary_and_pass_summary():
     for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
         assert "partials/home/_section_friend_passes.html" in header_template
-        assert "partials/home/_gear_summary.html" in header_template
+        assert "partials/home/_about_you_gear.html" in header_template
         assert "Boots:" not in header_template
         assert "Bindings:" not in header_template
+
+
+def test_home_about_you_gear_uses_stacked_single_column_layout():
+    assert ".home-about-you-gear__list" in HOME_TEMPLATE
+    assert ".home-about-you-gear__row" in HOME_TEMPLATE
+    assert "flex-direction: column;" in HOME_TEMPLATE
+    assert "grid-template-columns" not in HOME_TEMPLATE[
+        HOME_TEMPLATE.index(".home-about-you-gear__list"):
+        HOME_TEMPLATE.index("@media (prefers-reduced-motion")
+    ]
 
 
 def test_home_uses_scoped_compact_summary_treatment_without_changing_hierarchy():
