@@ -9,6 +9,7 @@ from conftest import _login, _make_resort, _make_user, json_post
 from models import Friend, User, db
 from services.ideas_retrieval import get_home_ideas
 from services.wishlist import (
+    WISHLIST_LIMIT,
     WishlistValidationError,
     normalize_wishlist_resort_ids,
     validate_wishlist_resort_ids,
@@ -247,6 +248,65 @@ def test_remove_deletes_all_normalized_occurrences_and_preserves_other_values(cl
             str(kept_id),
             kept_id,
         ]
+
+
+@pytest.mark.parametrize(
+    ("remaining_count", "expected_at_limit"),
+    [(0, False), (14, False), (WISHLIST_LIMIT, True)],
+)
+def test_remove_reports_canonical_limit_at_boundaries(
+    client, remaining_count, expected_at_limit
+):
+    with app.app_context():
+        user = _make_user(f"wishlist-remove-{remaining_count}")
+        resorts = [
+            _make_resort(f"Remove Boundary {remaining_count} {index}")
+            for index in range(remaining_count + 1)
+        ]
+        user.wish_list_resorts = [resort.id for resort in resorts]
+        user_id = user.id
+        removed_id = resorts[-1].id
+        db.session.commit()
+
+    _login(client, user_id)
+    response = json_post(
+        client, "/api/wishlist/remove", {"resort_id": removed_id}
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "success": True,
+        "count": remaining_count,
+        "at_limit": expected_at_limit,
+    }
+
+
+def test_remove_reports_canonical_limit_for_over_limit_legacy_data(client):
+    with app.app_context():
+        user = _make_user("wishlist-remove-over-limit")
+        resorts = [
+            _make_resort(f"Remove Over Limit {index}")
+            for index in range(WISHLIST_LIMIT + 2)
+        ]
+        user.wish_list_resorts = [resort.id for resort in resorts]
+        user_id = user.id
+        removed_id = resorts[-1].id
+        db.session.commit()
+
+    _login(client, user_id)
+    response = json_post(
+        client, "/api/wishlist/remove", {"resort_id": removed_id}
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "success": True,
+        "count": WISHLIST_LIMIT,
+        "at_limit": True,
+    }
+    with app.app_context():
+        stored_ids = db.session.get(User, user_id).wish_list_resorts
+        assert len(stored_ids) == WISHLIST_LIMIT + 1
 
 
 def test_model_reads_ignore_bad_data_dedupe_and_preserve_valid_order(client):
