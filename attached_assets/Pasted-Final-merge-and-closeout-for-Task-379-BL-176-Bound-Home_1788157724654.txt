@@ -1,0 +1,177 @@
+Final merge and closeout for Task #379 / BL-176 — Bound Home Ideas Retrieval.
+
+This implementation is approved.
+
+Do not create another task.
+Do not return to Plan mode.
+Do not expand scope.
+
+1. REVIEW THE FINAL DIFF
+
+Confirm the BL-176 application changes are limited to the approved retrieval implementation and supporting tests.
+
+Expected application scope includes:
+
+- NEW: services/ideas_retrieval.py
+- app.py
+- NEW: tests/test_home_ideas_retrieval.py
+- affected Home test mocks required by the new retrieval boundary
+- regression-guard updates required by BL-176
+
+An engineering memory/runtime-validation note may remain if it is part of the project’s established engineering documentation workflow.
+
+Confirm:
+
+- services/happening.py is unchanged
+- templates are unchanged
+- models are unchanged
+- migrations are unchanged
+- native configuration is unchanged
+- no new dependencies were introduced
+
+2. VERIFY THE CORE CONTRACT
+
+Before committing, confirm from the final diff:
+
+- exactly one Ideas-specific SQL statement per Home request
+- maximum five final Ideas rows materialized
+- LIMIT occurs only after exact semantic reduction and dismissal
+- no source-level limits
+- no finite overfetch
+- no full candidate populations materialized in Python
+- no N+1
+- no ORM lazy relationship loading
+
+3. VERIFY SEMANTIC EQUIVALENCE
+
+Confirm the implementation preserves:
+
+Friend trips:
+- direct friends only
+- public current/future resort-backed trips
+- owner and active Interested/Going attendance
+- effective attendance dates
+- exclusion of invalid/past/private/resortless/non-friend candidates
+
+Availability:
+- mutual future openness
+- normalized rows over legacy JSON precedence
+- exact legacy fallback
+- consecutive-date merging
+- friend dedupe
+- mountainless windows
+- wishlist-pinned resorts where applicable
+- pass overlap as context only
+
+Wishlist:
+- direct-friend shared resorts
+- no trip/date requirement
+- missing/inactive resort exclusion
+- existing friend grouping
+
+4. VERIFY RANKING / REDUCTION
+
+Confirm defined ranking remains:
+
+Global:
+1. friend count descending
+2. viewer date overlap first
+3. closest dated candidate first
+4. signal priority:
+   - friend trip
+   - availability
+   - wishlist
+
+Per-resort:
+1. larger friend group
+2. earlier date
+3. stronger signal
+
+Confirm the existing 999-day undated sentinel behavior remains equivalent.
+
+Stable IDs may resolve only previously undefined ties.
+
+5. VERIFY SUPPRESSION / DISMISSAL
+
+Confirm:
+
+- booked-window suppression preserved
+- seven-day behavior preserved
+- three-friend override preserved
+- per-resort deduplication preserved
+- mountainless deduplication preserved
+
+Dismissal must remain inside the relational reduction before LIMIT 5.
+
+Canonical dismissal keys must remain unchanged.
+
+Verify that a dismissed leading candidate allows the next eligible candidate to backfill.
+
+6. VERIFY HOME CONTRACT
+
+Confirm existing Home Ideas card behavior remains unchanged:
+
+- card keys
+- copy
+- dates
+- friend IDs
+- friend counts
+- resort metadata
+- destinations
+- supporting text
+- downstream Ideas/Happening inputs
+
+Confirm there is still NO cross-section Ideas/Happening suppression.
+
+7. RE-RUN FINAL VALIDATION
+
+Run:
+
+- focused BL-176 retrieval/equivalence tests
+- relevant existing Ideas tests
+- Home empty-state tests
+- Home dismissal regressions
+- BL-177 Happening retrieval tests
+- relevant Home regressions
+- privacy/authorization regressions
+- git diff --check
+
+If practical, retain the already-passing PostgreSQL and SQLite runtime-validation evidence; do not perform unnecessary environment/schema operations.
+
+8. COMMIT
+
+If everything remains clean, commit only the approved BL-176 files.
+
+Commit message:
+
+BL-176: bound Home Ideas candidate retrieval
+
+Do not include unrelated working-tree files.
+
+9. RETURN
+
+BL-176 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- One Ideas query preserved:
+- Five-row materialization bound preserved:
+- Source-level limits:
+- Finite overfetch:
+- Dismissal before limit:
+- Ranking semantics preserved:
+- Privacy/authorization unchanged:
+- Happening unchanged:
+- Templates unchanged:
+- Schema/migration unchanged:
+- New dependency:
+- Uncommitted BL-176 changes remaining:
+- Unrelated working-tree changes present:
+- Scope deviations:
+
+End exactly:
+
+BL-176 MERGED
