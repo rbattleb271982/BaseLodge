@@ -1,0 +1,192 @@
+BL-70 — USER DATA / SCHEMA: Persist season-specific pass history
+
+Mode: PLAN
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~36.5%
+
+Investigate only. Do not implement yet.
+
+Objective:
+Determine the safest canonical data model for preserving a BaseLodge user's ski-pass history by ski season without breaking the current profile, Friends' Passes, trip, matching, mountain, or Home behavior.
+
+We need historical pass information to remain meaningful as BaseLodge moves from one ski season to the next.
+
+1. Inventory the current pass model
+
+Trace every place BaseLodge currently stores or derives a user's pass information.
+
+Identify:
+- User/model fields
+- pass enums/constants
+- profile fields/forms
+- onboarding fields
+- APIs/routes
+- Home About You & Gear
+- Home Friends' Passes
+- friend/profile surfaces
+- trip surfaces
+- mountain intelligence
+- Ideas/matching
+- admin tools
+- analytics
+- any other consumers
+
+For each consumer, determine whether it needs:
+- current pass
+- pass for a specific ski season
+- historical pass
+- merely display/context information
+
+2. Define current ski-season semantics
+
+Identify the canonical BaseLodge definition of a ski season.
+
+Confirm:
+- June 1–May 31 boundaries
+- how the season is named/stored, if at all
+- whether an existing season helper should become canonical
+- whether season logic is duplicated elsewhere
+
+Do not invent a second season definition.
+
+3. Understand current update behavior
+
+Trace what happens when a user:
+- adds a pass
+- changes a pass
+- removes a pass
+- completes onboarding
+- edits their profile
+
+Determine whether the current system simply overwrites one field and therefore loses historical state.
+
+4. Determine historical requirements
+
+Design for cases such as:
+- Epic in one season, Ikon the next
+- no pass in one season, pass the next
+- changing a pass during a season
+- correcting an incorrectly entered pass
+- multiple passes in the same season, if the current product supports or anticipates this
+- users who joined BaseLodge before season-specific history exists
+
+Distinguish:
+- actual current product requirements
+- sensible data-model support
+- future functionality that should remain out of scope
+
+5. Recommend the canonical model
+
+Evaluate the smallest robust approach for season-specific pass history.
+
+Determine whether this should be:
+- a new season-pass/history table
+- an append-only event/history model
+- another normalized relationship
+- or another architecture supported by the existing codebase
+
+The model should allow BaseLodge to answer reliably:
+- What pass does this user have now?
+- What pass did this user have in ski season X?
+- Which friends had Epic/Ikon/etc. during ski season X?
+
+Avoid maintaining two conflicting sources of truth.
+
+6. Define relationship to the current User pass field
+
+If a current pass field exists, determine whether it should:
+- remain canonical for current-season reads
+- become a compatibility/cache field
+- be derived from season history
+- eventually be retired
+
+Recommend a migration path that minimizes breakage.
+
+7. Historical backfill
+
+Determine how existing users should be handled when the new model is introduced.
+
+Specify:
+- whether current pass values should be backfilled into the active season
+- how null/no-pass users are handled
+- whether historical seasons can or cannot be inferred safely
+- what must NOT be fabricated
+
+8. Consumer impact
+
+For each major consumer, specify whether BL-70 should change it immediately or preserve existing behavior.
+
+Pay particular attention to:
+- profile/onboarding
+- Home About You & Gear
+- Friends' Passes
+- Ideas/matching
+- trips
+- mountain intelligence
+- admin/reporting
+
+The initial implementation should not accidentally make current-season product behavior depend on historical records unless explicitly required.
+
+9. Migration and rollout safety
+
+If schema changes are recommended:
+- define the migration
+- define backfill behavior
+- define rollback considerations
+- account for BaseLodge's migration target/environment safeguards
+- identify Development vs Production rollout sequence
+
+Do not execute any migration during this investigation.
+
+10. Regression requirements
+
+Specify tests for:
+- existing user's current pass
+- new user's pass
+- changing passes between seasons
+- changing/correcting within a season
+- removing a pass
+- no-pass user
+- season boundary
+- historical lookup
+- duplicate prevention
+- profile/onboarding compatibility
+- Friends' Passes compatibility
+- matching/Ideas compatibility where relevant
+
+11. Scope boundaries
+
+Identify whether implementation will require:
+- schema changes
+- migration
+- backfill
+- model changes
+- route changes
+- template/UI changes
+- JavaScript changes
+- native iOS/Android changes
+- dependencies
+- authentication/privacy changes
+
+Do not modify:
+- code
+- tests
+- schema
+- migrations
+- data
+- configuration
+- dependencies
+- native projects
+
+Return:
+- current-state pass architecture
+- current season semantics
+- historical-data gap
+- recommended canonical data model
+- relationship to existing pass fields
+- backfill/migration strategy
+- affected consumers
+- smallest safe implementation plan
+- regression coverage
+- risks and explicit out-of-scope items
