@@ -1,0 +1,834 @@
+REPLIT: MAX + BUILD
+Estimated Batch completion after this step: ~80%
+
+TASK: BL-158 — Bound My Trips retrieval with progressive loading
+
+Task #407 investigation is approved.
+
+Proceed directly to implementation.
+Do not create another plan.
+
+==================================================
+PRIMARY GOAL
+==================================================
+
+Implement independent progressive loading for:
+
+- My Trips / Upcoming
+- My Trips / Past Trips
+
+Use:
+
+- page size 20
+- deterministic keyset pagination
+- BaseLodge-styled Load more controls
+- server-rendered row HTML
+- one authenticated fragment endpoint
+- page-scoped related-data hydration
+
+Also remove the confirmed per-card participant lazy-load behavior from Upcoming cards.
+
+Preserve:
+
+- Pending Invites in full
+- complete Pending Invite badge/count
+- Friends’ Trips exactly as-is
+- Season Snapshot
+- all existing trip eligibility
+- lifecycle semantics
+- attendance semantics
+- links/actions/labels
+- privacy and authorization
+- existing visual design
+
+==================================================
+1. AUTHORITATIVE VIEWER-TRIP CANDIDATE SOURCE
+==================================================
+
+Create a focused My Trips paging service for the current viewer.
+
+Candidate membership must represent exactly the current union of:
+
+OWNED
+- trips organized by current viewer
+
+ACTIVE PARTICIPANT
+- Going
+- Interested
+
+Do not include as viewer-trip feed candidates:
+
+- Pending
+- Declined
+- Removed
+- unrelated/private trips
+- history records as authorization
+
+Avoid duplicate candidate rows where an owner also has participant data.
+
+==================================================
+2. UPCOMING ELIGIBILITY
+==================================================
+
+Upcoming must preserve current behavior.
+
+Owned candidate:
+- active/legacy lifecycle only
+- existing future/current core-date rules
+
+Guest candidate:
+- current viewer has Going or Interested
+- active/legacy lifecycle
+- non-owner
+- effective attendance remains current/future
+
+Going attendance:
+- if BOTH participant override dates exist, use participant dates
+- otherwise use trip dates
+
+Interested:
+- use trip dates
+
+Apply effective-end eligibility BEFORE pagination.
+
+Completed and Cancelled must not enter Upcoming.
+
+==================================================
+3. UPCOMING ORDER
+==================================================
+
+Codify the deterministic total order from the approved plan:
+
+1. effective start ascending
+2. null effective starts last
+3. owned before guest
+4. trip ID ascending
+
+Cursor must include every component required to resume strictly after the last emitted row.
+
+Do not paginate an incompletely ordered result.
+
+==================================================
+4. PAST ELIGIBILITY
+==================================================
+
+Past must preserve current historical behavior.
+
+Include currently authorized owned or active-participant trips that qualify under the existing:
+
+- ordinary past behavior
+- Completed lifecycle behavior
+- Cancelled lifecycle behavior
+
+Preserve BL-80 retained historical visibility and read-only behavior.
+
+History tables themselves must never authorize membership.
+
+==================================================
+5. PAST ORDER
+==================================================
+
+Preserve the approved compatibility order:
+
+1. owned before guest
+2. core start descending
+3. null core starts last
+4. trip ID ascending
+
+The unusual owned-before-guest grouping is intentional compatibility behavior.
+
+Do not redesign it.
+
+==================================================
+6. KEYSET CURSORS
+==================================================
+
+Implement strict opaque URL-safe cursors.
+
+Cursor payload must be sufficient to reproduce the section's complete ordering key.
+
+At minimum encode/validate:
+
+- section
+- source rank
+- null-date rank
+- date value
+- trip ID
+
+Requirements:
+
+- malformed cursor → 400
+- mismatched section cursor → 400
+- unsupported cursor shape/version → 400
+- cursor filtering happens only inside the fully authorized query
+- cursor values never grant access
+- client cannot raise page size
+
+Do not silently convert invalid cursors into an empty successful page.
+
+==================================================
+7. PAGE SIZE / LOOKAHEAD
+==================================================
+
+Server page size:
+
+20
+
+For each section request:
+
+- fetch at most 21 lightweight authorized candidate rows
+- first 20 are the page
+- 21st determines has_more
+- do not hydrate/render the lookahead row
+
+Return next_cursor only when another page exists.
+
+==================================================
+8. TWO-PHASE PAGE RETRIEVAL
+==================================================
+
+Phase 1:
+Fetch lightweight candidate data only:
+
+- trip ID
+- selected participant ID/context where relevant
+- source rank
+- effective/core ordering values
+- ordering tie keys
+
+At most 21 rows.
+
+Phase 2:
+Hydrate only the first 20 page trips.
+
+Include required related data such as Resort using page-scoped eager/batch loading.
+
+Do not hydrate the entire eligible trip universe.
+
+==================================================
+9. REMOVE PER-CARD PARTICIPANT SQL
+==================================================
+
+Current Upcoming rendering causes participant lazy loads through active guest count.
+
+Remove all participant relationship traversal from Jinja for paginated rows.
+
+Batch active guest counts for the visible page.
+
+Also batch selected participant context for page rows as needed.
+
+Target:
+
+NO per-card SQL.
+
+Query count must remain stable regardless of 10/50/100/500 eligible source trips.
+
+==================================================
+10. ROW VIEW MODELS
+==================================================
+
+Prepare explicit server-side card/row data for each rendered trip.
+
+Include whatever the current template needs for:
+
+- trip identity
+- Resort
+- destination/location
+- effective attendance dates
+- owner/guest labeling
+- participant status
+- active guest count
+- lifecycle labels
+- terminal state
+- links
+- actions
+
+Do not move business logic into JavaScript.
+
+Do not cause Jinja to trigger ORM lazy loads.
+
+==================================================
+11. EXTRACT SERVER-RENDERED PARTIALS
+==================================================
+
+Extract/reuse focused row partials for:
+
+- Upcoming row
+- Past row
+
+Preserve current HTML structure and BaseLodge styling as closely as possible.
+
+The full /my-trips route and fragment endpoint must render from the same row representation/partials so markup does not drift.
+
+Do not redesign the page.
+
+==================================================
+12. INITIAL /MY-TRIPS REQUEST
+==================================================
+
+Initial My Trips tab should render:
+
+- up to 20 Upcoming rows
+- ALL currently visible Pending Invites
+- up to 20 Past rows
+- existing Friends’ Trips data unchanged
+- existing Season Snapshot/navigation unchanged
+
+Show Load more only for sections where has_more is true.
+
+Initial viewer-trip hydration budget:
+
+<= 40 Trip/card models total
+
+excluding:
+
+- Pending Invites
+- unchanged BL-159 Friends’ Trips work
+
+==================================================
+13. FRAGMENT ENDPOINT
+==================================================
+
+Add one authenticated GET endpoint for progressive loading.
+
+Accept:
+
+section=upcoming|history
+cursor=<optional opaque cursor>
+
+Return a small JSON envelope containing:
+
+- server-rendered row HTML
+- has_more
+- next_cursor
+
+Optionally include page row trip IDs if useful for client dedupe, but do not expose additional sensitive information.
+
+Do not create separate duplicated endpoints unless clearly necessary.
+
+==================================================
+14. CLIENT LOAD-MORE BEHAVIOR
+==================================================
+
+Use minimal vanilla JavaScript.
+
+Each section operates independently.
+
+On click:
+
+- disable that section's button
+- show concise loading state
+- fetch next page
+- append rows
+- avoid duplicate trip IDs already present
+- update cursor
+- remove button when has_more=false
+- restore usable retry state on error
+- preserve existing rows on failure
+
+Do not add infinite scroll.
+
+Do not introduce a frontend framework.
+
+==================================================
+15. FOCUS / ACCESSIBILITY
+==================================================
+
+After successful append:
+
+- keep interaction predictable
+- preserve keyboard usability
+- avoid jumping the user unexpectedly
+- ensure Load more control has an understandable accessible label/state
+
+Do not turn the page into an elaborate JS component.
+
+==================================================
+16. URL / HISTORY
+==================================================
+
+Do not push browser history entries for Load more.
+
+Keep:
+
+/my-trips
+
+and existing:
+
+?tab=friends
+
+behavior unchanged.
+
+Hard refresh may restart at page one.
+
+Existing Trip Detail and invite links must remain unchanged.
+
+==================================================
+17. PENDING INVITES
+==================================================
+
+Pending Invites remain UNPAGINATED.
+
+Preserve:
+
+- all currently visible actionable invite rows
+- exact complete badge/count
+- current ordering
+- invite links/actions
+
+Do not change Pending eligibility.
+
+==================================================
+18. FRIENDS' TRIPS
+==================================================
+
+DO NOT modify Friends’ Trips retrieval, grouping, filtering, counts, or rendering.
+
+BL-159 owns this work.
+
+Any BL-158 SQL/cardinality budgets must distinguish viewer-feed work from the existing Friends’ Trips collection.
+
+==================================================
+19. REMOVE UNUSED OVERLAP WORK
+==================================================
+
+The investigation found My Trips computes viewer/friend overlap context that appears unused by the template.
+
+Before removing it:
+
+- search all My Trips template partials
+- search client scripts
+- search server-side consumers
+
+If truly unused, remove only that dead My Trips computation.
+
+If any consumer exists:
+
+do not remove it.
+
+Instead keep equivalent behavior without restoring unbounded viewer-trip hydration.
+
+Document what you found.
+
+==================================================
+20. SMALL-DATA EQUIVALENCE
+==================================================
+
+For fixtures with <=20 rows in each section, before/after visible behavior should remain effectively identical:
+
+- same cards
+- same section
+- same order
+- same attendance dates
+- same guest/owner labels
+- same lifecycle labels
+- same actions
+- same links
+- same Pending Invites
+- same counts
+- same empty states
+
+==================================================
+21. FULL CONCATENATION EQUIVALENCE
+==================================================
+
+Build a test-only reference selector representing the complete deterministic eligible viewer-trip feed.
+
+For larger datasets:
+
+concatenate every paginated response.
+
+The concatenated IDs and row semantics must match the full reference selector exactly.
+
+Test:
+
+- no duplicate trip IDs
+- no missing eligible trips
+- exact order
+- exact section membership
+- exact effective attendance
+- exact participant context
+
+==================================================
+22. BOUNDARY FIXTURES
+==================================================
+
+Cover at minimum:
+
+- no trips
+- one trip
+- 19
+- 20
+- 21
+- 40
+- 41
+- multiple pages
+- final partial page
+- Upcoming only
+- Past only
+- mixed Upcoming/Past
+- owned only
+- guest only
+- owned + guest mix
+
+==================================================
+23. LARGE CARDINALITY FIXTURES
+==================================================
+
+Test:
+
+10
+50
+100
+500
+
+eligible source trips.
+
+For each section verify:
+
+- at most 21 candidate rows inspected for page selection result
+- at most 20 Trip/card models hydrated
+- no per-card SQL
+- SQL statement count does not grow with total source cardinality
+- output remains correct
+
+==================================================
+24. PARTICIPANT / ATTENDANCE TESTS
+==================================================
+
+Cover:
+
+Going:
+- complete override
+- incomplete override
+
+Interested:
+- organizer dates
+
+Exclude from viewer feeds:
+- Pending
+- Declined
+- Removed
+
+Verify past-effective attendance moves/excludes candidates exactly as current behavior requires.
+
+==================================================
+25. LIFECYCLE TESTS
+==================================================
+
+Cover:
+
+- active future trip
+- ordinary past trip
+- Completed
+- Cancelled
+
+Verify:
+
+- terminal trips never appear in Upcoming
+- retained terminal trips appear in Past when current rules allow
+- terminal labels remain
+- detail links remain
+- mutation behavior remains read-only under BL-80
+
+==================================================
+26. PRIVACY / AUTHORIZATION
+==================================================
+
+BL-133 remains a hard boundary.
+
+Every candidate query must first enforce:
+
+- viewer owns trip
+
+OR
+
+- viewer currently has Going/Interested participation
+
+Private trips are visible only under those authorities.
+
+Do not:
+
+- retrieve unauthorized trips and filter client-side
+- expose other participant identities
+- expose hidden RSVP states
+- use lifecycle/history as authorization
+- weaken Friends’ Trips reciprocal rules
+
+The fragment endpoint must reauthorize every request from current state.
+
+==================================================
+27. CONCURRENT DATA CHANGES
+==================================================
+
+Snapshot isolation is not required.
+
+Between page requests, rows may move because of:
+
+- new trips
+- cancellation/completion
+- RSVP change
+- attendance date change
+
+Use keyset semantics and current-state authorization on every request.
+
+Client-side trip-ID dedupe may prevent duplicate visible rows in the current loaded DOM.
+
+Do not attempt generalized snapshot pagination.
+
+==================================================
+28. SQL / CARDINALITY BUDGETS
+==================================================
+
+Target initial equivalent warmed /my-trips route:
+
+<= 18 SQL statements
+<= 2 User SELECTs
+
+This is a target, not permission to weaken functionality.
+
+Most importantly:
+
+variance across 10/50/100/500 viewer-trip source cardinality should be ZERO or demonstrably constant.
+
+Focused page endpoint target:
+
+<= 4 total statements
+
+and preferably:
+
+<= 3 retrieval-specific statements
+
+No per-card query growth.
+
+==================================================
+29. INITIAL CARDINALITY BUDGET
+==================================================
+
+Initial My Trips viewer feed:
+
+Upcoming:
+<=20 hydrated Trip/card models
+
+Past:
+<=20 hydrated Trip/card models
+
+Total:
+<=40 viewer-feed Trip/card models
+
+The 21st candidates are lookahead only and must not be hydrated.
+
+==================================================
+30. PAGE CARDINALITY BUDGET
+==================================================
+
+Each Load more request:
+
+<=20 hydrated Trip/card models
+<=20 selected participant contexts
+<=20 distinct Resort objects
+one bounded/batched active guest-count retrieval
+
+Typical response row HTML should remain page-sized rather than proportional to total trip history.
+
+Do not use wall-clock time as acceptance criteria.
+
+==================================================
+31. CROSS-DIALECT SAFETY
+==================================================
+
+Test/verify deterministic keyset predicates and ordering under:
+
+- SQLite runtime
+- PostgreSQL-compatible compilation/runtime using disposable existing infrastructure where available
+
+Pay attention to:
+
+- NULL ordering
+- ascending/descending date comparisons
+- source rank
+- enum/status comparison
+- tuple/keyset boundary logic
+- equal dates
+- trip-ID ties
+
+Do not touch persistent databases.
+
+==================================================
+32. OUT OF SCOPE
+==================================================
+
+Do not implement:
+
+- BL-159 Friends pagination
+- Home changes
+- Trip Detail changes
+- new My Trips filters
+- search
+- archive controls
+- history redesign
+- Pending Invite pagination
+- infinite scroll
+- numbered/shareable pagination
+- frontend framework
+- generalized pagination framework
+- global caching
+- background precomputation
+- schema/index changes
+
+==================================================
+33. DATABASE SAFETY
+==================================================
+
+Expected:
+
+NO schema change
+NO migration
+NO index change
+
+Do not:
+
+- create Alembic revisions
+- apply BL-70
+- mutate Supabase Development
+- mutate persistent Replit
+- access Production
+
+If schema/index/migration work appears necessary:
+
+STOP and report it.
+
+==================================================
+34. VALIDATION
+==================================================
+
+Run focused BL-158 tests covering:
+
+- candidate eligibility
+- Upcoming ordering
+- Past ordering
+- cursor validation
+- cursor boundaries
+- 19/20/21 boundaries
+- 10/50/100/500 cardinality
+- full-feed concatenation equivalence
+- no duplicate rows
+- no missing rows
+- Resort hydration
+- participant context
+- active guest counts
+- no lazy per-card SQL
+- fragment endpoint
+- Load more behavior
+- Pending Invites
+- lifecycle
+- attendance
+- privacy
+
+Run adjacent regression suites including:
+
+- existing My Trips
+- BL-80
+- BL-133
+- BL-161 authenticated-page query budgets
+- attendance
+- trip lifecycle
+- relevant Home/Trip Detail navigation regressions if touched indirectly
+
+Then run full suite.
+
+Also run:
+
+- py_compile
+- git diff --check
+
+Restart Flask workflow and check:
+
+- /my-trips
+- /my-trips?tab=friends
+- fragment endpoint
+- browser console
+
+==================================================
+35. INDEPENDENT REVIEW
+==================================================
+
+Before commit perform independent:
+
+- correctness review
+- privacy/authorization review
+- performance/cardinality review
+
+Verify:
+
+- all-page concatenation equals reference feed
+- no duplicates/missing trips
+- cursor cannot broaden access
+- invalid cursor fails clearly
+- only 20 rows hydrate per page
+- SQL does not grow with 10/50/100/500 source size
+- no template lazy-load N+1
+- Pending Invites remain complete
+- Friends’ Trips unchanged
+- BL-80 unchanged
+- BL-133 unchanged
+- no schema/index/migration
+- no persistent DB or Production access
+
+If any material issue remains:
+
+STOP.
+
+==================================================
+36. COMMIT
+==================================================
+
+If implementation and validation pass:
+
+Commit with:
+
+BL-158 Paginate My Trips viewer feeds
+
+Exclude unrelated pasted prompt/build assets.
+
+Do not begin BL-159 or another backlog task.
+
+==================================================
+RETURN
+==================================================
+
+Return:
+
+A. files changed
+B. paging service architecture
+C. Upcoming eligibility
+D. Past eligibility
+E. Upcoming deterministic ordering
+F. Past deterministic ordering
+G. cursor format/validation
+H. page-size/lookahead behavior
+I. hydration strategy
+J. active guest-count batching
+K. participant-context batching
+L. template/partial changes
+M. fragment endpoint behavior
+N. Load more client behavior
+O. Pending Invite verification
+P. Friends’ Trips verification
+Q. overlap-context finding/removal decision
+R. 19/20/21 boundary results
+S. 10/50/100/500 Trip-load results
+T. 10/50/100/500 SQL results
+U. initial /my-trips query count
+V. fragment endpoint query count
+W. full-page concatenation equivalence
+X. lifecycle/attendance/privacy verification
+Y. focused/adjacent/full-suite/review results
+Z. commit hash and whether BL-158 is code-side complete and safe to close
+
+Also explicitly confirm:
+
+- no schema/index/migration
+- BL-70 untouched
+- persistent development databases untouched
+- Production untouched
