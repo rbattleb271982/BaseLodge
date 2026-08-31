@@ -218,6 +218,17 @@
         .home-disclosure[open] > .home-disclosure__summary .home-disclosure__chevron {
             transform: rotate(90deg);
         }
+        .home-disclosure__arrow {
+            flex: 0 0 auto;
+            color: var(--bl-color-text-tertiary);
+            font-size: 19px;
+            line-height: 1;
+            transform: rotate(0deg);
+            transition: transform 160ms ease;
+        }
+        .home-disclosure[open] > .home-disclosure__summary .home-disclosure__arrow {
+            transform: rotate(180deg);
+        }
         .home-disclosure__panel {
             min-width: 0;
             padding: 0 14px 14px;
@@ -290,7 +301,8 @@
             overflow-wrap: anywhere;
         }
         @media (prefers-reduced-motion: reduce) {
-            .home-disclosure__chevron {
+            .home-disclosure__chevron,
+            .home-disclosure__arrow {
                 transition: none;
             }
         }
@@ -379,6 +391,42 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        .home-next-trip__actions.home-disclosure {
+            margin: 14px -16px -14px;
+            border: 0;
+            border-top: 1px solid var(--bl-color-border-soft);
+            border-radius: 0 0 12px 12px;
+        }
+        .home-next-trip__actions .home-disclosure__summary {
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+        .home-next-trip__action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding-bottom: 8px;
+        }
+        .home-next-trip__action-link {
+            display: flex;
+            align-items: center;
+            min-height: 44px;
+            box-sizing: border-box;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--bl-color-border-soft);
+            color: var(--bl-color-primary);
+            font-size: 13px;
+            font-weight: 650;
+            line-height: 1.35;
+            text-decoration: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .home-next-trip__action-link:last-child {
+            border-bottom: 0;
+        }
+        .home-next-trip__action-link:active {
+            opacity: 0.6;
         }
 
         /* ── Activity rows (connect invite only) ── */

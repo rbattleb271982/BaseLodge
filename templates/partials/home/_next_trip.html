@@ -17,6 +17,7 @@ Inputs:
 {% if _night_count < 1 %}{% set _night_count = 1 %}{% endif %}
 {% set _friend_count = _next.friends_going_count %}
 {% set _days_until = (_start - home_today).days %}
+{% set _actions = _next.actions | default([], true) %}
 
 <section id="your-next-trip" class="home-next-trip" aria-labelledby="your-next-trip-title">
     <div class="home-next-trip__header">
@@ -34,4 +35,21 @@ Inputs:
         {{ _friend_count }} {{ 'friend' if _friend_count == 1 else 'friends' }} going ·
         {% if _days_until <= 0 %}Trip today{% elif _days_until == 1 %}Trip tomorrow{% else %}Trip in {{ _days_until }} days{% endif %}
     </p>
+    {% if _next.action_count | default(0, true) > 0 %}
+    {% from 'macros/home_disclosure.html' import home_disclosure %}
+    {% call home_disclosure(
+        'next-trip-actions',
+        'Actions to take · ' ~ _next.action_count,
+        '',
+        class_name='home-next-trip__actions',
+        content_class='home-next-trip__action-list',
+        indicator='down-arrow'
+    ) %}
+        {% for action in _actions %}
+        <a class="home-next-trip__action-link" href="{{ action.destination }}">
+            {{ action.label }}
+        </a>
+        {% endfor %}
+    {% endcall %}
+    {% endif %}
 </section>
