@@ -1,0 +1,111 @@
+BL-132 / Task #383 — Protect push registration requests
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~36%
+
+Implement approved Task #383 exactly as investigated.
+
+Objective:
+Enforce BaseLodge’s existing server-side CSRF contract on push-token registration and the native diagnostic beacon without changing the current browser/native session architecture.
+
+Approved scope:
+
+1. Protect push-token registration
+At the start of /api/push/register-token:
+- Require the existing BaseLodge CSRF validation.
+- Validation must occur before token parsing, insertion, refresh, reactivation, or deactivation side effects.
+- Missing or invalid CSRF must return the existing appropriate 403 behavior.
+- Preserve the existing session-authentication requirement.
+
+2. Protect the native diagnostic beacon
+At the start of /api/push/beacon:
+- Require the same existing CSRF validation.
+- Reject missing or invalid CSRF before diagnostic logging occurs.
+- Preserve current bounded diagnostic behavior.
+
+3. Preserve browser/native architecture
+Do not change:
+- Flask session authentication
+- browser cookie behavior
+- iOS WebView architecture
+- Android WebView architecture
+- capacitor.config.json
+- the existing patched window.fetch CSRF-token behavior
+- static/js/bl-native.js unless implementation proves the investigation wrong
+
+Both native platforms already load the BaseLodge web origin and should continue using the same session-bound CSRF mechanism as the browser.
+
+4. Preserve existing push behavior
+Do not change:
+- APNs token handling
+- FCM token handling
+- same-user/platform token refresh/deactivation behavior
+- push preference semantics
+- browser push preferences
+- account deletion behavior
+- OneSignal/provider delivery
+- broadcast behavior
+- push-tap routing
+
+5. Add regressions covering:
+- authenticated registration + valid CSRF succeeds
+- authenticated registration + missing CSRF returns 403 with no token side effects
+- authenticated registration + invalid CSRF returns 403 with no token side effects
+- unauthenticated registration remains blocked
+- iOS/APNs registration still succeeds with valid CSRF
+- Android/FCM registration still succeeds with valid CSRF
+- existing refresh/deactivation semantics remain unchanged
+- diagnostic beacon + valid CSRF succeeds
+- diagnostic beacon + missing CSRF is rejected before logging
+- diagnostic beacon + invalid CSRF is rejected before logging
+- unauthenticated diagnostic request remains blocked
+
+6. Run validation:
+- push lifecycle tests
+- CSRF tests
+- relevant authentication tests
+- relevant native-static contract tests
+- Python compilation
+- git diff --check
+
+7. Scope boundaries
+Do NOT:
+- modify /logout
+- modify admin GET mutation routes
+- address Task #384
+- introduce bearer-token authentication
+- exempt native requests from CSRF
+- change schema
+- add migrations
+- clean production data
+- change native iOS files
+- change native Android files
+- change dependencies
+- change deployment/configuration
+- redesign UI
+
+Expected implementation files:
+- app.py
+- test_push_lifecycle.py
+- possibly tests/test_csrf.py if appropriate
+
+Reference-only unless genuinely required:
+- static/js/bl-native.js
+- templates/components/analytics_head.html
+- capacitor.config.json
+
+If implementation reveals that the existing native callers cannot actually provide the current CSRF token, STOP and report rather than creating a native exemption or changing authentication architecture.
+
+When complete, report:
+- exact files changed
+- exact CSRF behavior added
+- confirmation of no mutation/logging side effects on rejected requests
+- iOS and Android registration results
+- tests run and pass counts
+- compilation/diff results
+- confirmation that no native/schema/migration/dependency/config/auth-model scope was introduced
+
+Do not create another planning task.
+The plan is approved; implement it.
