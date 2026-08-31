@@ -1,0 +1,613 @@
+REPLIT: MAX + BUILD
+Estimated total BaseLodge workload completed after this step: ~38%
+
+BL-79 — Preserve connection formed/removed history
+
+The BL-79 investigation is APPROVED.
+
+Proceed directly to implementation.
+Do not create another planning task.
+Do not expand into BL-140.
+Do not resume BL-70.
+
+Task #391 is the Replit implementation representation of BL-79, not a separate BaseLodge backlog item.
+
+GOAL
+
+Add private, append-only history for meaningful direct-connection formation and removal while keeping live Friend rows as the ONLY current friendship and authorization truth.
+
+Historical connection data must never grant access, affect visibility, or create a public “Former Friends” concept.
+
+APPROVED CURRENT ARCHITECTURE
+
+- A confirmed connection is normally represented by two reciprocal directed Friend rows.
+- Invitation is request/workflow state only.
+- Friend rows remain the sole current truth for:
+  - profiles
+  - trip access
+  - invitation eligibility
+  - friend counts
+  - overlaps
+  - recommendations
+  - messaging eligibility
+  - Home / Ideas / Happening
+  - all other current visibility/authorization
+
+BL-79 history is supplemental and private only.
+
+1. ADD PRIVATE CONNECTION EVENT MODEL
+
+Create a focused domain-specific append-only table for connection lifecycle events.
+
+Recommended fields:
+
+- id
+- user_a_id
+- user_b_id
+- event_type
+- occurred_at
+- actor_user_id
+- source
+
+Subject pair rules:
+
+- canonical ordering only
+- user_a_id < user_b_id
+- no self-pairs
+- one event represents the relationship pair, not one direction
+
+Event types:
+
+- formed
+- removed
+
+Use bounded internal source values derived from real product mutation paths.
+
+Do NOT add:
+
+- request/invitation references
+- live Friend row foreign keys
+- previous-event references
+- free-form metadata
+- reason text
+- public serializers
+- public relationships/backrefs
+- an is_friend convenience property
+- client idempotency identifiers
+
+Use a timezone-aware server timestamp.
+
+Add only appropriate canonical-pair/time indexes.
+
+2. PRIVACY / FK BEHAVIOR
+
+Both relationship subjects are privacy owners of the history.
+
+Deleting either subject account must erase identifiable connection-history rows involving that subject.
+
+If a user appears only as actor on another surviving pair:
+- retain the pair event
+- set actor_user_id to NULL
+
+Do not copy names, emails, tokens, request payloads, or other PII into the history table.
+
+3. CREATE ADDITIVE REVERSIBLE BL-79 MIGRATION
+
+Create a new BL-79 migration after BL-78.
+
+Approved target migration order:
+
+bl52_trip_stay
+-> bl78_rsvp_transition
+-> BL-79
+-> bl70_user_season_pass
+
+BL-70 remains deferred.
+
+Before modifying BL-70 ancestry:
+
+- recheck the persistent Replit/local migration markers
+- confirm BL-70 is not applied anywhere persistent
+- if BL-70 is found applied anywhere, STOP and report
+
+Known prior state:
+
+- persistent Replit DB was at bl52_trip_stay
+- local instance/baselodge.db had no alembic_version table
+- Development and Production were not accessed
+
+Do NOT access Supabase Development or Production.
+
+If safe:
+- make BL-79 descend from BL-78
+- reparent unapplied BL-70 after BL-79
+- retain exactly one Alembic head
+
+Migration requirements:
+
+- additive
+- reversible
+- no backfill
+- no fabricated existing history
+- preserve all existing Friend rows
+- portable constraints where supported
+- PostgreSQL-safe
+- compatible with SQLite migration tests where legitimately supported
+
+Do NOT execute the migration against:
+- persistent Replit database
+- Supabase Development
+- Production
+
+Disposable/local test databases are allowed.
+
+4. CENTRALIZE CONNECTION TRANSITIONS
+
+Implement a non-committing domain service/helper.
+
+The service should:
+
+- accept the two subject users
+- canonicalize the pair
+- lock both User rows in ascending ID order
+- refresh/read both directed Friend rows after locking
+- determine current pair state
+- mutate reciprocal Friend rows as needed
+- append at most one lifecycle event
+- flush but do NOT commit
+
+The caller retains the existing transaction/commit boundary.
+
+Friend mutation and history insertion must commit or roll back together.
+
+5. FORMATION SEMANTICS
+
+A real new mutual connection should create exactly one:
+
+formed
+
+event.
+
+Approved product formation paths include:
+
+- accepting a registered-user friend request
+- accepting a reusable friend invite token
+- onboarding/login continuation from that token if applicable
+- QR/direct connection confirmation
+- legacy GroupTrip invitation acceptance that creates a connection
+- shared-upcoming-GroupTrip connection flow
+
+Do NOT create formation history from:
+
+- seed setup
+- tests
+- startup repair
+- maintenance/admin data creation
+- duplicate accept/connect actions
+- already-connected state
+- request send
+- request decline
+- request cancellation
+
+Preserve current route responses and side effects.
+
+6. REMOVAL SEMANTICS
+
+Both canonical unfriend paths must use the transition service:
+
+- API unfriend
+- web/form unfriend
+
+When a live connection exists and is removed, create exactly one:
+
+removed
+
+event.
+
+Preserve existing behavior including:
+
+- reciprocal Friend deletion
+- invitation cleanup
+- invite-token expiry
+- cooldown behavior
+- notifications
+- activities
+- analytics
+- route responses
+
+Repeated removal when already disconnected must create no history.
+
+Account deletion is NOT an ordinary removed event.
+It is privacy erasure only.
+
+7. RECONNECTION
+
+Reconnection after a legitimate prior removal must create a new formed event.
+
+Example:
+
+formed
+removed
+formed
+removed
+
+Each interval is real and must remain distinguishable.
+
+Do not restore or mutate prior event rows.
+
+History is append-only.
+
+8. ONE-SIDED FRIEND DRIFT
+
+This is an explicit safety requirement.
+
+Because reciprocity is not database-enforced, one-sided Friend rows may exist.
+
+Formation behavior:
+
+- if one directed Friend row already exists and the other is missing, repair reciprocity conservatively
+- do NOT fabricate a second formed event merely because the missing reciprocal row is repaired
+- preserve existing product semantics
+
+Removal behavior:
+
+- if either side exists and the product action removes the relationship, remove any existing reciprocal rows
+- record exactly one removed event
+
+Do not silently redesign the live social graph.
+
+If a drift scenario cannot be handled safely without broader architecture changes, STOP and report.
+
+9. CONCURRENCY / IDEMPOTENCY
+
+Use deterministic locking:
+
+- lock both subject User rows in ascending ID order
+- then inspect/refresh both Friend rows
+
+This should prevent:
+
+- duplicate formed events from concurrent accepts
+- duplicate removed events from concurrent unfriend attempts
+- A/B versus B/A direction duplicates
+
+Same-state retries are no-ops.
+
+Do not add client idempotency keys.
+
+Real PostgreSQL concurrency tests are required.
+
+SQLite tests should verify logic but must not pretend to validate PostgreSQL row locking.
+
+10. ATOMICITY
+
+Do not permit:
+
+- Friend rows committed without matching required history
+- history committed without corresponding live mutation
+- one side of reciprocal relationship committed while the other fails
+
+The connection mutation and event insert belong to the same transaction.
+
+The transition service must never commit internally.
+
+11. SOURCE / ACTOR SEMANTICS
+
+Use a small bounded source vocabulary based on actual product paths.
+
+Examples may include:
+
+- friend_request_accept
+- invite_token_accept
+- qr_connect
+- group_trip_accept
+- shared_trip_connect
+- api_unfriend
+- web_unfriend
+
+Use actual route semantics from the codebase rather than blindly copying these names.
+
+Actor:
+
+- user initiating acceptance/connect/removal should be actor
+- system-driven cases may use NULL only where there is no meaningful user actor
+
+Do not store arbitrary endpoint paths or request data.
+
+12. ACCESS-CONTROL ISOLATION
+
+This is non-negotiable.
+
+Do not change any current authorization or visibility helper to query history.
+
+Current Friend rows remain the ONLY source for “are these users currently friends?”
+
+BL-79 history must not be joined into:
+
+- profile visibility
+- trip visibility
+- invite eligibility
+- friend counts
+- wishlist overlap
+- availability overlap
+- pass overlap
+- Home
+- Ideas
+- Happening
+- recommendations
+- messaging eligibility
+- mutual-friend calculations
+- friend search behavior
+
+Do not expose connection history through:
+
+- UI
+- templates
+- public APIs
+- serializers
+
+Add regression tests proving:
+
+- historical formed event alone does not authorize access
+- removed/former friend cannot access current private information
+- Invitation alone does not authorize friendship
+- live Friend rows continue to behave exactly as before
+
+13. BACKFILL
+
+Do NOT backfill.
+
+Do not create formed events from:
+
+- Friend.created_at
+- Invitation timestamps
+- Activity
+- notifications
+- messaging
+- analytics
+
+Existing live friendships remain valid current relationships but have unknown pre-BL-79 history.
+
+Previously removed relationships are not reconstructable.
+
+A future first removed event for a preexisting connection may therefore imply an unknown formation start.
+
+Do not fabricate a formation event.
+
+14. ACCOUNT DELETION
+
+Extend existing account deletion only as needed for BL-79.
+
+Required behavior:
+
+- pair history where deleted user is user_a or user_b is erased
+- surviving unrelated pair history where deleted user is only actor remains
+- actor_user_id becomes NULL
+
+IMPORTANT TASK #77 BOUNDARY
+
+Task #77 may overlap account-deletion FK cleanup.
+
+Make only BL-79-specific changes necessary so the new history table:
+- cannot block account deletion
+- cannot retain identifiable subject history
+
+Do NOT absorb or redesign Task #77.
+
+If unrelated pre-existing account-deletion failures appear, report them separately.
+
+15. LEGACY GROUPTRIP BEHAVIOR
+
+The investigation found legacy GroupTrip acceptance may create a Friend connection after a prior trip-accept commit.
+
+Preserve existing GroupTrip transaction semantics.
+
+BL-79 requires only that:
+- the actual Friend mutation
+- and its corresponding formed event
+
+are atomic with each other.
+
+Do not redesign the broader GroupTrip flow merely to combine unrelated commits.
+
+16. NO CONSUMER ADOPTION
+
+BL-79 writes history only.
+
+Do not modify:
+
+- Home
+- Ideas
+- Happening
+- Friends UI
+- matching
+- recommendations
+- trip visibility
+- friend counts
+- notifications
+- analytics
+- Activity
+- messaging
+
+No intelligence feature should consume BL-79 history in this task.
+
+17. TESTS
+
+Add focused BL-79 tests covering:
+
+A. Formation
+- each real product formation source
+- exactly one formed event
+- correct canonical pair ordering
+- actor/source attribution
+
+B. Duplicate/no-op
+- duplicate friend-request acceptance
+- duplicate invite-token acceptance
+- duplicate QR/direct connect
+- already-connected state
+- repeated connect action
+- no duplicate history
+
+C. Removal
+- API unfriend
+- web/form unfriend
+- exactly one removed event
+- repeated removal produces none
+
+D. Reconnection
+- formed -> removed -> formed
+- separate events preserved
+- no mutation of old events
+
+E. One-sided drift
+- repair missing reciprocal side without fabricated second formed event
+- remove one-sided relationship and record one removed event
+
+F. Concurrency
+Real PostgreSQL tests for:
+- concurrent accept/connect
+- concurrent removal
+- concurrent remove/reconnect where meaningful
+- no duplicate pair events
+- deterministic locking behavior
+
+G. Atomic rollback
+- history insert failure rolls back live Friend mutation
+- live Friend mutation failure produces no history
+- no one-sided committed relationship due to transaction failure
+
+H. Privacy
+- deleting either subject erases pair history
+- deleting actor-only user nulls actor reference
+- account deletion itself produces no removed event
+
+I. Authorization isolation
+- historical formed row alone grants nothing
+- former friends cannot see current/private data
+- Invitation/history does not count as current friendship
+- live Friend behavior remains unchanged
+
+J. Migration
+- upgrade
+- schema/constraints/indexes
+- no backfill
+- downgrade
+- one-head migration graph
+- BL-79 ancestry after BL-78
+- BL-70 ancestry after BL-79
+
+K. Regression
+Run existing friend, invite, trip authorization, deletion, and relevant social intelligence suites.
+
+At minimum inspect/run:
+
+tests/test_friend_request_service.py
+tests/test_invite_flow_e2e.py
+tests/test_trip_create_invite_authorization.py
+tests/test_account_deletion.py
+
+Plus relevant:
+- profile/friend visibility tests
+- trip visibility tests
+- wishlist/availability overlap tests
+- Ideas/Happening friend gating tests
+- migration tests
+- PostgreSQL concurrency tests
+
+Also run full suite.
+
+The known unrelated SQLite/PostgreSQL migration-guard failure may remain.
+Do not fix it as part of BL-79.
+
+18. VALIDATION
+
+Before commit:
+
+- run focused BL-79 suite
+- run real PostgreSQL concurrency suite
+- run adjacent regression suites
+- run full suite
+- verify Python compilation/static checks as appropriate
+- run git diff --check
+- verify Alembic has exactly one head
+- restart Flask workflow
+- verify preview/browser logs are clean
+
+19. SCOPE GUARDS
+
+DO NOT implement:
+
+- BL-140
+- public Former Friends
+- connection history UI
+- history APIs
+- request lifecycle history
+- friend discovery changes
+- recommendation changes
+- matching changes
+- Home changes
+- Ideas changes
+- Happening changes
+- trip visibility changes
+- notification changes
+- analytics changes
+- native changes/build
+- historical reconstruction
+- BL-70 deployment
+- unrelated account-deletion refactors
+
+20. STOP CONDITIONS
+
+STOP and report rather than expanding scope if:
+
+- BL-70 is found applied to any persistent database
+- migration ancestry cannot remain linear safely
+- a connection path cannot use the transition service without materially changing product behavior
+- one-sided Friend drift requires broad social-graph redesign
+- safe concurrency requires architecture substantially beyond BL-79
+- account deletion requires implementing Task #77 broadly
+- current authorization depends on something other than what investigation established
+
+Otherwise complete BL-79.
+
+21. COMMIT
+
+After all verification is satisfactory:
+
+- inspect complete diff
+- ensure only BL-79-related changes are present
+- run git diff --check
+- commit
+
+Commit message:
+
+BL-79 Preserve connection lifecycle history
+
+RETURN
+
+Report:
+
+- model/schema added
+- migration revision and parent
+- final Alembic chain/head
+- event-type vocabulary
+- source vocabulary
+- exact formation paths integrated
+- exact removal paths integrated
+- one-sided drift behavior
+- concurrency/idempotency strategy
+- actor semantics
+- deletion/privacy behavior
+- access-control isolation confirmation
+- Task #77 interaction if any
+- whether any UI/API/product behavior changed
+- focused test results
+- PostgreSQL concurrency results
+- adjacent regression results
+- full-suite result
+- known unrelated failures
+- git diff --check result
+- commit hash
+- confirmation that persistent Replit, Development, and Production migrations were not executed
+- whether BL-79 is complete code-side
