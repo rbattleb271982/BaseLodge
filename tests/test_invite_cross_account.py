@@ -283,9 +283,12 @@ def test_b():
         b_html = body(r)
         check("Continue as" in b_html, "B.2  page shows 'Continue as' for Isaac")
 
-        # Isaac "signs out" → /logout → check it redirects to invite page or auth
-        r_logout = c.get(f"/logout?return_to=/invite/{tok_str}",
-                         follow_redirects=False)
+        # Isaac signs out with protected POST → check invite/auth redirect
+        r_logout = c.post(
+            f"/logout?return_to=/invite/{tok_str}",
+            data={"csrf_token": sess_csrf(c)},
+            follow_redirects=False,
+        )
         loc = r_logout.headers.get("Location", "")
         check(r_logout.status_code == 302,
               "B.3  logout redirects (302)")
@@ -369,7 +372,11 @@ def test_c():
                   f"C.pre  '{k}' present before logout",
                   notes=f"key not set correctly before test")
 
-        c.get("/logout", follow_redirects=False)
+        c.post(
+            "/logout",
+            data={"csrf_token": sess_csrf(c)},
+            follow_redirects=False,
+        )
 
         snap_after = sess_snapshot(c)
         for k in transient_keys:

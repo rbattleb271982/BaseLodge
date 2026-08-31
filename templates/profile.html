@@ -49,6 +49,9 @@
         .profile-row:last-child {
             border-bottom: none;
         }
+        #bl-logout-form .profile-row {
+            border-bottom: 1px solid var(--bl-color-border-soft);
+        }
         .profile-row:active {
             background: rgba(0,0,0,0.03);
         }
@@ -330,14 +333,17 @@
                         <span class="profile-row-chevron">›</span>
                     </div>
                 </a>
-                <a href="{{ url_for('logout') }}" class="profile-row" id="bl-logout-link">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Log out</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
+                <form method="POST" action="{{ url_for('logout') }}" id="bl-logout-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="profile-row">
+                        <div class="profile-row-left">
+                            <span class="profile-row-label">Log out</span>
+                        </div>
+                        <div class="profile-row-right">
+                            <span class="profile-row-chevron">›</span>
+                        </div>
+                    </button>
+                </form>
                 <button type="button" class="profile-row profile-row--danger" onclick="document.getElementById('delete-account-modal').style.display='flex'">
                     <div class="profile-row-left">
                         <span class="profile-row-label">Delete account</span>
@@ -467,21 +473,20 @@
     }
 
     // ── OneSignal identity logout (native shell only) ─────────────────
-    // Intercepts the Log out link. If blOSLogout is available (registered
+    // Intercepts the Log out form. If blOSLogout is available (registered
     // only inside the Capacitor native shell by analytics_head.html), calls
-    // OS.logout() to clear the external_id before navigating. Falls back to
-    // plain navigation if the helper is absent or throws.
+    // OS.logout() to clear the external_id before submitting. Falls back to
+    // normal form submission if the helper is absent.
     (function() {
-        var _link = document.getElementById('bl-logout-link');
-        if (!_link) return;
-        _link.addEventListener('click', function(e) {
+        var _form = document.getElementById('bl-logout-form');
+        if (!_form) return;
+        _form.addEventListener('submit', function(e) {
             if (typeof window.blOSLogout !== 'function') return;
             e.preventDefault();
-            var _href = _link.href;
             window.blOSLogout().then(function() {
-                window.location.href = _href;
+                _form.submit();
             }).catch(function() {
-                window.location.href = _href;
+                _form.submit();
             });
         });
     })();

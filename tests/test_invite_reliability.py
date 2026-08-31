@@ -279,7 +279,12 @@ def test_multi_recipient_same_token():
                     return
 
                 # ── Log out A, log in as B ───────────────────────────────────
-                client.get("/logout", follow_redirects=False)
+                logout_csrf = inject_csrf(client)
+                client.post(
+                    "/logout",
+                    data={"csrf_token": logout_csrf},
+                    follow_redirects=False,
+                )
                 login(client, rec_b)
 
                 # ── B visits the same token — must show landing, not expired ─

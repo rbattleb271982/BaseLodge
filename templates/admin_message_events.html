@@ -132,7 +132,10 @@
 </div>
 
 <div class="admin-actions">
-    <a href="/admin/test-message-event" class="admin-btn admin-btn-primary">Run Test Events</a>
+    <form method="POST" action="{{ url_for('admin_test_message_event') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="admin-btn admin-btn-primary">Run Test Events</button>
+    </form>
     <a href="/admin/push-diagnostics" class="admin-btn admin-btn-secondary">Push Diagnostics</a>
     <a href="/admin/resorts" class="admin-btn admin-btn-secondary">Resort Admin</a>
 </div>
@@ -208,7 +211,14 @@
     {% else %}
     <div class="empty-state">
         No message events logged yet.<br>
-        <a href="/admin/test-message-event" style="color:#5C1219;margin-top:8px;display:inline-block;">Run test events to create sample rows →</a>
+        <form method="POST"
+              action="{{ url_for('admin_test_message_event') }}"
+              style="margin-top:8px;display:inline-block;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="admin-btn admin-btn-primary">
+                Run test events to create sample rows →
+            </button>
+        </form>
     </div>
     {% endif %}
 </div>

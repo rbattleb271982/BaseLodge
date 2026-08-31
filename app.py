@@ -856,6 +856,19 @@ def set_security_headers(response):
 def before_request_handlers():
     import sys
 
+    # These endpoints are explicit state-changing actions. Their handlers must
+    # authenticate and validate CSRF before any request-driven session or
+    # database write, including the normal auth-restore/activity heartbeat.
+    _protected_action_paths = {
+        "/logout",
+        "/admin/test-push",
+        "/admin/test-push-all",
+        "/admin/test-onesignal-push",
+        "/admin/push-token-dedup",
+        "/admin/test-message-event",
+    }
+    _defer_request_side_effects = request.path in _protected_action_paths
+
     # ── Auth session-cookie restore logging ───────────────────────────────────
     # Flask-Login silently re-authenticates from the session cookie on every
     # request with zero logging. We detect the first authenticated request in
@@ -865,6 +878,7 @@ def before_request_handlers():
     # user_loaded_from_cookie signal registered near the user_loader above.
     if (current_user.is_authenticated
             and not request.path.startswith('/static/')
+            and not _defer_request_side_effects
             and not session.get('_auth_session_logged')):
         try:
             app.logger.info(
@@ -886,7 +900,8 @@ def before_request_handlers():
     # at most once per hour. Skips static assets. Runs for all authenticated
     # users including admin so metrics reflect real usage accurately.
     if (current_user.is_authenticated
-            and not request.path.startswith('/static/')):
+            and not request.path.startswith('/static/')
+            and not _defer_request_side_effects):
         _now_ts = time.time()
         if _now_ts - session.get('_last_active_stamp', 0) > 3600:
             try:
@@ -920,8 +935,10 @@ def before_request_handlers():
             except Exception:
                 pass
 
-    # Make sessions permanent for Replit iframe compatibility
-    session.permanent = True
+    # Make sessions permanent for Replit iframe compatibility. Protected action
+    # routes defer all session writes until their handler has validated CSRF.
+    if not _defer_request_side_effects:
+        session.permanent = True
 
     # ── Gate skip list ────────────────────────────────────────────────────────
     # These paths bypass the nav gate and are handled by their own logic.
@@ -7920,7 +7937,10 @@ def admin_push_diagnostics():
             "step_5": "If plugin_check shows plugin_found=False: Capacitor bridge not providing PushNotifications",
             "step_6": "If register_called appears but token_received does not: APNs token delivery failed natively",
             "step_7": "If token_received appears but post_success does not: server-side registration failed",
-            "step_8": "Run /admin/test-push after a token is registered to attempt APNs delivery",
+            "step_8": (
+                "Submit authenticated POST /admin/test-push with CSRF after a "
+                "token is registered to attempt APNs delivery"
+            ),
         },
     }), 200
 
@@ -7953,7 +7973,7 @@ def _get_qa_push_override_user():
         return None
 
 
-@app.route("/admin/test-push", methods=["GET", "POST"])
+@app.route("/admin/test-push", methods=["POST"])
 @login_required
 @admin_required
 def admin_test_push():
@@ -7968,8 +7988,7 @@ def admin_test_push():
     Title: BaseLodge
     Body:  Test push from BaseLodge
     """
-    if request.method == "POST":
-        validate_csrf_request()
+    validate_csrf_request()
     def _tok_preview(t):
         return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
 
@@ -8238,7 +8257,7 @@ def admin_test_push():
     }), overall_http
 
 
-@app.route("/admin/test-push-all", methods=["GET"])
+@app.route("/admin/test-push-all", methods=["POST"])
 @login_required
 @admin_required
 def admin_test_push_all():
@@ -8255,6 +8274,7 @@ def admin_test_push_all():
 
     Never logs full tokens or secrets.
     """
+    validate_csrf_request()
     def _tok_preview(t):
         return t[:8] + "\u2026" + t[-6:] if len(t) > 14 else t[:8] + "\u2026"
 
@@ -8980,7 +9000,7 @@ def admin_list_tokens():
     }), 200
 
 
-@app.route("/admin/push-token-dedup", methods=["GET"])
+@app.route("/admin/push-token-dedup", methods=["POST"])
 @login_required
 @admin_required
 def admin_push_token_dedup():
@@ -8990,8 +9010,9 @@ def admin_push_token_dedup():
     Safe to run repeatedly — idempotent after first clean run.
     Never deletes rows. Never calls OneSignal or any push provider.
 
-    GET /admin/push-token-dedup
+    POST /admin/push-token-dedup
     """
+    validate_csrf_request()
     # Gather all active tokens, grouped by (user_id, platform)
     all_active = (
         PushDeviceToken.query
@@ -15946,9 +15967,10 @@ def mountains_visited():
         countries=countries_list,
     )
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 @login_required
 def logout():
+    validate_csrf_request()
     user_id = current_user.id
     ph_analytics.track(user_id, 'logout')
 
@@ -20443,7 +20465,7 @@ def sitemap_xml():
     return send_file("static/sitemap.xml", mimetype="application/xml", max_age=86400)
 
 
-@app.route("/admin/test-onesignal-push", methods=["GET", "POST"])
+@app.route("/admin/test-onesignal-push", methods=["POST"])
 @login_required
 @admin_required
 def admin_test_onesignal_push():
@@ -20456,8 +20478,7 @@ def admin_test_onesignal_push():
       - ONESIGNAL_APP_ID is set (logged and reflected in response)
       - ONESIGNAL_REST_API_KEY is set (only presence reported, value never logged)
     """
-    if request.method == "POST":
-        validate_csrf_request()
+    validate_csrf_request()
     current_app.logger.warning(
         "[OneSignal-Test] triggered by admin user_id=%d email=%s",
         current_user.id, current_user.email,
@@ -20557,7 +20578,7 @@ def admin_message_events():
     return render_template("admin_message_events.html", rows=rows, stats=stats)
 
 
-@app.route("/admin/test-message-event", methods=["GET"])
+@app.route("/admin/test-message-event", methods=["POST"])
 @login_required
 @admin_required
 def admin_test_message_event():
@@ -20571,6 +20592,7 @@ def admin_test_message_event():
       2. skipped   — overlap.detected / digest_only suppression
       3. skipped   — overlap.detected / duplicate_event (dedupe fires on row 2)
     """
+    validate_csrf_request()
     current_app.logger.warning(
         "[MessageEvent-Test] triggered by admin user_id=%d email=%s",
         current_user.id, current_user.email,

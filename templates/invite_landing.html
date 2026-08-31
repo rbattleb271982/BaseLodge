@@ -352,10 +352,14 @@
     </form>
 
     {% if current_user.is_authenticated %}
-    <a href="{{ url_for('logout') }}?return_to={{ url_for('invite_token_landing', token=token) | urlencode }}"
-       class="il-btn-secondary">
-        Sign out and use another account
-    </a>
+    <form method="POST"
+          action="{{ url_for('logout', return_to=url_for('invite_token_landing', token=token)) }}"
+          style="width:100%;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="il-btn-secondary" style="width:100%;">
+            Sign out and use another account
+        </button>
+    </form>
     {% else %}
     <button id="openBrowser" class="il-btn-secondary" type="button">
         Continue in Browser

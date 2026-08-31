@@ -63,6 +63,7 @@ class PushTokenLifecycleTests(unittest.TestCase):
         with c.session_transaction() as sess:
             sess["_user_id"] = str(ADMIN_USER_ID)
             sess["_fresh"] = True
+            sess["_csrf_token"] = TEST_CSRF
         return c
 
     def _user_client(self, user_id):
@@ -110,7 +111,10 @@ class PushTokenLifecycleTests(unittest.TestCase):
 
         try:
             c = self._admin_client()
-            resp = c.get(f"/admin/test-push?user_id={ADMIN_USER_ID}")
+            resp = c.post(
+                f"/admin/test-push?user_id={ADMIN_USER_ID}",
+                headers={"X-CSRF-Token": TEST_CSRF},
+            )
             data = json.loads(resp.data)
 
             self.assertEqual(resp.status_code, 200, msg=resp.data)

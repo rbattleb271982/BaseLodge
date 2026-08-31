@@ -161,8 +161,14 @@
         font-size: 12px;
         color: var(--bl-color-text-muted);
     }
-    .ti-identity-note-sub a {
+    .ti-logout-button {
+        appearance: none;
+        padding: 0;
+        border: 0;
+        background: none;
         color: #5C1219;
+        font: inherit;
+        cursor: pointer;
         text-decoration: underline;
         text-underline-offset: 2px;
     }
@@ -203,10 +209,13 @@
     <div class="ti-identity-note" role="alert">
         <p class="ti-identity-note-label">You are signed in as</p>
         <p class="ti-identity-note-name">{{ current_user.first_name }}{% if current_user.last_name %} {{ current_user.last_name }}{% endif %}</p>
-        <p class="ti-identity-note-sub">
+        <div class="ti-identity-note-sub">
             The trip will be joined as {{ current_user.first_name }}.
-            <a href="{{ url_for('logout') }}">Not you? Sign out.</a>
-        </p>
+            <form method="POST" action="{{ url_for('logout') }}" style="display:inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="ti-logout-button">Not you? Sign out.</button>
+            </form>
+        </div>
     </div>
 
     <div class="ti-actions">
