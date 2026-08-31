@@ -6161,12 +6161,26 @@ def idea_detail_trip(trip_id):
         SkiTripParticipant.trip_id == trip_id,
         SkiTripParticipant.active_status_filter(),
     ).all()
+    participant_user_ids = [
+        row.user_id
+        for row in active_rows
+        if row.user_id != user.id
+        and (not trip_owner or row.user_id != trip_owner.id)
+    ]
+    participant_users_by_id = {
+        participant_user.id: participant_user
+        for participant_user in (
+            User.query.filter(User.id.in_(participant_user_ids)).all()
+            if participant_user_ids
+            else []
+        )
+    }
     for row in active_rows:
         if row.user_id == trip_owner.id if trip_owner else False:
             continue
         if row.user_id == user.id:
             continue
-        guest = db.session.get(User, row.user_id)
+        guest = participant_users_by_id.get(row.user_id)
         if guest:
             participants.append({
                 "full_name": f"{guest.first_name or ''} {guest.last_name or ''}".strip(),
@@ -9725,10 +9739,10 @@ def friends():
 
     # ── [FRIENDS_PERF] Block 8c: batch active participant trips for all friends
     _t = time.perf_counter()
-    _batch_part_trips: list = []
+    _batch_part_rows: list = []
     if friend_ids:
-        _batch_part_trips = (
-            db.session.query(SkiTrip)
+        _batch_part_rows = (
+            db.session.query(SkiTrip, SkiTripParticipant.user_id)
             .options(joinedload(SkiTrip.resort))
             .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
             .filter(
@@ -9740,23 +9754,14 @@ def friends():
             )
             .all()
         )
-    # Group by the participant's user_id (stored on the join row), not trip owner
+    # Group directly by participant user ID from the original bounded join.
     _part_trips_by_friend: dict = {}
-    if friend_ids and _batch_part_trips:
-        # Re-query the participant rows to map trip_id → participant user_id
-        _part_trip_ids = [t.id for t in _batch_part_trips]
-        _part_rows = SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id.in_(_part_trip_ids),
-            SkiTripParticipant.user_id.in_(friend_ids),
-            SkiTripParticipant.active_status_filter(),
-        ).all()
-        _trip_id_to_obj = {t.id: t for t in _batch_part_trips}
-        for _pr in _part_rows:
-            _trip_obj = _trip_id_to_obj.get(_pr.trip_id)
-            if _trip_obj:
-                _part_trips_by_friend.setdefault(_pr.user_id, []).append(_trip_obj)
+    for _trip_obj, _participant_user_id in _batch_part_rows:
+        _part_trips_by_friend.setdefault(
+            _participant_user_id, []
+        ).append(_trip_obj)
     if app.debug:
-        print(f"[FRIENDS_PERF] batch_participant_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_part_trips)}")
+        print(f"[FRIENDS_PERF] batch_participant_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_part_rows)}")
 
     # ── [FRIENDS_PERF] Block 9: per-friend loop ───────────────────────────────
     _loop_t0 = time.perf_counter()
@@ -10040,6 +10045,7 @@ def friend_profile(friend_id):
     resort_id = request.args.get('resort_id', type=int)
     overlap_start = request.args.get('overlap_start')
     overlap_end = request.args.get('overlap_end')
+    friend_open_dates_set = None
     
     if resort_id and overlap_start:
         resort = Resort.query.filter_by(
@@ -10079,9 +10085,11 @@ def friend_profile(friend_id):
                         (start_date + timedelta(days=offset)).isoformat()
                         for offset in range((end_date - start_date).days + 1)
                     }
+                    if has_trip_context:
+                        friend_open_dates_set = get_available_dates_for_user(friend)
                     if (
                         has_trip_context
-                        and get_available_dates_for_user(friend) & window_dates
+                        and friend_open_dates_set & window_dates
                     ):
                         overlap_context = {
                             'resort_name': _resort_display_name(
@@ -10205,7 +10213,8 @@ def friend_profile(friend_id):
     # Get friend's available dates via canonical resolver (UserAvailability first,
     # falls back to legacy open_dates JSON). Returns a set of YYYY-MM-DD strings,
     # already filtered to today and future dates.
-    friend_open_dates_set = get_available_dates_for_user(friend)
+    if friend_open_dates_set is None:
+        friend_open_dates_set = get_available_dates_for_user(friend)
     friend_open_dates = sorted(friend_open_dates_set)
     friend_open_dates_display = format_open_dates_summary(friend_open_dates) if friend_open_dates else None
 
@@ -10218,7 +10227,7 @@ def friend_profile(friend_id):
     
     # Check for shared GroupTrips and existing friendship
     shared_trip_exists = check_shared_upcoming_trip(user.id, friend.id)
-    already_friends = is_reciprocal_friend(user.id, friend.id)
+    already_friends = friend.id == user.id or _friendship is not None
     show_connect_button = shared_trip_exists and not already_friends
     
     # Get friend's wish list resorts
@@ -13544,8 +13553,16 @@ def mountain_detail(slug):
         today=today,
     )
 
-    primary_pass = resort.get_primary_pass()
-    pass_names = resort.get_pass_names()
+    resort_passes = resort.get_passes()
+    pass_names = [resort_pass['pass_name'] for resort_pass in resort_passes]
+    primary_pass = next(
+        (
+            resort_pass['pass_name']
+            for resort_pass in resort_passes
+            if resort_pass['is_primary']
+        ),
+        pass_names[0] if pass_names else None,
+    )
 
     # Full state name: STATE_NAMES (abbr→name) first for US states,
     # then fall back to state_name column (may hold full name for non-US resorts)
