@@ -78,7 +78,10 @@ def test_home_always_renders_zero_count_card(client):
     assert "Friends' Passes" in html
     assert 'href="/friends"' in html
     assert 'aria-label="Show 0 friends"' in html
-    assert html.count('class="fp-card-count">0</span>') == 3
+    assert '<details id="friends-passes"' in html
+    assert 'open' not in html.split('<details id="friends-passes"', 1)[1].split(">", 1)[0]
+    assert "0 friends" in html
+    assert html.count('class="home-friends-passes__count">0</span>') == 3
     assert html.index(">Epic</span>") < html.index(">Ikon</span>") < html.index(">Other</span>")
 
 
@@ -97,6 +100,8 @@ def test_home_renders_singular_friend_total(client):
     html = response.data.decode()
     assert 'href="/friends"' in html
     assert 'aria-label="Show 1 friend"' in html
+    assert '<details id="friends-passes"' in html
+    assert "1 friend" in html
 
 
 def test_home_renders_multi_pass_counts_and_filter_links(client):
@@ -127,3 +132,4 @@ def test_home_renders_multi_pass_counts_and_filter_links(client):
     assert 'aria-label="Show 2 friends with other passes"' in html
     assert 'href="/friends"' in html
     assert 'aria-label="Show 3 friends"' in html
+    assert "3 friends" in html

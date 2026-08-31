@@ -1,39 +1,49 @@
 <!--
-Component: Friends' Passes Summary
-Purpose: Compact Epic, Ikon, and Other friend counts with deep links to the
-         existing Friends pass filters. Nested inside the Home summary card.
+Component: Friends' Passes disclosure
+Purpose: Compact friend pass coverage with deep links to the existing Friends
+         pass filters. Nested inside the Home summary card.
 Used on: Home screen
 
 Inputs:
-  friend_pass_counts   dict with epic, ikon, and other integer counts
-  friend_count         int — total confirmed friends
-  other_pass_slugs_url comma-separated canonical non-Epic/non-Ikon pass slugs
+  home_summary — BL-187 resolved Home summary contract
 -->
 
-<section class="fp-card" aria-labelledby="fp-card-title">
-    <h2 class="fp-card-title" id="fp-card-title">
-        Friends' Passes ·
-        <a class="fp-card-total-link"
-           href="{{ url_for('friends') }}"
-           aria-label="Show {{ friend_count or 0 }} {{ 'friend' if (friend_count or 0) == 1 else 'friends' }}">
-            {{ friend_count or 0 }} {{ 'friend' if (friend_count or 0) == 1 else 'friends' }} →
-        </a>
-    </h2>
-    <div class="fp-card-grid">
-        <a class="fp-card-link" href="{{ url_for('friends') }}?pass=epic"
-           aria-label="Show {{ friend_pass_counts.epic or 0 }} Epic pass friends">
-            <span class="fp-card-count">{{ friend_pass_counts.epic or 0 }}</span>
-            <span class="fp-card-label">Epic</span>
-        </a>
-        <a class="fp-card-link" href="{{ url_for('friends') }}?pass=ikon"
-           aria-label="Show {{ friend_pass_counts.ikon or 0 }} Ikon pass friends">
-            <span class="fp-card-count">{{ friend_pass_counts.ikon or 0 }}</span>
-            <span class="fp-card-label">Ikon</span>
-        </a>
-        <a class="fp-card-link" href="{{ url_for('friends') }}?pass={{ other_pass_slugs_url | urlencode }}"
-           aria-label="Show {{ friend_pass_counts.other or 0 }} friends with other passes">
-            <span class="fp-card-count">{{ friend_pass_counts.other or 0 }}</span>
-            <span class="fp-card-label">Other</span>
-        </a>
-    </div>
-</section>
+{% from 'macros/home_disclosure.html' import home_disclosure %}
+{% set _friends_passes = home_summary.friends_passes %}
+{% set _friend_count = _friends_passes.friend_count %}
+{% set _friend_label = 'friend' if _friend_count == 1 else 'friends' %}
+{% set _counts = _friends_passes.counts %}
+{% set _friend_summary = _friend_count ~ ' ' ~ _friend_label %}
+
+{% call home_disclosure(
+    'friends-passes',
+    "Friends' Passes",
+    _friend_summary,
+    class_name='home-friends-passes'
+) %}
+<div class="home-friends-passes__list">
+    <a class="home-friends-passes__item"
+       href="{{ url_for('friends') }}?pass=epic"
+       aria-label="Show {{ _counts.epic }} Epic pass friends">
+        <span class="home-friends-passes__count">{{ _counts.epic }}</span>
+        <span class="home-friends-passes__label">Epic</span>
+    </a>
+    <a class="home-friends-passes__item"
+       href="{{ url_for('friends') }}?pass=ikon"
+       aria-label="Show {{ _counts.ikon }} Ikon pass friends">
+        <span class="home-friends-passes__count">{{ _counts.ikon }}</span>
+        <span class="home-friends-passes__label">Ikon</span>
+    </a>
+    <a class="home-friends-passes__item"
+       href="{{ url_for('friends') }}?pass={{ _friends_passes.other_pass_slugs_url | urlencode }}"
+       aria-label="Show {{ _counts.other }} friends with other passes">
+        <span class="home-friends-passes__count">{{ _counts.other }}</span>
+        <span class="home-friends-passes__label">Other</span>
+    </a>
+</div>
+<a class="home-friends-passes__all"
+   href="{{ url_for('friends') }}"
+   aria-label="Show {{ _friend_count }} {{ _friend_label }}">
+    View all friends →
+</a>
+{% endcall %}

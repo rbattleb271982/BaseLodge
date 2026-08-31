@@ -302,7 +302,7 @@ def test_home_shows_both_activity_sections_when_both_have_content(client):
     assert 'id="section-happening"' in html
     assert 'id="section-opportunities"' in html
     assert "hidden" in _fallback_tag(html)
-    assert html.index('id="fp-card-title"') < html.index('id="section-happening"')
+    assert html.index('id="friends-passes"') < html.index('id="section-happening"')
     assert html.index('id="section-happening"') < html.index('id="section-opportunities"')
     assert html.index('id="section-opportunities"') < html.index('id="section-pills"')
 
