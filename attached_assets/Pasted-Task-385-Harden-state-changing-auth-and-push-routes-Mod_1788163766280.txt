@@ -1,0 +1,204 @@
+Task #385 — Harden state-changing auth and push routes
+
+Mode: BUILD
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~36.5%
+
+Implement approved Task #385 exactly as planned.
+
+Objective:
+Convert state-changing authentication and push/admin routes from GET-triggerable actions to explicit POST + CSRF flows, while preserving existing behavior and scope.
+
+Approved product decision:
+- Logout continues to deactivate all active PushDeviceToken rows for the account.
+- Do NOT attempt current-device-only logout.
+- Do NOT redesign multi-device push behavior.
+
+1. Protect logout
+
+Change /logout to:
+- POST-only
+- existing login requirement preserved
+- explicit validate_csrf_request() before any side effect
+
+CSRF validation must occur before:
+- analytics/event logging
+- token deactivation
+- commits
+- Flask logout/session changes
+- transient invite/auth session cleanup
+
+Preserve current successful logout behavior:
+- deactivate all active push tokens for the account
+- commit token changes
+- terminate only the requesting Flask session
+- preserve Flask-Login remember-cookie clearing
+- clear the same transient session values
+- preserve approved invite return_to behavior
+- otherwise redirect to /auth
+
+GET /logout must return 405 and cause no mutation.
+
+2. Update all logout callers
+
+Replace the current GET logout links/flows in:
+- templates/profile.html
+- templates/invite_landing.html
+- templates/trip_invite_token_landing.html
+
+Use protected POST submissions carrying the existing rendered BaseLodge CSRF token.
+
+Preserve native profile logout sequencing:
+1. OneSignal logout/external-identity cleanup happens first
+2. protected server logout POST is submitted afterward
+
+Do not change native iOS/Android project files.
+
+Preserve browser and native WebView behavior.
+
+3. Protect admin test-push routes
+
+Convert these mutating/send routes to POST-only with explicit CSRF validation after existing authentication/admin authorization:
+
+- /admin/test-push
+- /admin/test-push-all
+- /admin/test-onesignal-push
+- /admin/push-token-dedup
+- /admin/test-message-event
+
+Preserve:
+- @login_required
+- @admin_required
+- existing recipient selection
+- QA narrowing/override behavior
+- APNs routing
+- FCM routing
+- OneSignal routing
+- provider environment handling
+- provider error behavior
+- audit/message-event logging
+- redirects/response shape as closely as possible
+
+GET requests to these routes must return 405 without:
+- provider dispatch
+- token mutation
+- event creation
+- analytics side effects
+- database commits
+
+4. Keep read-only GET routes unchanged
+
+Do NOT convert genuinely read-only routes, including:
+- /admin/push-diagnostics
+- /admin/list-tokens
+- /admin/push-token-audit
+- /push-settings
+- GET dry-run mode of /admin/retry-failed-events
+
+Preserve the already-protected POST execution behavior for retry-failed-events.
+
+5. Regression coverage
+
+Add/adjust focused tests covering:
+
+Logout:
+- normal authenticated browser POST + valid CSRF succeeds
+- valid logout retains current redirect behavior
+- transient session cleanup unchanged
+- all active account push tokens still deactivate
+- another existing browser/device session remains authenticated
+- GET /logout returns 405
+- GET /logout causes no token/session side effects
+- missing CSRF rejected before side effects
+- invalid CSRF rejected before side effects
+- unauthenticated behavior remains appropriate
+- invite account-switching flow still works
+- trip-invite account-switching flow still works
+
+Native:
+- iOS WebView logout submission contract remains valid
+- Android WebView logout submission contract remains valid
+- OneSignal logout occurs before protected server logout submission
+
+Admin routes:
+For each converted mutation/send route:
+- GET returns 405
+- GET creates no side effects
+- valid admin POST + valid CSRF preserves behavior
+- missing/invalid CSRF rejected
+- non-admin blocked
+- unauthenticated blocked
+
+Also preserve existing:
+- APNs behavior
+- FCM behavior
+- OneSignal behavior
+- QA override/narrowing
+- audit/event logging
+- provider failure handling
+
+6. Scope boundaries
+
+Do NOT introduce:
+- current-device-only logout
+- session-to-device binding
+- multi-device push redesign
+- schema changes
+- migrations
+- push token cleanup/data migration
+- native iOS project changes
+- native Android project changes
+- authentication-provider changes
+- cookie-setting changes
+- dependencies
+- configuration changes
+- provider payload redesign
+- admin navigation redesign
+- changes to BL-126 broadcast behavior
+- changes to BL-132 push registration behavior
+
+Expected implementation areas:
+- app.py
+- templates/profile.html
+- templates/invite_landing.html
+- templates/trip_invite_token_landing.html
+- focused tests
+- possibly inline profile JavaScript if required to preserve OneSignal-before-submit ordering
+
+Reference-only unless genuinely required:
+- static/js/bl-native.js
+- models.py
+- services/push_providers.py
+
+7. Validation
+
+Run:
+- focused logout regressions
+- invite/account-switch regressions
+- admin push/send regressions
+- authorization tests
+- CSRF tests
+- native-static/startup contract tests
+- relevant messaging/push regressions
+- full test suite
+- Python compilation
+- git diff --check
+
+Restart Flask and verify the app renders normally with no browser-console errors.
+
+If implementation reveals that preserving the native OneSignal logout ordering requires a material native/auth architecture change, STOP and report rather than expanding scope.
+
+When complete, report:
+- exact files changed
+- exact routes converted
+- logout/token behavior
+- native logout ordering result
+- admin route behavior
+- focused/regression/full-suite test results
+- compilation/diff/runtime results
+- confirmation that rejected requests cause no side effects
+- confirmation no schema/migration/native/dependency/config/auth-model scope was introduced
+
+Do not create another planning task.
+The plan is approved; implement it.
