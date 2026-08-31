@@ -1,0 +1,136 @@
+BL-132 — INVESTIGATION: Define CSRF contract for push registration and beacon endpoints
+
+Mode: PLAN
+Tier: MAX
+
+Estimated total BaseLodge workload completed after this step: ~35.5%
+
+Investigate only. Do not implement yet.
+
+Objective:
+Define the correct CSRF/security contract for BaseLodge endpoints used by push-device registration and beacon/background requests across the web app and native iOS/Android shells.
+
+We need to understand the current architecture before tightening or changing any protection because browser and native requests may have different security requirements.
+
+Please:
+
+1. Inventory the relevant endpoints
+Identify every endpoint involved in:
+- registering push/device tokens
+- updating or removing push/device tokens
+- browser push registration
+- native iOS push registration
+- native Android push registration
+- beacon/background requests
+- sendBeacon-style requests, if any
+- related preference or device-association requests
+
+For each endpoint document:
+- HTTP method
+- authentication requirement
+- CSRF behavior
+- caller(s)
+- whether the caller is browser web, iOS native shell, Android native shell, or multiple
+- whether the endpoint mutates state
+
+2. Trace authentication and request identity
+Determine how each caller proves:
+- which BaseLodge user is making the request
+- whether the user has an authenticated session
+- whether native Capacitor requests use the same session/cookie model as browser requests
+- whether cookies are automatically attached
+- whether Origin/Referer or another request signal is relied upon
+
+3. Trace the current CSRF implementation
+Identify:
+- canonical BaseLodge CSRF helper/middleware
+- which relevant endpoints currently enforce it
+- which are exempt
+- why exemptions exist, if documented
+- how CSRF tokens are supplied by normal browser requests
+- whether native callers can currently supply the same token safely
+
+4. Investigate beacon behavior
+For each beacon/background endpoint determine:
+- whether it changes persistent state
+- whether it requires authentication
+- whether it can be triggered cross-origin
+- whether sendBeacon or equivalent limits the ability to attach custom CSRF headers
+- what protection currently prevents forged requests
+
+5. Investigate push registration specifically
+Determine whether a forged request could:
+- associate an attacker-controlled device token with another authenticated user
+- overwrite or deactivate a legitimate device token
+- alter push eligibility/preferences
+- create duplicate or orphaned registrations
+
+Do not attempt exploitation. Analyze the existing request paths and protections only.
+
+6. Define the desired contract
+Recommend an explicit rule for each endpoint category, such as:
+- session-authenticated browser mutation -> CSRF required
+- native mutation -> specify the appropriate authenticated/CSRF mechanism based on BaseLodge's actual architecture
+- beacon mutation -> define the safest compatible protection
+
+Do not assume native requests should be CSRF-exempt merely because they originate from a native shell.
+
+7. Identify inconsistencies
+Call out any endpoint where:
+- protection is weaker than comparable BaseLodge mutations
+- web and native behavior conflict
+- an exemption exists without a clear architectural reason
+- tightening CSRF would currently break a legitimate caller
+
+8. Recommend follow-up work
+Return the smallest safe implementation plan, if changes are warranted.
+
+Separate:
+- actual security bugs requiring remediation
+- architectural inconsistencies
+- defense-in-depth improvements
+- documentation/test gaps
+
+9. Specify regression coverage required across:
+- authenticated web
+- unauthenticated web
+- valid CSRF
+- missing/invalid CSRF
+- iOS native
+- Android native
+- beacon/background requests
+- push token registration/update/removal
+- cross-origin behavior where applicable
+
+10. Confirm scope implications
+State whether the eventual fix would require any:
+- schema changes
+- migrations
+- native iOS changes
+- native Android changes
+- JavaScript changes
+- authentication changes
+- dependency changes
+- deployment/configuration changes
+
+Do not modify:
+- application code
+- tests
+- schema
+- migrations
+- native projects
+- JavaScript
+- configuration
+- dependencies
+- data
+
+Return a concise investigation report containing:
+- current endpoint matrix
+- current security contract
+- identified gaps
+- browser vs native implications
+- recommended canonical CSRF contract
+- smallest safe implementation plan
+- affected files/functions
+- required regression tests
+- risks and scope boundaries
