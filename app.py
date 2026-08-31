@@ -11421,7 +11421,7 @@ def home():
     _diag_opp_engine_count = 0
     _diag_dismissed_count = 0
     _diag_opp_after_dismissal = 0
-    _diag_hap_raw_trips = 0
+    _diag_hap_bounded_rows = 0
     _diag_hap_candidates = 0
     _diag_hap_opp_suppressed = 0
 
@@ -11435,17 +11435,17 @@ def home():
 
     # --- Coordination feed (Home opportunities stream) ---
     dest_feed = []
-    _engine_friend_trips = []
     _ideas_engine_diag = {}
     try:
         from services.ideas_engine import build_destination_feed as _build_home_feed
         if all_friends:
             _hp_t0 = time.perf_counter()
             _resort_map = get_all_active_resorts_map()
-            _raw_feed, _ideas_engine_diag, _engine_friend_trips = _build_home_feed(
+            _raw_feed, _ideas_engine_diag, _unused_ideas_friend_trips = _build_home_feed(
                 user, all_friends, user_avail_dates=_user_avail_home,
                 user_trips=all_upcoming, resort_map=_resort_map
             )
+            del _unused_ideas_friend_trips
             if app.debug:
                 print(f"[HOME_PERF] build_destination_feed={time.perf_counter() - _hp_t0:.4f}s raw_count={len(_raw_feed)}")
             _diag_opp_engine_count = len(_raw_feed)
@@ -11489,40 +11489,39 @@ def home():
             for _fid in (_opp_row.get('friend_ids') or []):
                 _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
-    HOME_HAPPENING_RENDER_CAP = 5
     # --- Happening signals (one row per friend, editorial format, max 5) ---
-    # Reuses friend_trips already fetched by build_destination_feed — no second DB query.
-    # Re-sorted here by activity_timestamp DESC (most-recent edit/creation first).
-    # This sort is Happening-only; Opportunities continues using start_date ASC from the engine.
-    #
+    # Uses a dedicated bounded query; Ideas keeps its existing retrieval unchanged.
     # Note: _opp_friend_resort_pairs suppression is intentionally deferred — the two
     # sections serve different purposes (action vs ambient) and the user benefit is low.
+    from services.happening import (
+        HOME_HAPPENING_RENDER_CAP,
+        get_happening_candidates,
+    )
     happening_signals = []
     if friend_ids:
         try:
-            if app.debug:
-                print(f"[HOME_PERF] happening_trips=reused count={len(_engine_friend_trips)}")
-            _ft_users_map = {u.id: u for u in all_friends}
-            _diag_hap_raw_trips = len(_engine_friend_trips)
-            _hap_seen_users = set()
-            _now = datetime.utcnow()
-            # Re-sort by most-recent activity first (updated_at preferred, else created_at)
-            _sorted_friend_trips = sorted(
-                _engine_friend_trips,
-                key=lambda t: (t.updated_at or t.created_at or datetime.min),
-                reverse=True,
+            _hp_t0 = time.perf_counter()
+            _happening_candidates = get_happening_candidates(
+                user_id=user.id,
+                friend_ids=friend_ids,
+                today=today,
+                limit=HOME_HAPPENING_RENDER_CAP,
             )
-            for ft in _sorted_friend_trips:
-                ft_user = _ft_users_map.get(getattr(ft, 'attendance_user_id', ft.user_id))
+            if app.debug:
+                print(
+                    f"[HOME_PERF] happening_query={time.perf_counter() - _hp_t0:.4f}s"
+                    f" returned={len(_happening_candidates)}"
+                )
+            _ft_users_map = {u.id: u for u in all_friends}
+            _diag_hap_bounded_rows = len(_happening_candidates)
+            _now = datetime.utcnow()
+            for ft in _happening_candidates:
+                ft_user = _ft_users_map.get(ft.attendance_user_id)
                 if not ft_user:
                     continue
-                attendance_user_id = getattr(ft, 'attendance_user_id', ft.user_id)
-                if attendance_user_id in _hap_seen_users:
-                    continue
-                _hap_seen_users.add(attendance_user_id)
-                ft_resort = ft.resort
-                ft_mountain = ft_resort.name if ft_resort else ft.mountain
-                status = getattr(ft, 'attendance_status', ft.trip_status or 'planning')
+                attendance_user_id = ft.attendance_user_id
+                ft_mountain = ft.resort_name or ft.mountain
+                status = ft.attendance_status
                 full_name = (
                     f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
                 ) if ft_user else 'A friend'
@@ -11540,7 +11539,7 @@ def home():
                 else:
                     action_line = "Trip upcoming"
                 # Line 3: recency only — no state words
-                _activity_ts = ft.updated_at if ft.updated_at else ft.created_at
+                _activity_ts = ft.activity_timestamp
                 _was_updated = ft.updated_at is not None
                 _age = (_now - _activity_ts).total_seconds() if _activity_ts else None
                 if _age is None:
@@ -11570,38 +11569,18 @@ def home():
                     'mountain': _mtn,              # resort name string or None
                     'friend_id': attendance_user_id,
                     'recency_label': recency_label,
-                    'trip_id': ft.id,
-                    '_card_key': f"happening:{ft.id}",
+                    'trip_id': ft.trip_id,
+                    '_card_key': ft.card_key,
                 })
             _diag_hap_candidates = len(happening_signals)
         except Exception:
             db.session.rollback()
 
-    if happening_signals:
-        try:
-            _dismissed_hap_cards = DismissedInsightCard.query.filter_by(
-                user_id=user.id,
-                card_type='happening',
-            ).all()
-            _dismissed_hap_keys = {d.card_key for d in _dismissed_hap_cards}
-            if _dismissed_hap_keys:
-                happening_signals = [
-                    s for s in happening_signals
-                    if s['_card_key'] not in _dismissed_hap_keys
-                ]
-        except Exception:
-            db.session.rollback()
-
-    if len(happening_signals) > HOME_HAPPENING_RENDER_CAP:
-        happening_signals = happening_signals[:HOME_HAPPENING_RENDER_CAP]
-
-
     print(
         f"[HOME_DIAGNOSTICS] happening_friend_ids_count={len(friend_ids)}"
-        f" happening_candidate_trips_before_dedupe={_diag_hap_raw_trips}"
-        f" happening_group_count={_diag_hap_candidates}"
+        f" happening_bounded_rows_returned={_diag_hap_bounded_rows}"
+        f" happening_presentation_candidates={_diag_hap_candidates}"
         f" happening_suppressed_by_opportunities={_diag_hap_opp_suppressed}"
-        f" happening_candidate_trips_after_dedupe={max(0, _diag_hap_candidates - _diag_hap_opp_suppressed)}"
         f" happening_render_cap={HOME_HAPPENING_RENDER_CAP}"
         f" happening_after_cap={len(happening_signals)}"
         f" happening_rendered_count={len(happening_signals)}"

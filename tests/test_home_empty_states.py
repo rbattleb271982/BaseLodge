@@ -51,13 +51,15 @@ def _feed_row(friend_id):
 def _happening_trip(friend_id):
     now = datetime.utcnow()
     return SimpleNamespace(
-        id=1,
-        user_id=friend_id,
+        trip_id=1,
+        attendance_user_id=friend_id,
         mountain="Test Peak",
-        resort=SimpleNamespace(name="Test Peak"),
-        trip_status="planning",
+        resort_name="Test Peak",
+        attendance_status="planning",
         created_at=now,
         updated_at=now,
+        activity_timestamp=now,
+        card_key="happening:1",
     )
 
 
@@ -71,6 +73,9 @@ def _get_home(client, user_id, *, feed=None, friend_trips=None, availability=Non
     ), patch(
         "services.ideas_engine.build_destination_feed",
         return_value=(feed, {}, friend_trips),
+    ), patch(
+        "services.happening.get_happening_candidates",
+        return_value=friend_trips,
     ), patch(
         "app.get_all_active_resorts_map",
         return_value={},
@@ -93,6 +98,9 @@ def _get_home_context(client, user_id):
     ), patch(
         "services.ideas_engine.build_destination_feed",
         return_value=([], {}, []),
+    ), patch(
+        "services.happening.get_happening_candidates",
+        return_value=[],
     ), patch(
         "app.get_all_active_resorts_map",
         return_value={},
