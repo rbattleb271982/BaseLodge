@@ -1,0 +1,202 @@
+Resume BL-193 — HOME — Add compact Your Next Trip card.
+
+This is BUILD.
+
+The previously reported friend-count blocker is now resolved.
+Do not create another planning task.
+
+APPROVED PRODUCT DECISION
+
+“Friends going” means confirmed direct friends who are actually going on the selected next trip.
+
+Count:
+- direct friends of the current user whose trip participation status is GOING
+- the trip owner, if:
+  - the owner is a direct friend of the current user
+  - the owner is not the current user
+
+Do NOT count:
+- the current user
+- INTERESTED participants
+- pending participants/invites
+- declined participants
+- removed participants
+- non-friends
+- duplicate friend records
+
+A friend must count at most once.
+
+The trip does NOT need to be public.
+Use the existing authorized next-trip population and existing trip visibility behavior.
+Do not import Ideas/Happening public-trip semantics.
+
+APPROVED QUERY DECISION
+
+One explicit, bounded query for the single authoritative `next_trip` is approved.
+
+Requirements:
+- query only for the selected `next_trip.id`
+- do not access `next_trip.participants` in a way that triggers implicit lazy loading
+- do not load the full roster if a direct aggregate/count query can provide the answer
+- avoid N+1 behavior
+- do not query Friends separately if the existing direct-friend IDs already loaded by Home can safely constrain the query
+- preserve existing direct-friend semantics
+
+After resolving the count, add it to the BL-187 summary contract as:
+
+home_summary["next_trip"]["friends_going_count"]
+
+The template must consume the resolved count and must not issue queries.
+
+This is an approved, narrow extension of BL-187’s next_trip contract for BL-193.
+
+BL-193 UI CONTRACT
+
+Render a compact module:
+
+Your Next Trip                    View trip >
+
+Vail
+Jan 13–17 · 4 nights
+4 friends going · Trip in 12 days
+
+Use real values.
+
+Include:
+- resort/mountain name
+- effective user-relevant date range
+- nights
+- friends going
+- relative countdown
+- existing View trip destination
+
+DATE / ATTENDANCE RULES
+
+Preserve the already-authoritative BL-187 next-trip selection.
+
+Use:
+- owner trip dates for owned trips
+- effective attendance dates for participant trips
+- current in-progress behavior
+
+Do not reselect the next trip.
+
+NIGHTS
+
+Calculate nights from the same effective date range shown to the user.
+
+Use:
+- 1 night
+- 2 nights
+etc.
+
+For guests, do not use the full organizer window when an effective attendance window exists.
+
+COUNTDOWN
+
+Use effective start date.
+
+Required:
+- more than one day away -> “Trip in X days”
+- tomorrow -> “Trip tomorrow”
+- today or already in progress -> “Trip today”
+
+No live JavaScript countdown.
+
+VIEW TRIP
+
+Preserve the existing authoritative trip destination and authorization behavior.
+
+DESIGN
+
+Keep compact.
+
+Do not use:
+- photographs
+- image placeholders
+- thumbnails
+- avatars/profile bubbles
+- decorative mountain illustrations
+- pass badges
+- unnecessary icons
+- Add pass
+
+Do not implement BL-194 Actions to Take.
+
+OTHER HOME MODULES
+
+Do not alter:
+- About You & Your Gear
+- Your Activity
+- Friends’ Passes
+- Ideas
+- Happening
+- Friends’ Trips
+- navigation/header
+
+TESTS
+
+Cover:
+- owner trip
+- guest trip
+- private authorized trip
+- GOING direct friend counted
+- INTERESTED direct friend not counted
+- pending/declined/removed not counted
+- non-friend GOING participant not counted
+- current user not counted
+- connected trip owner counted for guest
+- non-friend trip owner not counted
+- duplicate prevention
+- zero friends going
+- 1 friend going grammar
+- multiple friends going grammar
+- explicit bounded query only
+- no lazy participant query
+- no N+1 behavior
+- effective attendance date display
+- same-month date range
+- cross-month date range
+- cross-year date range
+- nights calculation
+- future/tomorrow/today countdown
+- View trip destination
+- existing privacy/authorization
+- BL-187/190/191/192 regressions
+
+Run focused and directly affected regressions plus `git diff --check`.
+
+Do not commit yet.
+
+Return:
+
+BL-193 IMPLEMENTATION RESULT
+
+- Files changed:
+- Compact Next Trip layout implemented:
+- BL-187 next_trip contract used:
+- friends_going_count added to summary contract:
+- Friends-going query type:
+- Queries added per Home request:
+- N+1 queries introduced:
+- GOING-only participant rule implemented:
+- Connected owner rule implemented:
+- Private authorized trips supported:
+- Effective dates preserved:
+- Nights implemented:
+- Countdown implemented:
+- View trip destination preserved:
+- BL-194 actions implemented:
+- Product semantics changed beyond approved decision:
+- Privacy/authorization changed:
+- Other Home modules changed:
+- Schema/migration changed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- Scope deviations:
+- Commit created: NO
+
+If complete and clean, end with exactly:
+
+BL-193 READY TO MERGE

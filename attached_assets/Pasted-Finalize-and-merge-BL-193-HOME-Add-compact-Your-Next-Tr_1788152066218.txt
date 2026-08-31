@@ -1,0 +1,129 @@
+Finalize and merge BL-193 — HOME — Add compact Your Next Trip card.
+
+The implementation is approved.
+
+Do not create another planning task.
+Do not expand scope.
+Do not perform unrelated cleanup.
+
+1. Review the current diff.
+
+Approved BL-193 files:
+- app.py
+- templates/home.html
+- templates/partials/home/_next_trip.html
+- tests/test_home_next_trip.py
+- tests/test_home_empty_states.py
+
+Exclude unrelated working-tree files from the BL-193 commit.
+
+2. Confirm the final Next Trip contract.
+
+Presentation:
+- compact “Your Next Trip” module
+- resort/mountain name
+- effective user-relevant date range
+- nights
+- friends going
+- relative countdown
+- canonical View trip destination
+- no BL-194 Actions to Take implementation
+
+Confirm:
+- guest attendance overrides drive displayed dates
+- those same effective dates drive nights
+- those same effective dates drive countdown
+- owner trips continue using the appropriate owner trip window
+- in-progress behavior remains correct
+
+3. Confirm friends-going implementation.
+
+The approved rule is:
+
+- direct friends only
+- GOING participants count
+- INTERESTED does not count
+- pending/declined/removed do not count
+- non-friends do not count
+- current user does not count
+- each friend counts at most once
+- connected trip owner counts when the current user is a guest
+- non-friend owner does not count
+- private authorized trips are supported
+
+Implementation must use:
+- bounded `COUNT(DISTINCT user_id)` for the single authoritative `next_trip.id`
+- at most one added query per Home request
+- zero friend-count query when there is no next trip or no direct friends
+- no implicit participant lazy-load
+- no N+1 behavior
+
+Confirm `friends_going_count` is placed into the BL-187 `home_summary["next_trip"]` contract and consumed from there by presentation.
+
+4. Confirm boundaries.
+
+Do not change:
+- next-trip selection
+- broader trip eligibility
+- authorization/visibility
+- About You & Your Gear
+- Your Activity
+- Friends’ Passes
+- Ideas
+- Happening
+- Friends’ Trips
+- schema/migrations
+- native configuration
+
+Do not implement BL-194.
+
+5. Run final validation.
+
+Run:
+- focused BL-193 tests
+- BL-187 Home summary regressions
+- BL-190/191/192 regressions
+- participant attendance regressions
+- relevant Trip Detail authorization regressions
+- relevant invite authorization regressions
+- `git diff --check`
+
+Do not broaden implementation in response to unrelated failures.
+
+6. Commit only the approved BL-193 implementation.
+
+Commit message:
+
+BL-193: add compact Your Next Trip Home card
+
+7. Report:
+
+BL-193 MERGE RESULT
+
+- Commit:
+- Files committed:
+- Tests run:
+- Tests passed:
+- git diff --check:
+- BL-187 next_trip contract used: YES/NO
+- friends_going_count in summary contract: YES/NO
+- Maximum new queries per Home request:
+- Query skipped when unnecessary: YES/NO
+- N+1 queries: YES/NO
+- GOING-only rule preserved: YES/NO
+- Connected-owner rule preserved: YES/NO
+- Private authorized trips supported: YES/NO
+- Effective attendance dates preserved: YES/NO
+- View trip destination preserved: YES/NO
+- BL-194 actions present: YES/NO
+- Product semantics changed beyond approved rule: YES/NO
+- Privacy/authorization changed: YES/NO
+- Other Home modules changed: YES/NO
+- Schema/migration changed: YES/NO
+- Uncommitted BL-193 changes remaining: YES/NO
+- Unrelated working-tree changes present: YES/NO
+- Scope deviations: YES/NO
+
+If successful, end with exactly:
+
+BL-193 MERGED
