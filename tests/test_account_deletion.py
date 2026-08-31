@@ -4,6 +4,7 @@
 Setup context is CLOSED before yield; assertions use their own
 `with app.app_context():` blocks.
 """
+import logging
 import secrets
 from datetime import date
 import pytest
@@ -255,6 +256,66 @@ def test_empty_email_blocks_deletion(client, deletion_setup):
     s = deletion_setup
     _login(client, s["user_id"])
     form_post(client, "/delete-account", data={"confirm_email": ""})
+
+    with app.app_context():
+        assert User.query.get(s["user_id"]) is not None
+
+
+def test_delete_account_attempt_log_excludes_raw_email_and_preserves_deletion(
+    client, deletion_setup, caplog
+):
+    s = deletion_setup
+    marker = "bl79-delete-email-marker-7f2d@example.test"
+    with app.app_context():
+        user = db.session.get(User, s["user_id"])
+        user.email = marker
+        db.session.commit()
+
+    _login(client, s["user_id"])
+    with caplog.at_level(logging.INFO, logger=app.logger.name):
+        response = form_post(client, "/delete-account", data={"confirm_email": marker})
+
+    messages = "\n".join(
+        record.getMessage()
+        for record in caplog.records
+        if "[delete_account]" in record.getMessage()
+    )
+    assert response.status_code in (200, 302)
+    assert "[delete_account] attempt" in messages
+    assert "confirmation_matched=True" in messages
+    assert marker not in messages
+
+    with app.app_context():
+        assert User.query.get(s["user_id"]) is None
+
+
+def test_delete_account_error_log_excludes_raw_email_and_keeps_user(
+    client, deletion_setup, caplog, monkeypatch
+):
+    s = deletion_setup
+    marker = "bl79-delete-error-email-marker-91ab@example.test"
+    with app.app_context():
+        user = db.session.get(User, s["user_id"])
+        user.email = marker
+        db.session.commit()
+
+    def fail_commit():
+        raise RuntimeError(f"database failure for {marker}")
+
+    monkeypatch.setattr(db.session, "commit", fail_commit)
+    _login(client, s["user_id"])
+    with caplog.at_level(logging.ERROR, logger=app.logger.name):
+        response = form_post(client, "/delete-account", data={"confirm_email": marker})
+
+    messages = "\n".join(
+        record.getMessage()
+        for record in caplog.records
+        if "[delete_account]" in record.getMessage()
+    )
+    assert response.status_code in (200, 302)
+    assert "[delete_account] failed" in messages
+    assert "error_type=RuntimeError" in messages
+    assert marker not in messages
 
     with app.app_context():
         assert User.query.get(s["user_id"]) is not None

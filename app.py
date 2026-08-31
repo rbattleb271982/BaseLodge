@@ -16332,8 +16332,8 @@ def delete_account():
     confirm_email       = request.form.get("confirm_email", "").strip()
     confirmation_matched = confirm_email.lower() == user_email.lower()
     app.logger.info(
-        f"[delete_account] attempt user_id={user_id} email={user_email} "
-        f"confirmation_matched={confirmation_matched}"
+        "[delete_account] attempt confirmation_matched=%s",
+        confirmation_matched,
     )
 
     if not confirm_email:
@@ -16534,7 +16534,8 @@ def delete_account():
     except Exception as e:
         db.session.rollback()
         app.logger.error(
-            f"[delete_account] user_id={user_id} email={user_email} error={repr(e)}"
+            "[delete_account] failed error_type=%s",
+            type(e).__name__,
         )
         flash("We couldn't delete your account right now. Please try again.", "error")
         # After db.session.delete(user) + rollback, SQLAlchemy expels the user
