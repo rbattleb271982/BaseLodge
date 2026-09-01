@@ -90,14 +90,10 @@ def _resolve_base_url():
     """
     explicit = os.getenv("BASE_URL")
     if explicit:
-        resolved = explicit.rstrip("/")
-        print(f"[BASE_URL] Using BASE_URL env var: {resolved}")
-        return resolved
+        return explicit.rstrip("/")
     replit_domain = os.getenv("REPLIT_DEV_DOMAIN")
     if replit_domain:
-        resolved = f"https://{replit_domain}"
-        print(f"[BASE_URL] Dev mode — using REPLIT_DEV_DOMAIN: {resolved}")
-        return resolved
+        return f"https://{replit_domain}"
     return "https://app.baselodgeapp.com"
 
 BASE_URL = _resolve_base_url()
@@ -178,6 +174,10 @@ from services.request_observability import (
     begin_request,
     emit_unhandled_error,
     finish_response,
+)
+from services.log_privacy import (
+    install_production_log_privacy,
+    production_safe_print,
 )
 
 
@@ -289,6 +289,9 @@ RELEASE_IDENTITY = resolve_release_identity(
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
 app.config["BASELODGE_RUNTIME_ENV"] = database_configuration.runtime_env
+install_production_log_privacy(app)
+if is_production:
+    print = production_safe_print
 
 
 @app.before_request

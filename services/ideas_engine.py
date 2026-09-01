@@ -19,6 +19,7 @@ from utils.formatting import format_name
 from models import db, Resort, SkiTrip, SkiTripParticipant
 from services.trip_attendance import effective_attendance_dates, set_effective_attendance_dates
 from services.visibility import issue_availability_idea_capability
+from services.log_privacy import privacy_safe_print as print
 
 from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_label, passes_match as _passes_match
 
