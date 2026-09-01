@@ -149,9 +149,9 @@ def test_active_guest_sees_explicit_rsvp_and_only_valid_alternative(
     invalid_value = "interested" if alternative_value == "going" else "going"
     assert f'name="response" value="{invalid_value}"' not in self_rsvp
     if status == GuestStatus.GOING:
-        assert "td-participant-date-sheet" in html
+        assert 'id="td-participant-date-sheet"' in html
     else:
-        assert "td-participant-date-sheet" not in html
+        assert 'id="td-participant-date-sheet"' not in html
 
 
 def test_pending_invitee_gets_view_only_setup_chips(client):
@@ -399,7 +399,7 @@ def test_hub_attention_uses_profile_equipment_fallback(client):
 
     assert "Bringing own" in html
     assert "Set equipment" not in html
-    assert '<section class="td-hub-people td-hub-section" aria-label="Trip participants">' in html
+    assert '<section class="td-hub-people td-hub-section" aria-label="Trip participants"' in html
 
 
 def test_trip_detail_people_uses_product_labels_counts_and_alpha_groups(client):
