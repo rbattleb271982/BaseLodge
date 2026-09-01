@@ -2259,7 +2259,7 @@
 
         <!-- Trip Planning -->
         {% if can_plan %}
-        <section class="td-hub-planning td-hub-section" aria-labelledby="td-planning-heading">
+        <section class="td-hub-planning td-hub-section" aria-labelledby="td-planning-heading" data-td-region="planning">
         <p class="td-section-label" id="td-planning-heading">Trip planning</p>
         <div class="td-planning-card">
             <button type="button" class="td-planning-compose-row" onclick="openTripPlanningSheet()" aria-controls="td-planning-sheet">
@@ -2667,144 +2667,41 @@
         ).content || '';
 
         // ── Canonical targeted region refresh ──
-        // The server-rendered Trip Detail page remains the source of truth. Mutations
-        // either apply regions from their same-page redirect response or fetch a fresh
-        // canonical page and extract only the named regions.
+        // Shared engine; Trip Detail keeps only its edit/modal restoration hooks.
         (function() {
-            var regionVersions = Object.create(null);
-
-            function normalizeRegions(regions) {
-                var values = Array.isArray(regions) ? regions : String(regions || '').split(',');
-                return Array.from(new Set(values.map(function(value) {
-                    return String(value).trim();
-                }).filter(Boolean)));
-            }
-
-            function beginRefresh(regions) {
-                var ticket = {};
-                normalizeRegions(regions).forEach(function(region) {
-                    regionVersions[region] = (regionVersions[region] || 0) + 1;
-                    ticket[region] = regionVersions[region];
-                });
-                return ticket;
-            }
-
-            function isCurrentTripDetail(url) {
-                var destination = new URL(url, window.location.href);
-                return destination.origin === window.location.origin
-                    && destination.pathname === window.location.pathname;
-            }
-
-            async function applyCanonicalResponse(response, regions, ticket) {
-                if (!response.ok) {
-                    var error = new Error('Trip Detail refresh failed');
-                    error.status = response.status;
-                    throw error;
-                }
-                if (!isCurrentTripDetail(response.url)) {
-                    window.location.assign(response.url);
-                    return { navigated: true };
-                }
-                var contentType = response.headers.get('content-type') || '';
-                if (!contentType.includes('text/html')) {
-                    window.location.assign(window.location.href);
-                    return { navigated: true };
-                }
-
-                var html = await response.text();
-                var parsed = new DOMParser().parseFromString(html, 'text/html');
-                var replacements = [];
-                normalizeRegions(regions).forEach(function(region) {
-                    if (ticket[region] !== regionVersions[region]) return;
-                    var selector = '[data-td-region="' + CSS.escape(region) + '"]';
-                    var current = document.querySelector(selector);
-                    var incoming = parsed.querySelector(selector);
-                    if (!current || !incoming) {
-                        replacements = null;
-                        return;
+            var controller = window.BLTargetedRefresh.create({
+                regionAttribute: 'data-td-region',
+                formAttribute: 'data-td-targeted-form',
+                pendingAttribute: 'data-td-pending',
+                pendingControlProperty: '_tdPendingControl',
+                refreshHeaderName: 'X-Trip-Detail-Refresh',
+                errorMessage: 'Trip Detail refresh failed',
+                beforeReplace: function() {
+                    var pageContainer = document.querySelector('.page-container');
+                    return {
+                        editModeWasActive: !!(
+                            pageContainer && pageContainer.classList.contains('td-edit-mode')
+                        )
+                    };
+                },
+                afterReplace: function(context) {
+                    if (context.state && context.state.editModeWasActive) {
+                        var editButton = document.getElementById('td-edit-toggle-btn');
+                        if (editButton) editButton.textContent = 'Done';
                     }
-                    replacements.push([current, incoming]);
-                });
-
-                if (!replacements) {
-                    window.location.assign(window.location.href);
-                    return { navigated: true };
-                }
-
-                var scrollX = window.scrollX;
-                var scrollY = window.scrollY;
-                var pageContainer = document.querySelector('.page-container');
-                var editModeWasActive = !!(
-                    pageContainer && pageContainer.classList.contains('td-edit-mode')
-                );
-                replacements.forEach(function(pair) {
-                    pair[0].replaceWith(pair[1]);
-                });
-                if (editModeWasActive) {
-                    var editButton = document.getElementById('td-edit-toggle-btn');
-                    if (editButton) editButton.textContent = 'Done';
-                }
-                if (normalizeRegions(regions).includes('invite-controls')) {
-                    document.body.classList.remove('modal-open');
-                }
-                window.scrollTo(scrollX, scrollY);
-                return { navigated: false };
-            }
-
-            window.tdRefreshRegions = async function(regions) {
-                var normalized = normalizeRegions(regions);
-                var ticket = beginRefresh(normalized);
-                var response = await fetch(window.location.pathname + window.location.search, {
-                    method: 'GET',
-                    headers: { 'X-Trip-Detail-Refresh': 'regions' },
-                    cache: 'no-store',
-                    credentials: 'same-origin'
-                });
-                return applyCanonicalResponse(response, normalized, ticket);
-            };
-
-            document.addEventListener('submit', async function(event) {
-                var form = event.target.closest('form[data-td-targeted-form]');
-                if (!form || form.dataset.tdPending === 'true') return;
-                event.preventDefault();
-
-                var regions = normalizeRegions(form.dataset.tdTargetedForm);
-                var ticket = beginRefresh(regions);
-                var submitter = event.submitter || form._tdPendingControl || null;
-                var originalText = submitter ? submitter.textContent : '';
-                form.dataset.tdPending = 'true';
-                if (submitter) {
-                    submitter.disabled = true;
-                    if (submitter.dataset.loadingText) {
-                        submitter.textContent = submitter.dataset.loadingText;
+                    if (context.regions.includes('invite-controls')) {
+                        document.body.classList.remove('modal-open');
                     }
-                }
-
-                try {
-                    var response = await fetch(form.action, {
-                        method: (form.method || 'POST').toUpperCase(),
-                        body: new FormData(form),
-                        credentials: 'same-origin',
-                        headers: { 'X-Trip-Detail-Refresh': 'regions' }
-                    });
-                    await applyCanonicalResponse(response, regions, ticket);
-                } catch (error) {
+                },
+                onError: function(error) {
                     blToast(
                         error && error.status === 429
                             ? 'Too many requests. Please try again later.'
                             : 'Something went wrong. Please try again.'
                     );
-                } finally {
-                    if (form.isConnected) {
-                        delete form.dataset.tdPending;
-                        form._tdPendingControl = null;
-                    }
-                    if (submitter && submitter.isConnected) {
-                        submitter.disabled = false;
-                        submitter.textContent = originalText;
-                    }
                 }
             });
+            window.tdRefreshRegions = controller.refresh;
         }());
 
         function dismissSuccess() {
@@ -2892,7 +2789,11 @@
                     });
                     var data = await response.json().catch(function() { return {}; });
                     if (response.ok && data.ok) {
-                        window.location.reload();
+                        await window.tdRefreshRegions(['planning']);
+                        if (bodyEl) bodyEl.value = '';
+                        if (linkEl) linkEl.value = '';
+                        window.syncTripPlanningCount();
+                        window.closeTripPlanningSheet();
                         return;
                     }
                     showPlanningError(data.error || 'Could not post your idea. Please try again.');

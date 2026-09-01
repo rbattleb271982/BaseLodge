@@ -331,6 +331,7 @@
     </button>
 </div>
 
+<div data-tp-region="posts">
 {% if posts %}
 <!-- Post list -->
 <div class="tp-list">
@@ -371,6 +372,7 @@
     <p class="tp-empty-sub">Share ideas, links, places to stay, restaurants, activities — anything useful for the group.</p>
 </div>
 {% endif %}
+</div><!-- /posts region -->
 
 <!-- Bottom sheet overlay -->
 <div class="tp-sheet-overlay" id="tp-overlay" onclick="closeSheet()"></div>
@@ -409,6 +411,15 @@
     const TRIP_ID = {{ trip.id }};
     const VALID_CATEGORIES = {{ categories | tojson }};
     const IS_OWNER = {{ 'true' if is_owner else 'false' }};
+    const TP_CSRF_TOKEN = (
+        document.querySelector('meta[name="csrf-token"]') || {}
+    ).content || '';
+    const _tpRefreshController = window.BLTargetedRefresh.create({
+        regionAttribute: 'data-tp-region',
+        refreshHeaderName: 'X-Trip-Planning-Refresh',
+        errorMessage: 'Trip planning refresh failed'
+    });
+    window.tpRefreshRegions = _tpRefreshController.refresh;
 
     let _editPostId = null;  // null → create mode, int → edit mode
 
@@ -494,7 +505,10 @@
 
             const resp = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': TP_CSRF_TOKEN
+                },
                 body: JSON.stringify({
                     category: categoryEl.dataset.cat,
                     body,
@@ -503,16 +517,18 @@
             });
 
             if (resp.ok) {
-                // Reload to show updated posts list
-                window.location.reload();
+                await window.tpRefreshRegions(['posts']);
+                closeSheet();
+                clearSheet();
+                _editPostId = null;
             } else {
                 const data = await resp.json().catch(() => ({}));
                 alert(data.error || 'Something went wrong. Please try again.');
-                btn.disabled = false;
             }
         } catch (err) {
             console.error(err);
             alert('Network error. Please try again.');
+        } finally {
             btn.disabled = false;
         }
     }
@@ -523,12 +539,10 @@
         try {
             const resp = await fetch(`/api/trip/${TRIP_ID}/planning-posts/${postId}`, {
                 method: 'DELETE',
+                headers: { 'X-CSRF-Token': TP_CSRF_TOKEN },
             });
             if (resp.ok) {
-                const card = document.getElementById(`post-${postId}`);
-                if (card) card.remove();
-                // If list is now empty, reload to show empty state
-                if (!document.querySelector('.tp-post-card')) window.location.reload();
+                await window.tpRefreshRegions(['posts']);
             } else {
                 const data = await resp.json().catch(() => ({}));
                 alert(data.error || 'Could not delete post.');

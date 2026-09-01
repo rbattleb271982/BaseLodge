@@ -3217,6 +3217,7 @@ def _asset_version(path):
 
 STYLES_VERSION    = _asset_version("static/styles.css")
 BL_NATIVE_VERSION = _asset_version("static/js/bl-native.js")
+TARGETED_REFRESH_VERSION = _asset_version("static/js/bl-targeted-refresh.js")
 ANALYTICS_VERSION = _asset_version("static/analytics.js")
 ICONS_VERSION     = _asset_version("static/icons/favicon-32x32.png")
 
@@ -3949,6 +3950,7 @@ app.jinja_env.globals['ONESIGNAL_APP_ID'] = os.environ.get("ONESIGNAL_APP_ID", "
 app.jinja_env.globals['BL_NAV_DEBUG'] = app.config.get("BL_NAV_DEBUG", False)
 app.jinja_env.globals['STYLES_VERSION']    = STYLES_VERSION
 app.jinja_env.globals['BL_NATIVE_VERSION'] = BL_NATIVE_VERSION
+app.jinja_env.globals['TARGETED_REFRESH_VERSION'] = TARGETED_REFRESH_VERSION
 app.jinja_env.globals['ANALYTICS_VERSION'] = ANALYTICS_VERSION
 app.jinja_env.globals['ICONS_VERSION']     = ICONS_VERSION
 

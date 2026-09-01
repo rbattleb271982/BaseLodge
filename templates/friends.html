@@ -773,6 +773,7 @@
 
     <div class="page-container">
 
+        <div data-fr-region="requests">
         {% if pending_incoming %}
         <!-- ══════════════════════════════════════════════════════════════
              PENDING FRIEND REQUESTS
@@ -809,8 +810,10 @@
             {% endfor %}
         </div>
         {% endif %}
+        </div><!-- /requests region -->
 
         <!-- ── BL-12: Friends | Suggested Friends tab bar ── -->
+        <div data-fr-region="tabs">
         <div class="tab-bar">
             <button class="tab-btn {% if initial_tab != 'suggested' %}active{% endif %}"
                     data-tab="friends" onclick="frSelectTab('friends')">
@@ -821,7 +824,9 @@
                 Suggested Friends{% if suggested_count %}<span class="tab-badge" id="fr-sugg-badge">{{ suggested_count }}</span>{% else %}<span class="tab-badge" id="fr-sugg-badge" style="display:none">0</span>{% endif %}
             </button>
         </div>
+        </div><!-- /tabs region -->
 
+        <div data-fr-region="directory">
         <div id="segment-friends" class="segment-content {% if initial_tab != 'suggested' %}active{% endif %}">
 
         {% if friend_count == 0 %}
@@ -905,8 +910,10 @@
         {% endif %}
 
         </div>{# /segment-friends #}
+        </div><!-- /directory region -->
 
         <!-- ── BL-12: Suggested Friends segment ── -->
+        <div data-fr-region="suggestions">
         <div id="segment-suggested" class="segment-content {% if initial_tab == 'suggested' %}active{% endif %}">
 
             {% if suggested_friends %}
@@ -972,6 +979,7 @@
             {% endif %}
 
         </div>{# /segment-suggested #}
+        </div><!-- /suggestions region -->
 
     </div>{# /page-container #}
 
@@ -1242,7 +1250,8 @@
         }, 180);
     }
 
-    document.getElementById('fr-load-more')?.addEventListener('click', function() {
+    document.addEventListener('click', function(event) {
+        if (!event.target.closest('#fr-load-more')) return;
         _frFetchDirectory(false);
     });
 
@@ -1434,6 +1443,68 @@
     }
 
     var _frCsrf = {{ csrf_token() | tojson }};
+    var _frRefreshController = window.BLTargetedRefresh.create({
+        regionAttribute: 'data-fr-region',
+        refreshHeaderName: 'X-Friends-Refresh',
+        errorMessage: 'Friends refresh failed',
+        beforeReplace: function() {
+            var input = document.getElementById('fr-search');
+            var active = document.activeElement;
+            return {
+                tab: _frCurrentTab,
+                searchValue: input ? input.value : '',
+                globalSearchActive: Boolean(_frSearchQuery),
+                focusId: active && active.id ? active.id : null,
+                visibleFriendCount: document.querySelectorAll(
+                    '#fr-alpha-list [data-friend-id]'
+                ).length
+            };
+        },
+        afterReplace: async function(context) {
+            var state = context.state || {};
+            if (!context.isCurrent()) return;
+            var input = document.getElementById('fr-search');
+            if (input) input.value = state.searchValue || '';
+            _frUpdateChips();
+            _frUpdateFilterBtn();
+            var restoredTab = state.tab || 'friends';
+            _frCurrentTab = null;
+            frSelectTab(restoredTab);
+            if (state.globalSearchActive && input && input.value.trim()) {
+                _frSearchQuery = '';
+                _frGlobalSearch();
+            } else if (input) {
+                _frSearchQuery = '';
+                var hasFilters = _frActiveFilters.pass.size > 0
+                    || _frActiveFilters.rider.size > 0
+                    || _frActiveFilters.level.size > 0;
+                if (input.value.trim() || hasFilters) {
+                    await _frFetchDirectory(true);
+                    if (!context.isCurrent()) return;
+                }
+                var targetCount = state.visibleFriendCount || 0;
+                var previousCount = -1;
+                var currentCount = document.querySelectorAll(
+                    '#fr-alpha-list [data-friend-id]'
+                ).length;
+                while (currentCount < targetCount && currentCount > previousCount) {
+                    var loadMore = document.getElementById('fr-load-more');
+                    if (!loadMore || !loadMore.getAttribute('data-cursor')) break;
+                    previousCount = currentCount;
+                    await _frFetchDirectory(false);
+                    if (!context.isCurrent()) return;
+                    currentCount = document.querySelectorAll(
+                        '#fr-alpha-list [data-friend-id]'
+                    ).length;
+                }
+            }
+            if (state.focusId) {
+                var focusTarget = document.getElementById(state.focusId);
+                if (focusTarget) focusTarget.focus({ preventScroll: true });
+            }
+        }
+    });
+    window.frRefreshRegions = _frRefreshController.refresh;
 
     function _frConnect(uid, btn) {
         var row = document.getElementById('fr-gr-' + uid);
@@ -1557,7 +1628,10 @@
 
         fetch('/api/friends/invite/' + invitationId + '/accept', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': _frCsrf
+            }
         })
         .then(function(res) {
             if (res.redirected || res.status === 401) {
@@ -1565,11 +1639,11 @@
             }
             return res.json();
         })
-        .then(function(data) {
+        .then(async function(data) {
             if (data.success) {
-                // Remove the request row immediately then reload to show new friend
-                _removeRequestRow(invitationId);
-                setTimeout(function() { window.location.reload(); }, 300);
+                await window.frRefreshRegions([
+                    'requests', 'tabs', 'directory', 'suggestions'
+                ]);
             } else {
                 _setRequestRowLoading(row, false);
                 if (btn) btn.textContent = 'Accept';
@@ -1884,8 +1958,8 @@
     })();
 
     // ── Pull-to-refresh (mobile only, JS/CSS, no native plugin) ───────────
-    // Fires a window.location.reload() when the user pulls down from the
-    // very top of the scroll container (overscroll zone).
+    // Refreshes bounded canonical Friends regions when the user pulls down
+    // from the very top of the scroll container (overscroll zone).
     // Desktop is excluded by a touch-start guard.
     (function() {
         var ptr       = document.getElementById('fr-ptr');
@@ -1938,8 +2012,11 @@
                 ptr.classList.add('fr-ptr-loading');
                 ptr.style.height = '44px';
                 if (ptrLabel) ptrLabel.textContent = 'Refreshing…';
-                // Small delay so the spinner is visible before the reload
-                setTimeout(function() { window.location.reload(); }, 300);
+                window.frRefreshRegions([
+                    'requests', 'tabs', 'directory', 'suggestions'
+                ]).catch(function(error) {
+                    _frRefreshController.reportError(error);
+                }).finally(_ptrReset);
             } else {
                 _ptrReset();
             }

@@ -5,6 +5,7 @@ import re
 
 
 TEMPLATE = Path("templates/trip_detail.html").read_text()
+UTILITY = Path("static/js/bl-targeted-refresh.js").read_text()
 
 
 def test_canonical_trip_detail_regions_are_stable_and_unique():
@@ -19,6 +20,7 @@ def test_canonical_trip_detail_regions_are_stable_and_unique():
         "stay-editor",
         "participant-editor",
         "participant-tools",
+        "planning",
     }
     for region in expected:
         marker = re.compile(
@@ -70,26 +72,20 @@ def test_lifecycle_and_access_ending_forms_keep_normal_navigation():
 
 
 def test_refresh_helper_is_latest_response_only_and_never_retries():
-    assert "regionVersions[region] = (regionVersions[region] || 0) + 1" in TEMPLATE
-    assert "if (ticket[region] !== regionVersions[region]) return;" in TEMPLATE
-    assert TEMPLATE.count("X-Trip-Detail-Refresh") == 2
-    assert "setTimeout" not in TEMPLATE[
-        TEMPLATE.index("// ── Canonical targeted region refresh"):
-        TEMPLATE.index("function dismissSuccess")
-    ]
-    assert "retry" not in TEMPLATE[
-        TEMPLATE.index("// ── Canonical targeted region refresh"):
-        TEMPLATE.index("function dismissSuccess")
-    ].lower()
+    assert "regionVersions[region] = (regionVersions[region] || 0) + 1" in UTILITY
+    assert "if (ticket[region] !== regionVersions[region]) return;" in UTILITY
+    assert "refreshHeaderName: 'X-Trip-Detail-Refresh'" in TEMPLATE
+    assert "setTimeout" not in UTILITY
+    assert "retry" not in UTILITY.lower()
 
 
 def test_non_success_is_rejected_before_redirect_or_dom_replacement():
-    helper = TEMPLATE[
-        TEMPLATE.index("async function applyCanonicalResponse"):
-        TEMPLATE.index("window.tdRefreshRegions")
+    helper = UTILITY[
+        UTILITY.index("async function applyResponse"):
+        UTILITY.index("async function refresh")
     ]
     assert helper.index("if (!response.ok)") < helper.index(
-        "if (!isCurrentTripDetail(response.url))"
+        "if (!isCurrentPage(response.url))"
     )
     assert helper.index("if (!response.ok)") < helper.index("replaceWith")
 
@@ -126,13 +122,10 @@ def test_converted_json_mutations_send_explicit_csrf_header():
 
 
 def test_capacitor_and_browser_share_the_same_fetch_path():
-    helper = TEMPLATE[
-        TEMPLATE.index("// ── Canonical targeted region refresh"):
-        TEMPLATE.index("function dismissSuccess")
-    ]
-    assert "Capacitor" not in helper
-    assert "fetch(" in helper
-    assert "window.location.assign" in helper
+    assert "Capacitor" not in UTILITY
+    assert "fetch(" in UTILITY
+    assert "window.location.assign" in UTILITY
+    assert "window.tdRefreshRegions = controller.refresh;" in TEMPLATE
 
 
 def test_pending_invitee_initializers_tolerate_tools_before_regions_exist():
