@@ -168,7 +168,19 @@
                         credentials: 'same-origin',
                         headers: headers
                     });
-                    await applyResponse(response, regions, ticket);
+                    var contentType = response.headers.get('content-type') || '';
+                    if (response.ok && contentType.includes('application/json')) {
+                        var data = await response.json();
+                        if (!data.success) {
+                            throw new Error(data.error || config.errorMessage);
+                        }
+                        await refresh(regions);
+                        if (data.message && window.blToast) {
+                            window.blToast(data.message);
+                        }
+                    } else {
+                        await applyResponse(response, regions, ticket);
+                    }
                 } catch (error) {
                     reportError(error);
                 } finally {

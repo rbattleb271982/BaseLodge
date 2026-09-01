@@ -68,6 +68,16 @@ function response({ ok = true, status = 200, url, html = '<html></html>' } = {})
   };
 }
 
+function jsonResponse(data) {
+  return {
+    ok: true,
+    status: 200,
+    url: 'https://example.test/friends',
+    headers: { get() { return 'application/json'; } },
+    async json() { return data; },
+  };
+}
+
 test('older region response cannot replace newer content', async () => {
   const h = harness();
   const selector = '[data-test-region="directory"]';
@@ -207,4 +217,40 @@ test('pending duplicate submit is prevented and not fetched twice', async () => 
   resolveFetch(response({ ok: false, status: 429 }));
   await Promise.all([first, second]);
   assert.equal(fetchCount, 1);
+});
+
+test('JSON form success refreshes canonical regions and shows message', async () => {
+  const h = harness();
+  const selector = '[data-test-region="directory"]';
+  const replacements = [];
+  const toasts = [];
+  h.current[selector] = { replaceWith(node) { replacements.push(node.value); } };
+  h.setIncoming({ [selector]: { value: 'canonical' } });
+  h.window.blToast = message => toasts.push(message);
+  let fetchCount = 0;
+  h.context.fetch = async function() {
+    fetchCount += 1;
+    return fetchCount === 1
+      ? jsonResponse({ success: true, message: 'Saved' })
+      : response();
+  };
+  h.window.BLTargetedRefresh.create({
+    regionAttribute: 'data-test-region',
+    formAttribute: 'data-test-form',
+  });
+  const attributes = { 'data-test-form': 'directory' };
+  const form = {
+    action: '/save', method: 'POST', isConnected: true,
+    getAttribute(name) { return attributes[name] || null; },
+    setAttribute(name, value) { attributes[name] = value; },
+    removeAttribute(name) { delete attributes[name]; },
+  };
+  await h.listeners.submit({
+    target: { closest() { return form; } },
+    submitter: null,
+    preventDefault() {},
+  });
+  assert.equal(fetchCount, 2);
+  assert.deepEqual(replacements, ['canonical']);
+  assert.deepEqual(toasts, ['Saved']);
 });

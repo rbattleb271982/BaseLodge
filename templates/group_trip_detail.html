@@ -126,7 +126,7 @@
 
         <div class="bl-card" style="margin-bottom: 20px;">
             {% if is_host %}
-            <div style="margin-bottom: 16px;">
+            <div style="margin-bottom: 16px;" data-gtd-region="accommodation">
                 <p class="gtd-field-label">Accommodation</p>
                 <select id="accommodation-select" class="gtd-select">
                     <option value="">Not set</option>
@@ -135,7 +135,7 @@
                     <option value="staying_with_friends" {% if trip.accommodation_status and trip.accommodation_status.value == 'staying_with_friends' %}selected{% endif %}>Staying with friends</option>
                 </select>
             </div>
-            <div>
+            <div data-gtd-region="transportation">
                 <p class="gtd-field-label">Transportation</p>
                 <select id="transportation-select" class="gtd-select">
                     <option value="">Not set</option>
@@ -145,7 +145,7 @@
                 </select>
             </div>
             {% else %}
-            <div style="margin-bottom: 16px;">
+            <div style="margin-bottom: 16px;" data-gtd-region="accommodation">
                 <p class="gtd-field-label">Accommodation</p>
                 <p class="gtd-field-value">
                     {% if trip.accommodation_status %}
@@ -156,7 +156,7 @@
                     {% else %}Not set{% endif %}
                 </p>
             </div>
-            <div>
+            <div data-gtd-region="transportation">
                 <p class="gtd-field-label">Transportation</p>
                 <p class="gtd-field-value">
                     {% if trip.transportation_status %}
@@ -170,6 +170,7 @@
             {% endif %}
         </div>
 
+        <div data-gtd-region="guests">
         <p class="gtd-section-label">Guests</p>
         <div class="bl-card" style="margin-bottom: 20px;">
             {% for guest in guests %}
@@ -184,7 +185,7 @@
                         <span class="gtd-guest-status-accepted">Going</span>
                     {% endif %}
                     {% if is_host and guest.user_id != trip.host_id %}
-                    <form method="POST" action="{{ url_for('remove_trip_guest', trip_id=trip.id, guest_id=guest.id) }}" style="margin: 0;">
+                    <form method="POST" action="{{ url_for('remove_trip_guest', trip_id=trip.id, guest_id=guest.id) }}" style="margin: 0;" data-gtd-targeted-form="guests,invite-controls">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="gtd-remove-btn">Remove</button>
                     </form>
@@ -195,11 +196,13 @@
             <p style="font-size: 14px; color: var(--bl-color-text-muted); margin: 0; padding: 4px 0;">No guests yet.</p>
             {% endfor %}
         </div>
+        </div><!-- /guests region -->
 
+        <div data-gtd-region="invite-controls">
         {% if is_host and available_friends %}
         <p class="gtd-section-label">Invite a Friend</p>
         <div class="bl-card">
-            <form method="POST" action="{{ url_for('invite_to_group_trip', trip_id=trip.id) }}">
+            <form method="POST" action="{{ url_for('invite_to_group_trip', trip_id=trip.id) }}" data-gtd-targeted-form="guests,invite-controls">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <select name="friend_id" required class="gtd-invite-select">
                     <option value="">Select a friend…</option>
@@ -211,6 +214,7 @@
             </form>
         </div>
         {% endif %}
+        </div><!-- /invite-controls region -->
 
     </div>
 
@@ -220,24 +224,65 @@
 
     {% if is_host %}
     <script>
-        function saveField(url, payload) {
-            fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }).then(r => r.json()).then(data => {
-                if (!data.success) { location.reload(); }
-            }).catch(() => { location.reload(); });
+        var _gtdCsrf = (
+            document.querySelector('meta[name="csrf-token"]') || {}
+        ).content || '';
+        var _gtdRefreshController = window.BLTargetedRefresh.create({
+            regionAttribute: 'data-gtd-region',
+            formAttribute: 'data-gtd-targeted-form',
+            pendingAttribute: 'data-gtd-pending',
+            refreshHeaderName: 'X-Group-Trip-Refresh',
+            errorMessage: 'Group Trip refresh failed'
+        });
+        window.gtdRefreshRegions = _gtdRefreshController.refresh;
+
+        async function saveField(url, payload, region, select) {
+            if (select.dataset.gtdPending === 'true') return;
+            select.dataset.gtdPending = 'true';
+            select.disabled = true;
+            try {
+                var response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': _gtdCsrf
+                    },
+                    body: JSON.stringify(payload)
+                });
+                var data = await response.json().catch(function() { return {}; });
+                if (!response.ok || !data.success) {
+                    await window.gtdRefreshRegions([region]);
+                }
+            } catch (error) {
+                try {
+                    await window.gtdRefreshRegions([region]);
+                } catch (refreshError) {
+                    _gtdRefreshController.reportError(refreshError);
+                }
+            } finally {
+                if (select.isConnected) {
+                    delete select.dataset.gtdPending;
+                    select.disabled = false;
+                }
+            }
         }
 
-        document.getElementById('accommodation-select').addEventListener('change', function() {
-            saveField('{{ url_for("update_group_trip_accommodation", trip_id=trip.id) }}',
-                { accommodation_status: this.value });
-        });
-
-        document.getElementById('transportation-select').addEventListener('change', function() {
-            saveField('{{ url_for("update_group_trip_transportation", trip_id=trip.id) }}',
-                { transportation_status: this.value });
+        document.addEventListener('change', function(event) {
+            if (event.target.id === 'accommodation-select') {
+                saveField(
+                    '{{ url_for("update_group_trip_accommodation", trip_id=trip.id) }}',
+                    { accommodation_status: event.target.value },
+                    'accommodation',
+                    event.target
+                );
+            } else if (event.target.id === 'transportation-select') {
+                saveField(
+                    '{{ url_for("update_group_trip_transportation", trip_id=trip.id) }}',
+                    { transportation_status: event.target.value },
+                    'transportation',
+                    event.target
+                );
+            }
         });
     </script>
     {% endif %}

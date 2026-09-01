@@ -17829,6 +17829,14 @@ def view_group_trip(trip_id):
     )
 
 
+def _group_trip_form_error(trip_id, message, status):
+    """Keep targeted invite failures on-page while preserving legacy redirects."""
+    if request.headers.get("X-Group-Trip-Refresh") == "regions":
+        return jsonify({"success": False, "error": message}), status
+    flash(message, "error")
+    return redirect(url_for("view_group_trip", trip_id=trip_id))
+
+
 @app.route("/group-trip/<int:trip_id>/invite", methods=["POST"])
 @login_required
 @limiter.limit(
@@ -17851,26 +17859,26 @@ def invite_to_group_trip(trip_id):
     # Safe form data handling
     friend_id = request.form.get("friend_id", type=int)
     if not friend_id:
-        flash("No friend selected.", "error")
-        return redirect(url_for("view_group_trip", trip_id=trip_id))
+        return _group_trip_form_error(trip_id, "No friend selected.", 400)
     
     # Validate target user exists
     friend = db.session.get(User, friend_id)
     if not friend:
-        flash("User not found.", "error")
-        return redirect(url_for("view_group_trip", trip_id=trip_id))
+        return _group_trip_form_error(trip_id, "User not found.", 404)
     
     # Check if user is actually a friend
     is_friend = is_reciprocal_friend(current_user.id, friend_id)
     if not is_friend:
-        flash("User is not in your friends list.", "error")
-        return redirect(url_for("view_group_trip", trip_id=trip_id))
+        return _group_trip_form_error(
+            trip_id, "User is not in your friends list.", 403
+        )
     
     # Prevent duplicate invites
     existing = TripGuest.query.filter_by(trip_id=trip_id, user_id=friend_id).first()
     if existing:
-        flash(f"{friend.first_name} is already invited.", "error")
-        return redirect(url_for("view_group_trip", trip_id=trip_id))
+        return _group_trip_form_error(
+            trip_id, f"{friend.first_name} is already invited.", 409
+        )
     
     # Database write safety
     try:
@@ -17880,10 +17888,16 @@ def invite_to_group_trip(trip_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.exception("Invite to group trip failed")
-        flash("An error occurred while inviting. Please try again.", "error")
-        return redirect(url_for("view_group_trip", trip_id=trip_id))
+        return _group_trip_form_error(
+            trip_id,
+            "An error occurred while inviting. Please try again.",
+            500,
+        )
     
-    flash(f"Invited {friend.first_name} to the trip!", "success")
+    message = f"Invited {friend.first_name} to the trip!"
+    if request.headers.get("X-Group-Trip-Refresh") == "regions":
+        return jsonify({"success": True, "message": message})
+    flash(message, "success")
     return redirect(url_for("view_group_trip", trip_id=trip_id))
 
 
@@ -17971,7 +17985,10 @@ def remove_trip_guest(trip_id, guest_id):
     db.session.delete(guest)
     db.session.commit()
     
-    flash(f"Removed {guest_user.first_name} from the trip.", "success")
+    message = f"Removed {guest_user.first_name} from the trip."
+    if request.headers.get("X-Group-Trip-Refresh") == "regions":
+        return jsonify({"success": True, "message": message})
+    flash(message, "success")
     return redirect(url_for("view_group_trip", trip_id=trip_id))
 
 
@@ -18127,6 +18144,33 @@ def update_group_trip_transportation(trip_id):
     else:
         return jsonify({"success": False, "error": "Invalid status"}), 400
     
+    db.session.commit()
+    return jsonify({"success": True})
+
+
+@app.route("/group-trip/<int:trip_id>/accommodation", methods=["POST"])
+@login_required
+def update_group_trip_accommodation(trip_id):
+    """Update accommodation status (host-only)."""
+    validate_csrf_request()
+    trip = GroupTrip.query.get_or_404(trip_id)
+
+    if trip.host_id != current_user.id:
+        return jsonify({"success": False, "error": "Only host can update"}), 403
+
+    data = request.get_json()
+    status_name = data.get("accommodation_status", "").upper()
+
+    if status_name == "":
+        trip.accommodation_status = None
+    elif status_name in ["BOOKED", "NOT_YET", "STAYING_WITH_FRIENDS"]:
+        try:
+            trip.accommodation_status = AccommodationStatus[status_name]
+        except KeyError:
+            return jsonify({"success": False, "error": "Invalid status"}), 400
+    else:
+        return jsonify({"success": False, "error": "Invalid status"}), 400
+
     db.session.commit()
     return jsonify({"success": True})
 
