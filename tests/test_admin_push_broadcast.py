@@ -315,6 +315,8 @@ def test_post_requires_csrf(client, broadcast_setup):
 
 
 def test_unauthenticated_user_is_blocked(client):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
     response = client.post(
         ROUTE,
         json={},

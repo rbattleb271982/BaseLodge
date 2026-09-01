@@ -20,6 +20,8 @@ import secrets
 import time
 import json
 import threading
+import hashlib
+import hmac
 import jwt
 import httpx
 from datetime import datetime, date, timedelta, timezone
@@ -284,12 +286,28 @@ app.config["PREFERRED_URL_SCHEME"] = "https"
 from flask_compress import Compress as _Compress
 _Compress(app)
 
+_RATELIMIT_STORAGE_URI = (
+    os.environ.get("RATELIMIT_STORAGE_URI", "").strip() or "memory://"
+)
+app.config["RATELIMIT_STORAGE_URI"] = _RATELIMIT_STORAGE_URI
+app.config["RATELIMIT_SHARED_STORAGE_CONFIGURED"] = (
+    _RATELIMIT_STORAGE_URI != "memory://"
+)
+
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=[],
-    storage_uri="memory://",
+    storage_uri=_RATELIMIT_STORAGE_URI,
+    headers_enabled=True,
+    retry_after="delta-seconds",
 )
+
+if is_production and not app.config["RATELIMIT_SHARED_STORAGE_CONFIGURED"]:
+    app.logger.warning(
+        "RATELIMIT_STORAGE_URI is not configured; rate limits are process-local "
+        "and are not production-wide enforcement."
+    )
 
 def _user_or_ip():
     from flask_login import current_user as _cu
@@ -299,6 +317,98 @@ def _user_or_ip():
     except Exception:
         pass
     return get_remote_address()
+
+
+def _rate_limit_fingerprint(*parts):
+    """Return a deterministic, non-PII limiter-key fingerprint."""
+    key = os.environ.get("SESSION_SECRET", "baselodge-development-rate-limit")
+    payload = "\x1f".join(str(part or "") for part in parts)
+    return hmac.new(
+        key.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256
+    ).hexdigest()[:32]
+
+
+def _auth_action():
+    action = request.form.get("form_type", "login").strip().lower()
+    return action if action in {"login", "signup"} else "login"
+
+
+def _auth_ip_action_key():
+    return f"auth:{_auth_action()}:ip:{get_remote_address()}"
+
+
+def _auth_pair_key():
+    email = request.form.get("email", "").strip().lower()
+    return (
+        f"auth:{_auth_action()}:pair:"
+        f"{_rate_limit_fingerprint(get_remote_address(), email)}"
+    )
+
+
+def _auth_hourly_limit():
+    return "10 per hour" if _auth_action() == "signup" else "100 per hour"
+
+
+def _auth_pair_limit():
+    return "3 per hour" if _auth_action() == "signup" else "5 per 15 minutes"
+
+
+def _reset_pair_key():
+    token = request.view_args.get("token") if request.view_args else None
+    token = token or request.args.get("token", "")
+    return (
+        "password-reset:pair:"
+        f"{_rate_limit_fingerprint(get_remote_address(), token)}"
+    )
+
+
+def _oauth_callback_key():
+    session_key = session.get("_csrf_token") or session.get("_id") or "anonymous"
+    return (
+        "oauth:google:callback:"
+        f"{_rate_limit_fingerprint(get_remote_address(), session_key)}"
+    )
+
+
+def _user_action_key(action, include_object=False):
+    user_id = getattr(current_user, "id", None)
+    key = f"user:{user_id or 'anonymous'}:{action}"
+    if include_object:
+        view_args = request.view_args or {}
+        object_id = view_args.get("trip_id") or view_args.get("user_id")
+        key = f"{key}:{object_id or 'none'}"
+    return key
+
+
+def _retry_after_seconds():
+    try:
+        reset_at = limiter.current_limit.reset_at
+        return max(1, int(reset_at - time.time()))
+    except Exception:
+        return 60
+
+
+@app.errorhandler(429)
+def rate_limited_response(error):
+    retry_after = _retry_after_seconds()
+    if request.path.startswith("/api/"):
+        response = jsonify({
+            "success": False,
+            "error": "Too many requests. Please try again later.",
+            "code": "rate_limited",
+            "retry_after": retry_after,
+        })
+        response.status_code = 429
+    else:
+        response = make_response(
+            "<!doctype html><title>Too Many Requests</title>"
+            "<h1>Too many requests</h1>"
+            "<p>Please wait and try again later.</p>",
+            429,
+        )
+        response.mimetype = "text/html"
+    response.headers["Retry-After"] = str(retry_after)
+    return response
 
 # ── CSRF helpers ──────────────────────────────────────────────────────────────
 def generate_csrf_token():
@@ -3892,14 +4002,25 @@ MOUNTAINS_BY_STATE = {
 }
 
 @app.route("/forgot-password", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
+@limiter.limit("5 per hour", methods=["POST"])
 def forgot_password():
     if request.method == "POST":
-        _google_account = False
         try:
             email = request.form.get("email", "").lower().strip()
             user = User.query.filter(sa.func.lower(User.email) == email).first()
             
+            if user and user.auth_provider == 'email':
+                cooldown_key = (
+                    "LIMITER/baselodge/forgot-password-target/"
+                    f"{_rate_limit_fingerprint(email)}"
+                )
+                send_count = limiter.storage.incr(cooldown_key, 3600)
+                if send_count > 3:
+                    app.logger.info(
+                        "Password reset email suppressed by target cooldown."
+                    )
+                    user = None
+
             if user and user.auth_provider == 'email':
                 # Only generate a reset token for email-auth accounts.
                 # OAuth accounts (Google, etc.) do not have a local password to reset.
@@ -3936,24 +4057,23 @@ def forgot_password():
                 except Exception as e:
                     app.logger.error(f"Error sending password reset email: {e}")
 
-            elif user and user.auth_provider == 'google':
-                # Google-auth account — no local password to reset. Flag for clear message.
-                _google_account = True
         except Exception as e:
             app.logger.error(f"Error in forgot_password POST handler: {e}")
             db.session.rollback()
         
-        if _google_account:
-            flash("This account uses a different sign-in method. Please use the method you signed up with.", "info")
-        else:
-            flash("If an account exists with that email, you'll receive a password reset link.", "info")
+        flash("If an account exists with that email, you'll receive a password reset link.", "info")
         return render_template("forgot_password.html")
         
     return render_template("forgot_password.html")
 
 @app.route("/reset-password", methods=["GET", "POST"])
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
-@limiter.limit("10 per hour")
+@limiter.limit("10 per hour", methods=["POST"])
+@limiter.limit(
+    "5 per hour",
+    methods=["POST"],
+    key_func=_reset_pair_key,
+)
 def reset_password(token=None):
     # Support both /reset-password?token=... and /reset-password/<token>
     if token is None:
@@ -4041,7 +4161,21 @@ def index():
     return redirect(url_for("home"))
 
 @app.route("/auth", methods=["GET", "POST"])
-@limiter.limit("10 per minute")
+@limiter.limit(
+    "10 per minute",
+    methods=["POST"],
+    key_func=_auth_ip_action_key,
+)
+@limiter.limit(
+    _auth_hourly_limit,
+    methods=["POST"],
+    key_func=_auth_ip_action_key,
+)
+@limiter.limit(
+    _auth_pair_limit,
+    methods=["POST"],
+    key_func=_auth_pair_key,
+)
 def auth():
     _ph_reset = session.pop('ph_reset', False)
 
@@ -6236,6 +6370,10 @@ def get_mountains(state):
 
 @app.route("/api/trip/create", methods=["POST"])
 @login_required
+@limiter.limit(
+    "2 per minute; 10 per hour",
+    key_func=lambda: _user_action_key("trip-create"),
+)
 def create_trip():
     validate_csrf_request()
     user = current_user
@@ -6955,7 +7093,7 @@ def update_participant_settings(trip_id):
 
 @app.route("/api/invite/share", methods=["POST"])
 @login_required
-@limiter.limit("120 per hour", key_func=_user_or_ip)
+@limiter.limit("20 per hour", key_func=_user_or_ip)
 def api_invite_share():
     """Record an invite share intent (copy / text / share_sheet) in InviteShareEvent.
 
@@ -7535,6 +7673,10 @@ def update_buddy_pass():
 
 @app.route("/api/push/register-token", methods=["POST"])
 @login_required
+@limiter.limit(
+    "5 per minute; 30 per hour",
+    key_func=lambda: _user_action_key("push-register"),
+)
 def push_register_token():
     """Store or refresh an iOS push notification device token for the current user.
 
@@ -7660,6 +7802,10 @@ def push_register_token():
 
 @app.route("/api/push/beacon", methods=["POST"])
 @login_required
+@limiter.limit(
+    "10 per minute; 60 per hour",
+    key_func=lambda: _user_action_key("push-beacon"),
+)
 def push_debug_beacon():
     """Lightweight step-beacon for push registration diagnostics.
 
@@ -15434,6 +15580,10 @@ def cancel_trip_invite(trip_id):
 
 @app.route("/trips/<int:trip_id>/invite", methods=["POST"])
 @login_required
+@limiter.limit(
+    "10 per minute; 20 per hour",
+    key_func=lambda: _user_action_key("trip-invite", include_object=True),
+)
 def send_trip_invites(trip_id):
     """Send trip invites to selected friends."""
     validate_csrf_request()
@@ -15444,6 +15594,9 @@ def send_trip_invites(trip_id):
         abort(403)
     
     friend_ids = request.form.getlist("friend_ids")
+    if len(friend_ids) > 50:
+        flash("You can invite up to 50 friends at a time.", "error")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
     if not friend_ids:
         flash("Please select at least one friend to invite.", "error")
         return redirect(url_for("trip_detail", trip_id=trip_id))
@@ -16403,6 +16556,10 @@ def signup():
 
 
 @app.route("/auth/google")
+@limiter.limit(
+    "10 per minute; 50 per hour",
+    key_func=lambda: f"oauth:google:entry:{get_remote_address()}",
+)
 def auth_google():
     try:
         redirect_uri = url_for("auth_google_callback", _external=True)
@@ -16414,6 +16571,10 @@ def auth_google():
 
 
 @app.route("/auth/google/callback")
+@limiter.limit(
+    "10 per 15 minutes",
+    key_func=_oauth_callback_key,
+)
 def auth_google_callback():
     try:
         token = oauth.google.authorize_access_token()
@@ -17586,6 +17747,10 @@ def open_data_debug():
 
 @app.route("/api/group-trip/create", methods=["POST"])
 @login_required
+@limiter.limit(
+    "2 per minute; 10 per hour",
+    key_func=lambda: _user_action_key("group-trip-create"),
+)
 def create_group_trip():
     """Create a new GroupTrip."""
     data = request.get_json()
@@ -17664,6 +17829,10 @@ def view_group_trip(trip_id):
 
 @app.route("/group-trip/<int:trip_id>/invite", methods=["POST"])
 @login_required
+@limiter.limit(
+    "10 per minute; 20 per hour",
+    key_func=lambda: _user_action_key("group-trip-invite", include_object=True),
+)
 def invite_to_group_trip(trip_id):
     """Host invites a friend to GroupTrip."""
     # Authentication guard (already protected by @login_required)
@@ -25651,6 +25820,10 @@ def admin_app_store():
 @app.route("/admin/app-store/refresh", methods=["POST"])
 @login_required
 @admin_required
+@limiter.limit(
+    "2 per hour",
+    key_func=lambda: _user_action_key("admin-app-store-refresh"),
+)
 def admin_app_store_refresh():
     """Pull the latest metrics from Apple / Google and upsert into AppStoreMetric.
 
@@ -25662,6 +25835,10 @@ def admin_app_store_refresh():
     validate_csrf_request()
     from models import AppStoreMetric
     from datetime import datetime as _dt
+
+    lock_key = "LIMITER/baselodge/admin-app-store-refresh/in-flight"
+    if limiter.storage.incr(lock_key, 600) > 1:
+        abort(429)
 
     messages = []
     errors   = []
@@ -25753,12 +25930,14 @@ def admin_app_store_refresh():
         messages.append("Android: skipped (Play credentials not configured).")
 
     # ── Flash result ─────────────────────────────────────────────────────────
-    if errors:
-        flash("Refresh completed with errors — " + " | ".join(messages + errors), "error")
-    else:
-        flash("Refresh complete — " + " | ".join(messages), "success")
-
-    return redirect(url_for("admin_app_store"))
+    try:
+        if errors:
+            flash("Refresh completed with errors — " + " | ".join(messages + errors), "error")
+        else:
+            flash("Refresh complete — " + " | ".join(messages), "success")
+        return redirect(url_for("admin_app_store"))
+    finally:
+        limiter.storage.clear(lock_key)
 
 
 if __name__ == "__main__":
