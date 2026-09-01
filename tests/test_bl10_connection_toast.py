@@ -25,7 +25,7 @@ from models import (
     db, User, Friend, Invitation, InviteType, Activity, ActivityType,
     DismissedInsightCard, GroupTrip, TripGuest, GuestStatus,
 )
-from tests.conftest import _make_user, _login
+from tests.conftest import _make_user, _login, form_post, json_post
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -120,7 +120,7 @@ class TestSessionKeyRemoved:
             host_id, other_id = host.id, other.id
 
         _login(client, host_id)
-        resp = client.post(f'/connect-from-trip/{other_id}', follow_redirects=False)
+        resp = form_post(client, f'/connect-from-trip/{other_id}')
         # Route redirects on success; any redirect means the action executed
         assert resp.status_code in (302, 303, 200)
         with client.session_transaction() as sess:
@@ -214,10 +214,10 @@ class TestConnectionToastSeen:
             db.session.commit()
 
         _login(client, user_id)
-        resp = client.post(
+        resp = json_post(
+            client,
             '/api/home/connection-toast-seen',
-            json={'activity_ids': [act_id]},
-            content_type='application/json',
+            {'activity_ids': [act_id]},
         )
         assert resp.status_code == 200
         assert resp.get_json()['ok'] is True
@@ -239,10 +239,10 @@ class TestConnectionToastSeen:
             db.session.commit()
 
         _login(client, user_id)
-        client.post('/api/home/connection-toast-seen',
-                    json={'activity_ids': [act_id]}, content_type='application/json')
-        resp2 = client.post('/api/home/connection-toast-seen',
-                            json={'activity_ids': [act_id]}, content_type='application/json')
+        json_post(client, '/api/home/connection-toast-seen',
+                  {'activity_ids': [act_id]})
+        resp2 = json_post(client, '/api/home/connection-toast-seen',
+                          {'activity_ids': [act_id]})
         assert resp2.status_code == 200
         assert resp2.get_json()['ok'] is True
 
@@ -264,10 +264,10 @@ class TestConnectionToastSeen:
             db.session.commit()
 
         _login(client, a_id)
-        resp = client.post(
+        resp = json_post(
+            client,
             '/api/home/connection-toast-seen',
-            json={'activity_ids': [act_id]},
-            content_type='application/json',
+            {'activity_ids': [act_id]},
         )
         assert resp.status_code == 200  # graceful no-op
 
@@ -320,10 +320,10 @@ class TestDeduplication:
             db.session.commit()
 
         _login(client, user_id)
-        resp = client.post(
+        resp = json_post(
+            client,
             '/api/home/connection-toast-seen',
-            json={'activity_ids': [act1_id, act2_id]},
-            content_type='application/json',
+            {'activity_ids': [act1_id, act2_id]},
         )
         assert resp.status_code == 200
 
@@ -398,10 +398,10 @@ class TestCriticalLifecycle:
         assert "are now connected." in resp1.data.decode()
 
         # Step 2: client fires seen endpoint after toast renders
-        resp2 = client.post(
+        resp2 = json_post(
+            client,
             '/api/home/connection-toast-seen',
-            json={'activity_ids': [act_id]},
-            content_type='application/json',
+            {'activity_ids': [act_id]},
         )
         assert resp2.status_code == 200
         assert resp2.get_json()['ok'] is True
@@ -456,10 +456,10 @@ class TestCriticalLifecycle:
         assert _dismissed_count(user_id) == 0
 
         # Client fires seen endpoint (toast actually rendered)
-        resp3 = client.post(
+        resp3 = json_post(
+            client,
             '/api/home/connection-toast-seen',
-            json={'activity_ids': [act_id]},
-            content_type='application/json',
+            {'activity_ids': [act_id]},
         )
         assert resp3.status_code == 200
         assert _dismissed_count(user_id) == 1

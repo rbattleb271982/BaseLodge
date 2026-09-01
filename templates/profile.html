@@ -460,10 +460,11 @@
 
     // ── Friend Discovery toggle ───────────────────────────────────────
     function _profToggleDiscoverable(checked) {
-        var csrf = (document.cookie.match(/csrf_token=([^;]+)/) || [])[1] || '';
-        fetch('/api/profile/update', {
+        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        var csrf = csrfMeta ? csrfMeta.content : '';
+        window.blFetch('/api/profile/update', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
             credentials: 'same-origin',
             body: JSON.stringify({discoverable_in_friend_search: checked}),
         }).catch(function() {

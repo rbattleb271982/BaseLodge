@@ -193,6 +193,8 @@ def test_logout_bad_csrf_has_no_side_effects(client, route_setup, csrf):
 
 
 def test_logout_unauthenticated_post_remains_blocked(client):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
     response = client.post(
         "/logout",
         data={"csrf_token": _TEST_CSRF},
@@ -305,6 +307,8 @@ def test_admin_mutation_posts_block_non_admin_without_side_effects(
 
 @pytest.mark.parametrize("route", ADMIN_ROUTES)
 def test_admin_mutation_posts_block_unauthenticated(client, route):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
     response = client.post(
         route,
         headers={"X-CSRF-Token": _TEST_CSRF},

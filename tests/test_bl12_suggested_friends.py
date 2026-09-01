@@ -55,6 +55,11 @@ def _make_user(first_name, email=None, discoverable=True):
     return u
 
 
+def _prime_csrf(client):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
+
+
 def _make_friend(user_id, friend_id):
     """Insert mirrored Friend rows (bidirectional friendship)."""
     _db.session.add(Friend(user_id=user_id, friend_id=friend_id))
@@ -525,9 +530,11 @@ class TestDismiss:
             assert row.dismissed_at is not None
 
     def test_dismiss_requires_login(self, client):
+        _prime_csrf(client)
         resp = client.post(
             '/api/friends/suggestions/dismiss',
             json={'suggested_user_id': 1},
+            headers={'X-CSRF-Token': _TEST_CSRF},
             content_type='application/json',
         )
         assert resp.status_code in (302, 401)
@@ -736,6 +743,7 @@ class TestPrivacyRegression:
         assert resp.get_json()['success'] is True
 
     def test_suggestions_endpoint_requires_login(self, client):
+        _prime_csrf(client)
         resp = json_post(client, '/api/friends/suggestions/connect', {'user_id': 1})
         assert resp.status_code in (302, 401)
 

@@ -18,7 +18,7 @@ Option 2: Python shell
     python backfill_first_planning_timestamp.py
 
 Option 3: Admin endpoint (if enabled)
-    GET /admin/backfill-planning-timestamp
+    POST /admin/backfill-planning-timestamp with a valid CSRF token
 
 BEHAVIOR:
 - Finds users where first_planning_timestamp IS NULL

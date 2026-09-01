@@ -170,7 +170,7 @@ def test_legacy_group_trip_accept_records_one_formed_event(client):
         host_id, guest_id, trip_id = host.id, guest.id, trip.id
 
     _login(client, guest_id)
-    assert client.post(f"/group-trip/{trip_id}/accept").status_code == 302
+    assert form_post(client, f"/group-trip/{trip_id}/accept").status_code == 302
     with app.app_context():
         _assert_one_formed(host_id, guest_id, actor_id=guest_id, source="group_trip_accept")
 
@@ -183,8 +183,8 @@ def test_shared_trip_connect_records_one_formed_event_and_is_noop_when_repeated(
         host_id, other_id = host.id, other.id
 
     _login(client, host_id)
-    assert client.post(f"/connect-from-trip/{other_id}").status_code == 302
-    assert client.post(f"/connect-from-trip/{other_id}").status_code == 302
+    assert form_post(client, f"/connect-from-trip/{other_id}").status_code == 302
+    assert form_post(client, f"/connect-from-trip/{other_id}").status_code == 302
     with app.app_context():
         _assert_one_formed(
             host_id, other_id, actor_id=host_id, source="shared_trip_connect",

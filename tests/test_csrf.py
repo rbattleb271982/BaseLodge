@@ -131,6 +131,8 @@ def test_push_register_rejects_bad_csrf_without_token_side_effects(
 
 
 def test_push_register_unauthenticated_remains_blocked(client):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
     rv = client.post(
         "/api/push/register-token",
         json={"token": "unauthenticated-token", "platform": "ios"},
@@ -237,6 +239,8 @@ def test_push_beacon_rejects_bad_csrf_before_diagnostic_logging(
 
 
 def test_push_beacon_unauthenticated_remains_blocked(client):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
     with unittest.mock.patch.object(app.logger, "warning") as warning:
         rv = client.post(
             "/api/push/beacon",

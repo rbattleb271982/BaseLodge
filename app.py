@@ -320,6 +320,27 @@ def validate_csrf_request():
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
+_CSRF_UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_CSRF_EXEMPT_ENDPOINTS = set()
+
+
+def csrf_exempt(view):
+    """Explicitly exempt an independently authenticated unsafe endpoint."""
+    _CSRF_EXEMPT_ENDPOINTS.add(view.__name__)
+    return view
+
+
+@app.before_request
+def enforce_csrf_for_unsafe_methods():
+    """Fail closed for every matched state-changing route."""
+    if request.method not in _CSRF_UNSAFE_METHODS or request.url_rule is None:
+        return None
+    if request.endpoint in _CSRF_EXEMPT_ENDPOINTS:
+        return None
+    validate_csrf_request()
+    return None
+
+
 @app.before_request
 def redirect_to_canonical_domain():
     parsed_url = urlparse(request.url)
@@ -8719,7 +8740,7 @@ def admin_test_push_all():
     }), overall_http
 
 
-@app.route("/admin/posthog-test", methods=["GET"])
+@app.route("/admin/posthog-test", methods=["POST"])
 @login_required
 @admin_required
 def admin_posthog_test():
@@ -8777,7 +8798,7 @@ def admin_posthog_test():
     return jsonify(results), 200
 
 
-@app.route("/admin/backfill-posthog", methods=["GET"])
+@app.route("/admin/backfill-posthog", methods=["GET", "POST"])
 @login_required
 @admin_required
 def admin_backfill_posthog():
@@ -8789,7 +8810,8 @@ def admin_backfill_posthog():
     Query params:
       ?dry_run=1   Build property dicts and return them without sending anything.
     """
-    dry_run = request.args.get("dry_run", "0") == "1"
+    # GET is permanently read-only. Execution requires a CSRF-protected POST.
+    dry_run = request.method == "GET" or request.args.get("dry_run", "0") == "1"
 
     # ── 1. Bulk-fetch supporting data (no N+1 inside the user loop) ──────────
 
@@ -17116,7 +17138,7 @@ def backfill_resort_ids_endpoint():
         }), 500
 
 
-@app.route("/admin/seed-test-users", methods=["GET", "POST"])
+@app.route("/admin/seed-test-users", methods=["POST"])
 @login_required
 @admin_required
 def seed_test_users_endpoint():
@@ -17124,7 +17146,7 @@ def seed_test_users_endpoint():
     HTTP endpoint to seed test users for demo/testing.
     Creates Richard + 20 friends with complete profiles, trips, and friendships.
     
-    Usage: GET https://yourapp.replit.dev/admin/seed-test-users
+    Usage: POST https://yourapp.replit.dev/admin/seed-test-users
     
     This is idempotent - safe to call multiple times.
     """
@@ -17153,7 +17175,7 @@ def seed_test_users_endpoint():
         }), 500
 
 
-@app.route("/admin/seed-narrative-states", methods=["GET", "POST"])
+@app.route("/admin/seed-narrative-states", methods=["POST"])
 @login_required
 @admin_required
 def seed_narrative_states_endpoint():
@@ -17161,8 +17183,7 @@ def seed_narrative_states_endpoint():
     HTTP endpoint to seed 4 test users for narrative state validation.
     Creates users for State 1, 2, 3, and 4 for testing NBA behavior.
     
-    Usage: GET https://yourapp.replit.dev/admin/seed-narrative-states
-    validate_csrf_request() is called for POST.
+    Usage: POST https://yourapp.replit.dev/admin/seed-narrative-states
     
     Test user logins (password: testpass123):
     - state1.test@baselodge.dev (State 1: Early Onboarding)
@@ -17191,7 +17212,7 @@ def seed_narrative_states_endpoint():
         }), 500
 
 
-@app.route("/admin/seed-screenshot-data", methods=["GET", "POST"])
+@app.route("/admin/seed-screenshot-data", methods=["POST"])
 @login_required
 @admin_required
 def seed_screenshot_data_endpoint():
@@ -17204,7 +17225,7 @@ def seed_screenshot_data_endpoint():
 
     Idempotent — safe to call multiple times. Existing rows are skipped.
 
-    Usage: GET /admin/seed-screenshot-data
+    Usage: POST /admin/seed-screenshot-data
     """
     if request.method == "POST":
         validate_csrf_request()
@@ -17229,7 +17250,7 @@ def seed_screenshot_data_endpoint():
         }), 500
 
 
-@app.route("/admin/seed-screenshot-expansion", methods=["GET", "POST"])
+@app.route("/admin/seed-screenshot-expansion", methods=["POST"])
 @login_required
 @admin_required
 def seed_screenshot_expansion_endpoint():
@@ -17240,7 +17261,7 @@ def seed_screenshot_expansion_endpoint():
 
     Idempotent — safe to call multiple times. All writes are get-or-create.
 
-    Usage: GET /admin/seed-screenshot-expansion
+    Usage: POST /admin/seed-screenshot-expansion
     """
     if request.method == "POST":
         validate_csrf_request()
@@ -17265,14 +17286,14 @@ def seed_screenshot_expansion_endpoint():
         }), 500
 
 
-@app.route("/admin/backfill-planning-timestamp", methods=["GET", "POST"])
+@app.route("/admin/backfill-planning-timestamp", methods=["POST"])
 @login_required
 @admin_required
 def backfill_planning_timestamp_endpoint():
     """
     HTTP endpoint to backfill first_planning_timestamp for existing users.
     
-    Usage: GET https://yourapp.replit.dev/admin/backfill-planning-timestamp
+    Usage: POST https://yourapp.replit.dev/admin/backfill-planning-timestamp
     
     This is idempotent and safe to run multiple times.
     Only updates users who have trips but no first_planning_timestamp set.
@@ -17303,14 +17324,14 @@ def backfill_planning_timestamp_endpoint():
         }), 500
 
 
-@app.route("/admin/backfill-primary-rider-type", methods=["GET", "POST"])
+@app.route("/admin/backfill-primary-rider-type", methods=["POST"])
 @login_required
 @admin_required
 def backfill_primary_rider_type_endpoint():
     """
     HTTP endpoint to backfill primary_rider_type from legacy rider_type for existing users.
     
-    Usage: GET https://yourapp.replit.dev/admin/backfill-primary-rider-type
+    Usage: POST https://yourapp.replit.dev/admin/backfill-primary-rider-type
     
     This is idempotent and safe to run multiple times.
     Only updates users who have rider_type but no primary_rider_type set.
@@ -17349,14 +17370,14 @@ def backfill_primary_rider_type_endpoint():
         }), 500
 
 
-@app.route("/admin/backfill-organizers-as-participants", methods=["GET", "POST"])
+@app.route("/admin/backfill-organizers-as-participants", methods=["POST"])
 @login_required
 @admin_required
 def backfill_organizers_as_participants():
     """
     HTTP endpoint to backfill trip organizers as participants.
     
-    Usage: GET https://yourapp.replit.dev/admin/backfill-organizers-as-participants
+    Usage: POST https://yourapp.replit.dev/admin/backfill-organizers-as-participants
     
     This is idempotent - safe to run multiple times.
     Only creates participant records for trips where the owner is not already a participant.
@@ -18779,7 +18800,7 @@ def resorts_audit():
     })
 
 
-@app.route("/admin/backfill-country-codes", methods=["GET", "POST"])
+@app.route("/admin/backfill-country-codes", methods=["POST"])
 @login_required
 @admin_required
 def backfill_country_codes():
@@ -18787,7 +18808,7 @@ def backfill_country_codes():
     Backfill country_code and state_code for resorts based on state field.
     v2 - Updated 2025-12-25
     
-    Usage: GET https://yourapp.replit.dev/admin/backfill-country-codes
+    Usage: POST https://yourapp.replit.dev/admin/backfill-country-codes
     
     This is idempotent - safe to call multiple times.
     """

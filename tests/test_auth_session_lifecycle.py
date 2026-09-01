@@ -8,6 +8,11 @@ from models import db, User
 from tests.conftest import _TEST_CSRF, _make_user, form_post
 
 
+def _prime_csrf(client):
+    with client.session_transaction() as session:
+        session["_csrf_token"] = _TEST_CSRF
+
+
 def _real_login(client, email, *, remember=False):
     data = {
         "form_type": "login",
@@ -16,6 +21,8 @@ def _real_login(client, email, *, remember=False):
     }
     if remember:
         data["remember_me"] = "on"
+    _prime_csrf(client)
+    data["csrf_token"] = _TEST_CSRF
     with (
         patch("app.ph_analytics.identify"),
         patch("app.ph_analytics.track"),
@@ -117,14 +124,15 @@ def test_nonremembered_reset_clears_prior_accounts_remember_cookie(client):
     _real_login(client, first_email, remember=True)
     assert client.get_cookie("remember_token") is not None
 
+    _prime_csrf(client)
     with patch("app._queue_founder_login_push"):
-        response = client.post(
+        response = form_post(
+            client,
             f"/reset-password/{reset_token}",
             data={
                 "password": "NewAccountPass2!",
                 "confirm_password": "NewAccountPass2!",
             },
-            follow_redirects=False,
         )
 
     assert response.status_code == 302
@@ -136,6 +144,7 @@ def test_signup_uses_fresh_remembered_session_and_preserves_onboarding(client):
     with client.session_transaction() as session:
         session["unapproved"] = "remove-me"
         session["post_onboarding_redirect"] = "/invite/signup-token"
+        session["_csrf_token"] = _TEST_CSRF
 
     with (
         patch("app.ph_analytics.get_anon_id", return_value="anon"),
@@ -151,6 +160,7 @@ def test_signup_uses_fresh_remembered_session_and_preserves_onboarding(client):
                 "password": "TestPass1!",
                 "first_name": "Session",
                 "last_name": "Signup",
+                "csrf_token": _TEST_CSRF,
             },
             follow_redirects=False,
         )
@@ -209,6 +219,7 @@ def test_password_reset_revokes_old_sessions_and_creates_fresh_login(client):
         token = user.get_reset_token()
 
     _real_login(client, email, remember=True)
+    _prime_csrf(reset_client)
     with (
         patch("app._queue_founder_login_push"),
         patch("app.ph_analytics.track"),
@@ -218,6 +229,7 @@ def test_password_reset_revokes_old_sessions_and_creates_fresh_login(client):
             data={
                 "password": "ResetPass2!",
                 "confirm_password": "ResetPass2!",
+                "csrf_token": _TEST_CSRF,
             },
             follow_redirects=False,
         )

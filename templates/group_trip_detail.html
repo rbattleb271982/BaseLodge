@@ -185,6 +185,7 @@
                     {% endif %}
                     {% if is_host and guest.user_id != trip.host_id %}
                     <form method="POST" action="{{ url_for('remove_trip_guest', trip_id=trip.id, guest_id=guest.id) }}" style="margin: 0;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="gtd-remove-btn">Remove</button>
                     </form>
                     {% endif %}
@@ -199,6 +200,7 @@
         <p class="gtd-section-label">Invite a Friend</p>
         <div class="bl-card">
             <form method="POST" action="{{ url_for('invite_to_group_trip', trip_id=trip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <select name="friend_id" required class="gtd-invite-select">
                     <option value="">Select a friend…</option>
                     {% for friend in available_friends %}

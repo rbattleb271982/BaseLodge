@@ -5,11 +5,13 @@
     /* CSRF fetch wrapper — stays inline so it patches window.fetch synchronously
        before any body-template inline scripts execute. A defer file would run
        after body parsing, potentially missing fetch POSTs in page-level scripts. */
-    var _csrfToken = document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').content;
+    var _csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    var _csrfToken = _csrfMeta ? _csrfMeta.content : '';
     var _origFetch = window.fetch;
-    window.fetch = function(url, opts) {
+    function csrfFetch(url, opts) {
       opts = opts || {};
-      if (!opts.method || opts.method.toUpperCase() === 'GET') return _origFetch(url, opts);
+      var method = opts.method || (url && url.method) || 'GET';
+      if (method.toUpperCase() === 'GET') return _origFetch(url, opts);
       opts.headers = opts.headers || {};
       if (opts.headers instanceof Headers) {
         if (!opts.headers.has('X-CSRF-Token')) opts.headers.set('X-CSRF-Token', _csrfToken);
@@ -17,7 +19,12 @@
         opts.headers['X-CSRF-Token'] = opts.headers['X-CSRF-Token'] || _csrfToken;
       }
       return _origFetch(url, opts);
-    };
+    }
+    /* Canonical mutation helper. Callers that must not depend on fetch patch
+       timing (notably the deferred native bridge) use this directly. */
+    window.blFetch = csrfFetch;
+    /* Preserve compatibility for existing callers that use global fetch. */
+    window.fetch = csrfFetch;
   })();
 </script>
 <script>

@@ -76,20 +76,21 @@ This is simple and solid for a single-admin setup. There is no admin session tok
 | Route | Method | Preview/Execute Logic |
 |-------|--------|-----------------------|
 | `/admin/backfill-resort-ids` | GET/POST | ✅ GET=preview (no writes); POST=execute |
-| `/admin/backfill-country-codes` | GET/POST | **⚠ GET also writes — no preview mode** |
-| `/admin/backfill-planning-timestamp` | GET/POST | Delegates to separate module |
-| `/admin/backfill-primary-rider-type` | GET/POST | Inline logic; writes on both methods |
-| `/admin/backfill-organizers-as-participants` | GET/POST | Inline logic |
+| `/admin/backfill-country-codes` | POST | Executes with global CSRF protection |
+| `/admin/backfill-planning-timestamp` | POST | Delegates to separate module with global CSRF protection |
+| `/admin/backfill-primary-rider-type` | POST | Executes with global CSRF protection |
+| `/admin/backfill-organizers-as-participants` | POST | Executes with global CSRF protection |
 
 ### 2f. Seeding (Development / Demo Data)
 
 | Route | Method | Notes |
 |-------|--------|-------|
-| `/admin/seed-test-users` | GET/POST | Creates Richard + 20 friends; idempotent |
-| `/admin/seed-narrative-states` | GET/POST | 4 users for narrative state testing |
-| `/admin/seed-screenshot-data` | GET/POST | App Store screenshot demo data |
+| `/admin/seed-test-users` | POST | Creates Richard + 20 friends; idempotent |
+| `/admin/seed-narrative-states` | POST | 4 users for narrative state testing |
+| `/admin/seed-screenshot-data` | POST | App Store screenshot demo data |
+| `/admin/seed-screenshot-expansion` | POST | Expands App Store screenshot demo data |
 
-All three seed routes **execute on GET** — no preview gate. Idempotent, so low practical risk, but inconsistent with the GET=preview pattern elsewhere.
+All seed routes execute only through globally CSRF-protected POST requests.
 
 ### 2g. Push & Messaging
 
@@ -111,13 +112,9 @@ All three seed routes **execute on GET** — no preview gate. Idempotent, so low
 
 ## 3. Findings
 
-### 3.1 ⚠ HIGH — `/admin/backfill-country-codes` writes on GET
+### 3.1 Resolved — `/admin/backfill-country-codes` is POST-only
 
-**Lines:** 11696–11724 in `app.py`
-
-Unlike `/admin/backfill-resort-ids` which correctly uses GET for preview and POST for execute, `backfill-country-codes` runs `db.session.commit()` on both GET and POST. A browser prefetch, link preview, or accidental navigation triggers a real data mutation in production.
-
-**Recommendation:** Add an `is_preview = request.method == "GET"` branch; only commit on POST.
+The route now executes only through a globally CSRF-protected POST request.
 
 ---
 

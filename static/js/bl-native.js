@@ -461,14 +461,14 @@ document.addEventListener('focusin', function(e) {
    TestFlight push debugging. */
 
 // ── Beacon helper ─────────────────────────────────────────────────────────
-// Available when this defer script runs: the CSRF fetch-wrapper inline
-// <script> has already patched window.fetch during head parsing.
+// Available when this defer script runs: analytics_head.html has synchronously
+// exposed the canonical CSRF-aware request helper during head parsing.
 function _pushBeacon(step, data) {
   // Beacons are debug-only diagnostics. In production (BL_NAV_DEBUG not set)
   // this is a no-op so native users don't generate unnecessary network traffic.
   if (!window.__BL_NAV_DEBUG__) return;
   try {
-    window.fetch('/api/push/beacon', {
+    window.blFetch('/api/push/beacon', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ step: step, data: data || {} })
@@ -699,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
         regBody = { token: tokVal, platform: 'ios', apns_environment: apnsEnvHint };
       }
 
-      window.fetch('/api/push/register-token', {
+      window.blFetch('/api/push/register-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(regBody)
