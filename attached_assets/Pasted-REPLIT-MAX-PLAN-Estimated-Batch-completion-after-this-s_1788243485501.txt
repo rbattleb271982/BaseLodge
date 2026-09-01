@@ -1,0 +1,177 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~20%
+
+TASK: BL-178 — Capture structured production errors, request correlation, and route latency
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+GOAL
+
+Determine the smallest production-safe observability foundation for BaseLodge that provides:
+
+- structured application error logging
+- request correlation IDs
+- route latency visibility
+- enough context to diagnose Production failures without logging sensitive user data
+
+Do not design a full monitoring platform.
+
+INVESTIGATE
+
+1. Inventory current logging and error handling across the Flask application.
+
+Identify:
+- Flask/app logger configuration
+- Gunicorn logging behavior
+- request/response logging
+- global exception handlers
+- route-specific exception logging
+- background/push/analytics logging
+- any existing structured log format
+- any request ID/correlation behavior
+- any latency instrumentation
+- any external logging/observability service already configured
+
+2. Identify current Production runtime assumptions.
+
+Determine:
+- where stdout/stderr logs currently go
+- whether Replit deployment/runtime captures structured JSON cleanly
+- whether multiple Gunicorn workers affect correlation or aggregation
+- whether any third-party service is required for useful v1 observability
+
+Do not provision infrastructure.
+
+3. Define the minimum request correlation contract.
+
+Evaluate a generated request ID that:
+- is created for every request if no trusted internal ID exists
+- is available throughout request handling
+- is returned in a response header
+- appears in structured error and latency logs
+- does not encode user/session data
+
+Determine whether inbound request IDs should ever be trusted or whether BaseLodge should always generate its own.
+
+4. Define the structured error contract.
+
+Identify the minimum safe fields, such as:
+- timestamp
+- severity
+- event type
+- request ID
+- HTTP method
+- normalized route/endpoint
+- status code
+- duration
+- exception class
+- environment
+
+Explicitly identify fields that MUST NOT be logged, including:
+- passwords
+- auth/session cookies
+- CSRF tokens
+- reset tokens
+- OAuth credentials
+- push tokens
+- raw request bodies
+- raw email addresses unless an existing approved redaction policy permits them
+- sensitive query parameters
+
+Preserve BL-201 deleted-account email logging protections.
+
+5. Define route latency instrumentation.
+
+Determine how to measure:
+- request start time
+- total response duration
+- normalized Flask endpoint/route rather than raw high-cardinality URLs
+- status code
+
+Determine whether v1 should log every request or only:
+- slow requests
+- errors
+- sampled successful requests
+
+Recommend the lowest-noise useful approach.
+
+6. Review error response behavior.
+
+Ensure observability can be added without changing:
+- existing browser error pages
+- API JSON error contracts
+- auth behavior
+- CSRF behavior
+- rate-limit 429 behavior
+- redirects
+- Production debug settings
+
+7. Identify likely high-value route groups for initial latency/error visibility.
+
+Examples:
+- auth
+- Home
+- Trips / Trip Detail
+- Friends
+- Mountains
+- push/notification endpoints
+- admin endpoints
+
+Do not add route-specific instrumentation unless necessary.
+
+8. Determine whether this should remain entirely application-level or whether BL-178 requires an external service.
+
+If stdout structured logging is sufficient for this task, say so.
+
+Do not invent infrastructure work that belongs in BL-179 or another follow-up.
+
+9. Preserve existing security/privacy foundations:
+
+- BL-168 session hardening
+- BL-169 CSRF
+- BL-170 rate limiting
+- BL-201 sensitive deletion logging protections
+
+DO NOT
+
+- implement anything
+- provision Sentry, Datadog, Logtail, Better Stack, or another vendor
+- change Production secrets
+- deploy
+- change schema or migrations
+- log request/response bodies
+- add user-facing behavior
+- redesign error pages
+- build dashboards or alerts
+- implement BL-179 alert thresholds
+- run the full test suite
+
+DELIVERABLE
+
+Return:
+
+A. current logging architecture
+B. current exception/error handling
+C. Production log destination/constraints
+D. current request correlation support
+E. current latency instrumentation
+F. identified observability gaps
+G. proposed request-ID contract
+H. proposed structured log schema
+I. privacy/redaction rules
+J. proposed latency logging strategy
+K. whether any external service is required
+L. exact narrow BUILD scope
+M. focused tests required
+N. files likely to change
+O. schema/migration requirement
+P. Production/deployment prerequisites
+Q. recommended BUILD tier
+
+Keep the PLAN narrow.
+
+The goal is a dependable application-level observability foundation, not a full monitoring stack.
+
+Do not implement during PLAN.
+Do not run the full suite.
