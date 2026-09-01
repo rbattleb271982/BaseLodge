@@ -306,12 +306,18 @@ def begin_request_observability():
 from flask_compress import Compress as _Compress
 _Compress(app)
 
-_RATELIMIT_STORAGE_URI = (
-    os.environ.get("RATELIMIT_STORAGE_URI", "").strip() or "memory://"
+from services.rate_limit_storage import (
+    rate_limit_storage_is_shared,
+    resolve_rate_limit_storage_uri,
+)
+
+_RATELIMIT_STORAGE_URI = resolve_rate_limit_storage_uri(
+    os.environ.get("RATELIMIT_STORAGE_URI"),
+    runtime_env=database_configuration.runtime_env,
 )
 app.config["RATELIMIT_STORAGE_URI"] = _RATELIMIT_STORAGE_URI
-app.config["RATELIMIT_SHARED_STORAGE_CONFIGURED"] = (
-    _RATELIMIT_STORAGE_URI != "memory://"
+app.config["RATELIMIT_SHARED_STORAGE_CONFIGURED"] = rate_limit_storage_is_shared(
+    _RATELIMIT_STORAGE_URI
 )
 
 limiter = Limiter(
@@ -322,12 +328,6 @@ limiter = Limiter(
     headers_enabled=True,
     retry_after="delta-seconds",
 )
-
-if is_production and not app.config["RATELIMIT_SHARED_STORAGE_CONFIGURED"]:
-    app.logger.warning(
-        "RATELIMIT_STORAGE_URI is not configured; rate limits are process-local "
-        "and are not production-wide enforcement."
-    )
 
 def _user_or_ip():
     from flask_login import current_user as _cu
