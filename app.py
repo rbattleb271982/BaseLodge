@@ -162,6 +162,11 @@ from services.friends_paging import (
     FriendsCursorError,
     load_friends_page,
 )
+from services.friend_suggestions_paging import (
+    FriendSuggestionsCursorError,
+    count_active_suggestions,
+    load_suggestions_page,
+)
 from services.friends_trips_paging import (
     FriendsTripsCursorError,
     FriendsTripsGroupError,
@@ -9764,71 +9769,6 @@ def _friends_filter_args():
     }
 
 
-def _load_suggested_friends(user):
-    suggested_friends = []
-    try:
-        from collections import defaultdict as _defaultdict
-        now = datetime.utcnow()
-        suggestion_rows = FriendSuggestion.query.filter(
-            FriendSuggestion.recipient_id == user.id,
-            FriendSuggestion.dismissed_at.is_(None),
-            FriendSuggestion.expires_at > now,
-        ).order_by(FriendSuggestion.created_at.asc()).all()
-        grouped = _defaultdict(list)
-        for row in suggestion_rows:
-            grouped[row.suggested_user_id].append(row)
-        summaries = []
-        for suggested_user_id, rows in grouped.items():
-            summaries.append({
-                "suggested_user_id": suggested_user_id,
-                "suggester_ids": [
-                    row.suggester_id
-                    for row in sorted(rows, key=lambda value: value.created_at)
-                ],
-                "latest_at": max(row.created_at for row in rows),
-            })
-        summaries.sort(key=lambda value: value["latest_at"], reverse=True)
-        suggested_ids = [value["suggested_user_id"] for value in summaries]
-        suggester_ids = list({
-            suggester_id
-            for value in summaries
-            for suggester_id in value["suggester_ids"]
-        })
-        users = {
-            value.id: value
-            for value in User.query.filter(User.id.in_(suggested_ids)).all()
-        } if suggested_ids else {}
-        suggesters = {
-            value.id: value
-            for value in User.query.filter(User.id.in_(suggester_ids)).all()
-        } if suggester_ids else {}
-        inbound = Invitation.query.filter(
-            Invitation.receiver_id == user.id,
-            Invitation.sender_id.in_(suggested_ids),
-            Invitation.trip_id.is_(None),
-            Invitation.status == "pending",
-        ).all() if suggested_ids else []
-        inbound_by_sender = {value.sender_id: value for value in inbound}
-        for summary in summaries:
-            suggested_user = users.get(summary["suggested_user_id"])
-            if not suggested_user:
-                continue
-            invitation = inbound_by_sender.get(summary["suggested_user_id"])
-            suggested_friends.append({
-                "user": suggested_user,
-                "attribution": _build_suggestion_attribution(
-                    summary["suggester_ids"], suggesters
-                ),
-                "has_inbound_request": invitation is not None,
-                "inbound_invitation_id": invitation.id if invitation else None,
-                "latest_at": summary["latest_at"],
-            })
-    except Exception:
-        db.session.rollback()
-        suggested_friends = []
-    return suggested_friends
-
-
 def _render_bounded_friends():
     user = current_user
     filters = _friends_filter_args()
@@ -9861,7 +9801,6 @@ def _render_bounded_friends():
         {"slug": slug, "label": _PASS_DISPLAY_MAP.get(slug, slug)}
         for slug in CANONICAL_PASS_ORDER
     ]
-    suggested_friends = _load_suggested_friends(user)
     return render_template(
         "friends.html",
         user=user,
@@ -9875,8 +9814,8 @@ def _render_bounded_friends():
         pending_incoming=pending_incoming,
         filter_passes=filter_passes,
         initial_tab=request.args.get("tab", "friends"),
-        suggested_friends=suggested_friends,
-        suggested_count=len(suggested_friends),
+        suggested_friends=[],
+        suggested_count=count_active_suggestions(user.id),
     )
 
 
@@ -9901,6 +9840,46 @@ def api_friends_page():
         "matching_count": page.matching_count,
         "authorized_count": page.authorized_count,
         "friend_ids": [row.id for row in page.rows],
+    })
+
+
+@app.route("/api/friends/suggestions/page")
+@login_required
+def api_friend_suggestions_page():
+    try:
+        page = load_suggestions_page(
+            current_user.id, request.args.get("cursor")
+        )
+    except FriendSuggestionsCursorError as exc:
+        return jsonify({"error": str(exc)}), 400
+    # The service intentionally returns only IDs; hydrate attribution users
+    # in one bounded query for this page.
+    suggester_ids = {
+        suggester_id for row in page.rows
+        for suggester_id in row["suggester_ids"]
+    }
+    suggesters = {
+        user.id: user for user in User.query.filter(
+            User.id.in_(suggester_ids)
+        ).all()
+    } if suggester_ids else {}
+    rows = []
+    for row in page.rows:
+        item = dict(row)
+        item["attribution"] = _build_suggestion_attribution(
+            item.pop("suggester_ids"), suggesters,
+            item.pop("suggester_count"),
+        )
+        rows.append(item)
+    html = render_template(
+        "components/friends_suggestion_rows.html",
+        suggested_friends=rows,
+    )
+    return jsonify({
+        "html": html,
+        "has_more": page.has_more,
+        "next_cursor": page.next_cursor,
+        "count": count_active_suggestions(current_user.id),
     })
 
 
@@ -10236,7 +10215,7 @@ def remove_friend_web(friend_id):
 
 # ── BL-12: Suggest connections page routes ────────────────────────────────────
 
-def _build_suggestion_attribution(suggester_ids, sr_user_map):
+def _build_suggestion_attribution(suggester_ids, sr_user_map, total_count=None):
     """Return attribution string for a group of suggester IDs (chronological order)."""
     names = []
     for sid in suggester_ids:
@@ -10244,9 +10223,10 @@ def _build_suggestion_attribution(suggester_ids, sr_user_map):
         names.append(u.first_name if (u and u.first_name) else 'Someone')
     if len(names) == 1:
         return f"Suggested by {names[0]}"
-    if len(names) == 2:
+    total = total_count if total_count is not None else len(names)
+    if total == 2:
         return f"Suggested by {names[0]} and {names[1]}"
-    extra = len(names) - 2
+    extra = total - 2
     return f"Suggested by {names[0]}, {names[1]} +{extra}"
 
 

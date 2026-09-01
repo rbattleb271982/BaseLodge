@@ -1,0 +1,13 @@
+{% for s in suggested_friends %}
+{% set _preview_name = s.user.first_name | format_name %}
+{% if s.user.last_name %}{% set _preview_name = _preview_name ~ ' ' ~ (s.user.last_name | format_name) %}{% endif %}
+{% set _preview_state = s.user.home_state | state_name if s.user.home_state else '' %}
+<div class="fr-sugg-row" id="fr-sugg-row-{{ s.user.id }}" data-suggested-id="{{ s.user.id }}" data-suggested-name="{{ _preview_name }}" data-suggested-state="{{ _preview_state }}" data-suggested-attribution="{{ s.attribution }}">
+ <div class="fr-sugg-info"><button type="button" class="fr-sugg-name" onclick="frSuggOpenPreview(this)" aria-label="Preview {{ _preview_name }}">{{ _preview_name }}{% if _preview_state %} - {{ _preview_state }}{% endif %}</button><p class="fr-sugg-by">{{ s.attribution }}</p></div>
+ <div class="fr-sugg-actions">
+ {% if s.has_inbound_request %}<button class="fr-sugg-accept" data-sugg-action-for="{{ s.user.id }}" data-sugg-action="accept" data-sugg-invitation-id="{{ s.inbound_invitation_id }}" onclick="frSuggRunAction(this)">Accept</button>
+ {% else %}<button class="fr-sugg-connect" data-sugg-action-for="{{ s.user.id }}" data-sugg-action="connect" onclick="frSuggRunAction(this)">Connect</button>{% endif %}
+ <button class="fr-sugg-dismiss" onclick="frSuggDismiss({{ s.user.id }}, this)" aria-label="Dismiss {{ _preview_name }}">×</button>
+ </div>
+</div>
+{% endfor %}

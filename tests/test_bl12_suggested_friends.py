@@ -389,10 +389,10 @@ class TestAggregationAndAttribution:
             jid = jon.id
 
         _login(client, jid)
-        resp = client.get('/friends?tab=suggested')
+        resp = client.get('/api/friends/suggestions/page')
         assert resp.status_code == 200
         # format_name capitalizes first letter only — 'BobNew' → 'Bobnew'
-        body = resp.data.decode()
+        body = resp.get_json()['html']
         bob_pos = body.find('Bobnew')
         alice_pos = body.find('Aliceold')
         assert bob_pos != -1 and alice_pos != -1
@@ -472,7 +472,7 @@ class TestSuggestedFriendPreview:
             jid, aid = jon.id, alice.id
 
         _login(client, jid)
-        body = client.get('/friends?tab=suggested').get_data(as_text=True)
+        body = client.get('/api/friends/suggestions/page').get_json()['html']
 
         assert f'id="fr-sugg-row-{aid}"' in body
         assert 'data-suggested-name=' in body

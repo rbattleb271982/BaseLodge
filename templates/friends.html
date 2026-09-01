@@ -916,56 +916,9 @@
         <div data-fr-region="suggestions">
         <div id="segment-suggested" class="segment-content {% if initial_tab == 'suggested' %}active{% endif %}">
 
-            {% if suggested_friends %}
-            <div id="fr-sugg-list">
-            {% for s in suggested_friends %}
-            {% set _preview_name = s.user.first_name | format_name %}
-            {% if s.user.last_name %}
-            {% set _preview_name = _preview_name ~ ' ' ~ (s.user.last_name | format_name) %}
-            {% endif %}
-            {% set _preview_state = s.user.home_state | state_name if s.user.home_state else '' %}
-            <div class="fr-sugg-row" id="fr-sugg-row-{{ s.user.id }}" data-suggested-id="{{ s.user.id }}"
-                 data-suggested-name="{{ _preview_name }}"
-                 data-suggested-state="{{ _preview_state }}"
-                 data-suggested-attribution="{{ s.attribution }}">
-                <div class="fr-sugg-info">
-                    <button type="button" class="fr-sugg-name" onclick="frSuggOpenPreview(this)"
-                            aria-label="Preview {{ _preview_name }}">
-                        {{- _preview_name -}}
-                        {%- if _preview_state %} - {{ _preview_state }}{% endif -%}
-                    </button>
-                    <p class="fr-sugg-by">{{ s.attribution }}</p>
-                </div>
-                <div class="fr-sugg-actions">
-                    {% if s.has_inbound_request %}
-                    <button class="fr-sugg-accept"
-                            data-sugg-action-for="{{ s.user.id }}" data-sugg-action="accept"
-                            data-sugg-invitation-id="{{ s.inbound_invitation_id }}"
-                            onclick="frSuggRunAction(this)"
-                            aria-label="Accept connection request from {{ s.user.first_name | format_name }}">
-                        Accept
-                    </button>
-                    {% else %}
-                    <button class="fr-sugg-connect"
-                            data-sugg-action-for="{{ s.user.id }}" data-sugg-action="connect"
-                            onclick="frSuggRunAction(this)"
-                            aria-label="Connect with {{ s.user.first_name | format_name }}">
-                        Connect
-                    </button>
-                    {% endif %}
-                    <button class="fr-sugg-dismiss"
-                            onclick="frSuggDismiss({{ s.user.id }}, this)"
-                            aria-label="Dismiss {{ s.user.first_name | format_name }}">
-                        ×
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-            </div>
-
-            {% else %}
-            <!-- Empty state -->
-            <div class="fr-sugg-empty">
+            <div id="fr-sugg-loading" style="padding:24px 0 8px;color:var(--bl-color-text-muted);">Loading…</div>
+            <div id="fr-sugg-list"></div>
+            <div id="fr-sugg-empty" class="fr-sugg-empty" hidden>
                 <h2 class="fr-sugg-empty-headline">Find your crew</h2>
                 <p class="fr-sugg-empty-body">
                     Your BaseLodge friends can suggest people they think you know.
@@ -976,7 +929,7 @@
                     and tap <strong>Suggest connections</strong>.
                 </p>
             </div>
-            {% endif %}
+            <button type="button" id="fr-sugg-load-more" class="fr-load-more" hidden>Load more</button>
 
         </div>{# /segment-suggested #}
         </div><!-- /suggestions region -->
@@ -1463,6 +1416,12 @@
         afterReplace: async function(context) {
             var state = context.state || {};
             if (!context.isCurrent()) return;
+            if (context.regions.includes('suggestions')) {
+                if (_frSuggestionsController) _frSuggestionsController.abort();
+                _frSuggestionsController = null;
+                _frSuggestionsLoaded = false;
+                _frSuggestionsPending = false;
+            }
             var input = document.getElementById('fr-search');
             if (input) input.value = state.searchValue || '';
             _frUpdateChips();
@@ -1498,6 +1457,7 @@
                     ).length;
                 }
             }
+            _frEnsureSuggestionsLoaded();
             if (state.focusId) {
                 var focusTarget = document.getElementById(state.focusId);
                 if (focusTarget) focusTarget.focus({ preventScroll: true });
@@ -2032,9 +1992,96 @@
 
     // ── BL-12: Tab switching ──────────────────────────────────────────────────
     var _frCurrentTab = {{ initial_tab | tojson }};
+    var _frSuggestionsLoaded = false;
+    var _frSuggestionsPending = false;
+    var _frSuggestionsController = null;
+
+    async function _frFetchSuggestions(reset) {
+        if (_frSuggestionsPending) return;
+        if (reset && _frSuggestionsLoaded) return;
+        var list = document.getElementById('fr-sugg-list');
+        var loading = document.getElementById('fr-sugg-loading');
+        var empty = document.getElementById('fr-sugg-empty');
+        var button = document.getElementById('fr-sugg-load-more');
+        if (!list || !loading || !empty || !button) return;
+        _frSuggestionsPending = true;
+        if (reset) {
+            _frSuggestionsLoaded = false;
+            list.innerHTML = '';
+            empty.hidden = true;
+            loading.hidden = false;
+        }
+        if (_frSuggestionsController) _frSuggestionsController.abort();
+        _frSuggestionsController = new AbortController();
+        var cursor = reset ? '' : (button.getAttribute('data-cursor') || '');
+        button.disabled = true;
+        button.hidden = true;
+        try {
+            var query = cursor ? '?cursor=' + encodeURIComponent(cursor) : '';
+            var response = await fetch('/api/friends/suggestions/page' + query, {
+                headers: { 'Accept': 'application/json' },
+                signal: _frSuggestionsController.signal
+            });
+            if (!response.ok) throw new Error('Unable to load suggestions');
+            var payload = await response.json();
+            if (reset) list.innerHTML = '';
+            if (payload.html) {
+                var holder = document.createElement('div');
+                holder.innerHTML = payload.html;
+                var existingIds = new Set(Array.from(
+                    list.querySelectorAll('[data-suggested-id]')
+                ).map(function(row) {
+                    return row.getAttribute('data-suggested-id');
+                }));
+                Array.from(holder.querySelectorAll('.fr-sugg-row')).forEach(function(row) {
+                    var id = row.getAttribute('data-suggested-id');
+                    if (!id || existingIds.has(id)) return;
+                    existingIds.add(id);
+                    list.appendChild(row);
+                });
+            }
+            loading.hidden = true;
+            _frSuggestionsLoaded = true;
+            if (!list.children.length && reset) empty.hidden = false;
+            if (payload.count !== undefined) {
+                var badge = document.getElementById('fr-sugg-badge');
+                if (badge) {
+                    badge.textContent = payload.count;
+                    badge.style.display = payload.count > 0 ? '' : 'none';
+                }
+            }
+            if (payload.has_more && payload.next_cursor) {
+                button.setAttribute('data-cursor', payload.next_cursor);
+                button.hidden = false;
+                button.disabled = false;
+                button.textContent = 'Load more';
+            } else {
+                button.setAttribute('data-cursor', '');
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                loading.hidden = true;
+                empty.hidden = !list.children.length;
+                button.hidden = false;
+                button.disabled = false;
+                button.textContent = 'Try again';
+            }
+        } finally {
+            _frSuggestionsPending = false;
+        }
+    }
+
+    function _frEnsureSuggestionsLoaded() {
+        if (_frCurrentTab === 'suggested' && !_frSuggestionsLoaded) {
+            _frFetchSuggestions(true);
+        }
+    }
 
     function frSelectTab(tab) {
-        if (tab === _frCurrentTab) return;
+        if (tab === _frCurrentTab) {
+            if (tab === 'suggested') _frEnsureSuggestionsLoaded();
+            return;
+        }
         _frCurrentTab = tab;
         // Toggle segment visibility
         document.querySelectorAll('.segment-content').forEach(function(el) {
@@ -2054,6 +2101,7 @@
             }
             window.history.replaceState({}, '', u.toString());
         } catch(e) {}
+        if (tab === 'suggested') _frEnsureSuggestionsLoaded();
     }
 
     // Honour ?tab= on page load (handled server-side via initial_tab,
@@ -2067,6 +2115,13 @@
             }
         } catch(e) {}
     })();
+    _frEnsureSuggestionsLoaded();
+
+    document.addEventListener('click', function(event) {
+        if (event.target.closest('#fr-sugg-load-more')) {
+            _frFetchSuggestions(false);
+        }
+    });
 
     // ── BL-12: Suggestion row actions ────────────────────────────────────────
     var _frSuggPreviewOpen = false;
