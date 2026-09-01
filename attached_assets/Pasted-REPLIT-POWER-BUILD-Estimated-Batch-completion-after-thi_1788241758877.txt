@@ -1,0 +1,182 @@
+REPLIT: POWER + BUILD
+Estimated Batch completion after this step: ~100%
+
+TASK: BL-175 — Lazy-load Friends suggestions
+
+Use Task #415 PLAN as the implementation contract.
+
+GOAL
+
+Remove full Suggested Friends hydration from the initial Friends page response.
+
+Keep only a cheap authorized suggestion count for the existing badge, then load Suggested Friends on demand through bounded, server-rendered pagination.
+
+IMPLEMENT ONLY THIS SCOPE.
+
+1. BOUND SUGGESTION RETRIEVAL
+
+Add a recipient-authorized suggestion paging service that:
+
+- groups active suggestion rows by suggested person BEFORE applying the page limit
+- preserves current suggestion ordering
+- preserves current attribution behavior
+- preserves existing Accept vs Connect state
+- excludes dismissed or expired suggestions
+- uses signed, viewer-scoped, versioned, typed cursors
+- never loads the full suggestion universe to create a page
+
+Use a small bounded page size consistent with the current Friends UX.
+
+2. CHEAP INITIAL BADGE COUNT
+
+On the default Friends render:
+
+- do not hydrate suggestion cards
+- do not hydrate suggested users/suggesters/inbound request state for cards
+- compute only the smallest authorized distinct suggested-person count required for the existing badge
+
+Keep incoming friend requests synchronous and unchanged.
+
+Keep the primary Friends directory unchanged.
+
+3. CANONICAL SUGGESTION ENDPOINT
+
+Add one authenticated endpoint for bounded suggestion pages.
+
+Requirements:
+
+- authenticated viewer is the recipient
+- active/non-dismissed/non-expired rules are rechecked on every request
+- cursor viewer binding and tamper protection
+- server-rendered canonical suggestion fragment
+- existing card actions/copy/preview behavior preserved
+- no client-side reconstruction of suggestion state
+
+4. LOAD SUGGESTIONS ON DEMAND
+
+In Friends:
+
+- default Friends tab must not request suggestion-card data
+- first suggestion page loads when Suggested Friends becomes visible
+- `/friends?tab=suggested` should trigger the same first-page load after the primary shell renders
+- subsequent pages use bounded Load More behavior
+
+Preserve:
+
+- active tab
+- directory filters/search
+- already loaded directory rows
+- directory cursor
+- focus
+- scroll position
+- pending controls
+- suggestion preview behavior
+
+Do not create a new refresh engine.
+
+Use the existing Friends page-local paging pattern and remain compatible with BL-173 targeted refresh regions.
+
+5. MUTATION COMPATIBILITY
+
+Existing suggestion actions must continue to work unchanged:
+
+- Connect
+- Accept
+- dismiss
+- preview behavior
+- attribution behavior
+- notification behavior
+
+After targeted Friends refreshes, suggestion state/counts must remain correct without forcing a full Friends reload.
+
+CRITICAL CONSTRAINTS
+
+Preserve:
+
+- BL-133 authorization and privacy
+- BL-159 primary Friends paging/filter/order/query behavior
+- BL-173 targeted Friends refresh behavior
+- BL-168 sessions
+- BL-169 CSRF
+- BL-170 limits
+- current suggestion product semantics
+
+DO NOT:
+
+- lazy-load incoming friend requests
+- change primary Friends page size/order/filter behavior
+- change Friends’ Trips
+- change friend-profile social intelligence
+- redesign Friends
+- change copy
+- add a frontend framework
+- add a client state store
+- broaden query budgets
+- fetch complete suggestion datasets
+- change schema/index/migrations
+- touch Production, deployment, secrets, or persistent data
+
+VALIDATION
+
+Run focused tests only.
+
+Cover:
+
+- 0/1/page-boundary/multi-page suggestion counts
+- grouping by suggested person before page limit
+- multiple suggesters for one suggested person
+- preserved ordering
+- dismissed/expired suggestions excluded
+- viewer-scoped cursor
+- tampered cursor rejected
+- wrong viewer cannot use another viewer's cursor
+- canonical fragment shape
+- initial Friends render does not hydrate suggestion cards
+- initial badge count remains correct
+- default tab does not fetch suggestion page
+- direct Suggested Friends tab triggers first bounded load
+- Load More appends without duplicates
+- directory filters/search/rows/cursor remain intact
+- existing Connect/Accept/dismiss behavior remains correct
+- BL-173 targeted refresh compatibility
+- authorization/privacy rechecked on every page
+
+MEASURE
+
+Using focused instrumentation, report:
+
+- initial Friends query/work budget after change
+- first suggestion-page query/work budget
+- behavior with a materially larger source suggestion count
+
+The important result is bounded growth, not exhaustive stress testing.
+
+Also run:
+
+- Python compilation for touched Python
+- JS syntax check for touched JS
+- Jinja/template load check if templates change
+- git diff --check
+
+DO NOT run the full test suite.
+DO NOT run broad browser automation.
+
+If implementing grouped cursor paging requires broad changes to Friends paging architecture, STOP and report rather than expanding scope.
+
+COMMIT
+
+Commit only BL-175 changes with a clear commit message.
+
+RETURN
+
+- implementation summary
+- exact initial-render work removed
+- suggestion page size and cursor contract
+- files changed
+- focused tests/results
+- measured query/work budgets
+- syntax/template/diff checks
+- commit hash
+- any remaining narrow issue
+- confirmation BL-175 is code-side complete
+- confirmation no schema/migration/Production/persistent-data changes occurred
