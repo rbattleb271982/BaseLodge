@@ -1,0 +1,112 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~85%
+
+TASK: BL-170 — Rate limiting and abuse protection
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+GOAL
+
+Audit BaseLodge for endpoints where repeated requests could create meaningful security, privacy, operational, or cost risk.
+
+Determine the smallest rate-limiting/abuse-protection layer BaseLodge actually needs.
+
+FOCUS ON
+
+- login and signup
+- forgot/reset password
+- authentication/OAuth entry points where applicable
+- friend requests/invites
+- trip invitations and sharing
+- messaging
+- push-related mutations
+- email-triggering endpoints
+- account-sensitive actions
+- public or unauthenticated endpoints
+- expensive authenticated endpoints
+- endpoints that can generate third-party API calls
+- admin endpoints only where abuse protection is relevant
+
+INVESTIGATE
+
+1. Whether any rate-limiting mechanism already exists.
+2. Which endpoints can currently be called repeatedly without meaningful bounds.
+3. Which endpoints can trigger:
+   - email
+   - push
+   - messages
+   - external API calls
+   - expensive database work
+   - authentication attempts
+4. Which risks should be limited by:
+   - IP
+   - authenticated user
+   - target/recipient
+   - endpoint/action
+   - or a combination.
+5. Whether limits need to work across multiple application processes/instances.
+6. Whether existing infrastructure provides an appropriate shared rate-limit store.
+7. Appropriate behavior when a limit is reached, including HTTP status and retry information.
+8. Whether native/Capacitor behavior requires any special handling.
+9. How to avoid allowing attackers to use rate limits to lock another user out.
+10. Which endpoints do NOT need rate limiting and should remain unchanged.
+
+RANK REAL GAPS
+
+HIGH / MEDIUM / LOW.
+
+For each recommended limit, provide:
+
+- endpoint/action
+- abuse scenario
+- limiting identity/key
+- proposed threshold/window
+- response when exceeded
+- whether the limit must be shared across instances
+
+IMPORTANT
+
+Do not blindly add rate limiting to every route.
+
+Prefer protection for genuinely abuse-sensitive actions over a generalized application-wide throttle.
+
+Do not implement during PLAN.
+
+OUT OF SCOPE
+
+- BL-168 auth/session work
+- BL-169 CSRF work
+- CAPTCHA unless investigation shows it is genuinely necessary
+- MFA
+- authentication redesign
+- generalized API redesign
+- schema/index/migration changes
+- Production changes
+- persistent database mutations
+
+DELIVERABLE
+
+Return:
+
+A. current rate-limit/abuse architecture
+B. abuse-sensitive endpoint inventory
+C. existing protections already adequate
+D. confirmed gaps ranked HIGH/MEDIUM/LOW
+E. recommended limits and keys
+F. email/push/message abuse assessment
+G. authentication abuse assessment
+H. expensive-request assessment
+I. multi-instance/shared-store requirements
+J. native-shell considerations
+K. exact recommended BUILD scope
+L. focused tests required
+M. whether new dependency/infrastructure is required
+N. whether schema/migration is required
+O. recommended Replit tier for BUILD
+
+Keep the proposed BUILD as small as reasonably possible.
+
+Do not run the full test suite.
+Do not perform broad stress testing.
+Use focused inspection/tests only.
