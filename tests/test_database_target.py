@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 from contextlib import contextmanager
+import hashlib
 import logging.config
 from pathlib import Path
 import runpy
@@ -40,9 +41,27 @@ PRODUCTION_URL = (
     f"postgresql://postgres.{PRODUCTION_REF}:production-password"
     f"@{POOLER_HOST}:5432/postgres"
 )
+PRODUCTION_ALTERNATE_ROLE_URL = (
+    f"postgresql://readonly.{PRODUCTION_REF}:alternate-password"
+    f"@{POOLER_HOST}:5432/postgres"
+)
+LEGACY_PRODUCTION_ENDPOINT_HASH = hashlib.sha256(
+    f"postgresql://{POOLER_HOST}:5432/postgres".encode()
+).hexdigest()
+PRODUCTION_PROJECT_REF_HASH = hashlib.sha256(
+    PRODUCTION_REF.encode()
+).hexdigest()
 DIRECT_DEVELOPMENT_URL = (
     f"postgresql://postgres:development-password@"
     f"db.{DEVELOPMENT_REF}.supabase.co:5432/postgres"
+)
+DIRECT_PRODUCTION_URL = (
+    f"postgresql://postgres:production-password@"
+    f"db.{PRODUCTION_REF}.supabase.co:5432/postgres"
+)
+TRANSACTION_POOLER_URL = PRODUCTION_URL.replace(":5432/", ":6543/")
+OTHER_POOLER_URL = PRODUCTION_URL.replace(
+    POOLER_HOST, "aws-0-us-east-1.pooler.supabase.com"
 )
 
 
@@ -75,9 +94,12 @@ def _migration_environment(target: str, **overrides) -> dict[str, str]:
         environment.update(
             {
                 "BASELODGE_RUNTIME_ENV": "production",
-                "BASELODGE_PRODUCTION_DATABASE_URL": PRODUCTION_URL,
-                "BASELODGE_MIGRATION_SUPABASE_PRODUCTION_IDENTITY_HASH": (
-                    database_identity_hash(PRODUCTION_URL)
+                "SUPABASE_DATABASE_URL": PRODUCTION_URL,
+                "BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH": (
+                    LEGACY_PRODUCTION_ENDPOINT_HASH
+                ),
+                "BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH": (
+                    PRODUCTION_PROJECT_REF_HASH
                 ),
                 "BASELODGE_CONFIRM_PRODUCTION_MIGRATION": "1",
             }
@@ -91,7 +113,7 @@ def _migration_environment(target: str, **overrides) -> dict[str, str]:
     [
         ("replit", "DATABASE_URL"),
         ("supabase-development", "BASELODGE_DEVELOPMENT_DATABASE_URL"),
-        ("supabase-production", "BASELODGE_PRODUCTION_DATABASE_URL"),
+        ("supabase-production", "SUPABASE_DATABASE_URL"),
     ],
 )
 def test_explicit_target_with_matching_identity_passes(target, source):
@@ -129,7 +151,7 @@ def test_missing_and_unknown_targets_fail_closed():
     [
         ("replit", "DATABASE_URL"),
         ("supabase-development", "BASELODGE_DEVELOPMENT_DATABASE_URL"),
-        ("supabase-production", "BASELODGE_PRODUCTION_DATABASE_URL"),
+        ("supabase-production", "SUPABASE_DATABASE_URL"),
     ],
 )
 def test_missing_target_specific_url_fails(target, url_key):
@@ -167,11 +189,119 @@ def test_development_target_rejects_production_identity():
 def test_production_target_rejects_development_identity():
     environment = _migration_environment(
         "supabase-production",
-        BASELODGE_PRODUCTION_DATABASE_URL=DEVELOPMENT_URL,
+        SUPABASE_DATABASE_URL=DEVELOPMENT_URL,
     )
 
-    with pytest.raises(RuntimeConfigurationError, match="does not match"):
+    with pytest.raises(RuntimeConfigurationError, match="project identity"):
         resolve_migration_database_config(environment)
+
+
+def test_production_target_rejects_wrong_explicit_url_even_with_companion_hash():
+    environment = _migration_environment(
+        "supabase-production",
+        BASELODGE_PRODUCTION_DATABASE_URL=DEVELOPMENT_URL,
+        BASELODGE_MIGRATION_SUPABASE_PRODUCTION_IDENTITY_HASH=(
+            database_identity_hash(DEVELOPMENT_URL)
+        ),
+    )
+
+    with pytest.raises(RuntimeConfigurationError, match="Contradictory"):
+        resolve_migration_database_config(environment)
+
+
+def test_production_target_accepts_matching_explicit_url_with_new_credentials():
+    configuration = resolve_migration_database_config(
+        _migration_environment(
+            "supabase-production",
+            BASELODGE_PRODUCTION_DATABASE_URL=PRODUCTION_ALTERNATE_ROLE_URL,
+        )
+    )
+
+    assert configuration.database_url == PRODUCTION_URL
+    assert configuration.source == "SUPABASE_DATABASE_URL"
+
+
+def test_production_target_rejects_historical_endpoint_hash_mismatch():
+    with pytest.raises(RuntimeConfigurationError, match="endpoint identity"):
+        resolve_migration_database_config(
+            _migration_environment(
+                "supabase-production",
+                BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH="0" * 64,
+            )
+        )
+
+
+def test_production_target_rejects_protected_project_reference_mismatch():
+    with pytest.raises(RuntimeConfigurationError, match="project identity"):
+        resolve_migration_database_config(
+            _migration_environment(
+                "supabase-production",
+                BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH="0" * 64,
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "live_url",
+    [DIRECT_PRODUCTION_URL, TRANSACTION_POOLER_URL],
+)
+def test_production_target_requires_live_session_pooler(live_url):
+    with pytest.raises(RuntimeConfigurationError, match="Session Pooler"):
+        resolve_migration_database_config(
+            _migration_environment(
+                "supabase-production",
+                SUPABASE_DATABASE_URL=live_url,
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [
+        ("BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH", None),
+        ("BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH", "not-a-hash"),
+        ("BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH", None),
+        ("BASELODGE_PRODUCTION_SUPABASE_PROJECT_REF_HASH", "not-a-hash"),
+    ],
+)
+def test_production_target_requires_valid_protected_hashes(key, value):
+    environment = _migration_environment("supabase-production")
+    if value is None:
+        environment.pop(key)
+    else:
+        environment[key] = value
+
+    with pytest.raises(RuntimeConfigurationError, match=key):
+        resolve_migration_database_config(environment)
+
+
+def test_production_target_rejects_changed_endpoint_for_same_project():
+    with pytest.raises(RuntimeConfigurationError, match="endpoint identity"):
+        resolve_migration_database_config(
+            _migration_environment(
+                "supabase-production",
+                SUPABASE_DATABASE_URL=OTHER_POOLER_URL,
+            )
+        )
+
+
+def test_production_target_rejects_malformed_explicit_url_without_disclosure():
+    malformed = (
+        "postgresql://wrong-user:do-not-log@"
+        "pooler.supabase.com:not-a-port/postgres"
+    )
+    environment = _migration_environment(
+        "supabase-production",
+        BASELODGE_PRODUCTION_DATABASE_URL=malformed,
+    )
+
+    with pytest.raises(RuntimeConfigurationError) as exc_info:
+        resolve_migration_database_config(environment)
+
+    message = str(exc_info.value)
+    assert "Contradictory" in message
+    assert "do-not-log" not in message
+    assert malformed not in message
 
 
 def test_replit_target_rejects_supabase_url_before_identity_comparison():
@@ -227,6 +357,18 @@ def test_production_requires_separate_confirmation_after_identity_match():
         match="CONFIRM_PRODUCTION_MIGRATION",
     ):
         resolve_migration_database_config(environment)
+
+
+def test_production_migration_does_not_require_companion_identity_hash():
+    environment = _migration_environment("supabase-production")
+    environment.pop(
+        "BASELODGE_MIGRATION_SUPABASE_PRODUCTION_IDENTITY_HASH", None
+    )
+
+    configuration = resolve_migration_database_config(environment)
+
+    assert configuration.source == "SUPABASE_DATABASE_URL"
+    assert configuration.database_url == PRODUCTION_URL
 
 
 def test_stale_conflicting_variables_do_not_override_selected_target():
@@ -294,6 +436,43 @@ def test_offline_diagnostic_is_redacted_and_does_not_check_revision():
     assert "postgres." not in report
     assert "development-password" not in report
     assert DEVELOPMENT_URL not in report
+    assert DEVELOPMENT_REF not in report
+
+
+def test_production_diagnostic_uses_verified_live_target_and_is_redacted():
+    exit_code, report = database_target.diagnose(
+        _migration_environment("supabase-production")
+    )
+
+    assert exit_code == 0
+    assert "Migration target: supabase-production" in report
+    assert "URL source: SUPABASE_DATABASE_URL" in report
+    assert "Target verification: PASS" in report
+    assert "Database host: [supabase-session-pooler]" in report
+    assert "Environment identity: sha256:[verified]" in report
+    assert POOLER_HOST not in report
+    assert PRODUCTION_URL not in report
+    assert "production-password" not in report
+    assert PRODUCTION_REF not in report
+
+
+def test_failed_production_diagnostic_does_not_disclose_explicit_url():
+    wrong_explicit = (
+        f"postgresql://postgres.{DEVELOPMENT_REF}:do-not-log"
+        f"@{POOLER_HOST}:5432/postgres"
+    )
+    exit_code, report = database_target.diagnose(
+        _migration_environment(
+            "supabase-production",
+            BASELODGE_PRODUCTION_DATABASE_URL=wrong_explicit,
+        )
+    )
+
+    assert exit_code == 2
+    assert "Target verification: FAIL" in report
+    assert "Contradictory" in report
+    assert wrong_explicit not in report
+    assert "do-not-log" not in report
     assert DEVELOPMENT_REF not in report
 
 

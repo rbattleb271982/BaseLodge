@@ -109,6 +109,18 @@ def _canonical_hostname(hostname: str) -> str:
 
 def database_identity(database_url: str) -> str:
     """Return a credential-free canonical connection identity."""
+    identity, parsed = _database_endpoint_identity(database_url)
+    if parsed.scheme.lower().startswith("sqlite"):
+        return identity
+
+    project_ref_hash = _supabase_pooler_project_ref_hash(parsed)
+    if project_ref_hash:
+        return f"{identity}?supabase_project_ref_sha256={project_ref_hash}"
+    return identity
+
+
+def _database_endpoint_identity(database_url: str):
+    """Return the historical credential-free endpoint identity and parsed URL."""
     try:
         parsed = urlsplit(_normalize_url(database_url))
         parsed_port = parsed.port
@@ -119,7 +131,7 @@ def database_identity(database_url: str) -> str:
     scheme = parsed.scheme.lower()
     if scheme.startswith("sqlite"):
         path = parsed.path or ":memory:"
-        return f"sqlite:{path}"
+        return f"sqlite:{path}", parsed
 
     if not scheme or not parsed.hostname or not parsed.path:
         raise RuntimeConfigurationError(
@@ -132,11 +144,7 @@ def database_identity(database_url: str) -> str:
         raise RuntimeConfigurationError(
             "Configured database URL is invalid; a host and database name are required."
         )
-    identity = f"{scheme}://{host}:{port}/{database_name}"
-    project_ref_hash = _supabase_pooler_project_ref_hash(parsed)
-    if project_ref_hash:
-        return f"{identity}?supabase_project_ref_sha256={project_ref_hash}"
-    return identity
+    return f"{scheme}://{host}:{port}/{database_name}", parsed
 
 
 def _supabase_pooler_project_ref_hash(parsed) -> str | None:
@@ -164,6 +172,11 @@ def supabase_pooler_project_ref_hash(database_url: str) -> str | None:
 
 def database_identity_hash(database_url: str) -> str:
     identity = database_identity(database_url)
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
+def _database_endpoint_identity_hash(database_url: str) -> str:
+    identity, _ = _database_endpoint_identity(database_url)
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()
 
 
@@ -230,6 +243,8 @@ def migration_database_diagnostic(
     hostname = _database_hostname(configuration.database_url)
     if _SUPABASE_DIRECT_HOST_PATTERN.fullmatch(hostname):
         hostname = "db.[project-ref-redacted].supabase.co"
+    elif _SUPABASE_POOLER_HOST_PATTERN.fullmatch(hostname):
+        hostname = "[supabase-session-pooler]"
     database_name = parsed.path.lstrip("/").split("/")[0]
     dialect = parsed.scheme.lower().split("+", 1)[0]
 
@@ -239,9 +254,7 @@ def migration_database_diagnostic(
         "dialect": dialect,
         "hostname": hostname,
         "database_name": database_name,
-        "identity_hash": (
-            f"sha256:{configuration.verified_identity_hash[:12]}..."
-        ),
+        "identity_hash": "sha256:[verified]",
         "verification": "PASS",
     }
 
@@ -280,6 +293,63 @@ def _matches_protected_production_identity(
             == _expected_production_supabase_project_ref_hash(environ)
         )
     return database_identity_hash(database_url) == expected_database_hash
+
+
+def _validate_protected_live_production_target(
+    database_url: str,
+    environ: Mapping[str, str],
+) -> None:
+    """Require both historical endpoint and Supabase project ownership."""
+    _, parsed = _database_endpoint_identity(database_url)
+    host = _canonical_hostname(parsed.hostname or "")
+    port = parsed.port or 5432
+    project_ref_hash = _supabase_pooler_project_ref_hash(parsed)
+    if (
+        not _SUPABASE_POOLER_HOST_PATTERN.fullmatch(host)
+        or port != 5432
+        or project_ref_hash is None
+    ):
+        raise RuntimeConfigurationError(
+            "Protected live Production target must be a Supabase Session Pooler."
+        )
+
+    if not hmac.compare_digest(
+        _database_endpoint_identity_hash(database_url),
+        _expected_production_hash(environ),
+    ):
+        raise RuntimeConfigurationError(
+            "Protected live Production endpoint identity does not match."
+        )
+    if not hmac.compare_digest(
+        project_ref_hash,
+        _expected_production_supabase_project_ref_hash(environ),
+    ):
+        raise RuntimeConfigurationError(
+            "Protected live Production project identity does not match."
+        )
+
+
+def _production_targets_agree(
+    live_database_url: str,
+    explicit_database_url: str,
+) -> bool:
+    """Compare credential-free endpoint, connection class, and project identity."""
+    try:
+        live_identity, live_parsed = _database_endpoint_identity(live_database_url)
+        explicit_identity, explicit_parsed = _database_endpoint_identity(
+            explicit_database_url
+        )
+        live_project = _supabase_pooler_project_ref_hash(live_parsed)
+        explicit_project = _supabase_pooler_project_ref_hash(explicit_parsed)
+    except (RuntimeConfigurationError, ValueError):
+        return False
+
+    return (
+        live_project is not None
+        and explicit_project is not None
+        and hmac.compare_digest(live_identity, explicit_identity)
+        and hmac.compare_digest(live_project, explicit_project)
+    )
 
 
 def _reject_production_identity(database_url: str, environ: Mapping[str, str]) -> None:
@@ -370,20 +440,37 @@ def resolve_migration_database_config(
             f"BASELODGE_RUNTIME_ENV={expected_runtime_env}."
         )
 
-    url_key = _MIGRATION_TARGET_URL_KEYS[migration_target]
-    database_url = _require_url(environment, url_key, runtime_env)
-    _validate_migration_database_class(migration_target, database_url)
+    if migration_target == "supabase-production":
+        url_key = "SUPABASE_DATABASE_URL"
+        database_url = _require_url(environment, url_key, runtime_env)
+        _validate_migration_database_class(migration_target, database_url)
+        _validate_protected_live_production_target(database_url, environment)
 
-    identity_hash = database_identity_hash(database_url)
-    identity_hash_key = _MIGRATION_TARGET_IDENTITY_HASH_KEYS[migration_target]
-    expected_identity_hash = _expected_identity_hash(
-        environment, identity_hash_key
-    )
-    if not hmac.compare_digest(identity_hash, expected_identity_hash):
-        raise RuntimeConfigurationError(
-            f"Migration target {migration_target} does not match its configured "
-            "database identity."
+        explicit_database_url = _value(
+            environment, "BASELODGE_PRODUCTION_DATABASE_URL"
         )
+        if explicit_database_url and not _production_targets_agree(
+            database_url, explicit_database_url
+        ):
+            raise RuntimeConfigurationError(
+                "Contradictory explicit and live Production database targets."
+            )
+        identity_hash = database_identity_hash(database_url)
+    else:
+        url_key = _MIGRATION_TARGET_URL_KEYS[migration_target]
+        database_url = _require_url(environment, url_key, runtime_env)
+        _validate_migration_database_class(migration_target, database_url)
+
+        identity_hash = database_identity_hash(database_url)
+        identity_hash_key = _MIGRATION_TARGET_IDENTITY_HASH_KEYS[migration_target]
+        expected_identity_hash = _expected_identity_hash(
+            environment, identity_hash_key
+        )
+        if not hmac.compare_digest(identity_hash, expected_identity_hash):
+            raise RuntimeConfigurationError(
+                f"Migration target {migration_target} does not match its configured "
+                "database identity."
+            )
 
     if (
         migration_target == "supabase-production"

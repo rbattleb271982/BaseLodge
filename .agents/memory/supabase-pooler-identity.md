@@ -7,4 +7,17 @@ Supabase pooler connection URLs place the project reference in the username whil
 
 **Why:** Host/database-only identity collides across projects. Treating arbitrary usernames as identity would expose credentials and weaken generic behavior, so only recognized Supabase pooler usernames are parsed. DNS terminal dots must be canonicalized to prevent bypass.
 
-**How to apply:** Keep the existing production endpoint hash and also require an explicit SHA-256 production project-reference hash. Missing/malformed pooler project identity fails closed across runtime, migration, bootstrap, import, maintenance, and dev-user guards.
+Production migration ownership must be anchored to the already verified live
+Production pooler. A newly supplied URL and companion migration hash can prove
+only that they match each other, not that either belongs to Production.
+
+**Why:** Repeated manual URL selection reached unrelated Supabase projects, and
+modern pooler identities were incorrectly compared with the historical
+endpoint-only Production hash. The historical endpoint hash remains valid for
+the live pooler when checked separately from its protected project reference.
+
+**How to apply:** Keep the existing production endpoint hash and require the
+explicit SHA-256 production project-reference hash independently. Production
+migration resolution uses the protected live pooler, rejects contradictory
+explicit targets, and retains explicit mode/target/confirmation gates. Missing
+or malformed pooler identity fails closed across all database tooling.
