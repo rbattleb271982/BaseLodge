@@ -89,6 +89,7 @@ def test_api_429_contract_and_no_beacon_side_effect(rate_limit_client):
     assert limited.get_json()["code"] == "rate_limited"
     assert limited.get_json()["retry_after"] >= 1
     assert limited.headers["Retry-After"]
+    assert limited.headers["X-Request-ID"]
     assert warning.call_count == 10
 
 

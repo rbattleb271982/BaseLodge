@@ -9,6 +9,7 @@ from app import (
     _CSRF_EXEMPT_ENDPOINTS,
     _CSRF_UNSAFE_METHODS,
     app,
+    begin_request_observability,
     enforce_csrf_for_unsafe_methods,
     limiter,
 )
@@ -37,7 +38,13 @@ def test_every_unsafe_route_uses_the_central_contract_or_explicit_exemption():
     assert enforce_csrf_for_unsafe_methods in hooks
     prior_hooks = hooks[:hooks.index(enforce_csrf_for_unsafe_methods)]
     assert prior_hooks
-    assert all(getattr(hook, "__self__", None) is limiter for hook in prior_hooks)
+    assert begin_request_observability in prior_hooks
+    assert hooks[0] is begin_request_observability
+    assert all(
+        hook is begin_request_observability
+        or getattr(hook, "__self__", None) is limiter
+        for hook in prior_hooks
+    )
 
     unsafe_endpoints = {
         rule.endpoint

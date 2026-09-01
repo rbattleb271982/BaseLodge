@@ -174,6 +174,11 @@ from services.friends_trips_paging import (
     load_friends_trips_group_page,
     load_friends_trips_page,
 )
+from services.request_observability import (
+    begin_request,
+    emit_unhandled_error,
+    finish_response,
+)
 
 
 def active_or_legacy_trip_predicate():
@@ -283,6 +288,13 @@ RELEASE_IDENTITY = resolve_release_identity(
 
 app = Flask(__name__)
 app.config["PREFERRED_URL_SCHEME"] = "https"
+app.config["BASELODGE_RUNTIME_ENV"] = database_configuration.runtime_env
+
+
+@app.before_request
+def begin_request_observability():
+    """Create server-owned request correlation before all other request hooks."""
+    begin_request()
 
 # ── Response compression ───────────────────────────────────────────────────
 # Gzip HTML/JSON responses — typically 60-70% size reduction on page HTML.
@@ -414,6 +426,11 @@ def rate_limited_response(error):
         response.mimetype = "text/html"
     response.headers["Retry-After"] = str(retry_after)
     return response
+
+
+@app.after_request
+def finish_request_observability(response):
+    return finish_response(response)
 
 # ── CSRF helpers ──────────────────────────────────────────────────────────────
 def generate_csrf_token():
@@ -3293,14 +3310,8 @@ def not_found_error(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    """Handle internal server errors with full traceback logging."""
-    import traceback
-    import sys
-    print("=" * 70)
-    print("🚨 INTERNAL SERVER ERROR (500)")
-    print("=" * 70)
-    app.logger.exception(f"Internal server error: {error}")
-    print("=" * 70)
+    """Handle internal server errors without exposing exception values."""
+    emit_unhandled_error(error)
     db.session.rollback()
     return render_template("500.html"), 500
 
@@ -3313,15 +3324,11 @@ def handle_exception(e):
     if isinstance(e, HTTPException):
         if e.code == 404:
             return render_template("404.html"), 404
+        if e.code == 500:
+            emit_unhandled_error(e, 500)
         return e
     
-    import traceback
-    import sys
-    print("=" * 70)
-    print(f"🚨 UNHANDLED EXCEPTION: {type(e).__name__}")
-    print("=" * 70)
-    app.logger.exception(f"Unhandled exception: {e}")
-    print("=" * 70)
+    emit_unhandled_error(e)
     db.session.rollback()
     return render_template("500.html"), 500
 
