@@ -1,0 +1,97 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~20%
+
+TASK: BL-172 — Replace Trip Detail mutation reloads with targeted UI updates
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+GOAL
+
+Identify where Trip Detail currently relies on full-page reloads after user mutations, and define the smallest safe set of targeted UI updates that would make those interactions feel immediate without changing product behavior.
+
+FOCUS ON
+
+- RSVP changes
+- participant status changes
+- trip settings/visibility changes
+- invite actions
+- planning/date updates
+- participant settings
+- leave/remove actions
+- any other Trip Detail mutations that currently call reload(), redirect back to the page, or otherwise rebuild the entire screen
+
+INVESTIGATE
+
+1. Inventory every Trip Detail mutation initiated from the page.
+2. Identify which ones currently:
+   - reload the page
+   - redirect back to Trip Detail
+   - already update locally
+3. For each reload-based action, determine exactly which UI regions actually need to change.
+4. Identify shared DOM/state dependencies such as:
+   - attendee counts
+   - RSVP controls
+   - participant rows
+   - organizer controls
+   - planning sections
+   - visibility/state badges
+   - invite controls
+5. Determine whether existing mutation responses already contain enough data for targeted updates.
+6. Where responses are insufficient, identify the smallest response additions needed.
+7. Identify any mutations where a full reload should remain because targeted updates would be fragile or disproportionately complex.
+8. Check whether browser and Capacitor behavior differ.
+9. Check interaction with:
+   - BL-133 visibility rules
+   - BL-158/159 paging
+   - BL-168 auth/session behavior
+   - BL-169 CSRF
+   - BL-170 rate limits
+10. Identify race/stale-response risks for rapid repeated actions.
+11. Determine whether any shared helper can safely handle post-mutation UI refresh without turning this into a broad frontend rewrite.
+
+PREFER
+
+- server remains source of truth
+- targeted fetch + DOM update
+- small reusable helpers where justified
+- preserving scroll position and current UI context
+- no speculative client-side state model
+- no SPA/framework conversion
+
+DO NOT
+
+- redesign Trip Detail
+- change product rules
+- change authorization/visibility behavior
+- change RSVP semantics
+- change notification behavior
+- introduce React/Vue/etc.
+- add schema/index/migration changes
+- touch Production or persistent data
+- run the full test suite
+- perform broad browser automation
+
+DELIVERABLE
+
+Return:
+
+A. Trip Detail mutation inventory
+B. which actions currently cause full-page reloads
+C. exact UI regions affected by each
+D. mutations already suitable for targeted updates
+E. smallest server-response changes required
+F. actions that should intentionally keep reload behavior, if any
+G. recommended shared frontend helper(s)
+H. stale/race-condition considerations
+I. native/Capacitor considerations
+J. exact BUILD scope
+K. focused tests required
+L. files likely to change
+M. whether schema/migration is required
+N. recommended Replit tier for BUILD
+
+Keep the BUILD recommendation narrow.
+
+Do not implement during PLAN.
+Do not run the full suite.
