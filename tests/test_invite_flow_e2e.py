@@ -595,14 +595,15 @@ def scenario_10():
     src = inspect.getsource(appmod.auth_google_callback)
 
     # Find block positions for redirect control logic only
-    # post_login_redirect pop is at the redirect-control block, after analytics
-    # We look for the redirect block specifically
+    # post_login_redirect is consumed through the centralized safe redirect
+    # helper at the redirect-control block, after analytics.
     lines = src.split("\n")
-    pll_line = next((i for i, l in enumerate(lines) if "session.pop(\"post_login_redirect\"" in l), -1)
+    pll_line = next((i for i, l in enumerate(lines)
+                     if '_pop_post_auth_redirect("post_login_redirect")' in l), -1)
     inv_line = next((i for i, l in enumerate(lines)
                      if '"invite_token" in session' in l and "connect_pending_inviter" in "\n".join(lines[i:i+5])), -1)
 
-    check(pll_line != -1, "S10.1 post_login_redirect pop present in Google callback")
+    check(pll_line != -1, "S10.1 safe post_login_redirect consumption present in Google callback")
     check(inv_line != -1, "S10.2 invite_token fallback present in Google callback")
     check(pll_line < inv_line,
           "S10.3 post_login_redirect checked BEFORE invite_token fallback",

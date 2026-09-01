@@ -402,6 +402,7 @@ app.config.update(
     SESSION_REFRESH_EACH_REQUEST=False,
     REMEMBER_COOKIE_SECURE=is_production,
     REMEMBER_COOKIE_HTTPONLY=True,
+    REMEMBER_COOKIE_SAMESITE=os.environ.get("SESSION_COOKIE_SAMESITE", "Lax"),
     REMEMBER_COOKIE_DURATION=timedelta(days=30),
 )
 
@@ -418,7 +419,75 @@ login_manager.login_message = None
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    raw_identity = str(user_id or "")
+    raw_user_id, separator, supplied_version = raw_identity.partition(":")
+    try:
+        user = db.session.get(User, int(raw_user_id))
+    except (TypeError, ValueError):
+        return None
+    if not user:
+        return None
+    if not separator:
+        # Compatibility for sessions issued before BL-168. Once credentials
+        # change, password_changed_at makes every legacy identity invalid.
+        return user if user.password_changed_at is None else None
+    if not secrets.compare_digest(
+        supplied_version, user.auth_session_version()
+    ):
+        return None
+    return user
+
+
+_PRESERVED_AUTH_SESSION_KEYS = (
+    "invite_token",
+    "trip_invite_token",
+    "post_login_redirect",
+    "post_onboarding_redirect",
+)
+
+
+def _trusted_local_redirect(value):
+    """Return a local absolute-path redirect or None."""
+    if not isinstance(value, str):
+        return None
+    target = value.strip()
+    if not target or not target.startswith("/") or target.startswith("//"):
+        return None
+    if "\\" in target or any(ord(character) < 32 for character in target):
+        return None
+    parsed = urlparse(target)
+    if parsed.scheme or parsed.netloc:
+        return None
+    return target
+
+
+def _establish_authenticated_session(user, *, remember, auth_method):
+    """Create a fresh login while retaining only approved invite context."""
+    preserved = {}
+    for key in _PRESERVED_AUTH_SESSION_KEYS:
+        value = session.get(key)
+        if key.endswith("_redirect"):
+            value = _trusted_local_redirect(value)
+        if value:
+            preserved[key] = value
+
+    session.clear()
+    session.update(preserved)
+    login_user(user, remember=remember, fresh=True)
+    if not remember:
+        # A non-remembered login must also delete any remember cookie left by a
+        # prior account in this browser; login_user(..., remember=False) alone
+        # does not clear an existing cookie.
+        session["_remember"] = "clear"
+    session["_bl_auth_method"] = auth_method
+    session["_last_active_stamp"] = time.time()
+    session.permanent = True
+    session.modified = True
+
+
+def _pop_post_auth_redirect(key):
+    """Consume one post-auth redirect, rejecting non-local destinations."""
+    return _trusted_local_redirect(session.pop(key, None))
 
 
 @user_loaded_from_cookie.connect_via(app)
@@ -3892,8 +3961,9 @@ def reset_password(token=None):
         user.last_active_at = datetime.utcnow()
         db.session.commit()
 
-        login_user(user)
-        session["_bl_auth_method"] = "reset"
+        _establish_authenticated_session(
+            user, remember=False, auth_method="reset"
+        )
         # Founder login alert (non-blocking, throttled to 1×/user/day)
         _queue_founder_login_push(user.id, user.email)
         flash("Your password has been reset.", "success")
@@ -4005,9 +4075,9 @@ def auth():
             db.session.add(new_user)
             db.session.commit()
             
-            login_user(new_user, remember=True)
-            session["_bl_auth_method"] = "signup"
-            session.modified = True
+            _establish_authenticated_session(
+                new_user, remember=True, auth_method="signup"
+            )
 
             # Analytics: alias anon browser id → new user id, then identify
             _ph_anon_id = ph_analytics.get_anon_id(request.cookies)
@@ -4062,10 +4132,9 @@ def auth():
             if user and _check:
                 user.last_active_at = datetime.utcnow()
                 _remember_me = bool(request.form.get("remember_me"))
-                login_user(user, remember=_remember_me)
-                session["_bl_auth_method"] = "email"
-                session['_last_active_stamp'] = time.time()
-                session.modified = True
+                _establish_authenticated_session(
+                    user, remember=_remember_me, auth_method="email"
+                )
                 db.session.commit()
 
                 # Analytics: identify on login
@@ -4082,7 +4151,7 @@ def auth():
                 # Checked FIRST so /invite/<token> redirect (set by invite_token_confirm)
                 # takes precedence over the inline _connect_pending_inviter fallback.
                 # This guarantees the success screen is shown for all auth paths.
-                _post_login = session.pop("post_login_redirect", None)
+                _post_login = _pop_post_auth_redirect("post_login_redirect")
                 if _post_login:
                     app.logger.info(
                         "[invite_context_restored] user_id=%s source=email_login redirect=%s",
@@ -4433,8 +4502,8 @@ def onboarding():
 
         # Redirect — invite signups go to friends, others go to home
         next_url = (
-            session.pop("post_onboarding_redirect", None)
-            or session.pop("next_after_setup", None)
+            _pop_post_auth_redirect("post_onboarding_redirect")
+            or _pop_post_auth_redirect("next_after_setup")
         )
         if next_url:
             return redirect(next_url)
@@ -16372,10 +16441,9 @@ def auth_google_callback():
 
         user.last_active_at = datetime.utcnow()
         db.session.commit()
-        login_user(user, remember=False)
-        session["_bl_auth_method"] = "google"
-        session['_last_active_stamp'] = time.time()
-        session.modified = True
+        _establish_authenticated_session(
+            user, remember=False, auth_method="google"
+        )
 
         # Founder login alert (non-blocking, throttled to 1×/user/day)
         _queue_founder_login_push(user.id, user.email)
@@ -16383,7 +16451,7 @@ def auth_google_callback():
         # Return to any pending post-login destination.
         # Checked FIRST so /invite/<token> redirect (set by invite_token_confirm)
         # takes precedence over the inline _connect_pending_inviter fallback.
-        _post_login = session.pop("post_login_redirect", None)
+        _post_login = _pop_post_auth_redirect("post_login_redirect")
         if _post_login:
             app.logger.info(
                 "[invite_context_restored] user_id=%s source=google redirect=%s",
@@ -16473,8 +16541,19 @@ def change_password():
         current_user.password_changed_at = datetime.utcnow()
         try:
             db.session.commit()
-            flash("Password updated successfully.", "success")
-            return redirect(url_for("change_password"))
+            logout_user()
+            for key in _PRESERVED_AUTH_SESSION_KEYS + (
+                "_auth_session_logged",
+                "_last_active_stamp",
+                "_bl_auth_method",
+            ):
+                session.pop(key, None)
+            session["ph_reset"] = True
+            flash(
+                "Password updated successfully. Please sign in again.",
+                "message",
+            )
+            return redirect(url_for("auth"))
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Error changing password: {e}")
@@ -16726,7 +16805,6 @@ def delete_account():
             "[delete_account] failed error_type=%s",
             type(e).__name__,
         )
-        flash("We couldn't delete your account right now. Please try again.", "error")
         # After db.session.delete(user) + rollback, SQLAlchemy expels the user
         # object from its identity map (detached state).  On the next request
         # Flask-Login's user_loader calls db.session.get(User, user_id) on a
@@ -16741,10 +16819,14 @@ def delete_account():
         try:
             _fresh = db.session.get(User, user_id)
             if _fresh:
-                login_user(_fresh, remember=True)
-                session["_bl_auth_method"] = "change_password"
+                _establish_authenticated_session(
+                    _fresh,
+                    remember=True,
+                    auth_method="delete_account_recovery",
+                )
         except Exception:
             pass
+        flash("We couldn't delete your account right now. Please try again.", "error")
         return redirect(url_for("profile"))
 
 

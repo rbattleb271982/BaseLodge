@@ -2,7 +2,10 @@ from datetime import datetime, date
 from enum import Enum as PyEnum
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from flask import current_app
 from werkzeug.security import generate_password_hash, check_password_hash
+import hashlib
+import hmac
 import sqlalchemy as sa
 
 db = SQLAlchemy()
@@ -229,6 +232,19 @@ class User(UserMixin, db.Model):
         if not self.password_hash:
             return False
         return check_password_hash(self.password_hash, password)
+
+    def auth_session_version(self):
+        """Return a non-secret fingerprint of the current authentication state."""
+        secret = str(current_app.config["SECRET_KEY"]).encode("utf-8")
+        auth_state = (
+            self.password_hash
+            or f"{self.auth_provider or ''}:{self.provider_id or ''}"
+        ).encode("utf-8")
+        return hmac.new(secret, auth_state, hashlib.sha256).hexdigest()[:32]
+
+    def get_id(self):
+        """Version Flask-Login identities so credential changes revoke sessions."""
+        return f"{self.id}:{self.auth_session_version()}"
     
     def get_reset_token(self):
         """Generate a time-limited password reset token."""
