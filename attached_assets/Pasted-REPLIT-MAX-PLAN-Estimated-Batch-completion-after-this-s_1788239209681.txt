@@ -1,0 +1,107 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~90%
+
+TASK: BL-173 — Replace Friends/planning/group mutation reloads with targeted updates
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+CONTEXT
+
+BL-172 is complete and established a canonical server-rendered targeted-refresh pattern on Trip Detail.
+
+Reuse that architecture wherever appropriate. Do not create a competing frontend refresh system.
+
+GOAL
+
+Identify avoidable full-page reloads after mutations across:
+
+- Friends
+- planning
+- group/group-trip surfaces
+
+Determine which can safely use the BL-172 targeted-refresh pattern while preserving existing behavior and navigation.
+
+INVESTIGATE
+
+1. Inventory mutations on these surfaces that currently:
+   - reload the page
+   - redirect back to the same page
+   - already update locally
+
+2. For each reload/redirect, classify it as:
+   A. safe targeted-refresh candidate
+   B. intentional navigation that should remain
+   C. already sufficiently local
+
+3. For safe candidates, identify the smallest canonical server-rendered region(s) that need refreshing.
+
+4. Inspect BL-172's implementation and determine exactly what can be reused:
+   - refresh helper
+   - region markers/contracts
+   - pending-control behavior
+   - stale-response protection
+   - redirect handling
+   - browser/Capacitor behavior
+
+5. Identify any small generalization required to reuse BL-172 outside Trip Detail.
+
+Prefer extending the existing helper over duplicating it.
+
+6. Specifically preserve:
+   - BL-133 authorization/visibility
+   - BL-158/159 paging and bounded retrieval
+   - BL-168 session behavior
+   - BL-169 CSRF
+   - BL-170 rate limits
+   - notification semantics
+   - existing friend/group/planning product rules
+
+7. Identify actions that change access, remove the current user from a surface, delete an entity, or intentionally navigate elsewhere. These should normally retain navigation.
+
+8. Check whether targeted refreshes could accidentally reset:
+   - pagination state
+   - active tabs/filters
+   - expanded groups
+   - scroll position
+   - open controls/forms
+
+DO NOT
+
+- implement anything
+- redesign these surfaces
+- change product behavior or copy
+- create a client-side state store
+- introduce a frontend framework
+- change paging/query budgets
+- load complete friend/trip/group datasets to simplify refreshes
+- change schema/index/migrations
+- touch Production or persistent data
+- run the full test suite
+- perform broad browser automation
+
+DELIVERABLE
+
+Return:
+
+A. mutation inventory by surface
+B. current reload/redirect behavior
+C. safe targeted-refresh candidates
+D. intentional navigation that should remain
+E. BL-172 components that can be reused unchanged
+F. smallest BL-172 generalization required, if any
+G. proposed canonical refresh regions
+H. pagination/filter/expanded-state considerations
+I. browser/Capacitor considerations
+J. exact narrow BUILD scope
+K. focused tests required
+L. files likely to change
+M. schema/migration requirement
+N. recommended BUILD tier
+
+Keep this investigation lean.
+
+The objective is to reuse BL-172, not build another frontend architecture.
+
+Do not implement during PLAN.
+Do not run the full suite.
