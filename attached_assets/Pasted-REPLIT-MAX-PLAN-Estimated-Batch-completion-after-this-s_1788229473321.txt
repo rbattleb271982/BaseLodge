@@ -1,0 +1,99 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~55%
+
+TASK: BL-169 — Enforce explicit CSRF contract across web and native mutation endpoints
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+GOAL
+
+Audit BaseLodge’s state-changing HTTP endpoints and define the smallest explicit CSRF contract needed across the web app and native shell.
+
+BL-132 and the existing push-endpoint CSRF work should be treated as prior art. Do not undo protections that are already correct.
+
+FOCUS ON
+
+- POST, PUT, PATCH, and DELETE endpoints
+- authenticated mutations
+- unauthenticated mutations where CSRF could still matter
+- HTML form submissions
+- JavaScript/fetch mutations
+- native-shell requests
+- JSON API mutations
+- existing CSRF decorators/helpers/tokens
+- endpoints currently exempt from CSRF
+- logout and account deletion
+- auth/signup/password-reset mutations
+- trip, RSVP, friend, profile, wishlist, notification, messaging, and push mutations
+
+DETERMINE
+
+1. What CSRF mechanism BaseLodge currently uses and where it is enforced.
+2. Which mutation endpoints are protected today.
+3. Which mutation endpoints are exempt or bypass protection.
+4. Whether any exemptions are intentional and safe.
+5. How browser form and fetch requests currently transmit CSRF credentials.
+6. How the native shell authenticates mutations and whether it can satisfy the same CSRF contract.
+7. Whether cookie-authenticated JSON endpoints have inconsistent protection.
+8. Whether any GET endpoint currently performs a mutation.
+9. Whether logout, password/account changes, and other security-sensitive mutations are consistently protected.
+10. Whether BL-132 established a pattern that should become the canonical contract.
+11. The smallest implementation needed to make the contract explicit and consistent.
+
+CLASSIFY FINDINGS
+
+For each real gap, identify:
+
+- endpoint/path
+- mutation type
+- authentication mechanism
+- current CSRF behavior
+- intended CSRF behavior
+- web impact
+- native impact
+- severity: HIGH / MEDIUM / LOW
+
+BOUNDARIES
+
+Do not implement during PLAN.
+
+Do not expand into:
+- BL-170 rate limiting/abuse protection
+- auth/session lifecycle already handled by BL-168
+- authentication UX redesign
+- MFA
+- new identity providers
+- generalized API redesign
+- schema/index/migration work
+- Production changes
+- persistent database mutations
+
+Preserve existing working web/native behavior wherever secure.
+
+Prefer a centralized, understandable CSRF contract over endpoint-by-endpoint patches, but do not build a generalized framework unless the current architecture actually requires one.
+
+DELIVERABLE
+
+Return:
+
+A. current CSRF architecture
+B. mutation endpoint inventory by protection type
+C. existing canonical patterns, including BL-132
+D. confirmed unprotected/inconsistently protected mutations
+E. intentional exemptions and why they are safe
+F. web request/token behavior
+G. native-shell request/token behavior
+H. GET-mutation findings
+I. security-sensitive endpoint assessment
+J. confirmed gaps ranked HIGH/MEDIUM/LOW
+K. protections already adequate
+L. exact recommended BUILD scope
+M. focused tests required
+N. whether schema/migration is needed
+O. recommended Replit tier for BUILD
+
+Keep the recommended BUILD narrow.
+
+Do not run the full test suite.
+Run only enough focused inspection/tests to verify the findings.
