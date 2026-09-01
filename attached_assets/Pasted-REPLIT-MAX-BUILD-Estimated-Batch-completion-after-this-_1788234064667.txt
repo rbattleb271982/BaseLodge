@@ -1,0 +1,128 @@
+REPLIT: MAX + BUILD
+Estimated Batch completion after this step: ~100% code-side
+
+TASK: BL-170 — Rate limiting and abuse protection
+TASK #412
+
+Implement the approved Task #412 plan.
+
+Treat the completed investigation as the implementation contract.
+Do not repeat the audit.
+
+IMPORTANT OPERATIONAL BOUNDARY
+
+Production-wide enforcement requires shared Redis/Valkey storage.
+
+Implement configuration support for RATELIMIT_STORAGE_URI, but:
+- do not provision infrastructure
+- do not mutate Production secrets
+- do not deploy
+- keep Development/tests self-contained
+- do not represent process-local memory:// as Production-wide enforcement
+
+IMPLEMENT ONLY
+
+1. Limiter foundation
+- Support configured shared limiter storage.
+- Preserve in-memory storage for Development/focused tests.
+- Add deterministic hashed/fingerprinted keys so email addresses and reset tokens never appear in limiter keys, logs, or responses.
+- Do not trust X-Forwarded-For; retain the existing trusted client-IP behavior.
+
+2. 429 contract
+- API mutations: stable JSON rate_limited response + Retry-After.
+- Browser/auth/OAuth routes: generic HTML/page-appropriate 429 + Retry-After.
+- Rejection must occur before database, email, push, analytics, or provider side effects.
+
+3. Apply ONLY the approved limits from Task #412 to:
+- login
+- signup
+- forgot password
+- password reset
+- Google OAuth entry/callback
+- trip creation
+- group-trip creation
+- trip/group-trip invitations
+- invite-share telemetry
+- push token registration
+- push diagnostic beacon
+- App Store refresh
+
+Use the thresholds and key strategies already specified in Task #412.
+Do not add limits to unrelated routes.
+
+4. Forgot-password
+- Preserve the same generic user-facing response.
+- Add the approved target-aware silent send cooldown.
+- Never expose whether an email exists or whether the target cooldown fired.
+
+5. App Store refresh
+- Add the approved per-admin limit.
+- Add the shared in-flight protection described in Task #412.
+- No provider call may occur when rejected/locked.
+
+6. Browser/native behavior
+- Update only directly affected callers.
+- Do not automatically retry mutations after 429.
+- Native push startup must continue if token registration/beacon receives 429.
+
+PRESERVE
+
+- BL-168 auth/session behavior
+- BL-169 CSRF contract
+- existing authorization
+- OAuth behavior except rate boundaries
+- existing messaging/push deduplication
+- payload/response behavior outside 429 handling
+- existing adequate endpoint limits identified in the PLAN
+
+DO NOT
+
+- add a global application throttle
+- add CAPTCHA or MFA
+- redesign authentication/APIs
+- add schema/index/migration changes
+- touch Production or persistent data
+- provision Redis/Valkey
+- run broad stress tests
+- run the full test suite
+
+TEST
+
+Focused tests only:
+
+- exact threshold boundary for each new limit family
+- IP/user/action isolation
+- login/signup lockout resistance
+- recovery response remains generic
+- sensitive key material does not appear in limiter keys/loggable values
+- Retry-After and API JSON contract
+- no side effects after rejection
+- shared-storage configuration behavior
+- App Store in-flight protection
+- native/browser 429 handling without retry loops
+- directly adjacent BL-168/BL-169 regressions
+
+Use representative boundary tests rather than large permutation matrices.
+
+VERIFY
+
+- focused tests pass
+- py_compile
+- JavaScript syntax check if JS changes
+- git diff --check
+- no schema/migration changes
+
+Do NOT run the full suite or multiple independent review passes unless a focused test exposes an actual issue.
+
+Commit:
+
+BL-170 Add targeted abuse rate limits
+
+Return only:
+- files changed
+- limits implemented
+- focused test result
+- shared-store/Production readiness status
+- verification result
+- commit hash
+- unresolved issues
