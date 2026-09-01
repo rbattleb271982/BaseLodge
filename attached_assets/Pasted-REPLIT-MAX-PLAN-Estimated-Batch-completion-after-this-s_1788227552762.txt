@@ -1,0 +1,98 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~15%
+
+TASK: BL-168 — Auth/session lifecycle hardening
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+GOAL
+
+Review BaseLodge’s current authentication and session lifecycle and identify the smallest set of concrete hardening changes needed.
+
+Focus only on:
+
+- login/session creation
+- logout/session destruction
+- session persistence
+- remember-me behavior if any
+- session fixation risk
+- session rotation after authentication
+- password/reset flows if they affect session state
+- account deletion/session invalidation
+- multiple active sessions if relevant
+- native/web session differences
+- cookie/security settings
+- stale or revoked-session behavior
+- redirects around authentication boundaries
+
+Do not expand into CSRF or rate limiting except to note dependencies. BL-169 and BL-170 own those.
+
+REVIEW
+
+Inspect the current implementation and existing auth/security tests.
+
+Determine:
+
+1. How sessions are created and stored.
+2. Whether the session identifier/state changes after successful login.
+3. Exactly what logout invalidates.
+4. What happens to existing sessions after:
+   - password change
+   - password reset
+   - account deletion
+   - account disablement, if supported
+5. Whether multiple browser/native sessions are intentionally supported.
+6. Cookie settings currently used:
+   - Secure
+   - HttpOnly
+   - SameSite
+   - lifetime/expiration
+7. Whether authenticated requests can continue with stale server-side user state.
+8. Whether web and native authentication paths have different lifecycle behavior.
+9. Any obvious session-fixation, stale-session, or incomplete-logout risks.
+10. Existing protections that are already sufficient and should NOT be changed.
+
+BOUNDARIES
+
+Preserve current product behavior unless it is insecure.
+
+Do not redesign authentication UX.
+
+Do not implement:
+
+- BL-169 CSRF work
+- BL-170 rate limiting
+- OAuth/social login
+- MFA
+- new identity providers
+- schema/migration changes unless absolutely necessary
+- Production changes
+- persistent database mutations
+
+Prefer no schema change.
+
+DELIVERABLE
+
+Return:
+
+A. current auth/session architecture
+B. session creation behavior
+C. session rotation/fixation assessment
+D. logout behavior
+E. password/reset session behavior
+F. account deletion/session behavior
+G. web vs native differences
+H. cookie configuration
+I. stale/revoked-session behavior
+J. confirmed security gaps, ranked HIGH/MEDIUM/LOW
+K. protections already adequate
+L. exact recommended implementation scope
+M. tests required
+N. whether schema/migration is needed
+O. recommended Replit tier for BUILD
+
+Keep the proposed implementation narrow.
+
+Do not run the full test suite during PLAN.
+Run only enough focused inspection/tests to verify findings.
