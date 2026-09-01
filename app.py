@@ -156,6 +156,17 @@ from services.my_trips_paging import (
     MyTripsCursorError,
     load_my_trips_page,
 )
+from services.friends_paging import (
+    FriendsCursorError,
+    load_friends_page,
+)
+from services.friends_trips_paging import (
+    FriendsTripsCursorError,
+    FriendsTripsGroupError,
+    load_friends_trips_context,
+    load_friends_trips_group_page,
+    load_friends_trips_page,
+)
 
 
 def active_or_legacy_trip_predicate():
@@ -5119,6 +5130,35 @@ def build_trip_detail_friend_overlaps(
     )
 
 
+def _group_friends_trip_rows(rows):
+    from collections import OrderedDict
+
+    months = OrderedDict()
+    for row in rows:
+        start = row.group_start_date or row.attendance_start_date
+        month_key = start.strftime("%Y-%m") if start else "9999-99"
+        month_label = start.strftime("%B %Y") if start else "Dates TBD"
+        month = months.setdefault(month_key, {
+            "month_key": month_key,
+            "month_label": month_label,
+            "destinations": OrderedDict(),
+        })
+        destination = month["destinations"].setdefault(row.destination_key, {
+            "key": row.destination_key,
+            "name": row.destination,
+            "rows": [],
+        })
+        destination["rows"].append(row)
+    return [
+        {
+            "month_key": month["month_key"],
+            "month_label": month["month_label"],
+            "destinations": list(month["destinations"].values()),
+        }
+        for month in months.values()
+    ]
+
+
 @app.route("/my-trips")
 @login_required
 def my_trips():
@@ -5176,173 +5216,17 @@ def my_trips():
         invited_trips = []
         invite_inviters = {}
 
-    # Get friends — single join query (replaces get_friend_ids + User.query, saves 1 round trip)
-    _t = time.perf_counter()
-    try:
-        friends = (
-            User.query
-            .join(Friend, Friend.friend_id == User.id)
-            .filter(
-                Friend.user_id == user.id,
-                reciprocal_friend_predicate(user.id, User.id),
-            )
-            .all()
+    # Friends' Trips is independent from the BL-158 viewer feeds. A direct
+    # Friends-tab request receives its first bounded page; the normal tab does
+    # no social-trip collection work and lets the client fetch on activation.
+    friends_page = None
+    friends_destinations = []
+    has_friends = False
+    if active_tab == "friends":
+        friends_page = load_friends_trips_page(user.id, today=today)
+        friends_destinations, has_friends = load_friends_trips_context(
+            user.id, today=today
         )
-        friend_ids = [f.id for f in friends]
-    except Exception:
-        friend_ids = []
-        friends = []
-    if app.debug:
-        print(f"[ROUTE_PERF] my_trips.friends={time.perf_counter()-_t:.4f}s count={len(friends)}")
-
-    # Friends' upcoming trips (wrapped for production safety)
-    _t = time.perf_counter()
-    friend_trips = []
-    friend_going_participations = []
-    try:
-        if friend_ids:
-            friend_trips = SkiTrip.query.options(
-                db.joinedload(SkiTrip.resort)
-            ).filter(
-                SkiTrip.user_id.in_(friend_ids),
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today,
-                SkiTrip.is_public == True
-            ).order_by(SkiTrip.start_date.asc()).all() or []
-            # The Friends' Trips list is a person-presence surface. Include
-            # direct friends who are Going guests on another direct friend's
-            # public shared trip, carrying their participant row so the row
-            # can use the canonical effective attendance window.
-            friend_going_participations = (
-                SkiTripParticipant.query
-                .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
-                .options(
-                    db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort)
-                )
-                .filter(
-                    SkiTripParticipant.user_id.in_(friend_ids),
-                    SkiTripParticipant.status == GuestStatus.GOING,
-                    SkiTripParticipant.user_id != SkiTrip.user_id,
-                    SkiTrip.user_id.in_(friend_ids),
-                    active_or_legacy_trip_predicate(),
-                    SkiTrip.is_public == True,
-                    SkiTrip.end_date >= today,
-                )
-                .all()
-            )
-    except Exception:
-        friend_trips = []
-        friend_going_participations = []
-    if app.debug:
-        print(f"[ROUTE_PERF] my_trips.friend_trips={time.perf_counter()-_t:.4f}s count={len(friend_trips)}")
-
-    # Build friends_trips_tab: month + destination grouped rows
-    _t = time.perf_counter()
-    seven_days_ago_mt = datetime.now() - timedelta(days=7)
-    friends_trips_tab = []
-    try:
-        from collections import OrderedDict as _ODt_mt, defaultdict as _dd_mt
-        _friend_map_mt = {f.id: f for f in friends}
-        _friend_trip_entries_mt = [
-            (trip, None, trip.user_id) for trip in friend_trips
-        ]
-        for _participation in friend_going_participations:
-            _trip = _participation.trip
-            if not _trip:
-                continue
-            _attendance_start, _attendance_end = effective_attendance_dates(
-                _trip, _participation
-            )
-            if _attendance_end and _attendance_end >= today:
-                _friend_trip_entries_mt.append(
-                    (_trip, _participation, _participation.user_id)
-                )
-        _raw_rows_mt = []
-        for _trip, _attendance_participant, _friend_id in _friend_trip_entries_mt:
-            _friend = _friend_map_mt.get(_friend_id)
-            if not _friend:
-                continue
-            _dest = _trip.resort.name if _trip.resort else (_trip.mountain or 'TBD')
-            _status = _trip.trip_status or 'planning'
-            _is_new = bool(_trip.created_at and _trip.created_at >= seven_days_ago_mt)
-            _attendance_start, _attendance_end = effective_attendance_dates(
-                _trip, _attendance_participant
-            )
-            _fmt_date = format_trip_dates(
-                _trip,
-                start_date=_attendance_start,
-                end_date=_attendance_end,
-            )
-            if _attendance_start:
-                _mkey = _attendance_start.strftime('%Y-%m')
-                _mlabel = _attendance_start.strftime('%B %Y')
-            else:
-                _mkey = '9999-99'
-                _mlabel = 'Dates TBD'
-            _raw_rows_mt.append({
-                'destination': _dest,
-                'friend_name': f"{_friend.first_name or ''} {_friend.last_name or ''}".strip() or 'Friend',
-                'friend_id': _friend.id,
-                'status': _status,
-                'is_new': _is_new,
-                'formatted_date': _fmt_date,
-                'month_key': _mkey,
-                'month_label': _mlabel,
-                'trip_id': _trip.id,
-                'trip_start': _attendance_start,
-                'trip_end': _attendance_end,
-            })
-        _tab_groups_mt = _dd_mt(list)
-        for _row in _raw_rows_mt:
-            _tab_groups_mt[(_row['friend_id'], _row['destination'], _row['status'])].append(_row)
-        _months_dict_mt = _ODt_mt()
-        _seen_gkeys_mt = set()
-        for _row in _raw_rows_mt:
-            _gkey = (_row['friend_id'], _row['destination'], _row['status'])
-            _group = _tab_groups_mt[_gkey]
-            _is_grouped = len(_group) >= 3
-            if _is_grouped:
-                if _gkey in _seen_gkeys_mt:
-                    continue
-                _seen_gkeys_mt.add(_gkey)
-                _sorted_g = sorted([r for r in _group if r['trip_start']], key=lambda r: r['trip_start'])
-                if _sorted_g:
-                    _first_mo = _sorted_g[0]['trip_start'].strftime('%b')
-                    _last_end = _sorted_g[-1]['trip_end']
-                    _last_mo = _last_end.strftime('%b') if _last_end else _sorted_g[-1]['trip_start'].strftime('%b')
-                    _date_range_lbl = f"{_first_mo}–{_last_mo}" if _first_mo != _last_mo else _first_mo
-                else:
-                    _date_range_lbl = ''
-                _display_row = dict(_row)
-                _display_row['grouped'] = True
-                _display_row['grouped_count'] = len(_group)
-                _display_row['date_range_label'] = _date_range_lbl
-                _display_row['grouped_trips'] = [
-                    {'trip_id': r['trip_id'], 'formatted_date': r['formatted_date'], 'status': r['status']}
-                    for r in sorted(_group, key=lambda r: r['trip_start'] or date.max)
-                ]
-            else:
-                _display_row = dict(_row)
-                _display_row['grouped'] = False
-            _mk = _display_row['month_key']
-            if _mk not in _months_dict_mt:
-                _months_dict_mt[_mk] = {'month_label': _display_row['month_label'], 'destinations': _ODt_mt()}
-            _dk = _display_row['destination']
-            if _dk not in _months_dict_mt[_mk]['destinations']:
-                _months_dict_mt[_mk]['destinations'][_dk] = []
-            _months_dict_mt[_mk]['destinations'][_dk].append(_display_row)
-        friends_trips_tab = [
-            {'month_label': _md['month_label'],
-             'destinations': [{'name': _dn, 'rows': _dr} for _dn, _dr in _md['destinations'].items()]}
-            for _md in _months_dict_mt.values()
-        ]
-    except Exception:
-        friends_trips_tab = []
-    if app.debug:
-        print(f"[ROUTE_PERF] my_trips.tab_build={time.perf_counter()-_t:.4f}s friend_trip_count={len(friend_trips)}")
-
-    if app.debug:
-        print(f"[ROUTE_PERF] route=my_trips total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
         "my_trips.html",
         user=user,
@@ -5358,12 +5242,22 @@ def my_trips():
         invite_inviters=invite_inviters or {},
         accepted_guest_trips=accepted_guest_trips or [],
         active_tab=active_tab,
-        friends=friends or [],
-        friend_trips=friend_trips or [],
-        friends_trips_tab=friends_trips_tab,
-        today=today
+        friends=[True] if has_friends else [],
+        friend_trips=[],
+        friends_trips_tab=_group_friends_trip_rows(
+            friends_page.rows if friends_page else []
+        ),
+        friends_trips_has_more=friends_page.has_more if friends_page else False,
+        friends_trips_next_cursor=(
+            friends_page.next_cursor if friends_page else None
+        ),
+        friends_trips_destinations=[
+            {"key": option.key, "name": option.name}
+            for option in friends_destinations
+        ],
+        friends_trips_loaded=friends_page is not None,
+        today=today,
     )
-
 
 @app.route("/api/my-trips/page")
 @login_required
@@ -5393,6 +5287,78 @@ def my_trips_page():
         "has_more": page.has_more,
         "next_cursor": page.next_cursor,
         "trip_ids": [row.trip.id for row in page.rows],
+    })
+
+
+@app.route("/api/my-trips/friends/page")
+@login_required
+def friends_trips_page():
+    cursor = request.args.get("cursor")
+    destination = request.args.get("destination") or None
+    if destination is not None and len(destination) > 512:
+        return jsonify({"error": "Invalid Friends' Trips destination."}), 400
+    try:
+        page = load_friends_trips_page(
+            current_user.id,
+            today=date.today(),
+            cursor_value=cursor,
+            destination_key=destination,
+        )
+    except FriendsTripsCursorError as exc:
+        return jsonify({"error": str(exc)}), 400
+    include_context = request.args.get("context") == "1"
+    if include_context:
+        destinations, has_friends = load_friends_trips_context(
+            current_user.id, today=date.today()
+        )
+    else:
+        destinations, has_friends = None, None
+    html = app.jinja_env.get_template(
+        "components/friends_trips_groups.html"
+    ).render(friends_trips_tab=_group_friends_trip_rows(page.rows))
+    return jsonify({
+        "html": html,
+        "has_more": page.has_more,
+        "next_cursor": page.next_cursor,
+        "unit_ids": [
+            (
+                f"g:{row.group_token}"
+                if row.grouped
+                else f"t:{row.friend_id}:{row.trip_id}"
+            )
+            for row in page.rows
+        ],
+        "destinations": [
+            {"key": option.key, "name": option.name}
+            for option in (destinations or [])
+        ] if destinations is not None else None,
+        "has_friends": has_friends,
+    })
+
+
+@app.route("/api/my-trips/friends/group")
+@login_required
+def friends_trips_group_page():
+    group = request.args.get("group", "")
+    if not group or len(group) > 2048:
+        return jsonify({"error": "Invalid Friends' Trips group."}), 400
+    try:
+        page = load_friends_trips_group_page(
+            current_user.id,
+            group,
+            today=date.today(),
+            cursor_value=request.args.get("cursor"),
+        )
+    except (FriendsTripsCursorError, FriendsTripsGroupError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    html = app.jinja_env.get_template(
+        "components/friends_trips_detail_rows.html"
+    ).render(rows=page.rows)
+    return jsonify({
+        "html": html,
+        "has_more": page.has_more,
+        "next_cursor": page.next_cursor,
+        "trip_ids": [row.trip_id for row in page.rows],
     })
 
 @app.route("/season-snapshot")
@@ -9541,443 +9507,168 @@ def user_search():
     return jsonify(result), 200
 
 
-@app.route("/friends")
-@login_required
-def friends():
-    user = current_user
-    today = date.today()
-    today_str = today.strftime('%Y-%m-%d')
-    from sqlalchemy.orm import joinedload
-    _rp_t0 = time.perf_counter()
-
-    _fp_t0 = time.perf_counter()
-
-    # ── [FRIENDS_PERF] Block 1+2: friend_links + all_friends (single JOIN) ────
-    # Replaces two serial queries (Friend→IDs, then User.in_(IDs)) with one JOIN.
-    # Saves ~65ms (one Supabase round-trip). Matches the pattern used by /home and
-    # /my-trips. Friend objects are still available for friendship_lookup below.
-    _t = time.perf_counter()
-    _friend_join_rows = (
-        db.session.query(User, Friend)
-        .join(Friend, Friend.friend_id == User.id)
-        .filter(
-            Friend.user_id == user.id,
-            reciprocal_friend_predicate(user.id, User.id),
-        )
-        .all()
-    )
-    all_friends = [u for u, _f in _friend_join_rows]
-    friend_links = [_f for _u, _f in _friend_join_rows]
-    friend_ids = [u.id for u in all_friends]
-    if app.debug:
-        print(f"[FRIENDS_PERF] friend_links+all_friends={time.perf_counter()-_t:.4f}s count={len(friend_ids)}")
-
-    # ── [FRIENDS_PERF] Block 3: friend_trips ──────────────────────────────────
-    _t = time.perf_counter()
-    friend_trips = []
-    if friend_ids:
-        friend_trips = (
-            SkiTrip.query
-            .options(joinedload(SkiTrip.user), joinedload(SkiTrip.resort))
-            .filter(
-                SkiTrip.user_id.in_(friend_ids),
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today,
-                SkiTrip.is_public == True
-            )
-            .order_by(SkiTrip.start_date.asc())
-            .all()
-        )
-    if app.debug:
-        print(f"[FRIENDS_PERF] friend_trips={time.perf_counter()-_t:.4f}s count={len(friend_trips)}")
-
-    # ── [FRIENDS_PERF] Block 4: user_trips (owned) ────────────────────────────
-    _t = time.perf_counter()
-    user_trips = (
-        SkiTrip.query
-        .options(joinedload(SkiTrip.resort))
-        .filter(
-            SkiTrip.user_id == user.id,
-            active_or_legacy_trip_predicate(),
-            SkiTrip.end_date >= today
-        )
-        .all()
-    )
-    if app.debug:
-        print(f"[FRIENDS_PERF] user_trips_owned={time.perf_counter()-_t:.4f}s count={len(user_trips)}")
-
-    # ── [FRIENDS_PERF] Block 5: accepted guest trips ───────────────────────────
-    _t = time.perf_counter()
-    try:
-        _user_accepted_ids = [
-            p.trip_id for p in SkiTripParticipant.query.filter(
-                SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.active_status_filter()
-            ).all()
+def _friends_filter_args():
+    def values(name):
+        raw = request.args.getlist(name)
+        return [
+            value.strip()
+            for item in raw
+            for value in item.split(",")
+            if value.strip()
         ]
-        if _user_accepted_ids:
-            _user_guest_trips = SkiTrip.query.filter(
-                SkiTrip.id.in_(_user_accepted_ids),
-                SkiTrip.user_id != user.id,
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today
-            ).all()
-            user_trips = user_trips + _user_guest_trips
+
+    return {
+        "q": request.args.get("q", ""),
+        "passes": values("pass"),
+        "riders": values("rider"),
+        "skills": values("level"),
+    }
+
+
+def _load_suggested_friends(user):
+    suggested_friends = []
+    try:
+        from collections import defaultdict as _defaultdict
+        now = datetime.utcnow()
+        suggestion_rows = FriendSuggestion.query.filter(
+            FriendSuggestion.recipient_id == user.id,
+            FriendSuggestion.dismissed_at.is_(None),
+            FriendSuggestion.expires_at > now,
+        ).order_by(FriendSuggestion.created_at.asc()).all()
+        grouped = _defaultdict(list)
+        for row in suggestion_rows:
+            grouped[row.suggested_user_id].append(row)
+        summaries = []
+        for suggested_user_id, rows in grouped.items():
+            summaries.append({
+                "suggested_user_id": suggested_user_id,
+                "suggester_ids": [
+                    row.suggester_id
+                    for row in sorted(rows, key=lambda value: value.created_at)
+                ],
+                "latest_at": max(row.created_at for row in rows),
+            })
+        summaries.sort(key=lambda value: value["latest_at"], reverse=True)
+        suggested_ids = [value["suggested_user_id"] for value in summaries]
+        suggester_ids = list({
+            suggester_id
+            for value in summaries
+            for suggester_id in value["suggester_ids"]
+        })
+        users = {
+            value.id: value
+            for value in User.query.filter(User.id.in_(suggested_ids)).all()
+        } if suggested_ids else {}
+        suggesters = {
+            value.id: value
+            for value in User.query.filter(User.id.in_(suggester_ids)).all()
+        } if suggester_ids else {}
+        inbound = Invitation.query.filter(
+            Invitation.receiver_id == user.id,
+            Invitation.sender_id.in_(suggested_ids),
+            Invitation.trip_id.is_(None),
+            Invitation.status == "pending",
+        ).all() if suggested_ids else []
+        inbound_by_sender = {value.sender_id: value for value in inbound}
+        for summary in summaries:
+            suggested_user = users.get(summary["suggested_user_id"])
+            if not suggested_user:
+                continue
+            invitation = inbound_by_sender.get(summary["suggested_user_id"])
+            suggested_friends.append({
+                "user": suggested_user,
+                "attribution": _build_suggestion_attribution(
+                    summary["suggester_ids"], suggesters
+                ),
+                "has_inbound_request": invitation is not None,
+                "inbound_invitation_id": invitation.id if invitation else None,
+                "latest_at": summary["latest_at"],
+            })
     except Exception:
-        pass
-    if app.debug:
-        print(f"[FRIENDS_PERF] accepted_guest_trips={time.perf_counter()-_t:.4f}s user_trips_total={len(user_trips)}")
+        db.session.rollback()
+        suggested_friends = []
+    return suggested_friends
 
-    # ── [FRIENDS_PERF] Block 6: compute_trip_overlaps ─────────────────────────
-    _t = time.perf_counter()
-    trip_overlaps = compute_trip_overlaps(user_trips, friend_trips)
-    if app.debug:
-        print(f"[FRIENDS_PERF] compute_trip_overlaps={time.perf_counter()-_t:.4f}s overlaps={len(trip_overlaps)}")
 
-    # ── [FRIENDS_PERF] Block 7: open_date_overlaps ────────────────────────────
-    _t = time.perf_counter()
-    open_date_overlaps = []
-    user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
-    if user_open_dates and friend_ids:
-        for friend in all_friends:
-            friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
-            shared_dates = user_open_dates & friend_open_dates
-            for date_str in shared_dates:
-                open_date_overlaps.append({
-                    "type": "open",
-                    "date_str": date_str,
-                    "friend_id": friend.id,
-                    "friend_first_name": friend.first_name
-                })
-    if app.debug:
-        print(f"[FRIENDS_PERF] open_date_overlaps={time.perf_counter()-_t:.4f}s overlaps={len(open_date_overlaps)}")
-
-    # ── [FRIENDS_PERF] Block 8: lookup build ──────────────────────────────────
-    _t = time.perf_counter()
-    friendship_lookup = {f.friend_id: f for f in friend_links}
-
-    trip_overlap_by_friend = {}
-    for ov in trip_overlaps:
-        fid = ov['friend_id']
-        if fid not in trip_overlap_by_friend:
-            trip_overlap_by_friend[fid] = []
-        trip_overlap_by_friend[fid].append(ov)
-
-    open_overlap_by_friend = {}
-    for ov in open_date_overlaps:
-        fid = ov['friend_id']
-        if fid not in open_overlap_by_friend:
-            open_overlap_by_friend[fid] = []
-        open_overlap_by_friend[fid].append(ov['date_str'])
-
-    friend_trips_by_id = {}
-    for ft in friend_trips:
-        fid = ft.user_id
-        if fid not in friend_trips_by_id:
-            friend_trips_by_id[fid] = []
-        friend_trips_by_id[fid].append(ft)
-    if app.debug:
-        print(f"[FRIENDS_PERF] lookup_build={time.perf_counter()-_t:.4f}s")
-
-    # ── [FRIENDS_PERF] Block 8b: batch owned upcoming trips for all friends ────
-    _t = time.perf_counter()
-    _batch_owner_trips: list = []
-    if friend_ids:
-        from sqlalchemy.orm import joinedload
-        _batch_owner_trips = (
-            SkiTrip.query
-            .options(joinedload(SkiTrip.resort))
-            .filter(
-                SkiTrip.user_id.in_(friend_ids),
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today,
-                SkiTrip.is_public.is_(True),
-            )
-            .all()
-        )
-    _owner_trips_by_friend: dict = {}
-    for _t2 in _batch_owner_trips:
-        _owner_trips_by_friend.setdefault(_t2.user_id, []).append(_t2)
-    if app.debug:
-        print(f"[FRIENDS_PERF] batch_owner_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_owner_trips)}")
-
-    # ── [FRIENDS_PERF] Block 8c: batch active participant trips for all friends
-    _t = time.perf_counter()
-    _batch_part_rows: list = []
-    if friend_ids:
-        _batch_part_rows = (
-            db.session.query(SkiTrip, SkiTripParticipant.user_id)
-            .options(joinedload(SkiTrip.resort))
-            .join(SkiTripParticipant, SkiTrip.id == SkiTripParticipant.trip_id)
-            .filter(
-                SkiTripParticipant.user_id.in_(friend_ids),
-                SkiTripParticipant.active_status_filter(),
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today,
-                SkiTrip.is_public.is_(True),
-            )
-            .all()
-        )
-    # Group directly by participant user ID from the original bounded join.
-    _part_trips_by_friend: dict = {}
-    for _trip_obj, _participant_user_id in _batch_part_rows:
-        _part_trips_by_friend.setdefault(
-            _participant_user_id, []
-        ).append(_trip_obj)
-    if app.debug:
-        print(f"[FRIENDS_PERF] batch_participant_trips={time.perf_counter()-_t:.4f}s rows={len(_batch_part_rows)}")
-
-    # ── [FRIENDS_PERF] Block 9: per-friend loop ───────────────────────────────
-    _loop_t0 = time.perf_counter()
-    _acc_trip_count   = 0.0
-    _acc_owner_trips  = 0.0
-    _acc_part_trips   = 0.0
-    _acc_overlap_prep = 0.0
-
-    for friend in all_friends:
-        friendship = friendship_lookup.get(friend.id)
-
-        friend._trip_invites_allowed = friendship.trip_invites_allowed if friendship else False
-        friend._is_new_friend = bool(friendship and not friendship.has_viewed_profile)
-
-        # [inner] trip count — inline set-union from batched data (no DB call)
-        _ti = time.perf_counter()
-        _owner_ids = {t.id for t in _owner_trips_by_friend.get(friend.id, [])}
-        _part_ids  = {t.id for t in _part_trips_by_friend.get(friend.id, [])}
-        friend._upcoming_trip_count = len(_owner_ids | _part_ids)
-        friend._has_upcoming_trip = friend._upcoming_trip_count > 0
-        _acc_trip_count += time.perf_counter() - _ti
-
-        # [inner] owned upcoming trips — batch lookup (no DB call)
-        _ti = time.perf_counter()
-        upcoming_owner_trips = _owner_trips_by_friend.get(friend.id, [])
-        _acc_owner_trips += time.perf_counter() - _ti
-
-        # [inner] accepted participant trips — batch lookup (no DB call)
-        _ti = time.perf_counter()
-        upcoming_participant_trips = _part_trips_by_friend.get(friend.id, [])
-        _acc_part_trips += time.perf_counter() - _ti
-
-        all_upcoming_trips_dict = {t.id: t for t in upcoming_owner_trips}
-        for t in upcoming_participant_trips:
-            all_upcoming_trips_dict[t.id] = t
-
-        if all_upcoming_trips_dict:
-            latest_created = max(t.created_at for t in all_upcoming_trips_dict.values() if t.created_at)
-            friend._latest_upcoming_trip_created_at = latest_created
-        else:
-            friend._latest_upcoming_trip_created_at = None
-
-        friend._trip_count = friend._upcoming_trip_count
-        friend._going_count = sum(
-            1 for t in friend_trips_by_id.get(friend.id, [])
-            if (t.trip_status or 'planning') == 'going'
-        )
-
-        # [inner] overlap label + next trip label
-        _ti = time.perf_counter()
-        friend._overlap_label = None
-        friend._next_trip_label = None
-
-        friend_ov_trips = sorted(trip_overlap_by_friend.get(friend.id, []), key=lambda x: x['start_date'])
-        if friend_ov_trips:
-            ov = friend_ov_trips[0]
-            sd, ed = ov['start_date'], ov['end_date']
-            if sd == ed:
-                dates_str = sd.strftime('%b %-d')
-            elif sd.month == ed.month:
-                dates_str = f"{sd.strftime('%b %-d')}–{ed.strftime('%-d')}"
-            else:
-                dates_str = f"{sd.strftime('%b %-d')}–{ed.strftime('%b %-d')}"
-            friend._overlap_label = f"Overlap at {ov['mountain']} · {dates_str}"
-        else:
-            friend_open_ovs = sorted(open_overlap_by_friend.get(friend.id, []))
-            if friend_open_ovs:
-                d = datetime.strptime(friend_open_ovs[0], '%Y-%m-%d').date()
-                friend._overlap_label = f"Both free {d.strftime('%b %-d')}"
-
-        friend_upcoming_pub = sorted(friend_trips_by_id.get(friend.id, []), key=lambda t: t.start_date)
-        if friend_upcoming_pub:
-            ft = friend_upcoming_pub[0]
-            resort_name = ft.resort.name if ft.resort else (ft.mountain or '')
-            state = ft.resort.state if ft.resort else (ft.state or '')
-            dates_str = format_trip_dates(ft)
-            ft_status = ft.trip_status or 'planning'
-            dest = resort_name
-            if state:
-                dest += f", {state}"
-            if dates_str:
-                dest += f" · {dates_str}"
-            if ft_status == 'going':
-                label = f"Going to {dest}"
-            else:
-                label = f"Planning {dest}"
-            friend._next_trip_label = label
-        _acc_overlap_prep += time.perf_counter() - _ti
-
-    _loop_total = time.perf_counter() - _loop_t0
-    if app.debug:
-        print(
-            f"[FRIENDS_PERF] per_friend_loop={_loop_total:.4f}s friend_count={len(all_friends)} "
-            f"| trip_count_compute={_acc_trip_count:.4f}s "
-            f"| owner_trips_lookup={_acc_owner_trips:.4f}s "
-            f"| participant_trips_lookup={_acc_part_trips:.4f}s "
-            f"| overlap_prep={_acc_overlap_prep:.4f}s"
-        )
-
-    # ── [FRIENDS_PERF] Block 10: sort + invite token + alpha_groups ───────────
-    _t = time.perf_counter()
-    def friend_sort_key(f):
-        is_new = 0 if f._is_new_friend else 1
-        has_trip = 0 if f._has_upcoming_trip else 1
-        latest_ts = 0
-        if f._latest_upcoming_trip_created_at:
-            latest_ts = -f._latest_upcoming_trip_created_at.timestamp()
-        else:
-            latest_ts = float('inf')
-        first_name = (f.first_name or '').lower()
-        return (is_new, has_trip, latest_ts, first_name)
-
-    all_friends_sorted = sorted(all_friends, key=friend_sort_key)
-    if app.debug:
-        print(f"[FRIENDS_PERF] sort={time.perf_counter()-_t:.4f}s")
-
-    # ── [FRIENDS_PERF] Block 11: invite token ─────────────────────────────────
-    _t = time.perf_counter()
+def _render_bounded_friends():
+    user = current_user
+    filters = _friends_filter_args()
+    page = load_friends_page(user.id, **filters)
     invite_token_obj = get_or_create_invite_token(user)
     invite_url = (
         f"{BASE_URL}{url_for('invite_token_landing', token=invite_token_obj.token)}"
         if invite_token_obj else None
     )
-    if app.debug:
-        print(f"[FRIENDS_PERF] invite_token={time.perf_counter()-_t:.4f}s")
-
-    # ── friend_count for empty vs populated state switch ──────────────────────
-    friend_count = len(all_friends)
-
-    # ── [FRIENDS_PERF] Block 12: alpha_groups ─────────────────────────────────
-    _t = time.perf_counter()
-    alpha_sorted = sorted(all_friends, key=lambda f: (f.first_name or '').lower())
-    alpha_groups = []
-    for _f in alpha_sorted:
-        _letter = (_f.first_name or '?')[0].upper()
-        if not alpha_groups or alpha_groups[-1]['letter'] != _letter:
-            alpha_groups.append({'letter': _letter, 'friends': []})
-        alpha_groups[-1]['friends'].append(_f)
-    if app.debug:
-        print(f"[FRIENDS_PERF] alpha_groups={time.perf_counter()-_t:.4f}s groups={len(alpha_groups)}")
-
-    # ── [FRIENDS_PERF] Summary ─────────────────────────────────────────────────
-    if app.debug:
-        print(f"[FRIENDS_PERF] total={time.perf_counter()-_fp_t0:.4f}s friend_count={friend_count}")
-        print(f"[ROUTE_PERF] route=friends total={time.perf_counter()-_rp_t0:.4f}s")
-
-    # ── Pending incoming friend invitations ───────────────────────────────────
-    # Separate from the Friend rows (which are confirmed) — these are
-    # Invitation rows where the current user is the receiver and status=pending.
-    # Ordered newest-first so the most recent request appears at the top.
     pending_incoming = (
         Invitation.query
-        .filter_by(receiver_id=current_user.id, status='pending')
-        .filter(Invitation.trip_id.is_(None))   # friend invites only, not trip requests
+        .filter_by(receiver_id=user.id, status="pending")
+        .filter(Invitation.trip_id.is_(None))
         .order_by(Invitation.created_at.desc())
         .all()
     )
-    # Pre-load sender User objects so the template can render names without N+1.
-    _sender_ids = [inv.sender_id for inv in pending_incoming]
-    _senders_map = {}
-    if _sender_ids:
-        _senders_map = {u.id: u for u in User.query.filter(User.id.in_(_sender_ids)).all()}
-    for inv in pending_incoming:
-        inv._sender = _senders_map.get(inv.sender_id)
+    sender_ids = [invitation.sender_id for invitation in pending_incoming]
+    senders = {
+        sender.id: sender
+        for sender in User.query.filter(User.id.in_(sender_ids)).all()
+    } if sender_ids else {}
+    for invitation in pending_incoming:
+        invitation._sender = senders.get(invitation.sender_id)
 
-    from services.pass_utils import CANONICAL_PASS_ORDER, PASS_DISPLAY_MAP as _PASS_DISPLAY_MAP
+    from services.pass_utils import (
+        CANONICAL_PASS_ORDER,
+        PASS_DISPLAY_MAP as _PASS_DISPLAY_MAP,
+    )
     filter_passes = [
         {"slug": slug, "label": _PASS_DISPLAY_MAP.get(slug, slug)}
         for slug in CANONICAL_PASS_ORDER
     ]
-
-    # ── BL-12: Suggested Friends tab data ─────────────────────────────────────
-    initial_tab = request.args.get('tab', 'friends')
-    suggested_friends = []
-    suggested_count = 0
-    try:
-        from collections import defaultdict as _defaultdict
-        _now_dt = datetime.utcnow()
-
-        _sugg_rows = FriendSuggestion.query.filter(
-            FriendSuggestion.recipient_id == user.id,
-            FriendSuggestion.dismissed_at.is_(None),
-            FriendSuggestion.expires_at > _now_dt,
-        ).order_by(FriendSuggestion.created_at.asc()).all()
-
-        if _sugg_rows:
-            # Group by suggested_user_id in Python (avoids dialect-specific array_agg)
-            _sugg_by_uid = _defaultdict(list)
-            for _sr in _sugg_rows:
-                _sugg_by_uid[_sr.suggested_user_id].append(_sr)
-
-            _sugg_groups = []
-            for _sugg_uid, _rows in _sugg_by_uid.items():
-                _latest_at = max(r.created_at for r in _rows)
-                _rows_chron = sorted(_rows, key=lambda r: r.created_at)
-                _sugg_groups.append({
-                    'suggested_user_id': _sugg_uid,
-                    'suggester_ids':     [r.suggester_id for r in _rows_chron],
-                    'latest_at':         _latest_at,
-                })
-            _sugg_groups.sort(key=lambda g: g['latest_at'], reverse=True)
-
-            _all_sugg_ids = [g['suggested_user_id'] for g in _sugg_groups]
-            _all_sr_ids   = list({sid for g in _sugg_groups for sid in g['suggester_ids']})
-            _sugg_user_map = {
-                u.id: u for u in User.query.filter(User.id.in_(_all_sugg_ids)).all()
-            }
-            _sr_user_map = {
-                u.id: u for u in User.query.filter(User.id.in_(_all_sr_ids)).all()
-            } if _all_sr_ids else {}
-
-            # Batch-check inbound pending Invitations (Accept vs Connect)
-            _inbound_invs = Invitation.query.filter(
-                Invitation.receiver_id == user.id,
-                Invitation.sender_id.in_(_all_sugg_ids),
-                Invitation.trip_id.is_(None),
-                Invitation.status == 'pending',
-            ).all()
-            _inbound_inv_map = {inv.sender_id: inv for inv in _inbound_invs}
-
-            for g in _sugg_groups:
-                _su = _sugg_user_map.get(g['suggested_user_id'])
-                if not _su:
-                    continue
-                _inv = _inbound_inv_map.get(g['suggested_user_id'])
-                suggested_friends.append({
-                    'user':                _su,
-                    'attribution':         _build_suggestion_attribution(g['suggester_ids'], _sr_user_map),
-                    'has_inbound_request': _inv is not None,
-                    'inbound_invitation_id': _inv.id if _inv else None,
-                    'latest_at':           g['latest_at'],
-                })
-            suggested_count = len(suggested_friends)
-    except Exception:
-        db.session.rollback()
-        suggested_friends = []
-        suggested_count   = 0
-
+    suggested_friends = _load_suggested_friends(user)
     return render_template(
         "friends.html",
         user=user,
-        friends=all_friends_sorted,
+        friends=page.rows,
         invite_url=invite_url,
-        friend_count=friend_count,
-        alpha_groups=alpha_groups,
+        friend_count=page.authorized_count,
+        alpha_groups=page.alpha_groups,
+        friends_has_more=page.has_more,
+        friends_next_cursor=page.next_cursor,
+        friends_matching_count=page.matching_count,
         pending_incoming=pending_incoming,
         filter_passes=filter_passes,
-        initial_tab=initial_tab,
+        initial_tab=request.args.get("tab", "friends"),
         suggested_friends=suggested_friends,
-        suggested_count=suggested_count,
+        suggested_count=len(suggested_friends),
     )
 
+
+@app.route("/api/friends/page")
+@login_required
+def api_friends_page():
+    try:
+        page = load_friends_page(
+            current_user.id,
+            cursor_value=request.args.get("cursor"),
+            **_friends_filter_args(),
+        )
+    except FriendsCursorError as exc:
+        return jsonify({"error": str(exc)}), 400
+    html = app.jinja_env.get_template(
+        "components/friends_directory_groups.html"
+    ).render(alpha_groups=page.alpha_groups)
+    return jsonify({
+        "html": html,
+        "has_more": page.has_more,
+        "next_cursor": page.next_cursor,
+        "matching_count": page.matching_count,
+        "authorized_count": page.authorized_count,
+        "friend_ids": [row.id for row in page.rows],
+    })
+
+
+@app.route("/friends")
+@login_required
+def friends():
+    return _render_bounded_friends()
 @app.route("/friends/<int:friend_id>")
 @login_required
 def friend_profile(friend_id):

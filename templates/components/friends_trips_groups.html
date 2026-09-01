@@ -1,0 +1,41 @@
+{% for month in friends_trips_tab %}
+<section class="ft-month-section" data-month-key="{{ month.month_key }}">
+    <p class="fr-month-header">{{ month.month_label }}</p>
+    {% for dest in month.destinations %}
+    <div class="fr-dest-block"
+         data-destination-key="{{ dest.key }}"
+         data-mountain="{{ dest.name }}">
+        <p class="fr-dest-name">{{ dest.name }}</p>
+        <div class="ft-destination-rows">
+        {% for row in dest.rows %}
+            {% if row.grouped %}
+            <button type="button"
+                    class="fr-trip-meta-row fr-trip-row-grouped"
+                    data-unit-id="g:{{ row.group_token }}"
+                    data-group-token="{{ row.group_token }}"
+                    data-group-count="{{ row.grouped_count }}"
+                    data-destination="{{ row.destination }}">
+                <span class="fr-trip-meta-left">{{ row.friend_name }} &middot; {{ row.grouped_count }} dates</span>
+                <span class="fr-trip-meta-right fr-trip-meta-right-grouped">
+                    {% set group_start = row.group_start_date or row.attendance_start_date %}
+                    {% set group_end = row.group_end_date or row.attendance_end_date %}
+                    {% if group_start %}
+                        {{ group_start.strftime('%b') }}{% if group_end and group_end.strftime('%b') != group_start.strftime('%b') %}–{{ group_end.strftime('%b') }}{% endif %}
+                    {% endif %}
+                    &middot; {{ row.status | capitalize }}
+                </span>
+            </button>
+            {% else %}
+            <a href="{{ url_for('friend_trip_details', trip_id=row.trip_id) }}"
+               class="fr-trip-meta-row fr-trip-meta-row-link"
+               data-unit-id="t:{{ row.friend_id }}:{{ row.trip_id }}">
+                <span class="fr-trip-meta-left">{{ row.friend_name }}{% if row.status %} &middot; {{ row.status }}{% endif %}</span>
+                <span class="fr-trip-meta-right">{{ format_trip_dates(row.trip, start_date=row.attendance_start_date, end_date=row.attendance_end_date) }}</span>
+            </a>
+            {% endif %}
+        {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endfor %}

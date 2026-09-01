@@ -528,60 +528,38 @@
 
         <!-- ── FRIENDS' TRIPS ── -->
         <div id="segment-friends" class="segment-content">
-            {% if friends_trips_tab %}
-                <!-- Mountain filter -->
-                <button class="ft-mtn-filter-btn" id="ft-mtn-filter-btn" onclick="ftOpenMtnFilter()">
-                    <span id="ft-mtn-filter-label">Filter for a mountain</span>
-                    <span class="ft-mtn-filter-chevron">⌄</span>
-                </button>
-                <!-- Trip list -->
-                <div id="ft-trips-list">
-                {% for month in friends_trips_tab %}
-                {% set month_idx = loop.index %}
-                <p class="fr-month-header" data-month="{{ month_idx }}">{{ month.month_label }}</p>
-                {% for dest in month.destinations %}
-                <div class="fr-dest-block" data-mountain="{{ dest.name }}" data-month="{{ month_idx }}">
-                    <p class="fr-dest-name">{{ dest.name }}</p>
-                    {% for row in dest.rows %}
-                    {% if row.grouped %}
-                    <div class="fr-trip-meta-row fr-trip-row-grouped"
-                         onclick="ftOpenGroupedSheet({{ row.destination | tojson }}, {{ row.grouped_count }}, {{ row.grouped_trips | tojson }})">
-                        <span class="fr-trip-meta-left">
-                            {{- row.friend_name -}} &middot; {{ row.grouped_count }} dates
-                        </span>
-                        <span class="fr-trip-meta-right fr-trip-meta-right-grouped">{{ row.date_range_label }} &middot; {{ row.status | capitalize }}</span>
-                    </div>
-                    {% else %}
-                    <a href="/friend-trip/{{ row.trip_id }}" class="fr-trip-meta-row fr-trip-meta-row-link">
-                        <span class="fr-trip-meta-left">
-                            {{- row.friend_name -}}
-                            {%- if row.status %} &middot; {{ row.status }}{% endif -%}
-                        </span>
-                        <span class="fr-trip-meta-right">{{ row.formatted_date }}</span>
-                    </a>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-                {% endfor %}
-                {% endfor %}
-                </div>
-            {% elif friends %}
-                <!-- Has friends, but no upcoming friend trips -->
-                <div class="bl-es">
+            <button class="ft-mtn-filter-btn"
+                    id="ft-mtn-filter-btn"
+                    onclick="ftOpenMtnFilter()"
+                    {% if not friends_trips_destinations %}style="display:none"{% endif %}>
+                <span id="ft-mtn-filter-label">Filter for a mountain</span>
+                <span class="ft-mtn-filter-chevron">⌄</span>
+            </button>
+            <div id="ft-trips-list">
+                {% include "components/friends_trips_groups.html" %}
+            </div>
+            <button type="button"
+                    id="ft-load-more"
+                    class="ft-load-more"
+                    data-cursor="{{ friends_trips_next_cursor or '' }}"
+                    {% if not friends_trips_has_more %}style="display:none"{% endif %}>Load more</button>
+            <div id="ft-loading" class="bl-es" {% if friends_trips_loaded %}style="display:none"{% endif %}>
+                <p class="bl-es-sub">Loading friends' trips…</p>
+            </div>
+            <div id="ft-empty-trips" class="bl-es"
+                 {% if not friends_trips_loaded or friends_trips_tab or not friends %}style="display:none"{% endif %}>
                     <p class="bl-es-headline">No trips planned yet.</p>
                     <p class="bl-es-sub">None of your friends have upcoming trips. Add one to get started.</p>
                     <a href="{{ url_for('add_trip') }}" class="bl-cta-trip">Plan a trip</a>
                     <a href="{{ url_for('invite') }}" class="bl-es-link">Invite friends →</a>
-                </div>
-            {% else %}
-                <!-- No friends yet -->
-                <div class="mt-hero">
+            </div>
+            <div id="ft-empty-friends" class="mt-hero"
+                 {% if not friends_trips_loaded or friends %}style="display:none"{% endif %}>
                     <p class="mt-hero-eyebrow">No connections yet</p>
                     <p class="mt-hero-title">Invite your friends</p>
                     <p class="mt-hero-sub">Connect with friends to see where they're headed and plan trips together.</p>
                     <a href="{{ url_for('invite') }}" class="bl-cta-trip">Invite friends</a>
-                </div>
-            {% endif %}
+            </div>
         </div>
 
     </div>
@@ -603,6 +581,10 @@
                 <p class="ft-grouped-subtitle" id="ft-grouped-subtitle"></p>
             </div>
             <div class="ft-grouped-rows" id="ft-grouped-rows"></div>
+            <button type="button"
+                    id="ft-group-load-more"
+                    class="ft-load-more"
+                    style="display:none">Load more</button>
         </div>
     </div>
 
@@ -611,6 +593,16 @@
 {% block scripts %}
 
     <script>
+    var _ftLoaded = {{ friends_trips_loaded | tojson }};
+    var _ftDestinations = {{ friends_trips_destinations | tojson }};
+    var _ftHasFriends = {{ (friends | length > 0) | tojson }};
+    var _ftActiveMtn = null;
+    var _ftActiveGroup = null;
+    var _ftPageController = null;
+    var _ftPageGeneration = 0;
+    var _ftGroupController = null;
+    var _ftGroupGeneration = 0;
+
     document.addEventListener('DOMContentLoaded', function() {
         var STORAGE_KEY = 'my_trips_active_tab';
         var VALID_TABS = ['upcoming', 'friends'];
@@ -627,6 +619,7 @@
                 btn.classList.add('active');
                 content.classList.add('active');
                 if (persist !== false) sessionStorage.setItem(STORAGE_KEY, tabName);
+                if (tabName === 'friends' && !_ftLoaded) _ftFetchPage(true);
             }
         }
 
@@ -698,29 +691,161 @@
         });
     });
 
-    // ── Mountain filter (Friends' Trips tab) ──────────────────────────────
-    var _ftActiveMtn = null;
+    // ── Friends' Trips progressive feed ──────────────────────────────────
+    function _ftMergePageHtml(html, reset) {
+        var list = document.getElementById('ft-trips-list');
+        if (!list) return null;
+        if (reset) list.innerHTML = '';
+        var holder = document.createElement('div');
+        holder.innerHTML = html || '';
+        var existingIds = new Set(Array.from(
+            list.querySelectorAll('[data-unit-id]')
+        ).map(function(row) { return row.getAttribute('data-unit-id'); }));
+        var firstAdded = null;
+        Array.from(holder.querySelectorAll('.ft-month-section')).forEach(function(month) {
+            var monthKey = month.getAttribute('data-month-key');
+            var existingMonth = Array.from(
+                list.querySelectorAll('.ft-month-section')
+            ).find(function(value) {
+                return value.getAttribute('data-month-key') === monthKey;
+            });
+            if (!existingMonth) {
+                existingMonth = document.createElement('section');
+                existingMonth.className = 'ft-month-section';
+                existingMonth.setAttribute('data-month-key', monthKey);
+                var monthHeader = month.querySelector('.fr-month-header');
+                if (monthHeader) existingMonth.appendChild(monthHeader);
+                list.appendChild(existingMonth);
+            }
+            Array.from(month.querySelectorAll('.fr-dest-block')).forEach(function(dest) {
+                var key = dest.getAttribute('data-destination-key');
+                var existingDest = Array.from(
+                    existingMonth.querySelectorAll('.fr-dest-block')
+                ).find(function(value) {
+                    return value.getAttribute('data-destination-key') === key;
+                });
+                if (!existingDest) {
+                    existingDest = document.createElement('div');
+                    existingDest.className = 'fr-dest-block';
+                    existingDest.setAttribute('data-destination-key', key);
+                    existingDest.setAttribute(
+                        'data-mountain', dest.getAttribute('data-mountain') || ''
+                    );
+                    var destHeader = dest.querySelector('.fr-dest-name');
+                    if (destHeader) existingDest.appendChild(destHeader);
+                    var rows = document.createElement('div');
+                    rows.className = 'ft-destination-rows';
+                    existingDest.appendChild(rows);
+                    existingMonth.appendChild(existingDest);
+                }
+                var rowsTarget = existingDest.querySelector('.ft-destination-rows');
+                Array.from(dest.querySelectorAll('[data-unit-id]')).forEach(function(row) {
+                    var unitId = row.getAttribute('data-unit-id');
+                    if (!unitId || existingIds.has(unitId)) return;
+                    existingIds.add(unitId);
+                    if (!firstAdded) firstAdded = row;
+                    rowsTarget.appendChild(row);
+                });
+            });
+        });
+        return firstAdded;
+    }
+
+    function _ftUpdateEmptyStates(hasFriends) {
+        var hasRows = Boolean(document.querySelector('#ft-trips-list [data-unit-id]'));
+        document.getElementById('ft-loading').style.display = 'none';
+        document.getElementById('ft-empty-trips').style.display =
+            !hasRows && hasFriends ? '' : 'none';
+        document.getElementById('ft-empty-friends').style.display =
+            !hasRows && !hasFriends ? '' : 'none';
+    }
+
+    async function _ftFetchPage(reset) {
+        var button = document.getElementById('ft-load-more');
+        var cursor = reset ? null : button.getAttribute('data-cursor');
+        if (!reset && !cursor) return;
+        if (_ftPageController) _ftPageController.abort();
+        _ftPageController = new AbortController();
+        var generation = ++_ftPageGeneration;
+        var destinationAtRequest = _ftActiveMtn;
+        var params = new URLSearchParams();
+        if (cursor) params.set('cursor', cursor);
+        if (_ftActiveMtn) params.set('destination', _ftActiveMtn);
+        if (!_ftLoaded) params.set('context', '1');
+        var originalText = button.textContent;
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.textContent = 'Loading…';
+        try {
+            var response = await fetch('/api/my-trips/friends/page?' + params, {
+                headers: {'Accept': 'application/json'},
+                signal: _ftPageController.signal
+            });
+            if (!response.ok) throw new Error('Unable to load friends trips');
+            var payload = await response.json();
+            if (
+                generation !== _ftPageGeneration
+                || destinationAtRequest !== _ftActiveMtn
+            ) return;
+            var firstAdded = _ftMergePageHtml(payload.html, reset);
+            _ftLoaded = true;
+            if (payload.destinations !== null) {
+                _ftDestinations = payload.destinations || [];
+            }
+            if (typeof payload.has_friends === 'boolean') {
+                _ftHasFriends = payload.has_friends;
+            }
+            document.getElementById('ft-mtn-filter-btn').style.display =
+                _ftDestinations.length ? '' : 'none';
+            _ftUpdateEmptyStates(_ftHasFriends);
+            if (payload.has_more && payload.next_cursor) {
+                button.setAttribute('data-cursor', payload.next_cursor);
+                button.style.display = '';
+                button.disabled = false;
+                button.removeAttribute('aria-busy');
+                button.textContent = originalText;
+            } else {
+                button.setAttribute('data-cursor', '');
+                button.style.display = 'none';
+            }
+            if (!reset && firstAdded) {
+                firstAdded.setAttribute('tabindex', '-1');
+                firstAdded.focus({preventScroll: true});
+            }
+        } catch (_error) {
+            if (_error.name === 'AbortError') return;
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+            button.style.display = '';
+            button.textContent = 'Try again';
+        }
+    }
+
+    document.getElementById('ft-load-more').addEventListener('click', function() {
+        _ftFetchPage(false);
+    });
 
     function ftOpenMtnFilter() {
         var optionsEl = document.getElementById('ft-mtn-options');
         if (!optionsEl) return;
-        // Collect unique mountain names from dest blocks
-        var blocks = document.querySelectorAll('.fr-dest-block');
-        var seen = Object.create(null);
-        var mountains = [];
-        blocks.forEach(function(b) {
-            var m = b.getAttribute('data-mountain');
-            if (m && !seen[m]) { seen[m] = true; mountains.push(m); }
+        optionsEl.innerHTML = '';
+        var allButton = document.createElement('button');
+        allButton.type = 'button';
+        allButton.className = 'ft-mtn-option' + (!_ftActiveMtn ? ' selected' : '');
+        allButton.textContent = 'All mountains';
+        allButton.addEventListener('click', function() { ftSelectMtn(null, null); });
+        optionsEl.appendChild(allButton);
+        _ftDestinations.forEach(function(option) {
+            var button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'ft-mtn-option'
+                + (_ftActiveMtn === option.key ? ' selected' : '');
+            button.textContent = option.name;
+            button.addEventListener('click', function() {
+                ftSelectMtn(option.key, option.name);
+            });
+            optionsEl.appendChild(button);
         });
-        mountains.sort();
-        var html = '';
-        var allSel = !_ftActiveMtn ? ' selected' : '';
-        html += '<button class="ft-mtn-option' + allSel + '" onclick="ftSelectMtn(null)">All mountains</button>';
-        mountains.forEach(function(m) {
-            var sel = (_ftActiveMtn === m) ? ' selected' : '';
-            html += '<button class="ft-mtn-option' + sel + '" onclick="ftSelectMtn(' + JSON.stringify(m) + ')">' + m + '</button>';
-        });
-        optionsEl.innerHTML = html;
         document.getElementById('ft-mtn-overlay').classList.add('open');
     }
 
@@ -729,48 +854,95 @@
         if (overlay) overlay.classList.remove('open');
     }
 
-    function ftSelectMtn(mountain) {
-        _ftActiveMtn = mountain;
+    function ftSelectMtn(destinationKey, destinationName) {
+        _ftActiveMtn = destinationKey;
         var label = document.getElementById('ft-mtn-filter-label');
-        if (label) label.textContent = mountain || 'Filter for a mountain';
-        // Filter destination blocks
-        document.querySelectorAll('.fr-dest-block').forEach(function(b) {
-            var m = b.getAttribute('data-mountain');
-            b.style.display = (!mountain || m === mountain) ? '' : 'none';
-        });
-        // Hide month headers that have no visible destination blocks
-        document.querySelectorAll('.fr-month-header').forEach(function(h) {
-            var monthIdx = h.getAttribute('data-month');
-            var visibleInMonth = document.querySelectorAll(
-                '.fr-dest-block[data-month="' + monthIdx + '"]:not([style*="display: none"])'
-            ).length;
-            h.style.display = visibleInMonth > 0 ? '' : 'none';
-        });
+        if (label) label.textContent = destinationName || 'Filter for a mountain';
         ftCloseMtnFilter();
+        _ftFetchPage(true);
     }
 
-    // ── Grouped trips bottom sheet ─────────────────────────────────────────
-    function ftOpenGroupedSheet(mountain, count, trips) {
+    // ── Grouped trips bottom sheet ────────────────────────────────────────
+    async function _ftFetchGroup(reset) {
+        if (!_ftActiveGroup) return;
+        var button = document.getElementById('ft-group-load-more');
+        var cursor = reset ? null : button.getAttribute('data-cursor');
+        if (_ftGroupController) _ftGroupController.abort();
+        _ftGroupController = new AbortController();
+        var generation = ++_ftGroupGeneration;
+        var groupAtRequest = _ftActiveGroup;
+        var params = new URLSearchParams({group: groupAtRequest});
+        if (cursor) params.set('cursor', cursor);
+        button.disabled = true;
+        button.textContent = 'Loading…';
+        try {
+            var response = await fetch('/api/my-trips/friends/group?' + params, {
+                headers: {'Accept': 'application/json'},
+                signal: _ftGroupController.signal
+            });
+            if (!response.ok) throw new Error('Unable to load grouped trips');
+            var payload = await response.json();
+            if (
+                generation !== _ftGroupGeneration
+                || groupAtRequest !== _ftActiveGroup
+            ) return;
+            var rowsEl = document.getElementById('ft-grouped-rows');
+            var holder = document.createElement('div');
+            holder.innerHTML = payload.html || '';
+            if (reset) rowsEl.innerHTML = '';
+            var existing = new Set(Array.from(
+                rowsEl.querySelectorAll('[data-trip-id]')
+            ).map(function(row) { return row.getAttribute('data-trip-id'); }));
+            Array.from(holder.querySelectorAll('[data-trip-id]')).forEach(function(row) {
+                if (!existing.has(row.getAttribute('data-trip-id'))) rowsEl.appendChild(row);
+            });
+            if (payload.has_more && payload.next_cursor) {
+                button.setAttribute('data-cursor', payload.next_cursor);
+                button.style.display = '';
+                button.disabled = false;
+                button.textContent = 'Load more';
+            } else {
+                button.style.display = 'none';
+                button.setAttribute('data-cursor', '');
+            }
+        } catch (_error) {
+            if (_error.name === 'AbortError') return;
+            button.disabled = false;
+            button.style.display = '';
+            button.textContent = 'Try again';
+        }
+    }
+
+    function ftOpenGroupedSheet(mountain, count, groupToken) {
+        _ftActiveGroup = groupToken;
         document.getElementById('ft-grouped-title').textContent = mountain;
         document.getElementById('ft-grouped-subtitle').textContent =
             count + ' planned date' + (count === 1 ? '' : 's');
-        var rowsEl = document.getElementById('ft-grouped-rows');
-        rowsEl.innerHTML = trips.map(function(t) {
-            var statusLabel = t.status
-                ? t.status.charAt(0).toUpperCase() + t.status.slice(1)
-                : '';
-            return '<a href="/friend-trip/' + t.trip_id + '" class="ft-grouped-row">' +
-                '<span class="ft-grouped-row-date">' + (t.formatted_date || '') + '</span>' +
-                '<span class="ft-grouped-row-status">' + statusLabel + '</span>' +
-                '</a>';
-        }).join('');
+        document.getElementById('ft-grouped-rows').innerHTML = '';
         document.getElementById('ft-grouped-overlay').classList.add('open');
         document.body.style.overflow = 'hidden';
+        _ftFetchGroup(true);
     }
+
+    document.getElementById('ft-trips-list').addEventListener('click', function(event) {
+        var row = event.target.closest('[data-group-token]');
+        if (!row) return;
+        ftOpenGroupedSheet(
+            row.getAttribute('data-destination'),
+            Number(row.getAttribute('data-group-count')),
+            row.getAttribute('data-group-token')
+        );
+    });
+    document.getElementById('ft-group-load-more').addEventListener('click', function() {
+        _ftFetchGroup(false);
+    });
 
     function ftCloseGroupedSheet() {
         document.getElementById('ft-grouped-overlay').classList.remove('open');
         document.body.style.overflow = '';
+        if (_ftGroupController) _ftGroupController.abort();
+        _ftGroupGeneration += 1;
+        _ftActiveGroup = null;
     }
     </script>
 {% endblock %}

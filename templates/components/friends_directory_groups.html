@@ -1,0 +1,37 @@
+{% for group in alpha_groups %}
+<div class="fr-alpha-group" data-letter="{{ group.letter }}">
+    <p class="fr-alpha-header fr-alpha-label">{{ group.letter }}</p>
+    {% for friend in group.friends %}
+    <a href="{{ url_for('friend_profile', friend_id=friend.id) }}"
+       class="fr-friend-row"
+       data-friend-id="{{ friend.id }}"
+       data-name="{{ (friend.first_name or '') | lower }} {{ (friend.last_name or '') | lower }}"
+       data-pass="{{ (friend.pass_type or '') | lower }}"
+       data-level="{{ (friend.skill_level or '') | lower }}"
+       data-rider="{{ (friend.rider_types or []) | join('|') | lower }}">
+        <div class="fr-friend-left">
+            <p class="fr-friend-name">
+                {{- friend.first_name | format_name -}}
+                {%- if friend.last_name %} {{ friend.last_name | format_name }}{% endif -%}
+                {%- if friend._is_new_friend %} <span class="fr-new-badge">New</span>{% endif -%}
+            </p>
+            {%- set meta = [] -%}
+            {%- if friend.display_rider_type %}{% set _ = meta.append(friend.display_rider_type | rider_display) %}{% endif -%}
+            {%- if friend.skill_level %}{% set _ = meta.append(friend.skill_level | title) %}{% endif -%}
+            {%- if friend.pass_type %}{% set _ = meta.append(friend.pass_type | pass_display) %}{% endif -%}
+            {%- if meta %}<p class="fr-friend-meta">{{ meta | join(' · ') }}</p>{% endif %}
+        </div>
+        <div class="fr-friend-right">
+            {%- if friend._trip_count == 0 -%}
+                No trips
+            {%- elif friend._trip_count == 1 -%}
+                1 trip
+            {%- else -%}
+                {{ friend._trip_count }} trips
+            {%- endif -%}
+        </div>
+        <span class="fr-friend-chevron">→</span>
+    </a>
+    {% endfor %}
+</div>
+{% endfor %}

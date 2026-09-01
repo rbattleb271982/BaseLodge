@@ -76,6 +76,25 @@
             border-top: 1px solid #E5DFD0;
         }
         .fr-friend-row:active { opacity: 0.7; }
+        .fr-load-more {
+            display: block;
+            width: 100%;
+            margin: 14px 0 4px;
+            padding: 11px 16px;
+            border: 1px solid var(--bl-color-border);
+            border-radius: 10px;
+            background: var(--bl-color-surface);
+            color: var(--bl-color-primary);
+            font: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .fr-load-more:disabled { cursor: wait; opacity: 0.65; }
+        .fr-load-more:focus-visible {
+            outline: 2px solid var(--bl-color-primary);
+            outline-offset: 2px;
+        }
         .fr-friend-left {
             flex: 1;
             min-width: 0;
@@ -875,45 +894,13 @@
         <div id="fr-global-results" style="display:none;"></div>
 
         <div id="fr-alpha-list">
-            {% for group in alpha_groups %}
-            <div class="fr-alpha-group" data-letter="{{ group.letter }}">
-                <p class="fr-alpha-header fr-alpha-label">{{ group.letter }}</p>
-                {% for friend in group.friends %}
-                <a href="{{ url_for('friend_profile', friend_id=friend.id) }}"
-                   class="fr-friend-row"
-                   data-name="{{ (friend.first_name or '') | lower }} {{ (friend.last_name or '') | lower }}"
-                   data-pass="{{ (friend.pass_type or '') | lower }}"
-                   data-level="{{ (friend.skill_level or '') | lower }}"
-                   data-rider="{{ (friend.rider_types or []) | join('|') | lower }}">
-                    <div class="fr-friend-left">
-                        <p class="fr-friend-name">
-                            {{- friend.first_name | format_name -}}
-                            {%- if friend.last_name %} {{ friend.last_name | format_name }}{% endif -%}
-                            {%- if friend._is_new_friend %} <span class="fr-new-badge">New</span>{% endif -%}
-                        </p>
-                        {%- set _meta = [] -%}
-                        {%- if friend.display_rider_type %}{% set _ = _meta.append(friend.display_rider_type | rider_display) %}{% endif -%}
-                        {%- if friend.skill_level %}{% set _ = _meta.append(friend.skill_level | title) %}{% endif -%}
-                        {%- if friend.pass_type %}{% set _ = _meta.append(friend.pass_type | pass_display) %}{% endif -%}
-                        {%- if _meta %}
-                        <p class="fr-friend-meta">{{ _meta | join(' · ') }}</p>
-                        {%- endif %}
-                    </div>
-                    <div class="fr-friend-right">
-                        {%- if friend._trip_count == 0 -%}
-                            No trips
-                        {%- elif friend._trip_count == 1 -%}
-                            1 trip
-                        {%- else -%}
-                            {{ friend._trip_count }} trips
-                        {%- endif -%}
-                    </div>
-                    <span class="fr-friend-chevron">→</span>
-                </a>
-                {% endfor %}
-            </div>
-            {% endfor %}
+            {% include "components/friends_directory_groups.html" %}
         </div>
+        <button type="button"
+                id="fr-load-more"
+                class="fr-load-more"
+                data-cursor="{{ friends_next_cursor or '' }}"
+                {% if not friends_has_more %}style="display:none"{% endif %}>Load more</button>
 
         {% endif %}
 
@@ -1112,72 +1099,152 @@
     }
     {% endif %}
 
-    // ── Client-side friend search (filter-aware) ──────────────────────────
+    // ── Server-backed reciprocal-friend search/filter paging ─────────────
+    var _frDirectoryTimer = null;
+    var _frDirectoryController = null;
+
+    function _frDirectoryParams(cursor) {
+        var input = document.getElementById('fr-search');
+        var params = new URLSearchParams();
+        var query = (input ? input.value : '').trim();
+        if (query) params.set('q', query);
+        _frActiveFilters.pass.forEach(function(value) { params.append('pass', value); });
+        _frActiveFilters.rider.forEach(function(value) { params.append('rider', value); });
+        _frActiveFilters.level.forEach(function(value) { params.append('level', value); });
+        if (cursor) params.set('cursor', cursor);
+        return params;
+    }
+
+    function _frMergeDirectoryHtml(html, reset) {
+        var list = document.getElementById('fr-alpha-list');
+        if (!list) return null;
+        var holder = document.createElement('div');
+        holder.innerHTML = html || '';
+        if (reset) list.innerHTML = '';
+        var firstAdded = null;
+        var existingIds = new Set(Array.from(
+            list.querySelectorAll('[data-friend-id]')
+        ).map(function(row) { return row.getAttribute('data-friend-id'); }));
+        Array.from(holder.querySelectorAll('.fr-alpha-group')).forEach(function(group) {
+            var letter = group.getAttribute('data-letter');
+            var existingGroup = Array.from(
+                list.querySelectorAll('.fr-alpha-group')
+            ).find(function(value) {
+                return value.getAttribute('data-letter') === letter;
+            });
+            if (!existingGroup) {
+                existingGroup = document.createElement('div');
+                existingGroup.className = 'fr-alpha-group';
+                existingGroup.setAttribute('data-letter', letter);
+                var header = group.querySelector('.fr-alpha-header');
+                if (header) existingGroup.appendChild(header);
+                list.appendChild(existingGroup);
+            }
+            Array.from(group.querySelectorAll('.fr-friend-row')).forEach(function(row) {
+                var id = row.getAttribute('data-friend-id');
+                if (!id || existingIds.has(id)) return;
+                existingIds.add(id);
+                if (!firstAdded) firstAdded = row;
+                existingGroup.appendChild(row);
+            });
+        });
+        return firstAdded;
+    }
+
+    async function _frFetchDirectory(reset) {
+        if (_frSearchQuery) return;
+        var button = document.getElementById('fr-load-more');
+        var cursor = reset ? null : (button ? button.getAttribute('data-cursor') : null);
+        if (!reset && !cursor) return;
+        if (_frDirectoryController) _frDirectoryController.abort();
+        _frDirectoryController = new AbortController();
+        var originalText = button ? button.textContent : 'Load more';
+        if (button) {
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.textContent = 'Loading…';
+        }
+        try {
+            var response = await fetch('/api/friends/page?' + _frDirectoryParams(cursor), {
+                headers: {'Accept': 'application/json'},
+                signal: _frDirectoryController.signal
+            });
+            if (!response.ok) throw new Error('Unable to load friends');
+            var payload = await response.json();
+            var firstAdded = _frMergeDirectoryHtml(payload.html, reset);
+            var input = document.getElementById('fr-search');
+            var q = (input ? input.value : '').trim().toLowerCase();
+            var hasFilters = _frActiveFilters.pass.size > 0
+                || _frActiveFilters.rider.size > 0
+                || _frActiveFilters.level.size > 0;
+            var localCount = document.getElementById('fr-local-result-count');
+            if (localCount) {
+                localCount.textContent = _frLocalResultLabel(
+                    payload.matching_count, q, hasFilters
+                );
+                localCount.style.display = '';
+            }
+            var noResults = document.getElementById('fr-no-results');
+            var filterNoResults = document.getElementById('fr-filter-no-results');
+            if (noResults) noResults.style.display =
+                payload.matching_count === 0 && q && !hasFilters ? '' : 'none';
+            if (filterNoResults) filterNoResults.style.display =
+                payload.matching_count === 0 && hasFilters ? '' : 'none';
+            var queryText = document.getElementById('fr-query-text');
+            if (queryText) queryText.textContent = input ? input.value.trim() : '';
+            if (button) {
+                if (payload.has_more && payload.next_cursor) {
+                    button.setAttribute('data-cursor', payload.next_cursor);
+                    button.style.display = '';
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                    button.textContent = originalText;
+                } else {
+                    button.setAttribute('data-cursor', '');
+                    button.style.display = 'none';
+                }
+            }
+            if (!reset && firstAdded) {
+                firstAdded.setAttribute('tabindex', '-1');
+                firstAdded.focus({preventScroll: true});
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            if (button) {
+                button.disabled = false;
+                button.removeAttribute('aria-busy');
+                button.style.display = '';
+                button.textContent = 'Try again';
+            }
+        }
+    }
+
     function searchFriends(query) {
         var q = (query || '').trim().toLowerCase();
         var hasFilters = _frActiveFilters.pass.size > 0
             || _frActiveFilters.rider.size > 0
             || _frActiveFilters.level.size > 0;
-
-        // If we're in global search mode and the field is cleared, exit it
-        if (_frSearchQuery && !q) {
-            _frExitGlobalSearch();
-            return;
-        }
-
-        // If we're in global search mode and the user is typing again,
-        // stay in client-side mode until they press Enter again
-        if (_frSearchQuery) return;
-
-        var groups        = document.querySelectorAll('.fr-alpha-group');
-        var noResultsEl   = document.getElementById('fr-no-results');
-        var filterNoResEl = document.getElementById('fr-filter-no-results');
-        var queryTextEl   = document.getElementById('fr-query-text');
         var totalVisible  = 0;
-
-        groups.forEach(function (group) {
-            var header = group.querySelector('.fr-alpha-label');
-            var rows   = group.querySelectorAll('.fr-friend-row');
-            var groupVisible = 0;
-
-            rows.forEach(function (row) {
-                var name  = row.getAttribute('data-name')  || '';
-                var pass  = row.getAttribute('data-pass')  || '';
-                var level = row.getAttribute('data-level') || '';
-                var textMatch   = !q || (name + ' ' + pass + ' ' + level).indexOf(q) !== -1;
-                var filterMatch = _frMatchesFilters(row);
-                var match = textMatch && filterMatch;
-                row.style.display = match ? '' : 'none';
-                if (match) groupVisible++;
-            });
-
-            // Show letter headers only when no text query (filter-only mode shows structure)
-            if (header) header.style.display = (!q && groupVisible > 0) ? '' : 'none';
-            group.style.display = groupVisible > 0 ? '' : 'none';
-            totalVisible += groupVisible;
-        });
-
-        var localCountEl = document.getElementById('fr-local-result-count');
         var localSearchActive = Boolean(q || hasFilters);
+        var localCountEl = document.getElementById('fr-local-result-count');
         if (localCountEl) {
             localCountEl.textContent = _frLocalResultLabel(totalVisible, q, hasFilters);
             localCountEl.style.display = '';
         }
-
-        // Reset empty states
-        if (filterNoResEl) filterNoResEl.style.display = 'none';
-        if (noResultsEl)   noResultsEl.style.display   = 'none';
-
-        if (totalVisible === 0) {
-            if (hasFilters) {
-                // Filter empty state takes priority
-                if (filterNoResEl) filterNoResEl.style.display = '';
-            } else if (q) {
-                if (queryTextEl) queryTextEl.textContent = query.trim();
-                if (noResultsEl) noResultsEl.style.display = '';
-            }
+        if (_frSearchQuery && !q) {
+            _frExitGlobalSearch();
+            return;
         }
+        if (_frSearchQuery) return;
+        clearTimeout(_frDirectoryTimer);
+        _frDirectoryTimer = setTimeout(function() {
+            _frFetchDirectory(true);
+        }, 180);
     }
+
+    document.getElementById('fr-load-more')?.addEventListener('click', function() {
+        _frFetchDirectory(false);
+    });
 
     // ── Global member search ───────────────────────────────────────────────
     var _frSearchQuery = '';

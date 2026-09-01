@@ -185,7 +185,7 @@ def test_friends_reuses_participant_identity_from_join(client):
 
     _response, statements = _warm_and_measure(client, viewer_id, "/friends")
 
-    assert len(statements) <= 18
+    assert len(statements) <= 14
     participant_selects = [
         statement
         for statement in statements
