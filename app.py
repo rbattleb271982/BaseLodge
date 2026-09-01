@@ -6398,6 +6398,11 @@ def create_trip():
             "success": False,
             "error": "Invalid request body.",
         }), 400
+    if "is_public" in data and type(data["is_public"]) is not bool:
+        return jsonify({
+            "success": False,
+            "error": "is_public must be a boolean.",
+        }), 400
 
     resort_id_raw = data.get("resort_id")
     state = data.get("state")
@@ -6882,7 +6887,12 @@ def update_trip_visibility(trip_id):
     data = request.get_json(silent=True) or {}
     if "is_public" not in data:
         return jsonify({"success": False, "error": "Missing is_public field."}), 400
-    trip.is_public = bool(data["is_public"])
+    if type(data["is_public"]) is not bool:
+        return jsonify({
+            "success": False,
+            "error": "is_public must be a boolean.",
+        }), 400
+    trip.is_public = data["is_public"]
     trip.updated_at = datetime.utcnow()
     try:
         db.session.commit()
@@ -10498,7 +10508,12 @@ def update_profile():
             user.pass_type = _norm_pt
             upsert_user_season_pass(user, _norm_pt)
     if "discoverable_in_friend_search" in data:
-        user.discoverable_in_friend_search = bool(data["discoverable_in_friend_search"])
+        if type(data["discoverable_in_friend_search"]) is not bool:
+            return jsonify({
+                "success": False,
+                "message": "discoverable_in_friend_search must be a boolean.",
+            }), 400
+        user.discoverable_in_friend_search = data["discoverable_in_friend_search"]
 
     db.session.commit()
 
@@ -19929,6 +19944,11 @@ def admin_toggle_resort_active():
     data = request.get_json()
     resort_id = data.get('resort_id')
     is_active = data.get('is_active', True)
+    if type(is_active) is not bool:
+        return jsonify({
+            'success': False,
+            'message': 'is_active must be a boolean.',
+        }), 400
     
     resort = db.session.get(Resort, resort_id)
     if not resort:
@@ -20279,7 +20299,12 @@ def admin_update_resort(resort_id):
         resort.pass_brands = (data.get('pass_brands') or '').strip() or None
         resort.brand = resort.pass_brands.split(',')[0] if resort.pass_brands else 'Other'
     if 'is_active' in data:
-        resort.is_active = bool(data['is_active'])
+        if type(data['is_active']) is not bool:
+            return jsonify({
+                'status': 'error',
+                'message': 'is_active must be a boolean.',
+            }), 400
+        resort.is_active = data['is_active']
     
     db.session.commit()
     return jsonify({'status': 'success', 'resort_id': resort_id})
