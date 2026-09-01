@@ -1,0 +1,238 @@
+REPLIT: MAX + PLAN
+Estimated Batch completion after this step: ~20%
+
+TASK: BL-179 — Define actionable alerts and incident thresholds
+
+INVESTIGATE ONLY.
+Do not implement yet.
+
+CONTEXT
+
+BL-178 is now implemented and committed.
+
+BaseLodge now emits structured request observability events for:
+
+- unhandled application errors
+- slow requests above 1000 ms
+
+Each event includes:
+- request ID
+- normalized endpoint/route
+- status
+- duration
+- environment
+- exception class for errors
+
+Replit already captures stdout/stderr from Production Gunicorn workers.
+
+BL-179 should determine how these signals become actionable alerts without creating noise or prematurely building a monitoring platform.
+
+GOAL
+
+Define the smallest useful Production alerting strategy for BaseLodge.
+
+Determine:
+
+- which conditions should actually page or notify someone
+- which signals should remain informational only
+- what aggregation/window is required
+- what tooling or infrastructure is necessary
+- whether any part can be implemented safely now
+
+Do not implement alerting during this PLAN.
+
+1. REVIEW AVAILABLE SIGNALS
+
+Inventory the signals currently available after BL-178.
+
+Include:
+
+- structured unhandled-error events
+- slow-request events
+- HTTP status information available through application/runtime logs
+- Replit deployment/runtime health signals
+- workflow/restart/crash visibility
+- any existing push/provider diagnostics that are operationally useful
+- any existing release/build identity available in runtime logs
+
+Separate:
+A. reliable production signals
+B. noisy/incomplete signals
+C. signals that do not yet exist
+
+2. DEFINE ACTIONABLE INCIDENT CATEGORIES
+
+Evaluate at minimum:
+
+A. Application availability
+- service unavailable
+- repeated crashes/restarts
+- health endpoint failures
+
+B. Server errors
+- sudden 5xx rate increase
+- repeated same exception class/route
+- sustained elevated error rate
+
+C. Performance
+- sustained slow-request rate
+- severe latency outliers
+- route-specific degradation
+
+D. Authentication/security health
+- do not alert merely because normal CSRF or 429 defenses fire
+- identify only patterns that represent application failure rather than expected protection
+
+E. Critical integrations
+- push/provider failures only if they are durable/actionable enough to warrant an alert
+- do not create alerts from intentionally swallowed single-request failures unless aggregate failure indicates a real outage
+
+3. DEFINE THRESHOLDS
+
+For each candidate alert, recommend:
+
+- metric/event being evaluated
+- aggregation window
+- threshold
+- minimum volume if applicable
+- severity
+- cooldown/deduplication behavior
+- what constitutes recovery
+
+Prefer sustained conditions over single-event alerts except for truly catastrophic failures.
+
+Avoid arbitrary thresholds where current traffic volume is unknown.
+
+If traffic baseline is required before choosing a threshold, explicitly say so.
+
+4. DISTINGUISH ALERT LEVELS
+
+Define a small severity model, for example:
+
+- Critical: immediate action required
+- Warning: investigate soon
+- Informational: retain/search but do not notify
+
+Keep the model simple.
+
+Do not create a complex incident taxonomy.
+
+5. ALERT DESTINATION / DELIVERY
+
+Determine what alert destinations are actually available today.
+
+Investigate whether Replit natively supports:
+
+- health/deployment alerts
+- log-based alerts
+- email notifications
+- webhook notifications
+
+If Replit cannot create useful log-derived alerts from BL-178 structured events, identify the minimum external service that would be required.
+
+Do not provision anything.
+
+Do not select a vendor merely because one exists.
+
+6. RELEASE CORRELATION
+
+Determine whether current runtime logs expose enough commit/build/release identity to answer:
+
+“Did this incident begin after a specific deployment?”
+
+If not, identify the smallest missing release-correlation field or prerequisite.
+
+Do not expand into the entire release-safety backlog.
+
+7. INCIDENT CONTEXT
+
+Define what an alert should contain.
+
+Prefer:
+
+- environment
+- incident type
+- normalized route/endpoint
+- threshold/window
+- observed count/rate
+- representative request ID
+- exception class when relevant
+- deployment/build identity if available
+
+Do not include:
+- users
+- emails
+- IPs
+- request contents
+- tokens
+- sensitive payloads
+
+8. RUNBOOK REQUIREMENT
+
+Determine the minimum runbook needed for each alert.
+
+For each proposed alert, identify:
+- what to check first
+- whether rollback/restart/investigation is the likely first action
+- what request ID/log information should be used
+
+Do not write a large operations manual.
+
+9. RELATIONSHIP TO BL-178
+
+Do not modify BL-178 unless the PLAN discovers a truly necessary missing signal.
+
+If one small observability field is required for practical alerting, call it out separately rather than silently expanding BL-179.
+
+10. DETERMINE BUILD READINESS
+
+Classify BL-179 as one of:
+
+A. Ready to BUILD entirely in Replit
+B. Partially buildable, with an external alerting prerequisite
+C. Definition/documentation task only until monitoring infrastructure exists
+
+Do not invent implementation work just to complete the task.
+
+DO NOT
+
+- implement anything
+- provision monitoring vendors
+- change secrets
+- deploy
+- build dashboards
+- add database tables
+- change migrations
+- change Production data
+- alert on every exception
+- alert on every slow request
+- treat normal 404/CSRF/429 events as incidents
+- run the full test suite
+
+DELIVERABLE
+
+Return:
+
+A. current reliable Production signals
+B. missing signals
+C. recommended incident categories
+D. exact proposed thresholds/windows
+E. severity model
+F. deduplication/cooldown strategy
+G. recovery criteria
+H. available alert-delivery mechanisms
+I. whether external tooling is required
+J. release-correlation readiness
+K. safe alert payload
+L. minimum runbook actions
+M. exact BUILD scope, if any
+N. prerequisites/blockers
+O. files likely to change
+P. schema/migration requirement
+Q. recommended BUILD tier
+R. whether BL-179 should be implementation work or documentation/prerequisite work
+
+Keep this narrowly operational.
+
+Do not implement during PLAN.
+Do not run the full suite.
