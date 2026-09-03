@@ -21,7 +21,7 @@
 - [RSVP transition history](rsvp-transition-history.md) — private canonical audit history; BL-78 precedes deferred BL-70 and must be targeted exactly for an independent rollout.
 - [Connection lifecycle history](connection-lifecycle-history.md) — private pair history never grants access; lock users canonically; BL-79 sits between BL-78 and deferred BL-70.
 - [Terminal trip isolation](terminal-trip-isolation.md) — retained terminal trips require explicit exclusion from every live surface; dates, visibility, and RSVP status are not substitutes.
-- [Wishlist transition history rollout](wishlist-transition-history-rollout.md) — Supabase Development is at BL-87 with empty initial history; other persistent databases were not migrated.
+- [Wishlist transition history rollout](wishlist-transition-history-rollout.md) — Supabase Development and protected Production crossed BL-87 with empty initial history and no backfill.
 - [Authenticated social visibility](authenticated-social-visibility.md) — friend-only access requires reciprocal current rows; public trips are friend-social; invitation-state identities stay organizer-only.
 - [Home Next Trip tie policy](home-next-trip-tie-policy.md) — owned beats guest on equal effective starts; same-source ties choose the lowest trip ID.
 - [Production legacy log privacy](production-legacy-log-privacy.md) — Production free-form logs and stdout diagnostics use allowlisted metadata; BL-178 remains independent.
