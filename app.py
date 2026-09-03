@@ -19,7 +19,6 @@ import os
 import secrets
 import time
 import json
-import threading
 import hashlib
 import hmac
 import jwt
@@ -30,6 +29,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.exc import IntegrityError
 from runtime_config import (
     RuntimeConfigurationError,
+    application_database_engine_options,
     resolve_application_database_config,
 )
 from release_identity import resolve_release_identity
@@ -307,6 +307,7 @@ from flask_compress import Compress as _Compress
 _Compress(app)
 
 from services.rate_limit_storage import (
+    rate_limit_storage_options,
     rate_limit_storage_is_shared,
     resolve_rate_limit_storage_uri,
 )
@@ -319,12 +320,14 @@ app.config["RATELIMIT_STORAGE_URI"] = _RATELIMIT_STORAGE_URI
 app.config["RATELIMIT_SHARED_STORAGE_CONFIGURED"] = rate_limit_storage_is_shared(
     _RATELIMIT_STORAGE_URI
 )
+_RATELIMIT_STORAGE_OPTIONS = rate_limit_storage_options(_RATELIMIT_STORAGE_URI)
 
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=[],
     storage_uri=_RATELIMIT_STORAGE_URI,
+    storage_options=_RATELIMIT_STORAGE_OPTIONS,
     headers_enabled=True,
     retry_after="delta-seconds",
 )
@@ -481,10 +484,33 @@ def redirect_to_canonical_domain():
     parsed_url = urlparse(request.url)
     hostname = parsed_url.hostname.lower() if parsed_url.hostname else ""
 
+    # Autoscale readiness probes the root path. Let an anonymous root request
+    # reach the lightweight 200 response on generated and internal hosts while
+    # retaining canonical redirects for authenticated users and every deep link.
+    readiness_hosts = {
+        "app.baselodgeapp.com",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    }
+    replit_dev_domain = os.environ.get("REPLIT_DEV_DOMAIN", "").lower()
+    if replit_dev_domain:
+        readiness_hosts.add(replit_dev_domain)
+    is_readiness_host = (
+        hostname in readiness_hosts
+        or hostname.endswith(".replit.app")
+        or hostname.endswith(".replit.dev")
+    )
+    if (
+        request.path == "/"
+        and is_readiness_host
+        and not current_user.is_authenticated
+    ):
+        return None
+
     # Allow the Replit dev workspace preview through — do not redirect it.
     # REPLIT_DEV_DOMAIN is only set in the Replit dev environment (not in
     # production or deployed Replit apps), so this exemption is dev-only.
-    replit_dev_domain = os.environ.get("REPLIT_DEV_DOMAIN", "").lower()
     if replit_dev_domain and hostname == replit_dev_domain:
         return None
 
@@ -1322,6 +1348,11 @@ def before_request_handlers():
         return None
 
     # ── Navigation gate ───────────────────────────────────────────────────────
+    # Anonymous root is the dependency-free Autoscale readiness response.
+    # Authenticated root requests continue through the existing state resolver.
+    if path == "/" and not current_user.is_authenticated:
+        return None
+
     user_state = compute_user_state(current_user)
     redirect_to = resolve_navigation(path, user_state)
     if redirect_to and redirect_to != path:
@@ -1848,10 +1879,9 @@ def emit_availability_overlap_activities_for_trip(trip):
 # Database Configuration
 app.config["SQLALCHEMY_DATABASE_URI"] = database_configuration.database_url
 
-app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-    "pool_recycle": 300,
-    "pool_pre_ping": True,
-}
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = application_database_engine_options(
+    database_configuration.database_url
+)
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db.init_app(app)
@@ -3248,64 +3278,6 @@ ICONS_VERSION     = _asset_version("static/icons/favicon-32x32.png")
 
 
 # ============================================================================
-# PRODUCTION DIAGNOSTICS - Print on startup
-# ============================================================================
-def log_startup_diagnostics():
-    """Log database and user counts on startup for debugging."""
-    try:
-        with app.app_context():
-            safe_db = database_configuration.safe_identity
-            
-            print("=" * 70)
-            print("🔧 BASELODGE STARTUP DIAGNOSTICS")
-            print("=" * 70)
-            print(f"DATABASE: {safe_db}")
-            print(f"RUNTIME ENVIRONMENT: {database_configuration.runtime_env}")
-            
-            # Count records
-            user_count = User.query.count()
-            friend_count = Friend.query.count()
-            trip_count = SkiTrip.query.count()
-            
-            print("USER COUNT: " + str(user_count))
-            print("FRIEND COUNT: " + str(friend_count))
-            print("TRIP COUNT: " + str(trip_count))
-            print("=" * 70)
-            print("✅ BaseLodge started successfully and is ready to serve requests.")
-            print("=" * 70)
-            
-            # Check specific users
-            richard = User.query.filter(db.func.lower(User.email) == "richardbattlebaxter@gmail.com").first()
-            jonathan = User.query.filter(db.func.lower(User.email) == "jonathanmschmitz@gmail.com").first()
-            
-            if richard:
-                richard_friends = Friend.query.filter_by(user_id=richard.id).count()
-                print(f"RICHARD (id={richard.id}): {richard_friends} friends")
-            else:
-                print("RICHARD: NOT FOUND")
-            
-            if jonathan:
-                jonathan_friends = Friend.query.filter_by(user_id=jonathan.id).count()
-                print(f"JONATHAN (id={jonathan.id}): {jonathan_friends} friends")
-            else:
-                print("JONATHAN: NOT FOUND")
-            
-            print("=" * 70)
-    except Exception as e:
-        print(f"⚠️ STARTUP DIAGNOSTICS FAILED: {e}")
-
-@app.before_request
-def run_startup_diagnostics_once():
-    """Start diagnostics without blocking the first request."""
-    if not getattr(app, "_diagnostics_started", False):
-        app._diagnostics_started = True
-        threading.Thread(
-            target=log_startup_diagnostics,
-            name="startup-diagnostics",
-            daemon=True,
-        ).start()
-
-# ============================================================================
 # ERROR HANDLERS - Must be registered at module level, not inside functions
 # ============================================================================
 @app.errorhandler(404)
@@ -4177,7 +4149,13 @@ def build_trip_idea(user, idea_type, destination=None, resort_id=None, start_dat
 
 @app.route("/")
 def index():
-    return redirect(url_for("home"))
+    if current_user.is_authenticated:
+        return redirect(url_for("home"))
+    return render_template(
+        "auth.html",
+        default_tab="login",
+        has_invite=("invite_token" in session),
+    )
 
 @app.route("/auth", methods=["GET", "POST"])
 @limiter.limit(

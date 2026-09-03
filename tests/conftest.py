@@ -27,6 +27,12 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.pool import StaticPool
 
+# Keep the pytest process fully isolated from workspace Development/Production
+# dependencies before importing the application and constructing extensions.
+os.environ["BASELODGE_RUNTIME_ENV"] = "test"
+os.environ["BASELODGE_TEST_DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["RATELIMIT_STORAGE_URI"] = "memory://"
+
 from app import app, limiter
 from models import (
     db, User, SkiTrip, SkiTripParticipant, Resort,

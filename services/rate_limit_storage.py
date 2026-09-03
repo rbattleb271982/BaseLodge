@@ -5,6 +5,9 @@ from urllib.parse import urlsplit
 
 _MEMORY_STORAGE_URI = "memory://"
 _PRODUCTION_SHARED_SCHEME = "rediss"
+_REDIS_SCHEMES = frozenset({"redis", "rediss"})
+_REDIS_CONNECT_TIMEOUT_SECONDS = 2
+_REDIS_SOCKET_TIMEOUT_SECONDS = 5
 _PRODUCTION_CONFIGURATION_ERROR = (
     "Production rate limiting requires shared Redis-compatible storage "
     "configured through RATELIMIT_STORAGE_URI."
@@ -30,3 +33,13 @@ def resolve_rate_limit_storage_uri(
 def rate_limit_storage_is_shared(storage_uri: str) -> bool:
     """Return whether the configured backend is not process-local memory."""
     return urlsplit(storage_uri).scheme.lower() != "memory"
+
+
+def rate_limit_storage_options(storage_uri: str) -> dict[str, int]:
+    """Return bounded client options for Redis-compatible limiter storage."""
+    if urlsplit(storage_uri).scheme.lower() not in _REDIS_SCHEMES:
+        return {}
+    return {
+        "socket_connect_timeout": _REDIS_CONNECT_TIMEOUT_SECONDS,
+        "socket_timeout": _REDIS_SOCKET_TIMEOUT_SECONDS,
+    }

@@ -10,6 +10,7 @@ import pytest
 
 from runtime_config import (
     RuntimeConfigurationError,
+    application_database_engine_options,
     database_identity,
     database_identity_hash,
     resolve_application_database_config,
@@ -50,6 +51,21 @@ LEGACY_POOLER_ENDPOINT_HASH = hashlib.sha256(
 PRODUCTION_PROJECT_REF_HASH = hashlib.sha256(
     PRODUCTION_PROJECT_REF.encode()
 ).hexdigest()
+
+
+def test_postgresql_engine_options_bound_connection_establishment():
+    assert application_database_engine_options(PRODUCTION_URL) == {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+        "connect_args": {"connect_timeout": 5},
+    }
+
+
+def test_sqlite_engine_options_preserve_pooling_without_postgresql_arguments():
+    assert application_database_engine_options(TEST_URL) == {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
 
 
 def _environment(**overrides):

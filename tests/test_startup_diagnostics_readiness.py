@@ -1,25 +1,15 @@
-"""Readiness contract for the first-request startup diagnostics."""
-
-import threading
+"""Readiness contract excludes automatic startup diagnostics."""
 
 import app as app_module
 from app import app
 
 
-def test_initial_request_does_not_wait_for_startup_diagnostics(client, monkeypatch):
-    started = threading.Event()
-    release = threading.Event()
+def test_startup_diagnostics_are_not_registered_or_request_triggered(client):
+    before_request_names = {
+        function.__name__ for function in app.before_request_funcs.get(None, ())
+    }
 
-    def blocked_diagnostics():
-        started.set()
-        release.wait(timeout=2)
-
-    monkeypatch.setattr(app_module, "log_startup_diagnostics", blocked_diagnostics)
-    app.__dict__.pop("_diagnostics_started", None)
-
-    try:
-        response = client.get("/", follow_redirects=True)
-        assert response.status_code == 200
-        assert started.wait(timeout=1)
-    finally:
-        release.set()
+    assert "run_startup_diagnostics_once" not in before_request_names
+    assert not hasattr(app_module, "log_startup_diagnostics")
+    assert client.get("/").status_code == 200
+    assert client.get("/health").status_code == 200

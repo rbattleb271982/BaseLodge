@@ -17,6 +17,8 @@ from urllib.parse import unquote, urlsplit
 
 
 _VALID_RUNTIME_ENVS = frozenset({"development", "test", "production"})
+_POSTGRESQL_SCHEMES = frozenset({"postgresql", "postgresql+psycopg2"})
+_POSTGRESQL_CONNECT_TIMEOUT_SECONDS = 5
 _HASH_PATTERN = re.compile(r"^(?:sha256:)?[0-9a-f]{64}$", re.IGNORECASE)
 _SUPABASE_POOLER_HOST_PATTERN = re.compile(
     r"^[a-z0-9-]+\.pooler\.supabase\.com$"
@@ -51,6 +53,19 @@ _MIGRATION_TARGET_RUNTIME_ENVS = {
 
 class RuntimeConfigurationError(RuntimeError):
     """Raised before database engine construction for unsafe configuration."""
+
+
+def application_database_engine_options(database_url: str) -> dict:
+    """Return bounded SQLAlchemy engine options without opening a connection."""
+    options = {
+        "pool_recycle": 300,
+        "pool_pre_ping": True,
+    }
+    if urlsplit(database_url).scheme.lower() in _POSTGRESQL_SCHEMES:
+        options["connect_args"] = {
+            "connect_timeout": _POSTGRESQL_CONNECT_TIMEOUT_SECONDS,
+        }
+    return options
 
 
 @dataclass(frozen=True)

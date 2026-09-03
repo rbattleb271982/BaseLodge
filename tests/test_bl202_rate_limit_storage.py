@@ -3,6 +3,7 @@
 import pytest
 
 from services.rate_limit_storage import (
+    rate_limit_storage_options,
     rate_limit_storage_is_shared,
     resolve_rate_limit_storage_uri,
 )
@@ -63,3 +64,17 @@ def test_non_production_preserves_in_memory_fallback(runtime_env):
         == "memory://"
     )
     assert rate_limit_storage_is_shared("memory://") is False
+
+
+@pytest.mark.parametrize("scheme", ["redis", "rediss", "REDISS"])
+def test_redis_storage_uses_bounded_connection_and_socket_timeouts(scheme):
+    uri = f"{scheme}://test-user:dummy-secret@redis.example.test:6380/0"
+
+    assert rate_limit_storage_options(uri) == {
+        "socket_connect_timeout": 2,
+        "socket_timeout": 5,
+    }
+
+
+def test_memory_storage_receives_no_redis_client_options():
+    assert rate_limit_storage_options("memory://") == {}
