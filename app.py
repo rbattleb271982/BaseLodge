@@ -3294,14 +3294,16 @@ def log_startup_diagnostics():
     except Exception as e:
         print(f"⚠️ STARTUP DIAGNOSTICS FAILED: {e}")
 
-# Run diagnostics on import (will show in server logs)
-import atexit
 @app.before_request
 def run_startup_diagnostics_once():
-    """Run startup diagnostics once on first request."""
-    if not hasattr(app, '_diagnostics_run'):
-        app._diagnostics_run = True
-        log_startup_diagnostics()
+    """Start diagnostics without blocking the first request."""
+    if not getattr(app, "_diagnostics_started", False):
+        app._diagnostics_started = True
+        threading.Thread(
+            target=log_startup_diagnostics,
+            name="startup-diagnostics",
+            daemon=True,
+        ).start()
 
 # ============================================================================
 # ERROR HANDLERS - Must be registered at module level, not inside functions
