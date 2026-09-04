@@ -141,6 +141,7 @@ from services.visibility import (
     load_availability_idea_capability,
     reciprocal_friend_ids,
     reciprocal_friend_predicate,
+    trip_join_request_capability,
     trip_view_capability,
 )
 from services.trip_lifecycle import (
@@ -15670,22 +15671,28 @@ def request_to_join_trip(trip_id):
     """Create a join request for a trip."""
     validate_csrf_request()
     trip = SkiTrip.query.get_or_404(trip_id)
-    
-    # 1. Trip must not be in the past
-    if trip.end_date < date.today():
-        return jsonify({"success": False, "error": "This trip has already ended."}), 400
-    
-    # 2. Requester must not already be an active participant.
-    is_accepted = SkiTripParticipant.query.filter(
-        SkiTripParticipant.trip_id == trip_id,
-        SkiTripParticipant.user_id == current_user.id,
-        SkiTripParticipant.active_status_filter(),
-    ).first() is not None
-    
-    if is_accepted:
-        return jsonify({"success": False, "error": "You are already an active participant of this trip."}), 400
+
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id,
+        user_id=current_user.id,
+    ).first()
+    capability = trip_join_request_capability(
+        trip,
+        current_user.id,
+        participant=participant,
+    )
+    if not capability.allowed:
+        status = 400 if capability.reason in {
+            "organizer",
+            "existing_participant",
+            "ended_trip",
+        } else 403
+        return jsonify({
+            "success": False,
+            "error": "You are not eligible to request to join this trip.",
+        }), status
         
-    # 4. Only one pending request per user per trip
+    # Only one pending request per user per trip.
     existing_request = Invitation.query.filter_by(
         sender_id=current_user.id,
         receiver_id=trip.user_id,

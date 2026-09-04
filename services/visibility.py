@@ -11,6 +11,7 @@ from models import Friend, GuestStatus, SkiTripParticipant, db
 
 AVAILABILITY_IDEA_CAPABILITY_MAX_AGE_SECONDS = 3600
 _AVAILABILITY_IDEA_CAPABILITY_SALT = "bl133-availability-idea-v1"
+_PARTICIPANT_NOT_LOADED = object()
 
 
 def reciprocal_friend_predicate(viewer_id, target_id):
@@ -186,6 +187,12 @@ class TripViewCapability:
     terminal: bool
 
 
+@dataclass(frozen=True)
+class TripJoinRequestCapability:
+    allowed: bool
+    reason: str
+
+
 def trip_view_capability(
     trip,
     viewer_id,
@@ -223,3 +230,42 @@ def trip_view_capability(
         friend_public=friend_public,
         terminal=terminal,
     )
+
+
+def trip_join_request_capability(
+    trip,
+    viewer_id,
+    *,
+    participant=_PARTICIPANT_NOT_LOADED,
+):
+    """Allow join requests only from eligible friend-public viewers."""
+    if trip is None or viewer_id is None:
+        return TripJoinRequestCapability(False, "missing_resource")
+    if getattr(trip, "user_id", None) == viewer_id:
+        return TripJoinRequestCapability(False, "organizer")
+
+    if participant is _PARTICIPANT_NOT_LOADED:
+        participant = SkiTripParticipant.query.filter_by(
+            trip_id=trip.id,
+            user_id=viewer_id,
+        ).first()
+    if participant is not None:
+        return TripJoinRequestCapability(False, "existing_participant")
+
+    if getattr(trip, "lifecycle_state", None) != "active":
+        return TripJoinRequestCapability(False, "inactive_trip")
+    if getattr(trip, "is_public", None) is not True:
+        return TripJoinRequestCapability(False, "not_public")
+    end_date = getattr(trip, "end_date", None)
+    if end_date is None or end_date < date.today():
+        return TripJoinRequestCapability(False, "ended_trip")
+
+    view = trip_view_capability(
+        trip,
+        viewer_id,
+        participant=None,
+        allow_friend_public=True,
+    )
+    if not view.friend_public:
+        return TripJoinRequestCapability(False, "not_friend_public")
+    return TripJoinRequestCapability(True, "friend_public")

@@ -16,7 +16,8 @@ import pytest
 
 from app import app
 from models import (
-    db, GuestStatus, Invitation, InviteType,
+    Activity, db, Friend, GuestStatus, Invitation, InviteType,
+    SkiTripParticipant,
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
@@ -39,6 +40,13 @@ def _pending_invitation(owner_id, requester_id, trip_id):
     )
     db.session.add(inv)
     db.session.commit()
+
+
+def _connect(first_id, second_id):
+    db.session.add_all([
+        Friend(user_id=first_id, friend_id=second_id),
+        Friend(user_id=second_id, friend_id=first_id),
+    ])
 
 
 # ── EventSpec registry tests (no HTTP, no DB) ─────────────────────────────────
@@ -93,6 +101,7 @@ class TestJoinRequestNotification:
             owner_id     = owner.id
             requester_id = requester.id
             trip_id      = trip.id
+            _connect(owner_id, requester_id)
             db.session.commit()
 
         _login(client, requester_id)
@@ -139,6 +148,7 @@ class TestJoinRequestNotification:
             owner_id     = owner.id
             requester_id = requester.id
             trip_id      = trip.id
+            _connect(owner_id, requester_id)
             db.session.commit()
             _pending_invitation(owner_id, requester_id, trip_id)
 
@@ -150,6 +160,46 @@ class TestJoinRequestNotification:
         # Route returns 200 success (no-op), but no push
         assert rv.status_code == 200
         mock_emit.assert_not_called()
+
+    def test_repeated_authorized_request_is_fully_idempotent(self, client):
+        with app.app_context():
+            owner = _make_user("repeat-owner")
+            requester = _make_user("repeat-requester")
+            trip = _make_trip(owner, is_public=True)
+            owner_id = owner.id
+            requester_id = requester.id
+            trip_id = trip.id
+            _connect(owner_id, requester_id)
+            db.session.commit()
+
+        _login(client, requester_id)
+        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+            first = json_post(client, f"/trips/{trip_id}/request-join")
+            second = json_post(client, f"/trips/{trip_id}/request-join")
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert second.get_json()["message"] == "Request already pending."
+        mock_emit.assert_called_once()
+        with app.app_context():
+            assert Invitation.query.filter_by(
+                sender_id=requester_id,
+                receiver_id=owner_id,
+                trip_id=trip_id,
+                invite_type=InviteType.REQUEST,
+                status="pending",
+            ).count() == 1
+            assert Activity.query.filter_by(
+                actor_user_id=requester_id,
+                recipient_user_id=owner_id,
+                type="join_request_received",
+                object_type="trip",
+                object_id=trip_id,
+            ).count() == 1
+            assert SkiTripParticipant.query.filter_by(
+                trip_id=trip_id,
+                user_id=requester_id,
+            ).count() == 0
 
     def test_already_accepted_participant_no_notification(self, client):
         """Accepted participant hitting the endpoint → emit not called (400 guard)."""
@@ -201,6 +251,7 @@ class TestJoinRequestNotification:
             owner_id     = owner.id
             requester_id = requester.id
             trip_id      = trip.id
+            _connect(owner_id, requester_id)
             db.session.commit()
 
         _login(client, requester_id)
@@ -223,6 +274,7 @@ class TestJoinRequestNotification:
             owner_id     = owner.id
             requester_id = requester.id
             trip_id      = trip.id
+            _connect(owner_id, requester_id)
             db.session.commit()
 
         _login(client, requester_id)
@@ -242,6 +294,7 @@ class TestJoinRequestNotification:
             trip      = _make_trip(owner)
             requester_id = requester.id
             trip_id      = trip.id
+            _connect(owner.id, requester_id)
             db.session.commit()
 
         _login(client, requester_id)

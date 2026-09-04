@@ -1,6 +1,7 @@
 """Focused BL-133 current-state authorization matrix."""
 
 from datetime import date, timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -10,6 +11,7 @@ from app import (
     build_trip_overlap_today_card,
 )
 from models import (
+    Activity,
     Friend,
     FriendConnectionEvent,
     GuestStatus,
@@ -24,6 +26,7 @@ from services.open_dates import (
 from services.visibility import (
     is_reciprocal_friend,
     issue_availability_idea_capability,
+    trip_join_request_capability,
     trip_view_capability,
 )
 from tests.conftest import (
@@ -32,6 +35,7 @@ from tests.conftest import (
     _make_resort,
     _make_trip,
     _make_user,
+    json_post,
 )
 
 
@@ -198,6 +202,135 @@ def test_trip_capability_preserves_current_and_terminal_matrix(client):
         assert not trip_view_capability(
             trip, friend.id, allow_friend_public=True
         ).allowed
+
+
+@pytest.mark.parametrize(
+    ("case", "participant_status"),
+    [
+        ("organizer", None),
+        ("going", GuestStatus.GOING),
+        ("interested", GuestStatus.INTERESTED),
+        ("pending", GuestStatus.PENDING),
+        ("declined", GuestStatus.DECLINED),
+        ("removed", GuestStatus.REMOVED),
+        ("one_sided", None),
+        ("nonfriend", None),
+        ("private", None),
+        ("completed", None),
+        ("cancelled", None),
+    ],
+)
+def test_join_request_denial_has_no_side_effects(
+    client,
+    case,
+    participant_status,
+):
+    with app.app_context():
+        owner = _make_user(f"join-denied-{case}-owner")
+        requester = (
+            owner
+            if case == "organizer"
+            else _make_user(f"join-denied-{case}-requester")
+        )
+        trip = _make_trip(
+            owner,
+            resort=_make_resort(f"Join Denied {case} Peak"),
+            is_public=case != "private",
+        )
+        participant = None
+        if participant_status is not None:
+            participant = _add_participant(
+                trip,
+                requester,
+                participant_status,
+            )
+        if case in {"private", "completed", "cancelled"}:
+            _connect(owner, requester)
+        elif case == "one_sided":
+            db.session.add(Friend(
+                user_id=requester.id,
+                friend_id=owner.id,
+            ))
+        if case in {"completed", "cancelled"}:
+            trip.lifecycle_state = case
+        db.session.commit()
+        owner_id = owner.id
+        requester_id = requester.id
+        trip_id = trip.id
+        participant_id = participant.id if participant is not None else None
+        participant_state = (
+            participant.status if participant is not None else None
+        )
+        invitation_count = Invitation.query.count()
+        activity_count = Activity.query.count()
+
+    _login(client, requester_id)
+    with patch("app.emit_messaging_event") as emit:
+        response = json_post(client, f"/trips/{trip_id}/request-join")
+
+    assert response.status_code in {400, 403, 409}
+    emit.assert_not_called()
+    with app.app_context():
+        assert Invitation.query.count() == invitation_count
+        assert Activity.query.count() == activity_count
+        assert Invitation.query.filter_by(
+            sender_id=requester_id,
+            receiver_id=owner_id,
+            trip_id=trip_id,
+        ).count() == 0
+        if participant_id is not None:
+            assert db.session.get(
+                type(participant),
+                participant_id,
+            ).status == participant_state
+
+
+def test_join_request_capability_fails_closed_for_ambiguous_trip_state(client):
+    with app.app_context():
+        owner = _make_user("join-ambiguous-owner")
+        requester = _make_user("join-ambiguous-requester")
+        trip = _make_trip(owner, is_public=True)
+        _connect(owner, requester)
+        db.session.commit()
+
+        trip.lifecycle_state = None
+        lifecycle_result = trip_join_request_capability(
+            trip,
+            requester.id,
+            participant=None,
+        )
+        trip.lifecycle_state = "active"
+        trip.is_public = None
+        visibility_result = trip_join_request_capability(
+            trip,
+            requester.id,
+            participant=None,
+        )
+
+    assert lifecycle_result.allowed is False
+    assert lifecycle_result.reason == "inactive_trip"
+    assert visibility_result.allowed is False
+    assert visibility_result.reason == "not_public"
+    assert trip_join_request_capability(None, requester.id).allowed is False
+
+
+def test_missing_join_request_trip_has_no_side_effects(client):
+    with app.app_context():
+        requester = _make_user("join-missing-requester")
+        db.session.commit()
+        requester_id = requester.id
+        invitation_count = Invitation.query.count()
+        activity_count = Activity.query.count()
+
+    _login(client, requester_id)
+    with patch("app.emit_messaging_event") as emit:
+        response = json_post(client, "/trips/999999/request-join")
+
+    assert response.status_code == 404
+    emit.assert_not_called()
+    with app.app_context():
+        assert Invitation.query.count() == invitation_count
+        assert Activity.query.count() == activity_count
 
 
 def test_nonorganizer_roster_never_receives_invitation_identities(client):
