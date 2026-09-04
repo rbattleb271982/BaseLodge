@@ -5,6 +5,7 @@ Setup context is CLOSED before yield; assertions use their own
 `with app.app_context():` blocks so each request gets a fresh context.
 """
 import pytest
+from unittest.mock import patch
 from app import app
 from models import db, SkiTrip, GuestStatus
 from tests.conftest import (
@@ -61,6 +62,24 @@ def test_update_resort_persists_for_owner(client, setup):
     with app.app_context():
         t = SkiTrip.query.get(setup["trip_id"])
         assert t.resort_id == setup["resort2_id"]
+
+
+def test_update_resort_rolls_back_when_outbox_staging_fails(client, setup):
+    _login(client, setup["owner_id"])
+    with patch(
+        "app._stage_route_messaging_events",
+        side_effect=RuntimeError("simulated enqueue failure"),
+    ):
+        rv = json_post(
+            client,
+            f"/api/trip/{setup['trip_id']}/update-resort",
+            {"resort_id": setup["resort2_id"]},
+        )
+    assert rv.status_code == 500
+
+    with app.app_context():
+        trip = db.session.get(SkiTrip, setup["trip_id"])
+        assert trip.resort_id == setup["resort_id"]
 
 
 def test_update_resort_blocked_for_participant(client, setup):

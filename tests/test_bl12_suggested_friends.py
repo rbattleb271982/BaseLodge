@@ -203,7 +203,7 @@ class TestSubmission:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ):
             resp = form_post(client, f'/friends/{jid}/suggest',
@@ -229,7 +229,7 @@ class TestSubmission:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ):
             resp = form_post(client, f'/friends/{jid}/suggest',
@@ -278,7 +278,7 @@ class TestResuggestionAfterDismiss:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ):
             resp = form_post(client, f'/friends/{jid}/suggest',
@@ -320,7 +320,7 @@ class TestResuggestionAfterExpiry:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ):
             resp = form_post(client, f'/friends/{jid}/suggest',
@@ -647,7 +647,7 @@ class TestPushCooldown:
             rid, jid, bid = richard.id, jon.id, bob.id
 
         _login(client, rid)
-        with patch('app.emit_messaging_event') as mock_push:
+        with patch('app.enqueue_messaging_event') as mock_push:
             form_post(client, f'/friends/{jid}/suggest',
                       {'suggested_user_ids': bid})
             mock_push.assert_not_called()
@@ -672,7 +672,7 @@ class TestPushCooldown:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ) as mock_push:
             form_post(client, f'/friends/{jid}/suggest',
@@ -692,7 +692,7 @@ class TestPushCooldown:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ) as mock_push:
             form_post(client, f'/friends/{jid}/suggest',
@@ -718,7 +718,7 @@ class TestActivityCreated:
 
         _login(client, rid)
         with patch(
-            'app.emit_messaging_event',
+            'app.enqueue_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ):
             form_post(client, f'/friends/{jid}/suggest',

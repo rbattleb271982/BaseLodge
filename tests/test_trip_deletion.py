@@ -161,7 +161,7 @@ def test_cancellation_notified_to_accepted_only(client, full_trip_setup):
 
     _login(client, owner_id)
     with unittest.mock.patch("app.delete_availability_overlap_activities_for_trip"), \
-         unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+         unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
         json_post(client, f"/api/trip/{trip_id}/delete")
 
     cancelled_recipients = [

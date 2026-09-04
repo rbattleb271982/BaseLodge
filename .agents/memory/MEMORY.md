@@ -26,3 +26,4 @@
 - [Home Next Trip tie policy](home-next-trip-tie-policy.md) — owned beats guest on equal effective starts; same-source ties choose the lowest trip ID.
 - [Production legacy log privacy](production-legacy-log-privacy.md) — Production free-form logs and stdout diagnostics use allowlisted metadata; BL-178 remains independent.
 - [Rate-limit storage validation](rate-limit-storage-validation.md) — validate credential-bearing limiter URIs before library initialization; Production requires native TLS Redis.
+- [Durable messaging outbox](durable-messaging-outbox.md) — enqueue with domain evidence atomically; quarantine ambiguous post-provider failures; Production cutover requires explicit worker configuration.

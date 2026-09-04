@@ -98,6 +98,7 @@ def _resolve_base_url():
 
 BASE_URL = _resolve_base_url()
 import sqlalchemy as sa
+import uuid
 from sqlalchemy import func
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g, make_response
@@ -107,7 +108,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, WishlistResortEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown
+from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, WishlistResortEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown, MessageOutbox
 from services.trip_attendance import (
     effective_attendance_date_expressions,
     effective_attendance_dates,
@@ -225,7 +226,13 @@ from services.messaging_constants import (
     MAX_RETRY_COUNT, RETRYABLE_STATUSES,
 )
 from services.push_providers import send_onesignal_push, send_onesignal_custom_event
-from services.message_dispatch import emit_messaging_event
+from services.message_dispatch import (
+    emit_messaging_event,
+    enqueue_messaging_event,
+    messaging_uses_outbox,
+    message_outbox_safety_callback,
+)
+from services.message_outbox import enqueue_message, queue_health, sanitize_error
 from io import BytesIO
 import segno
 import random
@@ -235,6 +242,22 @@ from sendgrid.helpers.mail import Mail
 import unicodedata
 import re
 import analytics as ph_analytics
+
+
+def _stage_route_messaging_events(*intents):
+    """Queue intents before the owning commit, or defer them for inline mode."""
+    uses_outbox = messaging_uses_outbox()
+    if uses_outbox:
+        for intent in intents:
+            enqueue_messaging_event(**intent, session=db.session)
+    return uses_outbox
+
+
+def _finish_route_messaging_events(uses_outbox, *intents):
+    """Emit deferred compatibility sends only after the domain commit."""
+    if not uses_outbox:
+        return [emit_messaging_event(**intent) for intent in intents]
+    return []
 
 
 def generate_resort_slug(name):
@@ -4348,9 +4371,9 @@ def auth_check_email():
 
 
 def send_founder_new_user_push(new_user):
-    """Send a targeted push to richardbattlebaxter@gmail.com when a new user completes onboarding.
+    """Build the founder alert intent when a new user completes onboarding.
 
-    Never raises — all exceptions are caught and logged so onboarding is never blocked.
+    The caller stages it before the onboarding commit and finishes it afterwards.
     """
     try:
         richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
@@ -4383,34 +4406,27 @@ def send_founder_new_user_push(new_user):
 
         body  = f"{signup_line}\n{connection_line}"
 
-        result = emit_messaging_event(
-            event_name=EventName.FOUNDER_NEW_USER,
-            actor_user_id=new_user.id,
-            recipient_user_id=richard.id,
-            entity_type="user",
-            entity_id=new_user.id,
-            metadata={
+        return {
+            "event_name": EventName.FOUNDER_NEW_USER,
+            "actor_user_id": new_user.id,
+            "recipient_user_id": richard.id,
+            "entity_type": "user",
+            "entity_id": new_user.id,
+            "metadata": {
                 "subject_user_id": new_user.id,
                 "alert_body": body,
             },
-            source_route="send_founder_new_user_push",
-        )
-        app.logger.warning(
-            "[FounderAlert] outcome recipient_id=%d status=%s suppression=%s",
-            richard.id,
-            result.status,
-            result.suppression_reason,
-        )
+            "source_route": "send_founder_new_user_push",
+        }
     except Exception as _exc:
         app.logger.exception("[FounderAlert] unexpected error — onboarding not affected: %s", _exc)
+        return None
 
 
 def send_founder_app_open_push(user_id):
-    """Send a founder-only push to richard when a real user opens BaseLodge.
+    """Persist a founder-only alert when a real user opens BaseLodge.
 
-    Accepts a plain integer user_id so it is safe to call from a background
-    thread with its own app context — no SQLAlchemy detached-instance issues.
-    Does its own fresh DB lookup inside the function.
+    Accepts a plain integer user_id and does its own fresh DB lookup.
 
     Never raises — all exceptions are caught and logged.
     """
@@ -4447,27 +4463,32 @@ def send_founder_app_open_push(user_id):
         else:
             body = "Someone opened BaseLodge"
 
-        result = emit_messaging_event(
-            event_name=EventName.FOUNDER_APP_OPEN,
-            actor_user_id=user.id,
-            recipient_user_id=richard.id,
-            entity_type="user",
-            entity_id=user.id,
-            metadata={
+        intent = {
+            "event_name": EventName.FOUNDER_APP_OPEN,
+            "actor_user_id": user.id,
+            "recipient_user_id": richard.id,
+            "entity_type": "user",
+            "entity_id": user.id,
+            "metadata": {
                 "subject_user_id": user.id,
                 "alert_body": body,
                 "app_open_occurrence": datetime.utcnow().date().isoformat(),
             },
-            source_route="send_founder_app_open_push",
-        )
+            "source_route": "send_founder_app_open_push",
+        }
+        uses_outbox = _stage_route_messaging_events(intent)
+        db.session.commit()
+        results = _finish_route_messaging_events(uses_outbox, intent)
+        result = results[0] if results else None
         app.logger.warning(
             "[founder_app_open_push] user_id=%d login_count=%d status=%s suppression=%s",
             user_id,
             lc,
-            result.status,
-            result.suppression_reason,
+            getattr(result, "status", "enqueued"),
+            getattr(result, "suppression_reason", None),
         )
     except Exception as _exc:
+        db.session.rollback()
         app.logger.exception(
             "[founder_app_open_push] user_id=%d sent=False reason=exception error=%s",
             user_id, _exc,
@@ -4475,7 +4496,7 @@ def send_founder_app_open_push(user_id):
 
 
 def _queue_founder_login_push(user_id, user_email):
-    """Check all gates and fire send_founder_app_open_push in a background thread.
+    """Check all gates and synchronously create the founder delivery record.
 
     Called immediately after login_user() at every successful login path.
     Uses module-level _FOP_THROTTLE dict (keyed by user_id, value = Denver date
@@ -4517,14 +4538,12 @@ def _queue_founder_login_push(user_id, user_email):
             return
         _FOP_THROTTLE[user_id] = _today
 
-        # All gates passed — fire in a background thread (user_id is a plain int).
-        # app is the real Flask instance at module level — no _get_current_object() needed.
-        def _fire(uid=user_id):
-            with app.app_context():
-                send_founder_app_open_push(uid)
-        threading.Thread(target=_fire, daemon=True).start()
+        # App-open has no domain mutation of its own.  The enqueue path therefore
+        # explicitly owns this small transaction instead of relying on a daemon
+        # thread (which could be killed before persistence).
+        send_founder_app_open_push(user_id)
         app.logger.warning(
-            "[founder_app_open_push] user_id=%d sent=pending reason=login_success",
+            "[founder_app_open_push] user_id=%d sent=queued reason=login_success",
             user_id,
         )
     except Exception as _exc:
@@ -4540,10 +4559,9 @@ def _send_founder_invite_share_push(
     source,
     invite_share_event_id,
 ):
-    """Send a founder-only push notification when an InviteShareEvent is committed.
+    """Build the founder alert intent for an InviteShareEvent.
 
-    Called from a background thread after the DB insert succeeds — never blocks
-    the API response. Accepts only plain scalars to avoid DetachedInstanceError.
+    The route stages it after flushing the evidence and commits both together.
 
     token_type — 'friend' | 'trip'
     action     — 'copy' | 'text' | 'share_sheet'
@@ -4581,30 +4599,22 @@ def _send_founder_invite_share_push(
         else:
             body = f"Someone sent a {type_label} invite · {action_label}"
 
-        result = emit_messaging_event(
-            event_name=EventName.FOUNDER_INVITE_SHARE,
-            actor_user_id=user.id,
-            recipient_user_id=richard.id,
-            entity_type="user",
-            entity_id=user.id,
-            metadata={
+        return {
+            "event_name": EventName.FOUNDER_INVITE_SHARE,
+            "actor_user_id": user.id,
+            "recipient_user_id": richard.id,
+            "entity_type": "user",
+            "entity_id": user.id,
+            "metadata": {
                 "subject_user_id": user.id,
                 "alert_body": body,
                 "invite_share_event_id": invite_share_event_id,
             },
-            source_route="_send_founder_invite_share_push",
-        )
-        app.logger.warning(
-            "[invite_share_push] user_id=%d token_type=%s action=%s "
-            "status=%s suppression=%s",
-            user_id,
-            token_type,
-            action,
-            result.status,
-            result.suppression_reason,
-        )
+            "source_route": "_send_founder_invite_share_push",
+        }
     except Exception as _exc:
         app.logger.exception("[invite_share_push] user_id=%d error=%s", user_id, _exc)
+        return None
 
 
 @app.route("/onboarding", methods=["GET", "POST"])
@@ -4659,7 +4669,17 @@ def onboarding():
         current_user.avi_certified = avi_certified
         upsert_user_season_pass(current_user, normalized_pass)
 
+        # The new-user evidence and its outbox row are one transaction. Inline
+        # delivery remains deliberately after the confirmed domain commit.
+        _founder_new_user_intent = send_founder_new_user_push(current_user)
+        _founder_new_user_uses_outbox = _stage_route_messaging_events(
+            *([_founder_new_user_intent] if _founder_new_user_intent else [])
+        )
         db.session.commit()
+        _finish_route_messaging_events(
+            _founder_new_user_uses_outbox,
+            *([_founder_new_user_intent] if _founder_new_user_intent else []),
+        )
         ph_analytics.track(current_user.id, 'onboarding_completed', {
             'total_steps': 4,
             'has_pass': _ph_is_real_pass(normalized_pass),
@@ -4672,8 +4692,6 @@ def onboarding():
                 'source':       'onboarding',
                 'is_first_pass': True,
             })
-
-        send_founder_new_user_push(current_user)
 
         # Redirect — invite signups go to friends, others go to home
         next_url = (
@@ -5031,7 +5049,34 @@ def edit_profile():
         
         try:
             upsert_user_season_pass(user, normalized_passes)
+            _ep_intents = []
+            if _old_pass_ep != normalized_passes:
+                _ep_friend_ids = get_friend_ids(user.id)
+                if _ep_friend_ids:
+                    _ep_display = format_passes_for_display(normalized_passes).replace(" · ", " + ")
+                    current_app.logger.info(
+                        "[MESSAGE_DISPATCH] pass_changed (edit_profile): old=%r new=%r friend_count=%d",
+                        _old_pass_ep, normalized_passes, len(_ep_friend_ids),
+                    )
+                    _ep_intents = [
+                        {
+                            "event_name": EventName.FRIEND_PASS_CHANGED,
+                            "actor_user_id": user.id,
+                            "recipient_user_id": _friend_id,
+                            "entity_type": "user",
+                            "entity_id": user.id,
+                            "metadata": {
+                                "actor_first_name": user.first_name,
+                                "new_pass": normalized_passes,
+                                "new_pass_display": _ep_display,
+                            },
+                            "source_route": "edit_profile",
+                        }
+                        for _friend_id in _ep_friend_ids
+                    ]
+            _ep_uses_outbox = _stage_route_messaging_events(*_ep_intents)
             db.session.commit()
+            _finish_route_messaging_events(_ep_uses_outbox, *_ep_intents)
 
             # Emit profile_completed event
             emit_event('profile_completed', user)
@@ -5042,31 +5087,6 @@ def edit_profile():
                     'source':       'settings',
                     'is_first_pass': not _ph_is_real_pass(_old_pass_ep),
                 })
-
-            # ── B3: friend.pass.changed (edit_profile) — centralized dispatch ──
-            # One emit per friend → one MEL audit row per recipient.
-            if _old_pass_ep != normalized_passes:
-                _ep_friend_ids = get_friend_ids(user.id)
-                if _ep_friend_ids:
-                    _ep_display = format_passes_for_display(normalized_passes).replace(" · ", " + ")
-                    current_app.logger.info(
-                        "[MESSAGE_DISPATCH] pass_changed (edit_profile): old=%r new=%r friend_count=%d",
-                        _old_pass_ep, normalized_passes, len(_ep_friend_ids),
-                    )
-                    for _friend_id in _ep_friend_ids:
-                        emit_messaging_event(
-                            event_name=EventName.FRIEND_PASS_CHANGED,
-                            actor_user_id=user.id,
-                            recipient_user_id=_friend_id,
-                            entity_type="user",
-                            entity_id=user.id,
-                            metadata={
-                                "actor_first_name": user.first_name,
-                                "new_pass":         normalized_passes,
-                                "new_pass_display": _ep_display,
-                            },
-                            source_route="edit_profile",
-                        )
 
             # Availability nudge: fire once when user just confirmed a real pass
             # but has no open dates set — highest-intent moment to prompt them.
@@ -6523,23 +6543,25 @@ def create_trip():
     # Update lifecycle stage (planning started)
     user.update_lifecycle_stage()
     
-    db.session.commit()
-
     # ── B5: trip.invite.created (create_trip JSON API) — centralized dispatch ──
+    _create_trip_intents = []
     if friend_id is not None:
-        emit_messaging_event(
-            event_name=EventName.TRIP_INVITE_CREATED,
-            actor_user_id=current_user.id,
-            recipient_user_id=int(friend_id),
-            entity_type="trip",
-            entity_id=trip.id,
-            metadata={
+        _create_trip_intents.append({
+            "event_name": EventName.TRIP_INVITE_CREATED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": int(friend_id),
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
                 "actor_name": current_user.first_name or current_user.username,
                 "resort":     mountain or "a trip",
                 "trip_id":    trip.id,
             },
-            source_route="create_trip",
-        )
+            "source_route": "create_trip",
+        })
+    _create_trip_uses_outbox = _stage_route_messaging_events(*_create_trip_intents)
+    db.session.commit()
+    _finish_route_messaging_events(_create_trip_uses_outbox, *_create_trip_intents)
 
     # Emit trip_created event
     emit_event('trip_created', user, {
@@ -6630,33 +6652,36 @@ def update_trip_dates(trip_id):
     trip.updated_at = datetime.utcnow()
     try:
         emit_trip_updated_activities(trip, current_user.id, dates_changed=True)
+        _dates_notify_ids = [
+            p.user_id for p in SkiTripParticipant.query.filter(
+                SkiTripParticipant.trip_id == trip_id,
+                SkiTripParticipant.active_status_filter(),
+                SkiTripParticipant.user_id != trip.user_id,
+            ).all()
+        ]
+        _dates_intents = [
+            {
+                "event_name": EventName.TRIP_DATES_UPDATED,
+                "actor_user_id": current_user.id,
+                "recipient_user_id": _uid,
+                "entity_type": "trip",
+                "entity_id": trip_id,
+                "metadata": {
+                    "actor_name": current_user.first_name or current_user.username,
+                    "resort": trip.mountain or "your trip",
+                    "trip_id": trip_id,
+                },
+                "source_route": "update_trip_dates",
+            }
+            for _uid in _dates_notify_ids
+        ]
+        _dates_uses_outbox = _stage_route_messaging_events(*_dates_intents)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"[update_trip_dates] error: {e}")
         return jsonify({"success": False, "error": "Failed to save dates."}), 500
-    # Push notifications after confirmed commit
-    _dates_notify_ids = [
-        p.user_id for p in SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id == trip_id,
-            SkiTripParticipant.active_status_filter(),
-            SkiTripParticipant.user_id != trip.user_id,
-        ).all()
-    ]
-    for _uid in _dates_notify_ids:
-        emit_messaging_event(
-            event_name=EventName.TRIP_DATES_UPDATED,
-            actor_user_id=current_user.id,
-            recipient_user_id=_uid,
-            entity_type="trip",
-            entity_id=trip_id,
-            metadata={
-                "actor_name": current_user.first_name or current_user.username,
-                "resort":     trip.mountain or "your trip",
-                "trip_id":    trip_id,
-            },
-            source_route="update_trip_dates",
-        )
+    _finish_route_messaging_events(_dates_uses_outbox, *_dates_intents)
     nights = (end_date - start_date).days
     return jsonify({"success": True, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "nights": nights})
 
@@ -6790,42 +6815,40 @@ def update_trip_resort(trip_id):
     trip.mountain = resort.name
     trip.state = resort.state_code or resort.state
     trip.updated_at = datetime.utcnow()
+    _resort_intents = []
+    if resort_actually_changed:
+        emit_trip_location_changed_activities(trip, current_user.id, resort.name)
+        _resort_notify_ids = [
+            p.user_id for p in SkiTripParticipant.query.filter(
+                SkiTripParticipant.trip_id == trip_id,
+                SkiTripParticipant.active_status_filter(),
+                SkiTripParticipant.user_id != trip.user_id,
+            ).all()
+        ]
+        _resort_intents = [
+            {
+                "event_name": EventName.TRIP_RESORT_UPDATED,
+                "actor_user_id": current_user.id,
+                "recipient_user_id": _uid,
+                "entity_type": "trip",
+                "entity_id": trip_id,
+                "metadata": {
+                    "actor_name": current_user.first_name or current_user.username,
+                    "resort": trip.mountain or "your trip",
+                    "trip_id": trip_id,
+                },
+                "source_route": "update_trip_resort",
+            }
+            for _uid in _resort_notify_ids
+        ]
+    _resort_uses_outbox = _stage_route_messaging_events(*_resort_intents)
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         app.logger.error(f"[update_trip_resort] error: {e}")
         return jsonify({"success": False, "error": "Failed to save resort."}), 500
-    if resort_actually_changed:
-        emit_trip_location_changed_activities(trip, current_user.id, resort.name)
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"[update_trip_resort] notification error: {e}")
-        else:
-            # Push notifications only after the inner commit is confirmed
-            _resort_notify_ids = [
-                p.user_id for p in SkiTripParticipant.query.filter(
-                    SkiTripParticipant.trip_id == trip_id,
-                    SkiTripParticipant.active_status_filter(),
-                    SkiTripParticipant.user_id != trip.user_id,
-                ).all()
-            ]
-            for _uid in _resort_notify_ids:
-                emit_messaging_event(
-                    event_name=EventName.TRIP_RESORT_UPDATED,
-                    actor_user_id=current_user.id,
-                    recipient_user_id=_uid,
-                    entity_type="trip",
-                    entity_id=trip_id,
-                    metadata={
-                        "actor_name": current_user.first_name or current_user.username,
-                        "resort":     trip.mountain or "your trip",
-                        "trip_id":    trip_id,
-                    },
-                    source_route="update_trip_resort",
-                )
+    _finish_route_messaging_events(_resort_uses_outbox, *_resort_intents)
     return jsonify({
         "success": True,
         "resort_id": resort.id,
@@ -6932,12 +6955,7 @@ def update_trip_status(trip_id):
     status_changed = new_status != original_status
     trip.trip_status = new_status
     trip.updated_at = datetime.utcnow()
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        app.logger.error(f"[update_trip_status] error: {e}")
-        return jsonify({"success": False, "error": "Failed to save."}), 500
+    _status_intents = []
     if status_changed:
         notify_ids = [
             p.user_id for p in SkiTripParticipant.query.filter(
@@ -6946,25 +6964,30 @@ def update_trip_status(trip_id):
                 SkiTripParticipant.user_id != trip.user_id,
             ).all()
         ]
-        for uid in notify_ids:
-            emit_messaging_event(
-                event_name=EventName.TRIP_DETAILS_UPDATED,
-                actor_user_id=current_user.id,
-                recipient_user_id=uid,
-                entity_type="trip",
-                entity_id=trip.id,
-                metadata={
+        _status_intents = [
+            {
+                "event_name": EventName.TRIP_DETAILS_UPDATED,
+                "actor_user_id": current_user.id,
+                "recipient_user_id": uid,
+                "entity_type": "trip",
+                "entity_id": trip.id,
+                "metadata": {
                     "actor_name": current_user.first_name or current_user.username,
-                    "resort":     trip.mountain or "your trip",
-                    "trip_id":    trip.id,
+                    "resort": trip.mountain or "your trip",
+                    "trip_id": trip.id,
                 },
-                source_route="update_trip_status",
-            )
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            app.logger.error(f"[update_trip_status] notification commit error: {e}")
+                "source_route": "update_trip_status",
+            }
+            for uid in notify_ids
+        ]
+    try:
+        _status_uses_outbox = _stage_route_messaging_events(*_status_intents)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"[update_trip_status] error: {e}")
+        return jsonify({"success": False, "error": "Failed to save."}), 500
+    _finish_route_messaging_events(_status_uses_outbox, *_status_intents)
     label = "Going" if trip.trip_status == "going" else "Planning"
     return jsonify({
         "success": True,
@@ -7017,6 +7040,25 @@ def delete_trip(trip_id):
                 ).all()
             ]
             _cancel_trip_live_artifacts(result.trip)
+            _delete_trip_intents = [
+                {
+                    "event_name": EventName.TRIP_CANCELLED,
+                    "actor_user_id": current_user.id,
+                    "recipient_user_id": _uid,
+                    "entity_type": "trip",
+                    "entity_id": _del_trip_id,
+                    "metadata": {
+                        "resort": _del_resort,
+                        "trip_id": _del_trip_id,
+                        "lifecycle_event_id": _del_lifecycle_event_id,
+                    },
+                    "source_route": "delete_trip",
+                }
+                for _uid in _del_notify_ids
+            ]
+        else:
+            _delete_trip_intents = []
+        _delete_trip_uses_outbox = _stage_route_messaging_events(*_delete_trip_intents)
         db.session.commit()
     except TripLifecycleAuthorizationError:
         db.session.rollback()
@@ -7032,21 +7074,7 @@ def delete_trip(trip_id):
         )
         return jsonify({"success": False, "error": "Failed to delete trip. Please try again."}), 500
 
-    # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
-    for _uid in (_del_notify_ids if result.changed else []):
-        emit_messaging_event(
-            event_name=EventName.TRIP_CANCELLED,
-            actor_user_id=current_user.id,
-            recipient_user_id=_uid,
-            entity_type="trip",
-            entity_id=_del_trip_id,
-            metadata={
-                "resort":  _del_resort,
-                "trip_id": _del_trip_id,
-                "lifecycle_event_id": _del_lifecycle_event_id,
-            },
-            source_route="delete_trip",
-        )
+    _finish_route_messaging_events(_delete_trip_uses_outbox, *_delete_trip_intents)
 
     return jsonify({"success": True, "changed": result.changed, "state": "cancelled"})
 
@@ -7131,7 +7159,7 @@ def api_invite_share():
 
     Called from frontend share buttons immediately before or after the copy/share
     action. Non-critical — returns 200 even on internal errors so it never blocks
-    the copy/share UX. Fires a founder push in a background thread after commit.
+    the copy/share UX. The founder alert is staged in the same transaction.
 
     Body JSON:
         token_type  — 'friend' | 'trip'
@@ -7179,7 +7207,20 @@ def api_invite_share():
             user_agent = ua,
         )
         db.session.add(evt)
+        db.session.flush()
+        # InviteShareEvent is the authoritative evidence for this alert; keep
+        # its durable enqueue in the very same commit.
+        _invite_share_intent = _send_founder_invite_share_push(
+            current_user.id, token_type, action, source, evt.id,
+        )
+        _invite_share_uses_outbox = _stage_route_messaging_events(
+            *([_invite_share_intent] if _invite_share_intent else [])
+        )
         db.session.commit()
+        _finish_route_messaging_events(
+            _invite_share_uses_outbox,
+            *([_invite_share_intent] if _invite_share_intent else []),
+        )
 
         # PostHog supplemental event (supplemental only — admin panel reads DB)
         try:
@@ -7190,21 +7231,6 @@ def api_invite_share():
             })
         except Exception:
             pass
-
-        # Founder push in background thread — plain scalars only, no ORM objects
-        _uid = current_user.id
-        _invite_share_event_id = evt.id
-        _tt, _act, _src = token_type, action, source
-        def _fire_invite_push():
-            with app.app_context():
-                _send_founder_invite_share_push(
-                    _uid,
-                    _tt,
-                    _act,
-                    _src,
-                    _invite_share_event_id,
-                )
-        threading.Thread(target=_fire_invite_push, daemon=True).start()
 
         app.logger.info(
             "[invite_share] user_id=%d token_type=%s action=%s source=%s",
@@ -7284,19 +7310,25 @@ def create_friend_request(actor_id, target_id):
         db.session.flush()  # get invitation.id before emitting event
 
         actor = db.session.get(User, actor_id)
-        db.session.commit()
-        emit_messaging_event(
-            event_name=EventName.FRIEND_REQUEST_CREATED,
-            actor_user_id=actor_id,
-            recipient_user_id=target_id,
-            entity_type='user',
-            entity_id=target_id,
-            metadata={
-                'actor_name':    (actor.first_name if actor else '') or '',
+        _friend_request_intent = {
+            "event_name": EventName.FRIEND_REQUEST_CREATED,
+            "actor_user_id": actor_id,
+            "recipient_user_id": target_id,
+            "entity_type": 'user',
+            "entity_id": target_id,
+            "metadata": {
+                'actor_name': (actor.first_name if actor else '') or '',
                 'invitation_id': invitation.id,
-                'user_id':       actor_id,
+                'user_id': actor_id,
             },
-            source_route='create_friend_request',
+            "source_route": 'create_friend_request',
+        }
+        _friend_request_uses_outbox = _stage_route_messaging_events(
+            _friend_request_intent
+        )
+        db.session.commit()
+        _finish_route_messaging_events(
+            _friend_request_uses_outbox, _friend_request_intent
         )
         return {'ok': True, 'code': 'SUCCESS', 'invitation_id': invitation.id}
     except Exception:
@@ -7461,27 +7493,27 @@ def accept_invitation(invitation_id):
         return jsonify({"success": True, "message": "Already friends"}), 200
 
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
+    _accepted_intent = {
+        "event_name": EventName.FRIEND_REQUEST_ACCEPTED,
+        "actor_user_id": current_user.id,
+        "recipient_user_id": invitation.sender_id,
+        "entity_type": "user",
+        "entity_id": current_user.id,
+        "metadata": {
+            "actor_name": current_user.first_name or current_user.username,
+            "user_id": current_user.id,
+            "invitation_id": invitation.id,
+        },
+        "source_route": "accept_invitation",
+    }
+    _accepted_uses_outbox = _stage_route_messaging_events(_accepted_intent)
     db.session.commit()
+    _finish_route_messaging_events(_accepted_uses_outbox, _accepted_intent)
     _fc_count = len(reciprocal_friend_ids(current_user.id))
     ph_analytics.track(current_user.id, 'friend_connected', {
         'source':          'invitation_accept',
         'is_first_friend': _fc_count == 1,
     })
-
-    # ── B2: friend.request.accepted — routed through centralized dispatch ──
-    emit_messaging_event(
-        event_name=EventName.FRIEND_REQUEST_ACCEPTED,
-        actor_user_id=current_user.id,
-        recipient_user_id=invitation.sender_id,
-        entity_type="user",
-        entity_id=current_user.id,
-        metadata={
-            "actor_name": current_user.first_name or current_user.username,
-            "user_id":    current_user.id,
-            "invitation_id": invitation.id,
-        },
-        source_route="accept_invitation",
-    )
 
     return jsonify({"success": True, "message": "Friend added"}), 200
 
@@ -10430,8 +10462,6 @@ def submit_suggestions(friend_id):
                 sp.rollback()
 
     if inserted_count > 0:
-        db.session.commit()
-
         # One Activity per batch
         create_activity(
             actor_user_id=current_user.id,
@@ -10441,10 +10471,6 @@ def submit_suggestions(friend_id):
             object_id=current_user.id,
             extra_data={'count': inserted_count},
         )
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
 
         # Push cooldown check
         cooldown_row = SuggestionPushCooldown.query.filter_by(
@@ -10455,25 +10481,45 @@ def submit_suggestions(friend_id):
             cooldown_row is None
             or cooldown_row.last_sent_at < now - timedelta(hours=_SUGGESTION_PUSH_COOLDOWN_HOURS)
         )
+        push_intent = None
+        uses_outbox = False
         if send_push:
+            push_intent = {
+                "event_name": EventName.FRIEND_SUGGESTIONS_CREATED,
+                "actor_user_id": current_user.id,
+                "recipient_user_id": friend_id,
+                "entity_type": "user",
+                "entity_id": current_user.id,
+                "metadata": {
+                    "actor_name": current_user.first_name,
+                    "suggestion_batch_id": (
+                        f"{min(inserted_suggestion_ids)}-"
+                        f"{max(inserted_suggestion_ids)}"
+                    ),
+                },
+                "source_route": "suggest_connections_submit",
+            }
+            uses_outbox = _stage_route_messaging_events(push_intent)
+            if uses_outbox:
+                if cooldown_row is None:
+                    db.session.add(SuggestionPushCooldown(
+                        suggester_id=current_user.id,
+                        recipient_id=friend_id,
+                        last_sent_at=now,
+                    ))
+                else:
+                    cooldown_row.last_sent_at = now
+
+        db.session.commit()
+
+        if push_intent is not None:
             try:
-                push_result = emit_messaging_event(
-                    event_name=EventName.FRIEND_SUGGESTIONS_CREATED,
-                    actor_user_id=current_user.id,
-                    recipient_user_id=friend_id,
-                    entity_type="user",
-                    entity_id=current_user.id,
-                    metadata={
-                        "actor_name": current_user.first_name,
-                        "suggestion_batch_id": (
-                            f"{min(inserted_suggestion_ids)}-"
-                            f"{max(inserted_suggestion_ids)}"
-                        ),
-                    },
-                    source_route="suggest_connections_submit",
+                push_results = _finish_route_messaging_events(
+                    uses_outbox, push_intent
                 )
-                # Update cooldown only on success or skip, not on hard error
-                if push_result.status in (
+                # Inline mode updates cooldown only on success or skip. Outbox
+                # mode committed the cooldown atomically with the queued event.
+                if not uses_outbox and push_results[0].status in (
                     DeliveryStatus.SENT,
                     DeliveryStatus.SKIPPED,
                 ):
@@ -14325,23 +14371,27 @@ def add_trip():
                     establish_missing=True,
                 )
             emit_trip_created_activities(trip, current_user.id)
+            invite_intent = None
+            if friend_id:
+                invite_intent = {
+                    "event_name": EventName.TRIP_INVITE_CREATED,
+                    "actor_user_id": current_user.id,
+                    "recipient_user_id": int(friend_id),
+                    "entity_type": "trip",
+                    "entity_id": trip.id,
+                    "metadata": {
+                        "actor_name": current_user.first_name or current_user.username,
+                        "resort": resort.name if resort else "a trip",
+                        "trip_id": trip.id,
+                    },
+                    "source_route": "add_trip",
+                }
+                uses_outbox = _stage_route_messaging_events(invite_intent)
             db.session.commit()
 
             # ── B5: trip.invite.created (add_trip form) — centralized dispatch ──
-            if friend_id:
-                emit_messaging_event(
-                    event_name=EventName.TRIP_INVITE_CREATED,
-                    actor_user_id=current_user.id,
-                    recipient_user_id=int(friend_id),
-                    entity_type="trip",
-                    entity_id=trip.id,
-                    metadata={
-                        "actor_name": current_user.first_name or current_user.username,
-                        "resort":     resort.name if resort else "a trip",
-                        "trip_id":    trip.id,
-                    },
-                    source_route="add_trip",
-                )
+            if invite_intent is not None:
+                _finish_route_messaging_events(uses_outbox, invite_intent)
 
             flash("Trip added.", "trip")
             return redirect(url_for("trip_detail", trip_id=trip.id))
@@ -15073,7 +15123,7 @@ def planning_posts_create(trip_id):
         link_url=link_url,
     )
     db.session.add(post)
-    db.session.commit()
+    db.session.flush()
 
     # Notify all other active members (including owner if not author).
     recipient_ids = [
@@ -15087,24 +15137,29 @@ def planning_posts_create(trip_id):
     if trip.user_id != current_user.id and trip.user_id not in recipient_ids:
         recipient_ids.append(trip.user_id)
 
-    for uid in recipient_ids:
-        try:
-            emit_messaging_event(
-                event_name=EventName.TRIP_PLANNING_POST_CREATED,
-                actor_user_id=current_user.id,
-                recipient_user_id=uid,
-                entity_type="trip",
-                entity_id=trip.id,
-                metadata={
-                    "actor_name": current_user.first_name or current_user.username,
-                    "resort": trip.mountain or "your trip",
-                    "trip_id": trip.id,
-                    "planning_post_id": post.id,
-                },
-                source_route="planning_posts_create",
-            )
-        except Exception as _e:
-            app.logger.warning(f"planning_post notification failed uid={uid}: {_e}")
+    planning_intents = [
+        {
+            "event_name": EventName.TRIP_PLANNING_POST_CREATED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": uid,
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
+                "actor_name": current_user.first_name or current_user.username,
+                "resort": trip.mountain or "your trip",
+                "trip_id": trip.id,
+                "planning_post_id": post.id,
+            },
+            "source_route": "planning_posts_create",
+        }
+        for uid in recipient_ids
+    ]
+    uses_outbox = _stage_route_messaging_events(*planning_intents)
+    db.session.commit()
+    try:
+        _finish_route_messaging_events(uses_outbox, *planning_intents)
+    except Exception as _e:
+        app.logger.warning(f"planning_post notification failed: {_e}")
 
     return jsonify({"ok": True, "id": post.id}), 201
 
@@ -15316,7 +15371,7 @@ def update_trip_accommodation(trip_id):
     if _accom_changed:
         trip.updated_at = datetime.utcnow()
 
-    db.session.commit()
+    accommodation_intents = []
     if _accom_changed:
         _accom_notify_ids = [
             p.user_id for p in SkiTripParticipant.query.filter(
@@ -15325,20 +15380,25 @@ def update_trip_accommodation(trip_id):
                 SkiTripParticipant.user_id != trip.user_id,
             ).all()
         ]
-        for _uid in _accom_notify_ids:
-            emit_messaging_event(
-                event_name=EventName.TRIP_ACCOMMODATION_UPDATED,
-                actor_user_id=current_user.id,
-                recipient_user_id=_uid,
-                entity_type="trip",
-                entity_id=trip_id,
-                metadata={
+        accommodation_intents = [
+            {
+                "event_name": EventName.TRIP_ACCOMMODATION_UPDATED,
+                "actor_user_id": current_user.id,
+                "recipient_user_id": _uid,
+                "entity_type": "trip",
+                "entity_id": trip_id,
+                "metadata": {
                     "actor_name": current_user.first_name or current_user.username,
-                    "resort":     trip.mountain or "your trip",
-                    "trip_id":    trip_id,
+                    "resort": trip.mountain or "your trip",
+                    "trip_id": trip_id,
                 },
-                source_route="update_trip_accommodation",
-            )
+                "source_route": "update_trip_accommodation",
+            }
+            for _uid in _accom_notify_ids
+        ]
+    uses_outbox = _stage_route_messaging_events(*accommodation_intents)
+    db.session.commit()
+    _finish_route_messaging_events(uses_outbox, *accommodation_intents)
     return jsonify({"status": "success"})
 
 
@@ -15514,7 +15574,49 @@ def trip_invite_token_accept(token):
     if _pending_trip_inv and target_status in ACTIVE_RSVP_STATUSES:
         _pending_trip_inv.status = 'accepted'
 
+    _token_message_intents = []
+    if target_status in ACTIVE_RSVP_STATUSES:
+        emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
+        emit_friend_joined_trip_activities(trip, current_user.id)
+        _token_message_intents.append({
+            "event_name": EventName.TRIP_INVITE_ACCEPTED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": trip.user_id,
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
+                "actor_name": current_user.first_name or current_user.username,
+                "resort": trip.mountain or "your trip",
+                "trip_id": trip.id,
+                "rsvp": target_status.value,
+            },
+            "source_route": "trip_invite_token_accept",
+        })
+        other_active = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip.id,
+            SkiTripParticipant.active_status_filter(),
+            SkiTripParticipant.user_id != current_user.id,
+            SkiTripParticipant.user_id != trip.user_id,
+        ).all()
+        _token_message_intents.extend({
+            "event_name": EventName.TRIP_PARTICIPANT_ADDED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": other_participant.user_id,
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
+                "resort": trip.mountain or "your trip",
+                "trip_id": trip.id,
+            },
+            "source_route": "trip_invite_token_accept",
+        } for other_participant in other_active)
+    elif target_status == GuestStatus.DECLINED:
+        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
     try:
+        db.session.flush()
+        _token_uses_outbox = _stage_route_messaging_events(
+            *_token_message_intents
+        )
         db.session.commit()
     except sa.exc.IntegrityError:
         # A concurrent first response may have inserted the same participant
@@ -15528,44 +15630,9 @@ def trip_invite_token_accept(token):
             return redirect(url_for("trip_detail", trip_id=trip.id))
         raise
 
-    if target_status in ACTIVE_RSVP_STATUSES:
-        emit_trip_invite_accepted_activity(trip, current_user.id, trip.user_id)
-        emit_friend_joined_trip_activities(trip, current_user.id)
-        emit_messaging_event(
-            event_name=EventName.TRIP_INVITE_ACCEPTED,
-            actor_user_id=current_user.id,
-            recipient_user_id=trip.user_id,
-            entity_type="trip",
-            entity_id=trip.id,
-            metadata={
-                "actor_name": current_user.first_name or current_user.username,
-                "resort": trip.mountain or "your trip",
-                "trip_id": trip.id,
-                "rsvp": target_status.value,
-            },
-            source_route="trip_invite_token_accept",
-        )
-        other_active = SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id == trip.id,
-            SkiTripParticipant.active_status_filter(),
-            SkiTripParticipant.user_id != current_user.id,
-            SkiTripParticipant.user_id != trip.user_id,
-        ).all()
-        for other_participant in other_active:
-            emit_messaging_event(
-                event_name=EventName.TRIP_PARTICIPANT_ADDED,
-                actor_user_id=current_user.id,
-                recipient_user_id=other_participant.user_id,
-                entity_type="trip",
-                entity_id=trip.id,
-                metadata={
-                    "resort": trip.mountain or "your trip",
-                    "trip_id": trip.id,
-                },
-                source_route="trip_invite_token_accept",
-            )
-    elif target_status == GuestStatus.DECLINED:
-        emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
+    _finish_route_messaging_events(
+        _token_uses_outbox, *_token_message_intents
+    )
 
     # Clean up session key if present
     session.pop("trip_invite_token", None)
@@ -15689,23 +15756,27 @@ def send_trip_invites(trip_id):
         # Mark trip as group trip if not already
         if not trip.is_group_trip:
             trip.is_group_trip = True
+        _invite_message_intents = [{
+            "event_name": EventName.TRIP_INVITE_CREATED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": invited_uid,
+            "entity_type": "trip",
+            "entity_id": trip_id,
+            "metadata": {
+                "actor_name": current_user.first_name or current_user.username,
+                "resort": trip.mountain or "a trip",
+                "trip_id": trip_id,
+            },
+            "source_route": "trip_detail_invite",
+        } for invited_uid in newly_invited_user_ids]
+        db.session.flush()
+        _invite_uses_outbox = _stage_route_messaging_events(
+            *_invite_message_intents
+        )
         db.session.commit()
-
-        # ── B5: trip.invite.created (trip_detail invite loop) — one emit per recipient ──
-        for _invited_uid in newly_invited_user_ids:
-            emit_messaging_event(
-                event_name=EventName.TRIP_INVITE_CREATED,
-                actor_user_id=current_user.id,
-                recipient_user_id=_invited_uid,
-                entity_type="trip",
-                entity_id=trip_id,
-                metadata={
-                    "actor_name": current_user.first_name or current_user.username,
-                    "resort":     trip.mountain or "a trip",
-                    "trip_id":    trip_id,
-                },
-                source_route="trip_detail_invite",
-            )
+        _finish_route_messaging_events(
+            _invite_uses_outbox, *_invite_message_intents
+        )
 
         flash(f"Invite{'s' if invites_sent > 1 else ''} sent to {invites_sent} friend{'s' if invites_sent > 1 else ''}.", "success")
     else:
@@ -15765,28 +15836,31 @@ def request_to_join_trip(trip_id):
     db.session.add(join_request)
     # Notify the trip owner (activity feed record)
     create_activity(current_user.id, trip.user_id, ActivityType.JOIN_REQUEST_RECEIVED, 'trip', trip.id)
-    db.session.commit()
-
-    # Immediate push to the organizer — fires only after a successful commit.
-    # Resort fallback: resort.name → mountain → "upcoming" (produces grammatically
-    # correct "your upcoming trip." for trips with no resort attached).
+    db.session.flush()
     _jrq_resort = (
         trip.resort.name if trip.resort
         else trip.mountain if trip.mountain
         else "upcoming"
     )
-    emit_messaging_event(
-        event_name=EventName.TRIP_JOIN_REQUESTED,
-        actor_user_id=current_user.id,
-        recipient_user_id=trip.user_id,
-        entity_type="trip",
-        entity_id=trip.id,
-        metadata={
+    _join_request_intent = {
+        "event_name": EventName.TRIP_JOIN_REQUESTED,
+        "actor_user_id": current_user.id,
+        "recipient_user_id": trip.user_id,
+        "entity_type": "trip",
+        "entity_id": trip.id,
+        "metadata": {
             "resort": _jrq_resort,
             "trip_id": trip.id,
             "invitation_id": join_request.id,
         },
-        source_route="request_to_join_trip",
+        "source_route": "request_to_join_trip",
+    }
+    _join_request_uses_outbox = _stage_route_messaging_events(
+        _join_request_intent
+    )
+    db.session.commit()
+    _finish_route_messaging_events(
+        _join_request_uses_outbox, _join_request_intent
     )
 
     return jsonify({"success": True, "message": "Request sent to owner."})
@@ -15980,53 +16054,62 @@ def respond_to_trip_invite(trip_id):
     elif target_status == GuestStatus.DECLINED and current_status == GuestStatus.PENDING:
         emit_trip_invite_declined_activity(trip, current_user.id, trip.user_id)
 
-    db.session.commit()
-
+    _invite_response_intents = []
     if target_status in ACTIVE_RSVP_STATUSES and current_status == GuestStatus.PENDING:
-        emit_messaging_event(
-            event_name=EventName.TRIP_INVITE_ACCEPTED,
-            actor_user_id=current_user.id,
-            recipient_user_id=trip.user_id,
-            entity_type="trip",
-            entity_id=trip.id,
-            metadata={
+        _invite_response_intents.append({
+            "event_name": EventName.TRIP_INVITE_ACCEPTED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": trip.user_id,
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
                 "actor_name": current_user.first_name or current_user.username,
                 "resort": trip.mountain or "your trip",
                 "trip_id": trip_id,
                 "rsvp": target_status.value,
             },
-            source_route="respond_to_trip_invite",
-        )
+            "source_route": "respond_to_trip_invite",
+        })
         other_active = SkiTripParticipant.query.filter(
             SkiTripParticipant.trip_id == trip.id,
             SkiTripParticipant.active_status_filter(),
             SkiTripParticipant.user_id != current_user.id,
             SkiTripParticipant.user_id != trip.user_id,
         ).all()
-        for other_participant in other_active:
-            emit_messaging_event(
-                event_name=EventName.TRIP_PARTICIPANT_ADDED,
-                actor_user_id=current_user.id,
-                recipient_user_id=other_participant.user_id,
-                entity_type="trip",
-                entity_id=trip.id,
-                metadata={"resort": trip.mountain or "your trip", "trip_id": trip.id},
-                source_route="respond_to_trip_invite",
-            )
+        _invite_response_intents.extend({
+            "event_name": EventName.TRIP_PARTICIPANT_ADDED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": other_participant.user_id,
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
+                "resort": trip.mountain or "your trip",
+                "trip_id": trip.id,
+            },
+            "source_route": "respond_to_trip_invite",
+        } for other_participant in other_active)
     elif target_status == GuestStatus.DECLINED and current_status == GuestStatus.PENDING:
-        emit_messaging_event(
-            event_name=EventName.TRIP_INVITE_DECLINED,
-            actor_user_id=current_user.id,
-            recipient_user_id=trip.user_id,
-            entity_type="trip",
-            entity_id=trip.id,
-            metadata={
+        _invite_response_intents.append({
+            "event_name": EventName.TRIP_INVITE_DECLINED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": trip.user_id,
+            "entity_type": "trip",
+            "entity_id": trip.id,
+            "metadata": {
                 "actor_name": current_user.first_name or current_user.username,
                 "trip_id": trip_id,
                 "resort": trip.mountain or "your trip",
             },
-            source_route="respond_to_trip_invite",
-        )
+            "source_route": "respond_to_trip_invite",
+        })
+    db.session.flush()
+    _invite_response_uses_outbox = _stage_route_messaging_events(
+        *_invite_response_intents
+    )
+    db.session.commit()
+    _finish_route_messaging_events(
+        _invite_response_uses_outbox, *_invite_response_intents
+    )
 
     message = _rsvp_confirmation_message(target_status)
     if request.is_json:
@@ -16215,21 +16298,27 @@ def organizer_reinvite_trip_participant(trip_id, user_id):
         trip.is_group_trip = True
     if transition_result.changed:
         emit_trip_invite_received_activity(trip, current_user.id, user_id)
+    _reinvite_message_intents = [{
+        "event_name": EventName.TRIP_INVITE_CREATED,
+        "actor_user_id": current_user.id,
+        "recipient_user_id": user_id,
+        "entity_type": "trip",
+        "entity_id": trip.id,
+        "metadata": {
+            "actor_name": current_user.first_name or current_user.username,
+            "resort": trip.mountain or "a trip",
+            "trip_id": trip.id,
+        },
+        "source_route": "organizer_reinvite_trip_participant",
+    }] if transition_result.changed else []
+    db.session.flush()
+    _reinvite_uses_outbox = _stage_route_messaging_events(
+        *_reinvite_message_intents
+    )
     db.session.commit()
-    if transition_result.changed:
-        emit_messaging_event(
-            event_name=EventName.TRIP_INVITE_CREATED,
-            actor_user_id=current_user.id,
-            recipient_user_id=user_id,
-            entity_type="trip",
-            entity_id=trip.id,
-            metadata={
-                "actor_name": current_user.first_name or current_user.username,
-                "resort": trip.mountain or "a trip",
-                "trip_id": trip.id,
-            },
-            source_route="organizer_reinvite_trip_participant",
-        )
+    _finish_route_messaging_events(
+        _reinvite_uses_outbox, *_reinvite_message_intents
+    )
 
     if request.is_json:
         return jsonify({"success": True, "status": GuestStatus.PENDING.value})
@@ -16344,22 +16433,27 @@ def delete_trip_form(trip_id):
                 ).all()
             ]
             _cancel_trip_live_artifacts(result.trip)
+        _cancel_message_intents = [{
+            "event_name": EventName.TRIP_CANCELLED,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": uid,
+            "entity_type": "trip",
+            "entity_id": _del_trip_id,
+            "metadata": {
+                "resort": _del_resort,
+                "trip_id": _del_trip_id,
+                "lifecycle_event_id": _del_lifecycle_event_id,
+            },
+            "source_route": "delete_trip_form",
+        } for uid in (_del_notify_ids if result.changed else [])]
+        db.session.flush()
+        _cancel_uses_outbox = _stage_route_messaging_events(
+            *_cancel_message_intents
+        )
         db.session.commit()
-        # Push after confirmed deletion; deep link → /trips (trip page no longer exists)
-        for _uid in (_del_notify_ids if result.changed else []):
-            emit_messaging_event(
-                event_name=EventName.TRIP_CANCELLED,
-                actor_user_id=current_user.id,
-                recipient_user_id=_uid,
-                entity_type="trip",
-                entity_id=_del_trip_id,
-                metadata={
-                    "resort":  _del_resort,
-                    "trip_id": _del_trip_id,
-                    "lifecycle_event_id": _del_lifecycle_event_id,
-                },
-                source_route="delete_trip_form",
-            )
+        _finish_route_messaging_events(
+            _cancel_uses_outbox, *_cancel_message_intents
+        )
         app.logger.info(
             "[delete_trip_form] success route=delete_trip_form trip_id=%s user_id=%s",
             trip_id, current_user.id
@@ -16415,20 +16509,26 @@ def leave_trip(trip_id):
             actor_user_id=current_user.id,
             allowed_current_statuses=ACTIVE_RSVP_STATUSES,
         )
+        _leave_message_intents = [{
+            "event_name": EventName.TRIP_PARTICIPANT_LEFT,
+            "actor_user_id": current_user.id,
+            "recipient_user_id": uid,
+            "entity_type": "trip",
+            "entity_id": _leave_trip_id,
+            "metadata": {
+                "resort": _leave_resort,
+                "trip_id": _leave_trip_id,
+            },
+            "source_route": "leave_trip",
+        } for uid in _leave_notify_ids]
+        db.session.flush()
+        _leave_uses_outbox = _stage_route_messaging_events(
+            *_leave_message_intents
+        )
         db.session.commit()
-        for _uid in _leave_notify_ids:
-            emit_messaging_event(
-                event_name=EventName.TRIP_PARTICIPANT_LEFT,
-                actor_user_id=current_user.id,
-                recipient_user_id=_uid,
-                entity_type="trip",
-                entity_id=_leave_trip_id,
-                metadata={
-                    "resort":  _leave_resort,
-                    "trip_id": _leave_trip_id,
-                },
-                source_route="leave_trip",
-            )
+        _finish_route_messaging_events(
+            _leave_uses_outbox, *_leave_message_intents
+        )
         app.logger.info(
             "[leave_trip] success trip_id=%s user_id=%s",
             trip_id, current_user.id
@@ -17090,7 +17190,38 @@ def select_pass():
         current_user.pass_type = normalized_chosen
         try:
             upsert_user_season_pass(current_user, normalized_chosen)
+            _sp_message_intents = []
+            if _old_pass_sp != normalized_chosen:
+                _sp_friend_ids = get_friend_ids(current_user.id)
+                if _sp_friend_ids:
+                    _sp_display = format_passes_for_display(
+                        normalized_chosen
+                    ).replace(" · ", " + ")
+                    current_app.logger.info(
+                        "[MESSAGE_DISPATCH] pass_changed (select_pass): old=%r new=%r friend_count=%d",
+                        _old_pass_sp, normalized_chosen, len(_sp_friend_ids),
+                    )
+                    _sp_message_intents = [{
+                        "event_name": EventName.FRIEND_PASS_CHANGED,
+                        "actor_user_id": current_user.id,
+                        "recipient_user_id": friend_id,
+                        "entity_type": "user",
+                        "entity_id": current_user.id,
+                        "metadata": {
+                            "actor_first_name": current_user.first_name,
+                            "new_pass": normalized_chosen,
+                            "new_pass_display": _sp_display,
+                        },
+                        "source_route": "select_pass",
+                    } for friend_id in _sp_friend_ids]
+            db.session.flush()
+            _sp_uses_outbox = _stage_route_messaging_events(
+                *_sp_message_intents
+            )
             db.session.commit()
+            _finish_route_messaging_events(
+                _sp_uses_outbox, *_sp_message_intents
+            )
             session["pass_prompt_skipped"] = False
             if _ph_is_real_pass(normalized_chosen):
                 ph_analytics.track(current_user.id, 'pass_added', {
@@ -17098,30 +17229,6 @@ def select_pass():
                     'source':       'select_pass',
                     'is_first_pass': not _ph_is_real_pass(_old_pass_sp),
                 })
-            # ── B3: friend.pass.changed (select_pass) — centralized dispatch ──
-            # One emit per friend → one MEL audit row per recipient.
-            if _old_pass_sp != normalized_chosen:
-                _sp_friend_ids = get_friend_ids(current_user.id)
-                if _sp_friend_ids:
-                    _sp_display = format_passes_for_display(normalized_chosen).replace(" · ", " + ")
-                    current_app.logger.info(
-                        "[MESSAGE_DISPATCH] pass_changed (select_pass): old=%r new=%r friend_count=%d",
-                        _old_pass_sp, normalized_chosen, len(_sp_friend_ids),
-                    )
-                    for _friend_id in _sp_friend_ids:
-                        emit_messaging_event(
-                            event_name=EventName.FRIEND_PASS_CHANGED,
-                            actor_user_id=current_user.id,
-                            recipient_user_id=_friend_id,
-                            entity_type="user",
-                            entity_id=current_user.id,
-                            metadata={
-                                "actor_first_name": current_user.first_name,
-                                "new_pass":         normalized_chosen,
-                                "new_pass_display": _sp_display,
-                            },
-                            source_route="select_pass",
-                        )
             return redirect(url_for("profile"))
         except Exception as e:
             db.session.rollback()
@@ -21290,6 +21397,128 @@ def admin_message_events():
     }
 
     return render_template("admin_message_events.html", rows=rows, stats=stats)
+
+
+def _admin_outbox_timestamp(value):
+    """Serialize an outbox timestamp without exposing any delivery payload."""
+    return value.isoformat() + "Z" if value is not None else None
+
+
+def _admin_outbox_row(row):
+    """The deliberately small operational representation of an outbox row."""
+    return {
+        "id": row.id,
+        "event": row.event_name,
+        "status": row.status,
+        "attempt_count": row.attempt_count,
+        "max_attempts": row.max_attempts,
+        "created_at": _admin_outbox_timestamp(row.created_at),
+        "updated_at": _admin_outbox_timestamp(row.updated_at),
+        "next_attempt_at": _admin_outbox_timestamp(row.next_attempt_at),
+        "completed_at": _admin_outbox_timestamp(row.completed_at),
+        "reason": sanitize_error(row.last_error),
+        "provider_message_id": sanitize_error(row.provider_message_id),
+    }
+
+
+def _admin_outbox_safety_allowed(decision):
+    if isinstance(decision, bool):
+        return decision
+    if isinstance(decision, dict):
+        return bool(decision.get("allowed"))
+    return bool(getattr(decision, "allowed", False))
+
+
+@app.route("/api/admin/message-outbox/health", methods=["GET"])
+@login_required
+@admin_required
+def admin_message_outbox_health():
+    """Return aggregate outbox health; delivery contents are never inspected."""
+    return jsonify({"health": queue_health(session=db.session)})
+
+
+@app.route("/api/admin/message-outbox/terminal", methods=["GET"])
+@login_required
+@admin_required
+def admin_message_outbox_terminal():
+    """Inspect replay-eligible terminal records with a PII-safe projection."""
+    rows = (
+        MessageOutbox.query
+        .filter(MessageOutbox.status.in_(("dead_letter", "delivery_unknown")))
+        .order_by(MessageOutbox.completed_at.desc(), MessageOutbox.id.desc())
+        .limit(200)
+        .all()
+    )
+    return jsonify({"rows": [_admin_outbox_row(row) for row in rows]})
+
+
+@app.route("/api/admin/message-outbox/<int:outbox_id>/replay", methods=["POST"])
+@login_required
+@admin_required
+def admin_message_outbox_replay(outbox_id):
+    """Create one new, explicitly requested delivery from a terminal record."""
+    validate_csrf_request()
+    if (
+        is_production
+        or current_app.config.get("BASELODGE_RUNTIME_ENV") == "production"
+    ):
+        return jsonify({"error": "not_available_in_production"}), 403
+
+    row = db.session.get(MessageOutbox, outbox_id)
+    if row is None:
+        return jsonify({"error": "outbox_not_found"}), 404
+    if row.status not in ("dead_letter", "delivery_unknown"):
+        return jsonify({"error": "outbox_not_replayable"}), 409
+
+    request_data = request.get_json(silent=True) or {}
+    if row.status == "delivery_unknown" and not (
+        request_data.get("duplicate_risk_acknowledged") is True
+        or request_data.get("acknowledge_duplicate_risk") is True
+    ):
+        return jsonify({"error": "duplicate_risk_acknowledgement_required"}), 400
+
+    # Authorization is intentionally evaluated again at replay time, before a
+    # replacement work item exists.  It can account for changed eligibility,
+    # blocks, preferences, or environment policy.
+    try:
+        decision = message_outbox_safety_callback(row)
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "replay_safety_check_failed"}), 409
+    if not _admin_outbox_safety_allowed(decision):
+        return jsonify({"error": "replay_not_allowed"}), 409
+
+    # Keep the occurrence bounded for the database constraint while making each
+    # operator request a distinct logical delivery under the outbox uniqueness
+    # rule.  enqueue_message flushes only; this route owns the single commit.
+    replay_suffix = ":replay:" + uuid.uuid4().hex
+    replay_occurrence = row.occurrence_id[:191 - len(replay_suffix)] + replay_suffix
+    try:
+        replay = enqueue_message(
+            event_name=row.event_name,
+            category=row.category,
+            occurrence_id=replay_occurrence,
+            recipient_user_id=row.recipient_user_id,
+            channel=row.channel,
+            provider=row.provider,
+            context=row.context_json or {},
+            evidence_ids=row.evidence_ids_json or [],
+            actor_user_id=row.actor_user_id,
+            object_type=row.object_type,
+            object_id=row.object_id,
+            max_attempts=row.max_attempts,
+            replay_of_outbox_id=row.id,
+            session=db.session,
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.warning(
+            "[MessageOutbox] replay creation failed for outbox_id=%d", outbox_id
+        )
+        return jsonify({"error": "replay_creation_failed"}), 500
+
+    return jsonify({"replay": _admin_outbox_row(replay)}), 201
 
 
 @app.route("/admin/test-message-event", methods=["POST"])

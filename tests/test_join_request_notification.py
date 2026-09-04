@@ -2,7 +2,7 @@
 Tests for the join-request push notification (TRIP_JOIN_REQUESTED).
 
 Covers:
-  - Successful request  → emit_messaging_event called once, correct args
+  - Successful request  → durable enqueue called once, correct args
   - Duplicate pending   → emit not called (early-return guard)
   - Already accepted    → emit not called (is_accepted guard)
   - Owner self-request  → emit not called (owner is ACCEPTED, same guard)
@@ -92,7 +92,7 @@ class TestTripJoinRequestedEventSpec:
 class TestJoinRequestNotification:
 
     def test_successful_request_emits_notification(self, client):
-        """New successful join request → emit_messaging_event called once."""
+        """New successful join request → durable enqueue called once."""
         with app.app_context():
             owner     = _make_user("owner")
             requester = _make_user("req")
@@ -106,7 +106,7 @@ class TestJoinRequestNotification:
 
         _login(client, requester_id)
 
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 
         assert rv.status_code == 200
@@ -154,7 +154,7 @@ class TestJoinRequestNotification:
 
         _login(client, requester_id)
 
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 
         # Route returns 200 success (no-op), but no push
@@ -173,7 +173,7 @@ class TestJoinRequestNotification:
             db.session.commit()
 
         _login(client, requester_id)
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             first = json_post(client, f"/trips/{trip_id}/request-join")
             second = json_post(client, f"/trips/{trip_id}/request-join")
 
@@ -214,7 +214,7 @@ class TestJoinRequestNotification:
 
         _login(client, member_id)
 
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 
         assert rv.status_code == 400
@@ -231,7 +231,7 @@ class TestJoinRequestNotification:
 
         _login(client, owner_id)
 
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 
         assert rv.status_code == 400
@@ -256,7 +256,7 @@ class TestJoinRequestNotification:
 
         _login(client, requester_id)
 
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 
         assert rv.status_code == 200
@@ -279,7 +279,7 @@ class TestJoinRequestNotification:
 
         _login(client, requester_id)
 
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 
         assert rv.status_code == 200
@@ -287,7 +287,7 @@ class TestJoinRequestNotification:
         assert mock_emit.call_args.kwargs["metadata"]["resort"] == "Copper Mountain"
 
     def test_notification_uses_dispatch_infrastructure_not_direct_call(self, client):
-        """emit_messaging_event is called (not a raw OneSignal call in the route)."""
+        """The route enqueues rather than making a raw OneSignal call."""
         with app.app_context():
             owner     = _make_user("owner")
             requester = _make_user("req")
@@ -299,9 +299,9 @@ class TestJoinRequestNotification:
 
         _login(client, requester_id)
 
-        # Patching app.emit_messaging_event proves the route goes through
-        # the messaging service, not a one-off direct OneSignal call.
-        with unittest.mock.patch("app.emit_messaging_event") as mock_emit, \
+        # Patching the enqueue boundary proves the route avoids a one-off
+        # direct OneSignal call.
+        with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit, \
              unittest.mock.patch("app.send_onesignal_push", side_effect=AssertionError("direct call")) as _direct:
             rv = json_post(client, f"/trips/{trip_id}/request-join")
 

@@ -1978,6 +1978,90 @@ class MessageEventLog(db.Model):
     )
 
 
+class MessageOutbox(db.Model):
+    """Durable, provider-bound work item for one logical message delivery."""
+    __tablename__ = "message_outbox"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_name = db.Column(db.String(120), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
+    occurrence_id = db.Column(db.String(191), nullable=False)
+    actor_user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
+    recipient_user_id = db.Column(
+        db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True
+    )
+    object_type = db.Column(db.String(80), nullable=True)
+    object_id = db.Column(db.Integer, nullable=True)
+    channel = db.Column(db.String(40), nullable=False)
+    provider = db.Column(db.String(40), nullable=False)
+
+    # Context is deliberately separate from audit evidence and must contain
+    # only the minimum values required to render/send the message.
+    context_json = db.Column(db.JSON, nullable=False, default=dict)
+    evidence_ids_json = db.Column(db.JSON, nullable=False, default=list)
+
+    status = db.Column(db.String(32), nullable=False, default="pending", index=True)
+    attempt_count = db.Column(db.Integer, nullable=False, default=0)
+    max_attempts = db.Column(db.Integer, nullable=False, default=5)
+    next_attempt_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, index=True
+    )
+
+    lease_token = db.Column(db.String(64), nullable=True, unique=True)
+    lease_owner = db.Column(db.String(120), nullable=True)
+    leased_at = db.Column(db.DateTime, nullable=True)
+    lease_expires_at = db.Column(db.DateTime, nullable=True, index=True)
+
+    provider_phase = db.Column(
+        db.String(20), nullable=False, default="not_started"
+    )
+    provider_message_id = db.Column(db.String(255), nullable=True)
+    last_error = db.Column(db.String(500), nullable=True)
+    final_event_log_id = db.Column(
+        db.Integer, db.ForeignKey("message_event_log.id"), nullable=True, unique=True
+    )
+    replay_of_outbox_id = db.Column(
+        db.Integer, db.ForeignKey("message_outbox.id"), nullable=True
+    )
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    final_event_log = db.relationship("MessageEventLog", foreign_keys=[final_event_log_id])
+    replay_of = db.relationship(
+        "MessageOutbox", remote_side=[id], foreign_keys=[replay_of_outbox_id]
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "occurrence_id",
+            "recipient_user_id",
+            "channel",
+            "provider",
+            name="uq_outbox_logical_delivery",
+        ),
+        db.CheckConstraint(
+            "status IN ('pending','processing','retryable','provider_accepted',"
+            "'suppressed','dead_letter','delivery_unknown')",
+            name="ck_outbox_status",
+        ),
+        db.CheckConstraint(
+            "provider_phase IN ('not_started','started','accepted','unknown')",
+            name="ck_outbox_provider_phase",
+        ),
+        db.CheckConstraint(
+            "attempt_count >= 0 AND max_attempts > 0",
+            name="ck_outbox_attempt_bounds",
+        ),
+        db.Index("ix_outbox_claim", "status", "next_attempt_at", "id"),
+    )
+
+
 class MountainPageView(db.Model):
     """Tracks visits to mountain detail pages for destination traffic analytics.
     No PII beyond optional user_id FK. session_key is a truncated Flask session ID."""

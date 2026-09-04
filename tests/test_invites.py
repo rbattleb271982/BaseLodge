@@ -184,7 +184,7 @@ def test_same_user_accepts_token_twice_creates_one_participant_row(client, token
     trip_id = token_setup["trip_id"]
     user_id = token_setup["joiner1_id"]
 
-    with unittest.mock.patch("app.emit_messaging_event"), \
+    with unittest.mock.patch("app.enqueue_messaging_event"), \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
@@ -204,7 +204,7 @@ def test_same_user_second_acceptance_sends_no_new_notification(client, token_set
         db.session.commit()
     user_id = token_setup["joiner1_id"]
 
-    with unittest.mock.patch("app.emit_messaging_event") as mock_emit, \
+    with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit, \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
@@ -227,7 +227,7 @@ def test_two_users_can_both_accept_same_token(client, token_setup):
     j1      = token_setup["joiner1_id"]
     j2      = token_setup["joiner2_id"]
 
-    with unittest.mock.patch("app.emit_messaging_event"), \
+    with unittest.mock.patch("app.enqueue_messaging_event"), \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, j1)
@@ -258,7 +258,7 @@ def test_pending_invitation_reconciled_on_token_accept(client, token_setup):
         inv_id = inv.id
     user_id = token_setup["joiner1_id"]
 
-    with unittest.mock.patch("app.emit_messaging_event"), \
+    with unittest.mock.patch("app.enqueue_messaging_event"), \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
@@ -280,7 +280,7 @@ def test_trip_invite_accepted_notifies_owner(client, token_setup):
     owner_id  = token_setup["owner_id"]
     joiner_id = token_setup["joiner1_id"]
 
-    with unittest.mock.patch("app.emit_messaging_event") as mock_emit, \
+    with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit, \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, joiner_id)
@@ -311,7 +311,7 @@ def test_trip_planning_post_created_notifies_other_members(client):
         m2_id    = member2.id
 
     _login(client, m1_id)
-    with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
+    with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
         json_post(client, f"/api/trip/{trip_id}/planning-posts",
                   {"category": "Other", "body": "What bindings?"})
 

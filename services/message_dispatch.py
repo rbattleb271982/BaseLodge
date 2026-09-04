@@ -39,6 +39,7 @@ from models import (
     GuestStatus,
     Invitation,
     InviteType,
+    InviteShareEvent,
     PushDeviceToken,
     SkiTrip,
     SkiTripLifecycleEvent,
@@ -46,6 +47,7 @@ from models import (
     SkiTripPlanningPost,
     SkiTripRsvpTransition,
     User,
+    UserSeasonPass,
     db,
 )
 from services.message_events import (
@@ -64,6 +66,8 @@ from services.messaging_constants import (
     SuppressionReason,
 )
 from services.push_providers import send_onesignal_push
+from services.message_outbox import enqueue_message, sanitize_error
+from services.pass_utils import format_passes_for_display, normalize_pass_selection
 from services.visibility import is_reciprocal_friend
 
 
@@ -956,6 +960,108 @@ def _normalized_occurrence_id(value):
     return f"sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
 
 
+def messaging_delivery_mode():
+    """Return the deployment-wide delivery family without changing config.
+
+    MESSAGE_DELIVERY_MODE is deliberately read at the edge rather than adding a
+    Production config default.  Development/test installations queue by
+    default, while a production installation retains its existing inline
+    behavior unless it explicitly opts into the durable worker.
+    """
+    configured = (
+        current_app.config.get("MESSAGE_DELIVERY_MODE")
+        or os.environ.get("MESSAGE_DELIVERY_MODE")
+    )
+    if configured:
+        mode = str(configured).strip().lower()
+        if mode in {"inline", "enqueue_only"}:
+            return mode
+    runtime = (
+        os.environ.get("BASELODGE_RUNTIME_ENV")
+        or ("test" if current_app.config.get("TESTING") else "development")
+    ).lower()
+    return "inline" if runtime == "production" else "enqueue_only"
+
+
+def messaging_uses_outbox():
+    """Whether normal delivery callers should use the durable outbox."""
+    return messaging_delivery_mode() == "enqueue_only"
+
+
+def _outbox_evidence_ids(metadata):
+    """Extract identifiers only; never retain route-provided copy or identities."""
+    meta = metadata if isinstance(metadata, dict) else {}
+    keys = (
+        "invitation_id", "planning_post_id", "lifecycle_event_id",
+        "suggestion_batch_id", "subject_user_id", "invite_share_event_id",
+    )
+    return [
+        f"{key}:{meta[key]}"
+        for key in keys
+        if isinstance(meta.get(key), int)
+    ]
+
+
+def enqueue_messaging_event(
+    event_name,
+    actor_user_id,
+    recipient_user_id,
+    entity_type=None,
+    entity_id=None,
+    metadata=None,
+    source_route=None,
+    occurrence_id=None,
+    *,
+    session=None,
+):
+    """Transaction-neutral durable enqueue API.
+
+    This intentionally stores no rendered content or caller metadata.  The
+    worker re-reads authoritative records immediately before safety evaluation
+    and rendering.  Callers must commit (or roll back) their own business
+    transaction after this function returns.
+    """
+    spec = _get_event_spec(event_name)
+    if spec is None or spec.delivery_strategy == DeliveryStrategy.SILENT:
+        raise ValueError("event is not a deliverable registered messaging event")
+    occurrence_id = _normalized_occurrence_id(
+        occurrence_id or _derive_occurrence_id(
+            spec, actor_user_id, recipient_user_id, entity_type, entity_id, metadata,
+        )
+    )
+    if not occurrence_id:
+        raise ValueError("enqueue_messaging_event requires an occurrence identity")
+    provider = _provider_for_spec(spec)
+    if provider is None:
+        raise ValueError("event has no provider")
+    if not isinstance(actor_user_id, int) or not isinstance(recipient_user_id, int):
+        raise ValueError("enqueue_messaging_event requires integer actor and recipient IDs")
+    if entity_type is not None and entity_type not in {"trip", "user"}:
+        raise ValueError("enqueue_messaging_event requires a safe entity type")
+    if entity_id is not None and not isinstance(entity_id, int):
+        raise ValueError("enqueue_messaging_event entity_id must be an integer")
+    # These are allowlisted by message_outbox and are selectors, not content.
+    context = {
+        "template": "enqueue_only",
+        "object_type": str(entity_type)[:80] if entity_type else None,
+        "object_id": entity_id if isinstance(entity_id, int) else None,
+    }
+    return enqueue_message(
+        event_name=spec.event_name,
+        category=spec.category,
+        occurrence_id=occurrence_id,
+        recipient_user_id=recipient_user_id,
+        channel=Channel.PUSH,
+        provider=provider,
+        context=context,
+        evidence_ids=_outbox_evidence_ids(metadata),
+        actor_user_id=actor_user_id,
+        object_type=entity_type,
+        object_id=entity_id,
+        session=session,
+    )
+
+
 def _derive_occurrence_id(
     spec,
     actor_user_id,
@@ -1147,6 +1253,174 @@ def _rendered_links_are_safe(rendered):
         ):
             return False
     return True
+
+
+def _outbox_evidence_value(row, kind):
+    """Read a typed identifier from an outbox evidence list."""
+    prefix = f"{kind}:"
+    for value in row.evidence_ids_json or []:
+        if isinstance(value, str) and value.startswith(prefix):
+            try:
+                return int(value[len(prefix):])
+            except ValueError:
+                return None
+    return None
+
+
+def _outbox_render_metadata(row, spec):
+    """Rebuild render inputs from authoritative records, never outbox copy."""
+    metadata = {}
+    actor = db.session.get(User, row.actor_user_id) if row.actor_user_id else None
+    if actor:
+        metadata["actor_name"] = actor.first_name
+        metadata["actor_first_name"] = actor.first_name
+        if spec.event_name == EventName.FRIEND_PASS_CHANGED:
+            # This event's Journey properties are regenerated from durable
+            # ownership state, never caller metadata or rendered outbox copy.
+            pass_value = normalize_pass_selection(actor.pass_type)
+            if not pass_value:
+                historic = (
+                    UserSeasonPass.query.filter_by(user_id=actor.id)
+                    .order_by(
+                        UserSeasonPass.season_start_year.desc(),
+                        UserSeasonPass.updated_at.desc(),
+                    ).first()
+                )
+                pass_value = normalize_pass_selection(
+                    historic.pass_type if historic is not None else ""
+                )
+            metadata["new_pass"] = pass_value
+            metadata["new_pass_display"] = format_passes_for_display(pass_value)
+    if isinstance(row.object_id, int) and row.object_type == "trip":
+        trip = db.session.get(SkiTrip, row.object_id)
+        if trip:
+            metadata["trip_id"] = trip.id
+            metadata["resort"] = trip.mountain
+    for key in (
+        "invitation_id", "planning_post_id", "lifecycle_event_id",
+        "suggestion_batch_id", "subject_user_id", "invite_share_event_id",
+    ):
+        value = _outbox_evidence_value(row, key)
+        if value is not None:
+            metadata[key] = value
+
+    # Founder templates historically accepted caller-owned alert text.  The
+    # outbox deliberately never retains it; use fixed safe copy and validate
+    # the referenced share record where applicable.
+    if spec.event_name == EventName.FOUNDER_NEW_USER:
+        metadata["alert_body"] = "A new user joined BaseLodge."
+    elif spec.event_name == EventName.FOUNDER_APP_OPEN:
+        metadata["alert_body"] = "A user opened BaseLodge."
+        metadata["app_open_occurrence"] = row.occurrence_id
+    elif spec.event_name == EventName.FOUNDER_INVITE_SHARE:
+        share_id = metadata.get("invite_share_event_id")
+        share = db.session.get(InviteShareEvent, share_id) if share_id else None
+        if share is not None:
+            metadata["alert_body"] = "An invite was shared."
+        else:
+            metadata.pop("invite_share_event_id", None)
+    return metadata
+
+
+def message_outbox_safety_callback(row):
+    """Worker callback: refuse other delivery families and re-authorize now."""
+    if (row.context_json or {}).get("template") != "enqueue_only":
+        return MessagingSafetyDecision(
+            False, row.event_name, row.occurrence_id, row.recipient_user_id,
+            row.actor_user_id, row.object_type, row.object_id, row.channel,
+            row.provider, SuppressionReason.ENVIRONMENT_BLOCKED,
+            _audit_metadata(None, "outbox_family_refused"),
+        )
+    spec = _get_event_spec(row.event_name)
+    if spec is None or _provider_for_spec(spec) != row.provider:
+        return MessagingSafetyDecision(
+            False, row.event_name, row.occurrence_id, row.recipient_user_id,
+            row.actor_user_id, row.object_type, row.object_id, row.channel,
+            row.provider, SuppressionReason.NOT_IMPLEMENTED,
+            _audit_metadata(None, "outbox_spec_refused"),
+        )
+    return evaluate_message_safety(
+        spec, row.actor_user_id, row.recipient_user_id, row.object_type,
+        row.object_id, _outbox_render_metadata(row, spec),
+        (row.context_json or {}).get("route"), row.occurrence_id,
+    )
+
+
+def message_outbox_provider_callback(row):
+    """Worker callback which renders only after the current safety pass."""
+    spec = _get_event_spec(row.event_name)
+    if spec is None:
+        return {"status": "dead_letter", "error": "unregistered_event"}
+    metadata = _outbox_render_metadata(row, spec)
+    if spec.delivery_strategy == DeliveryStrategy.AUTOMATION_EVENT:
+        from services.push_providers import send_onesignal_custom_event
+        result = send_onesignal_custom_event(
+            [row.recipient_user_id], spec.automation_event_name,
+            {key: metadata[key] for key in spec.data_keys or [] if key in metadata},
+        )
+    else:
+        rendered = _render_immediate_push(
+            spec, metadata, row.actor_user_id, row.object_id
+        )
+        if not _rendered_links_are_safe(rendered):
+            return {"status": "suppressed", "error": SuppressionReason.INVALID_DEEP_LINK}
+        result = send_onesignal_push(
+            [row.recipient_user_id], rendered["title"], rendered["body"],
+            rendered["push_data"] or None,
+        )
+    if result.get("success") and not result.get("skipped"):
+        return {"status": "provider_accepted",
+                "provider_message_id": result.get("provider_message_id")}
+    if result.get("skipped"):
+        return {"status": "suppressed", "error": result.get("skipped_reason")}
+    if result.get("delivery_unknown"):
+        return {
+            "status": "delivery_unknown",
+            "error": result.get("error") or "provider_result_unknown",
+        }
+    return {
+        "status": "retryable" if result.get("retryable") else "dead_letter",
+        "error": result.get("error") or "provider_error",
+        "retry_after": result.get("retry_after"),
+    }
+
+
+def message_outbox_event_log_callback(row, status, details):
+    """Write one final MEL outcome in the worker transaction; never commit.
+
+    Retryable rows intentionally have no MEL claim: a partial attempt must not
+    consume MEL's logical-occurrence uniqueness or block the next lease.
+    """
+    if status == "retryable":
+        return None
+    mel_status = (
+        DeliveryStatus.SENT if status == "provider_accepted"
+        else DeliveryStatus.SKIPPED if status == "suppressed"
+        else DeliveryStatus.FAILED
+    )
+    reason = details.get("suppression_reason") if status == "suppressed" else None
+    if status == "suppressed" and reason not in {
+        value for value in vars(SuppressionReason).values() if isinstance(value, str)
+    }:
+        reason = SuppressionReason.RECIPIENT_INELIGIBLE
+    return create_message_event(
+        event_name=row.event_name, category=row.category,
+        actor_user_id=row.actor_user_id, recipient_user_id=row.recipient_user_id,
+        object_type=row.object_type, object_id=row.object_id, channel=row.channel,
+        provider=row.provider, occurrence_id=row.occurrence_id,
+        payload_json={"event": row.event_name, "outbox_id": row.id},
+        delivery_status=mel_status, suppression_reason=reason,
+        error_message=sanitize_error(details.get("error")) if status != "suppressed" else None,
+        provider_message_id=details.get("provider_message_id"),
+        sent_at=datetime.utcnow() if status == "provider_accepted" else None,
+        commit=False,
+    )
+
+
+# Stable, short names for services.message_outbox_worker CLI/callback wiring.
+outbox_safety_callback = message_outbox_safety_callback
+outbox_provider_callback = message_outbox_provider_callback
+outbox_event_log_callback = message_outbox_event_log_callback
 
 
 def _record_suppression(

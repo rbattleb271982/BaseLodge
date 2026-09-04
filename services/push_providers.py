@@ -48,6 +48,30 @@ from flask import current_app
 from models import db, User, PushDeviceToken
 
 
+_RETRYABLE_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
+
+
+def _retry_after(response):
+    """Return only a bounded retry hint; never retain response content."""
+    value = response.headers.get("Retry-After")
+    try:
+        return max(0, min(int(value), 3600))
+    except (TypeError, ValueError):
+        return None
+
+
+def _provider_failure(response, *, prefix="http"):
+    retryable = response.status_code in _RETRYABLE_HTTP_STATUSES
+    result = {
+        "success": False, "provider_message_id": None, "skipped": False,
+        "skipped_reason": None, "error": f"{prefix}_{response.status_code}",
+        "retryable": retryable,
+    }
+    if retryable:
+        result["retry_after"] = _retry_after(response)
+    return result
+
+
 def send_onesignal_push(user_ids, title, body, data=None):
     """Send a push notification via the OneSignal REST API.
 
@@ -173,12 +197,15 @@ def send_onesignal_push(user_ids, title, body, data=None):
             json=payload,
             timeout=10.0,
         )
-        result          = resp.json()
+        try:
+            result = resp.json()
+        except ValueError:
+            result = {}
         notification_id = result.get("id")
         errors          = result.get("errors")
         current_app.logger.warning(
-            "[OneSignal] response status=%d notification_id=%s errors=%s",
-            resp.status_code, notification_id, errors,
+            "[OneSignal] response status=%d notification_id_present=%s",
+            resp.status_code, bool(notification_id),
         )
         if resp.status_code in (200, 202) and not errors:
             return {"success": True, "provider_message_id": notification_id,
@@ -201,13 +228,22 @@ def send_onesignal_push(user_ids, title, body, data=None):
                     "skipped": True, "skipped_reason": "channel_unavailable",
                     "error": None}
 
-        return {"success": False, "provider_message_id": notification_id,
-                "skipped": False, "skipped_reason": None,
-                "error": str(errors or result)}
-    except Exception:
-        current_app.logger.exception("[OneSignal] request failed")
+        return _provider_failure(resp)
+    except httpx.TimeoutException:
+        current_app.logger.warning("[OneSignal] request timed out")
         return {"success": False, "provider_message_id": None,
-                "skipped": False, "skipped_reason": None, "error": "request_failed"}
+                "skipped": False, "skipped_reason": None, "error": "timeout",
+                "retryable": False, "delivery_unknown": True}
+    except httpx.RequestError:
+        current_app.logger.warning("[OneSignal] request connection failure")
+        return {"success": False, "provider_message_id": None,
+                "skipped": False, "skipped_reason": None, "error": "connection_failed",
+                "retryable": False, "delivery_unknown": True}
+    except Exception:
+        current_app.logger.warning("[OneSignal] request failed")
+        return {"success": False, "provider_message_id": None,
+                "skipped": False, "skipped_reason": None, "error": "request_failed",
+                "retryable": False}
 
 
 def send_onesignal_custom_event(user_ids, event_name, properties=None):
@@ -262,8 +298,11 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
         event_name, len(all_ids),
     )
 
-    sent   = 0
+    sent = 0
     failed = 0
+    retryable_failure = False
+    ambiguous_failure = False
+    retry_after = None
     for uid in all_ids:
         ext_id  = str(uid)
         payload = {
@@ -281,17 +320,38 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
                 sent += 1
             else:
                 current_app.logger.warning(
-                    "[OneSignal] send_event: external_id=%s status=%d error=%s",
-                    ext_id, resp.status_code, resp.text[:200],
+                    "[OneSignal] send_event: external_id=%s status=%d",
+                    ext_id, resp.status_code,
                 )
                 failed += 1
-        except Exception as _exc:
-            current_app.logger.exception(
-                "[OneSignal] send_event: request failed for external_id=%s: %s",
-                ext_id, _exc,
+                retryable_failure = retryable_failure or (
+                    resp.status_code in _RETRYABLE_HTTP_STATUSES
+                )
+                if resp.status_code in _RETRYABLE_HTTP_STATUSES:
+                    hint = _retry_after(resp)
+                    if hint is not None:
+                        retry_after = max(retry_after or 0, hint)
+        except (httpx.TimeoutException, httpx.RequestError):
+            current_app.logger.warning(
+                "[OneSignal] send_event request failure for external_id=%s", ext_id,
+            )
+            failed += 1
+            ambiguous_failure = True
+        except Exception:
+            current_app.logger.warning(
+                "[OneSignal] send_event unexpected failure for external_id=%s", ext_id,
             )
             failed += 1
 
-    _error = None if failed == 0 else f"sent={sent} failed={failed}"
-    return {"success": failed == 0, "provider_message_id": None,
-            "skipped": False, "error": _error}
+    _error = None if failed == 0 else (
+        "provider_result_unknown" if ambiguous_failure
+        else "partial_retryable_failure" if retryable_failure
+        else "provider_rejected"
+    )
+    result = {"success": failed == 0, "provider_message_id": None,
+              "skipped": False, "error": _error,
+              "retryable": retryable_failure,
+              "delivery_unknown": ambiguous_failure}
+    if retryable_failure and retry_after is not None:
+        result["retry_after"] = retry_after
+    return result
