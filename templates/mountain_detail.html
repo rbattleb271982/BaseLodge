@@ -439,6 +439,11 @@ function mdToggleWishlist(el) {
             } else {
                 el.classList.remove('on-wishlist');
             }
+            if (typeof window.blTrackProjectEvent === 'function') {
+                window.blTrackProjectEvent('mountain_wishlist_toggled', {
+                    action: onWishlist ? 'added' : 'removed'
+                });
+            }
         }
         el.disabled = false;
     }).catch(function() { el.disabled = false; });

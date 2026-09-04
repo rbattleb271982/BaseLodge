@@ -488,9 +488,14 @@
         var signupForm = document.getElementById('form-signup');
         signupForm.querySelectorAll('input, button, select, textarea').forEach(function(el) {
             el.addEventListener('focus', function() {
-                if (signupStartedFired || typeof posthog === 'undefined') return;
+                if (signupStartedFired) return;
                 signupStartedFired = true;
-                posthog.capture('signup_started');
+                if (typeof posthog !== 'undefined') {
+                    posthog.capture('signup_started');
+                }
+                if (typeof window.blTrackProjectEvent === 'function') {
+                    window.blTrackProjectEvent('signup_started', { location: 'auth' });
+                }
             }, { once: true });
         });
 

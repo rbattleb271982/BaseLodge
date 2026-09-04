@@ -561,10 +561,16 @@
     }
 
     function goNext(from) {
-        if (from > lastOnboardingStepFired && typeof posthog !== 'undefined') {
+        if (from > lastOnboardingStepFired) {
             lastOnboardingStepFired = from;
             if (from <= 2) {
-                posthog.capture('onboarding_step_completed', { step_index: from, step_name: stepNames[from] });
+                var eventData = { step_index: from, step_name: stepNames[from] };
+                if (typeof posthog !== 'undefined') {
+                    posthog.capture('onboarding_step_completed', eventData);
+                }
+                if (typeof window.blTrackProjectEvent === 'function') {
+                    window.blTrackProjectEvent('onboarding_step_completed', eventData);
+                }
             }
         }
         slideTo(from + 1);

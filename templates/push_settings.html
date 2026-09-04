@@ -136,6 +136,9 @@
             if (data.ok) {
                 var osStatus = typeof window.blGetOSPermStatus === 'function' ? window.blGetOSPermStatus() : null;
                 if (statusEl) statusEl.textContent = _blPushStatusLabel(nextEnabled, osStatus);
+                if (typeof window.blTrackProjectEvent === 'function') {
+                    window.blTrackProjectEvent('push_preference_updated', { enabled: nextEnabled });
+                }
                 // Apply native SDK opt-in/out with a short deferred retry.
                 // blSetPushEnabled is registered inside an async init sequence in
                 // analytics_head.html (after Capacitor bridge + OS.initialize +

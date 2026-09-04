@@ -2789,6 +2789,12 @@
                     });
                     var data = await response.json().catch(function() { return {}; });
                     if (response.ok && data.ok) {
+                        if (typeof window.blTrackProjectEvent === 'function') {
+                            window.blTrackProjectEvent('trip_planning_post_created', {
+                                category: selectedCategory,
+                                has_link: Boolean(linkUrl)
+                            });
+                        }
                         await window.tdRefreshRegions(['planning']);
                         if (bodyEl) bodyEl.value = '';
                         if (linkEl) linkEl.value = '';
@@ -2969,6 +2975,9 @@
         // source is always 'trip_detail'.
         function _trackTripShare(action, url) {
             try {
+                if (typeof window.blTrackProjectEvent === 'function') {
+                    window.blTrackProjectEvent('trip_invite_shared', { method: action });
+                }
                 var token = (url || '').split('/trip-invite/')[1] || '';
                 fetch('/api/invite/share', {
                     method: 'POST',

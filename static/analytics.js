@@ -5,6 +5,16 @@
 (function () {
   'use strict';
 
+  window.blTrackProjectEvent = function (name, data) {
+    try {
+      if (window.umami && typeof window.umami.track === 'function') {
+        window.umami.track(name, data || {});
+      }
+    } catch (error) {
+      /* Analytics must never interrupt the user flow. */
+    }
+  };
+
   var key = window.__POSTHOG_KEY__;
   var host = window.__POSTHOG_HOST__ || 'https://us.i.posthog.com';
 
