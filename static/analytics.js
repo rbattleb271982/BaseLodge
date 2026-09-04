@@ -15,6 +15,20 @@
     }
   };
 
+  window.blTrackPostHogEvent = function (name, data) {
+    try {
+      if (window.posthog && typeof window.posthog.capture === 'function') {
+        if (arguments.length > 1) {
+          window.posthog.capture(name, data);
+        } else {
+          window.posthog.capture(name);
+        }
+      }
+    } catch (error) {
+      /* Analytics must never interrupt the user flow. */
+    }
+  };
+
   var key = window.__POSTHOG_KEY__;
   var host = window.__POSTHOG_HOST__ || 'https://us.i.posthog.com';
 

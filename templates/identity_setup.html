@@ -565,8 +565,8 @@
             lastOnboardingStepFired = from;
             if (from <= 2) {
                 var eventData = { step_index: from, step_name: stepNames[from] };
-                if (typeof posthog !== 'undefined') {
-                    posthog.capture('onboarding_step_completed', eventData);
+                if (typeof window.blTrackPostHogEvent === 'function') {
+                    window.blTrackPostHogEvent('onboarding_step_completed', eventData);
                 }
                 if (typeof window.blTrackProjectEvent === 'function') {
                     window.blTrackProjectEvent('onboarding_step_completed', eventData);

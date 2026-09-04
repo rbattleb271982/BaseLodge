@@ -490,8 +490,8 @@
             el.addEventListener('focus', function() {
                 if (signupStartedFired) return;
                 signupStartedFired = true;
-                if (typeof posthog !== 'undefined') {
-                    posthog.capture('signup_started');
+                if (typeof window.blTrackPostHogEvent === 'function') {
+                    window.blTrackPostHogEvent('signup_started');
                 }
                 if (typeof window.blTrackProjectEvent === 'function') {
                     window.blTrackProjectEvent('signup_started', { location: 'auth' });
