@@ -9115,7 +9115,10 @@ def admin_test_push_broadcast():
 
     validate_csrf_request()
 
-    if is_production:
+    if (
+        is_production
+        or current_app.config.get("BASELODGE_RUNTIME_ENV") == "production"
+    ):
         current_app.logger.warning(
             "[TestPushBroadcast] blocked in production admin_user_id=%d",
             current_user.id,

@@ -288,6 +288,26 @@ def test_production_blocks_before_token_query_or_provider_activity(
     fcm.assert_not_called()
 
 
+def test_canonical_production_runtime_blocks_if_cached_flag_is_false(
+        client, broadcast_setup):
+    _login(client, broadcast_setup["admin_id"])
+    with (
+        patch.dict(os.environ, {"ALLOWED_ADMIN_EMAILS": broadcast_setup["admin_email"]}),
+        patch.dict(app.config, {"BASELODGE_RUNTIME_ENV": "production"}),
+        patch("app.is_production", False),
+        patch("app._get_qa_push_override_user") as qa_override,
+        patch("app.send_apns_push") as apns,
+        patch("app.send_fcm_push") as fcm,
+    ):
+        response = json_post(client, ROUTE)
+
+    assert response.status_code == 403
+    assert response.get_json()["error"] == "not_available_in_production"
+    qa_override.assert_not_called()
+    apns.assert_not_called()
+    fcm.assert_not_called()
+
+
 def test_get_no_longer_executes_broadcast(client, broadcast_setup):
     _login(client, broadcast_setup["admin_id"])
     with (
