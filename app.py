@@ -4353,7 +4353,6 @@ def send_founder_new_user_push(new_user):
     Never raises — all exceptions are caught and logged so onboarding is never blocked.
     """
     try:
-        from services.push_providers import send_onesignal_push as _os_push
         richard = User.query.filter_by(email="richardbattlebaxter@gmail.com").first()
         if not richard:
             app.logger.warning("[FounderAlert] richard account not found — skipping")
@@ -4382,13 +4381,25 @@ def send_founder_new_user_push(new_user):
         else:
             connection_line = f"Connected to {n_friends} friends"
 
-        title = "New BaseLodge User 🎿"
         body  = f"{signup_line}\n{connection_line}"
 
-        result = _os_push([richard.id], title, body)
+        result = emit_messaging_event(
+            event_name=EventName.FOUNDER_NEW_USER,
+            actor_user_id=new_user.id,
+            recipient_user_id=richard.id,
+            entity_type="user",
+            entity_id=new_user.id,
+            metadata={
+                "subject_user_id": new_user.id,
+                "alert_body": body,
+            },
+            source_route="send_founder_new_user_push",
+        )
         app.logger.warning(
-            "[FounderAlert] push sent to richard (id=%d): success=%s skipped=%s error=%s",
-            richard.id, result.get("success"), result.get("skipped"), result.get("error"),
+            "[FounderAlert] outcome recipient_id=%d status=%s suppression=%s",
+            richard.id,
+            result.status,
+            result.suppression_reason,
         )
     except Exception as _exc:
         app.logger.exception("[FounderAlert] unexpected error — onboarding not affected: %s", _exc)
@@ -4404,8 +4415,6 @@ def send_founder_app_open_push(user_id):
     Never raises — all exceptions are caught and logged.
     """
     try:
-        from services.push_providers import send_onesignal_push as _os_push
-
         # Fresh lookup — safe inside a new app context
         user = db.session.get(User, user_id)
         if not user:
@@ -4438,23 +4447,26 @@ def send_founder_app_open_push(user_id):
         else:
             body = "Someone opened BaseLodge"
 
-        result = _os_push([richard.id], "BaseLodge Opened", body)
-
-        if result.get("success"):
-            app.logger.warning(
-                "[founder_app_open_push] user_id=%d login_count=%d sent=True reason=sent body=%r",
-                user_id, lc, body,
-            )
-        elif result.get("skipped"):
-            app.logger.warning(
-                "[founder_app_open_push] user_id=%d sent=False reason=no_push_token skipped_reason=%s",
-                user_id, result.get("skipped_reason"),
-            )
-        else:
-            app.logger.warning(
-                "[founder_app_open_push] user_id=%d sent=False reason=push_error error=%s",
-                user_id, result.get("error"),
-            )
+        result = emit_messaging_event(
+            event_name=EventName.FOUNDER_APP_OPEN,
+            actor_user_id=user.id,
+            recipient_user_id=richard.id,
+            entity_type="user",
+            entity_id=user.id,
+            metadata={
+                "subject_user_id": user.id,
+                "alert_body": body,
+                "app_open_occurrence": datetime.utcnow().date().isoformat(),
+            },
+            source_route="send_founder_app_open_push",
+        )
+        app.logger.warning(
+            "[founder_app_open_push] user_id=%d login_count=%d status=%s suppression=%s",
+            user_id,
+            lc,
+            result.status,
+            result.suppression_reason,
+        )
     except Exception as _exc:
         app.logger.exception(
             "[founder_app_open_push] user_id=%d sent=False reason=exception error=%s",
@@ -4521,7 +4533,13 @@ def _queue_founder_login_push(user_id, user_email):
         )
 
 
-def _send_founder_invite_share_push(user_id, token_type, action, source):
+def _send_founder_invite_share_push(
+    user_id,
+    token_type,
+    action,
+    source,
+    invite_share_event_id,
+):
     """Send a founder-only push notification when an InviteShareEvent is committed.
 
     Called from a background thread after the DB insert succeeds — never blocks
@@ -4532,8 +4550,6 @@ def _send_founder_invite_share_push(user_id, token_type, action, source):
     source     — 'invite_page' | 'friends_empty_state' | 'trip_detail'
     """
     try:
-        from services.push_providers import send_onesignal_push as _os_push
-
         user = db.session.get(User, user_id)
         if not user:
             app.logger.warning("[invite_share_push] user_id=%d sent=False reason=user_not_found", user_id)
@@ -4565,22 +4581,28 @@ def _send_founder_invite_share_push(user_id, token_type, action, source):
         else:
             body = f"Someone sent a {type_label} invite · {action_label}"
 
-        result = _os_push([richard.id], "Invite Sent", body)
-        if result.get("success"):
-            app.logger.warning(
-                "[invite_share_push] user_id=%d token_type=%s action=%s sent=True body=%r",
-                user_id, token_type, action, body,
-            )
-        elif result.get("skipped"):
-            app.logger.warning(
-                "[invite_share_push] user_id=%d sent=False reason=no_push_token",
-                user_id,
-            )
-        else:
-            app.logger.warning(
-                "[invite_share_push] user_id=%d sent=False reason=push_error error=%s",
-                user_id, result.get("error"),
-            )
+        result = emit_messaging_event(
+            event_name=EventName.FOUNDER_INVITE_SHARE,
+            actor_user_id=user.id,
+            recipient_user_id=richard.id,
+            entity_type="user",
+            entity_id=user.id,
+            metadata={
+                "subject_user_id": user.id,
+                "alert_body": body,
+                "invite_share_event_id": invite_share_event_id,
+            },
+            source_route="_send_founder_invite_share_push",
+        )
+        app.logger.warning(
+            "[invite_share_push] user_id=%d token_type=%s action=%s "
+            "status=%s suppression=%s",
+            user_id,
+            token_type,
+            action,
+            result.status,
+            result.suppression_reason,
+        )
     except Exception as _exc:
         app.logger.exception("[invite_share_push] user_id=%d error=%s", user_id, _exc)
 
@@ -6986,6 +7008,7 @@ def delete_trip(trip_id):
             # authoritative membership snapshot.
             _del_resort = result.trip.mountain or "your trip"
             _del_trip_id = result.trip.id
+            _del_lifecycle_event_id = result.event.id
             _del_notify_ids = [
                 p.user_id for p in SkiTripParticipant.query.filter(
                     SkiTripParticipant.trip_id == result.trip.id,
@@ -7020,6 +7043,7 @@ def delete_trip(trip_id):
             metadata={
                 "resort":  _del_resort,
                 "trip_id": _del_trip_id,
+                "lifecycle_event_id": _del_lifecycle_event_id,
             },
             source_route="delete_trip",
         )
@@ -7169,10 +7193,17 @@ def api_invite_share():
 
         # Founder push in background thread — plain scalars only, no ORM objects
         _uid = current_user.id
+        _invite_share_event_id = evt.id
         _tt, _act, _src = token_type, action, source
         def _fire_invite_push():
             with app.app_context():
-                _send_founder_invite_share_push(_uid, _tt, _act, _src)
+                _send_founder_invite_share_push(
+                    _uid,
+                    _tt,
+                    _act,
+                    _src,
+                    _invite_share_event_id,
+                )
         threading.Thread(target=_fire_invite_push, daemon=True).start()
 
         app.logger.info(
@@ -7253,6 +7284,7 @@ def create_friend_request(actor_id, target_id):
         db.session.flush()  # get invitation.id before emitting event
 
         actor = db.session.get(User, actor_id)
+        db.session.commit()
         emit_messaging_event(
             event_name=EventName.FRIEND_REQUEST_CREATED,
             actor_user_id=actor_id,
@@ -7266,7 +7298,6 @@ def create_friend_request(actor_id, target_id):
             },
             source_route='create_friend_request',
         )
-        db.session.commit()
         return {'ok': True, 'code': 'SUCCESS', 'invitation_id': invitation.id}
     except Exception:
         db.session.rollback()
@@ -7447,6 +7478,7 @@ def accept_invitation(invitation_id):
         metadata={
             "actor_name": current_user.first_name or current_user.username,
             "user_id":    current_user.id,
+            "invitation_id": invitation.id,
         },
         source_route="accept_invitation",
     )
@@ -9191,8 +9223,8 @@ def admin_test_push_broadcast():
 
     current_app.logger.warning(
         "[TestPushBroadcast] admin_user_id=%d total_active_tokens=%d unique_users=%d "
-        "title=%r body=%r",
-        current_user.id, len(active_tokens), unique_users, title[:60], body[:120],
+        "content_redacted=True",
+        current_user.id, len(active_tokens), unique_users,
     )
 
     if not active_tokens:
@@ -10349,6 +10381,7 @@ def submit_suggestions(friend_id):
     jon_friend_ids = reciprocal_friend_ids(friend_id)
 
     inserted_count = 0
+    inserted_suggestion_ids = []
 
     for sid in submitted_ids:
         if sid not in richard_friend_ids:
@@ -10381,14 +10414,16 @@ def submit_suggestions(friend_id):
             # Savepoint per row: a collision on one person does not roll back others.
             sp = db.session.begin_nested()
             try:
-                db.session.add(FriendSuggestion(
+                suggestion = FriendSuggestion(
                     suggester_id=current_user.id,
                     recipient_id=friend_id,
                     suggested_user_id=sid,
                     expires_at=expires_at,
-                ))
+                )
+                db.session.add(suggestion)
                 db.session.flush()
                 inserted_count += 1
+                inserted_suggestion_ids.append(suggestion.id)
                 sp.commit()
             except IntegrityError:
                 # Concurrent duplicate active row — absorb silently (idempotent)
@@ -10422,14 +10457,26 @@ def submit_suggestions(friend_id):
         )
         if send_push:
             try:
-                push_result = send_onesignal_push(
-                    user_ids=[friend_id],
-                    title="New connection suggestions",
-                    body=f"{current_user.first_name} suggested some people you may know. See who.",
-                    data={"url": "/friends"},
+                push_result = emit_messaging_event(
+                    event_name=EventName.FRIEND_SUGGESTIONS_CREATED,
+                    actor_user_id=current_user.id,
+                    recipient_user_id=friend_id,
+                    entity_type="user",
+                    entity_id=current_user.id,
+                    metadata={
+                        "actor_name": current_user.first_name,
+                        "suggestion_batch_id": (
+                            f"{min(inserted_suggestion_ids)}-"
+                            f"{max(inserted_suggestion_ids)}"
+                        ),
+                    },
+                    source_route="suggest_connections_submit",
                 )
                 # Update cooldown only on success or skip, not on hard error
-                if push_result and (push_result.get('success') or push_result.get('skipped')):
+                if push_result.status in (
+                    DeliveryStatus.SENT,
+                    DeliveryStatus.SKIPPED,
+                ):
                     if cooldown_row is None:
                         db.session.add(SuggestionPushCooldown(
                             suggester_id=current_user.id,
@@ -15052,6 +15099,7 @@ def planning_posts_create(trip_id):
                     "actor_name": current_user.first_name or current_user.username,
                     "resort": trip.mountain or "your trip",
                     "trip_id": trip.id,
+                    "planning_post_id": post.id,
                 },
                 source_route="planning_posts_create",
             )
@@ -15265,6 +15313,8 @@ def update_trip_accommodation(trip_id):
 
     _accom_changed = (trip.accommodation_status != _orig_accom_status or
                       trip.accommodation_link != _orig_accom_link)
+    if _accom_changed:
+        trip.updated_at = datetime.utcnow()
 
     db.session.commit()
     if _accom_changed:
@@ -15731,7 +15781,11 @@ def request_to_join_trip(trip_id):
         recipient_user_id=trip.user_id,
         entity_type="trip",
         entity_id=trip.id,
-        metadata={"resort": _jrq_resort, "trip_id": trip.id},
+        metadata={
+            "resort": _jrq_resort,
+            "trip_id": trip.id,
+            "invitation_id": join_request.id,
+        },
         source_route="request_to_join_trip",
     )
 
@@ -16281,6 +16335,7 @@ def delete_trip_form(trip_id):
         if result.changed:
             _del_resort = result.trip.mountain or "your trip"
             _del_trip_id = result.trip.id
+            _del_lifecycle_event_id = result.event.id
             _del_notify_ids = [
                 p.user_id for p in SkiTripParticipant.query.filter(
                     SkiTripParticipant.trip_id == result.trip.id,
@@ -16301,6 +16356,7 @@ def delete_trip_form(trip_id):
                 metadata={
                     "resort":  _del_resort,
                     "trip_id": _del_trip_id,
+                    "lifecycle_event_id": _del_lifecycle_event_id,
                 },
                 source_route="delete_trip_form",
             )
@@ -25522,8 +25578,8 @@ def admin_test_founder_app_open_push():
 
         result = _os_push([richard.id], "BaseLodge Opened", body)
         app.logger.warning(
-            "[founder_app_open_push] TEST user_id=%d sent=%s skipped=%s error=%s body=%r",
-            user_id, result.get("success"), result.get("skipped"), result.get("error"), body,
+            "[founder_app_open_push] TEST user_id=%d sent=%s skipped=%s error=%s",
+            user_id, result.get("success"), result.get("skipped"), result.get("error"),
         )
         return jsonify({
             "sent":              result.get("success", False),

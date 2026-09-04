@@ -26,6 +26,10 @@ class EventName:
     FRIEND_REQUEST_ACCEPTED = "friend.request.accepted"
 
     FRIEND_PASS_CHANGED     = "friend.pass.changed"
+    FRIEND_SUGGESTIONS_CREATED = "friend.suggestions.created"
+    FOUNDER_NEW_USER        = "founder.new_user"
+    FOUNDER_APP_OPEN        = "founder.app_open"
+    FOUNDER_INVITE_SHARE    = "founder.invite_share"
 
     OVERLAP_DETECTED        = "overlap.detected"
 
@@ -71,6 +75,10 @@ class SuppressionReason:
     PROVIDER_ERROR           = "provider_error"
     NOT_IMPLEMENTED          = "not_implemented"
     SILENT_BY_DESIGN         = "silent_by_design"
+    PRIVACY_DENIED           = "privacy_denied"
+    INVALID_RECIPIENT        = "invalid_recipient"
+    INVALID_DEEP_LINK        = "invalid_deep_link"
+    ENVIRONMENT_BLOCKED      = "environment_blocked"
 
 
 class Channel:
@@ -137,6 +145,10 @@ RETRYABLE_STATUSES = frozenset({
     SuppressionReason.CHANNEL_UNAVAILABLE,
     SuppressionReason.MISSING_REQUIRED_PAYLOAD,
     SuppressionReason.RECIPIENT_INELIGIBLE,
+    SuppressionReason.PRIVACY_DENIED,
+    SuppressionReason.INVALID_RECIPIENT,
+    SuppressionReason.INVALID_DEEP_LINK,
+    SuppressionReason.ENVIRONMENT_BLOCKED,
 })
 
 # Maximum number of retry attempts before a failed event is abandoned.

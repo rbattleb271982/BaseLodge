@@ -102,8 +102,15 @@ def send_onesignal_push(user_ids, title, body, data=None):
         all_ids = [uid for uid in all_ids if uid not in opted_out]
     except Exception as _filter_err:
         current_app.logger.warning(
-            "[OneSignal] send_push: opt-out filter failed (%s) — proceeding with all ids", _filter_err
+            "[OneSignal] send_push: recipient preference lookup failed — suppressing"
         )
+        return {
+            "success": True,
+            "provider_message_id": None,
+            "skipped": True,
+            "skipped_reason": "eligibility_error",
+            "error": None,
+        }
 
     if not all_ids:
         current_app.logger.warning("[OneSignal] send_push: all recipients opted out — silent skip (no delivery attempt)")
@@ -127,8 +134,15 @@ def send_onesignal_push(user_ids, title, body, data=None):
                     "skipped": True, "skipped_reason": "no_device_token", "error": None}
     except Exception as _tok_err:
         current_app.logger.warning(
-            "[OneSignal] send_push: token check failed (%s) — proceeding to OneSignal", _tok_err
+            "[OneSignal] send_push: token eligibility lookup failed — suppressing"
         )
+        return {
+            "success": True,
+            "provider_message_id": None,
+            "skipped": True,
+            "skipped_reason": "eligibility_error",
+            "error": None,
+        }
 
     external_ids = [str(uid) for uid in all_ids]
 
@@ -145,8 +159,8 @@ def send_onesignal_push(user_ids, title, body, data=None):
         payload["data"] = data
 
     current_app.logger.warning(
-        "[OneSignal] send_push → external_ids=%s title=%r",
-        external_ids, title,
+        "[OneSignal] send_push recipient_count=%d",
+        len(external_ids),
     )
 
     try:
@@ -190,10 +204,10 @@ def send_onesignal_push(user_ids, title, body, data=None):
         return {"success": False, "provider_message_id": notification_id,
                 "skipped": False, "skipped_reason": None,
                 "error": str(errors or result)}
-    except Exception as _exc:
-        current_app.logger.exception("[OneSignal] request failed: %s", _exc)
+    except Exception:
+        current_app.logger.exception("[OneSignal] request failed")
         return {"success": False, "provider_message_id": None,
-                "skipped": False, "skipped_reason": None, "error": str(_exc)}
+                "skipped": False, "skipped_reason": None, "error": "request_failed"}
 
 
 def send_onesignal_custom_event(user_ids, event_name, properties=None):

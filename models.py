@@ -1916,8 +1916,8 @@ def check_shared_upcoming_trip(user_a_id: int, user_b_id: int) -> bool:
 
 # ===========================================================================
 # MessageEventLog — canonical outbound messaging event ledger (v1)
-# Append-only. Events are immutable after creation.
-# Do NOT edit rows after creation — create new rows to record state changes.
+# Legacy rows are append-only. Occurrence-aware rows are inserted as a PENDING
+# synchronous claim and finalized exactly once by the dispatcher.
 # ===========================================================================
 
 class MessageEventLog(db.Model):
@@ -1933,6 +1933,7 @@ class MessageEventLog(db.Model):
 
     object_type = db.Column(db.String(80),  nullable=True)
     object_id   = db.Column(db.Integer,     nullable=True)
+    occurrence_id = db.Column(db.String(191), nullable=True)
 
     channel = db.Column(db.String(40), nullable=True)
 
@@ -1965,6 +1966,16 @@ class MessageEventLog(db.Model):
 
     actor     = db.relationship("User", foreign_keys=[actor_user_id],     lazy="select")
     recipient = db.relationship("User", foreign_keys=[recipient_user_id], lazy="select")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "occurrence_id",
+            "recipient_user_id",
+            "channel",
+            "provider",
+            name="uq_mel_logical_occurrence",
+        ),
+    )
 
 
 class MountainPageView(db.Model):

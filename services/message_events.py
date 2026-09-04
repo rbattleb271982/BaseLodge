@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from flask import current_app
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 
 from models import db, MessageEventLog
 from services.messaging_constants import (
@@ -41,6 +42,8 @@ def create_message_event(
     provider_message_id=None,
     sent_at=None,
     parent_mel_id=None,
+    occurrence_id=None,
+    commit=True,
 ):
     """Create and persist a MessageEventLog row.
 
@@ -88,17 +91,63 @@ def create_message_event(
         provider_message_id=provider_message_id,
         sent_at=sent_at,
         parent_mel_id=parent_mel_id,
+        occurrence_id=occurrence_id,
         processed_at=datetime.utcnow(),
     )
 
     db.session.add(row)
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
 
     current_app.logger.debug(
         "[MessageEvent] created id=%d event=%s status=%s",
         row.id, row.event_name, row.delivery_status,
     )
 
+    return row
+
+
+def claim_message_event(**kwargs):
+    """Atomically reserve one recipient/channel delivery for an occurrence."""
+    occurrence_id = kwargs.get("occurrence_id")
+    if not occurrence_id:
+        raise ValueError("claim_message_event: occurrence_id is required")
+    kwargs["delivery_status"] = DeliveryStatus.PENDING
+    try:
+        row = create_message_event(**kwargs)
+        return row, True
+    except IntegrityError:
+        db.session.rollback()
+        existing = MessageEventLog.query.filter_by(
+            occurrence_id=occurrence_id,
+            recipient_user_id=kwargs.get("recipient_user_id"),
+            channel=kwargs.get("channel"),
+            provider=kwargs.get("provider"),
+        ).first()
+        return existing, False
+
+
+def finalize_message_event(
+    row,
+    *,
+    delivery_status,
+    suppression_reason=None,
+    error_message=None,
+    provider_message_id=None,
+    sent_at=None,
+):
+    """Finalize a synchronous occurrence claim with its provider outcome."""
+    if row.delivery_status != DeliveryStatus.PENDING:
+        raise ValueError("Only pending message claims can be finalized")
+    row.delivery_status = delivery_status
+    row.suppression_reason = suppression_reason
+    row.error_message = error_message
+    row.provider_message_id = provider_message_id
+    row.sent_at = sent_at
+    row.processed_at = datetime.utcnow()
+    db.session.commit()
     return row
 
 
