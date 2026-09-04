@@ -413,6 +413,79 @@ class TestSeasonSnapshotRoute:
         assert b"CrossSeasonGuestMtn" in html
         assert b"JUN" in html
 
+    def test_cross_season_parent_with_preseason_override_excludes_guest(
+        self, client
+    ):
+        """A guest whose effective attendance stays before June 1 is excluded."""
+        season_start, _ = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("preseason-override-owner")
+            guest = _make_user("preseason-override-guest")
+            trip = _make_trip(
+                owner,
+                mountain="PreseasonOverrideMtn",
+                start_date=season_start - timedelta(days=5),
+                end_date=season_start + timedelta(days=2),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.GOING
+            )
+            participant.start_date = season_start - timedelta(days=4)
+            participant.end_date = season_start - timedelta(days=1)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"PreseasonOverrideMtn" not in html
+        assert b"Nothing planned yet" in html
+
+    def test_cross_season_parent_remains_excluded_for_organizer(self, client):
+        """Guest attendance overrides do not broaden organizer eligibility."""
+        season_start, _ = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("crossseason-organizer")
+            guest = _make_user("crossseason-organizer-guest")
+            trip = _make_trip(
+                owner,
+                mountain="CrossSeasonOrganizerMtn",
+                start_date=season_start - timedelta(days=2),
+                end_date=season_start + timedelta(days=5),
+            )
+            participant = _add_participant(
+                trip, guest, status=GuestStatus.GOING
+            )
+            participant.start_date = season_start + timedelta(days=1)
+            participant.end_date = season_start + timedelta(days=3)
+            db.session.commit()
+            owner_id = owner.id
+
+        _login(client, owner_id)
+        html = self._get(client).data
+        assert b"CrossSeasonOrganizerMtn" not in html
+        assert b"Nothing planned yet" in html
+
+    def test_out_of_season_guest_trip_remains_excluded(self, client):
+        """An ordinary guest trip outside the active season stays excluded."""
+        season_start, _ = get_ski_season_window(date.today())
+        with app.app_context():
+            owner = _make_user("outseason-guest-owner")
+            guest = _make_user("outseason-guest")
+            trip = _make_trip(
+                owner,
+                mountain="OutOfSeasonGuestMtn",
+                start_date=season_start - timedelta(days=10),
+                end_date=season_start - timedelta(days=5),
+            )
+            _add_participant(trip, guest, status=GuestStatus.INTERESTED)
+            db.session.commit()
+            guest_id = guest.id
+
+        _login(client, guest_id)
+        html = self._get(client).data
+        assert b"OutOfSeasonGuestMtn" not in html
+        assert b"Nothing planned yet" in html
+
     def test_in_season_parent_excludes_out_of_season_going_override(self, client):
         """A complete guest override outside the season controls inclusion."""
         season_start, season_end = get_ski_season_window(date.today())
