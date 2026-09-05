@@ -70,6 +70,11 @@ jobs:
           /usr/lib/postgresql/17/bin/initdb --version | grep -E ' 17([.]|$)'
           /usr/lib/postgresql/17/bin/pg_ctl --version | grep -E ' 17([.]|$)'
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
       - name: Run mandatory PostgreSQL 17 worker and cutover tests
         run: |
           set -euo pipefail
@@ -113,6 +118,9 @@ jobs:
             -u BASELODGE_DEVELOPMENT_USER_DATABASE_URL \
             "$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m pytest -q \
               --junitxml=/tmp/pytest-results.xml
+
+      - name: Run JavaScript tests
+        run: npm test
 
       - name: Report PostgreSQL test coverage
         run: |
@@ -176,108 +184,11 @@ jobs:
             "$input"
           uv pip sync --python "$venv/bin/python" "$output"
 
-      - name: Verify dependency manifest consistency
-        run: |
-          set -euo pipefail
-          uv lock --check
-          "$RUNNER_TEMP/baselodge-ci-venv/bin/python" - <<'PY'
-          from pathlib import Path
-          import tomllib
-
-          from packaging.requirements import Requirement
-          from packaging.utils import canonicalize_name
-
-
-          def normalized(value):
-              requirement = Requirement(value)
-              return (
-                  canonicalize_name(requirement.name),
-                  tuple(sorted(requirement.extras)),
-                  str(requirement.specifier),
-                  str(requirement.marker or ""),
-              )
-
-
-          project = tomllib.loads(Path("pyproject.toml").read_text())
-          project_requirements = project["project"]["dependencies"]
-          requirements_lines = [
-              line.strip()
-              for line in Path("requirements.txt").read_text().splitlines()
-              if line.strip() and not line.lstrip().startswith("#")
-          ]
-
-          project_normalized = [normalized(item) for item in project_requirements]
-          file_normalized = [normalized(item) for item in requirements_lines]
-          if len(file_normalized) != len(set(file_normalized)):
-              raise SystemExit("requirements.txt contains duplicate dependencies")
-          if set(project_normalized) != set(file_normalized):
-              missing = sorted(set(project_normalized) - set(file_normalized))
-              extra = sorted(set(file_normalized) - set(project_normalized))
-              raise SystemExit(
-                  f"dependency manifests differ: missing={missing}, extra={extra}"
-              )
-          print("requirements.txt and pyproject.toml runtime dependencies match")
-          PY
-
-      - name: Check repository cleanliness
-        run: |
-          set -euo pipefail
-          test -z "$(git status --porcelain --untracked-files=all)"
-
-      - name: Check candidate patch whitespace
+      - name: Run repository-owned fast integrity gate
         env:
-          EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          zero_sha="0000000000000000000000000000000000000000"
-
-          if test "$EVENT_NAME" = "pull_request" && test -n "$BASE_SHA"; then
-            base="$BASE_SHA"
-          elif test -n "$BEFORE_SHA" && test "$BEFORE_SHA" != "$zero_sha"; then
-            base="$BEFORE_SHA"
-          elif git rev-parse --verify HEAD^ >/dev/null 2>&1; then
-            base="$(git rev-parse HEAD^)"
-          else
-            git show --check --format= HEAD
-            exit 0
-          fi
-
-          git cat-file -e "$base^{commit}"
-          git diff --check "$base" HEAD
-
-      - name: Verify candidate source identity
-        run: |
-          set -euo pipefail
-          "$RUNNER_TEMP/baselodge-ci-venv/bin/python" - <<'PY'
-          from release_identity import resolve_candidate_release_identity
-
-          identity = resolve_candidate_release_identity()
-          if identity.status != "VERIFIED" or not identity.sha:
-              raise SystemExit("candidate source identity is not verified")
-          print(f"candidate_sha={identity.sha}")
-          PY
-
-      - name: Compile Python sources
-        run: |
-          set -euo pipefail
-          "$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m compileall -q \
-            app.py \
-            models.py \
-            migrations \
-            release_identity.py \
-            release_preflight.py \
-            run_continuous_message_worker.py \
-            runtime_config.py \
-            scripts \
-            services \
-            tests
-
-      - name: Validate Alembic source graph
-        run: |
-          set -euo pipefail
-          heads="$("$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m alembic -c migrations/alembic.ini heads)"
-          printf '%s\n' "$heads"
-          head_count="$(printf '%s\n' "$heads" | awk '$NF == "(head)" { count += 1 } END { print count + 0 }')"
-          test "$head_count" -eq 1
+          "$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m scripts.ci_integrity fast
