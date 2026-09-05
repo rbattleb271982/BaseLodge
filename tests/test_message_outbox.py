@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from models import MessageOutbox, db
+from models import MessageOutbox, MessagingDeliveryPolicy, db
 from services.message_outbox import (
     claim_messages,
     deterministic_backoff,
@@ -17,6 +17,13 @@ from services.message_outbox_worker import run_worker
 
 
 def _enqueue(occurrence, recipient=101):
+    if db.session.get(MessagingDeliveryPolicy, "test.event") is None:
+        db.session.add(MessagingDeliveryPolicy(
+            event_name="test.event", delivery_mode="enqueue_only",
+            cutover_epoch=1, claims_paused=False, control_revision=1,
+            operator_reason="test", audit_identity="test",
+        ))
+        db.session.flush()
     return enqueue_message(
         event_name="test.event",
         category="test",

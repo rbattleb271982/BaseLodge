@@ -4,7 +4,7 @@ import os
 from unittest.mock import patch
 
 from app import app
-from models import db, MessageOutbox
+from models import db, MessageOutbox, MessagingDeliveryPolicy
 from tests.conftest import _login, _make_user, json_post
 
 
@@ -14,6 +14,12 @@ TERMINAL = "/api/admin/message-outbox/terminal"
 
 def _row(recipient_id, *, status="dead_letter", occurrence="outbox-test",
          context=None, evidence=None):
+    if db.session.get(MessagingDeliveryPolicy, "test.event") is None:
+        db.session.add(MessagingDeliveryPolicy(
+            event_name="test.event", delivery_mode="enqueue_only",
+            cutover_epoch=1, claims_paused=False, control_revision=1,
+            operator_reason="test", audit_identity="test",
+        ))
     row = MessageOutbox(
         event_name="test.event",
         category="system",
@@ -87,7 +93,11 @@ def test_replay_requires_csrf_and_creates_linked_new_row(client):
     with patch.dict(os.environ, {"ALLOWED_ADMIN_EMAILS": admin_email}):
         assert client.post(route, json={}).status_code == 403
         with patch("app.message_outbox_safety_callback", return_value=True):
-            response = json_post(client, route)
+            response = json_post(client, route, {
+                "reason": "focused test replay",
+                "idempotency_key": "focused-replay-1",
+                "expected_source_status": "dead_letter",
+            })
     assert response.status_code == 201
     replay_id = response.get_json()["replay"]["id"]
     with app.app_context():
@@ -96,6 +106,17 @@ def test_replay_requires_csrf_and_creates_linked_new_row(client):
         assert original.status == "dead_letter"
         assert replay.replay_of_outbox_id == original.id
         assert replay.occurrence_id != original.occurrence_id
+        with patch.dict(os.environ, {"ALLOWED_ADMIN_EMAILS": admin_email}):
+            again = json_post(client, route, {
+                "reason": "focused test replay",
+                "idempotency_key": "focused-replay-1",
+                "expected_source_status": "dead_letter",
+            })
+        assert again.status_code == 200
+        with app.app_context():
+            assert MessageOutbox.query.filter_by(
+                replay_of_outbox_id=original_id
+            ).count() == 1
 
 
 def test_delivery_unknown_replay_acknowledgement_and_production_denial(client):
@@ -118,6 +139,52 @@ def test_delivery_unknown_replay_acknowledgement_and_production_denial(client):
                 client, route, {"duplicate_risk_acknowledged": True}
             )
     assert response.status_code == 403
+
+
+def test_replay_lineage_ambiguity_cannot_be_bypassed_via_original(client):
+    admin_id, admin_email = _admin(client)
+    with app.app_context():
+        original = _row(
+            admin_id, status="dead_letter", occurrence="lineage-original",
+            context={}, evidence=["policy:1"],
+        )
+        child = _row(
+            admin_id, status="delivery_unknown", occurrence="lineage-child",
+            context={}, evidence=["policy:1"],
+        )
+        child.replay_of_outbox_id = original.id
+        db.session.commit()
+        original_id = original.id
+    route = f"/api/admin/message-outbox/{original_id}/replay"
+    base = {
+        "reason": "reconciled lineage replay",
+        "idempotency_key": "lineage-second-request",
+        "expected_source_status": "dead_letter",
+    }
+    with patch.dict(os.environ, {"ALLOWED_ADMIN_EMAILS": admin_email}):
+        with patch("app.message_outbox_safety_callback", return_value=True):
+            assert json_post(client, route, base).status_code == 400
+            assert json_post(client, route, {
+                **base, "duplicate_risk_acknowledged": True,
+            }).status_code == 400
+            response = json_post(client, route, {
+                **base,
+                "duplicate_risk_acknowledged": True,
+                "reconciliation_notes": "Provider reconciliation found no acceptance.",
+            })
+    assert response.status_code == 201
+    with app.app_context():
+        replay = MessageOutbox.query.filter_by(
+            replay_of_outbox_id=original_id, status="pending"
+        ).one()
+        from models import MessagingReplayEvent
+        evidence = MessagingReplayEvent.query.filter_by(
+            target_outbox_id=replay.id
+        ).one()
+        assert evidence.duplicate_risk_acknowledged is True
+        assert evidence.reconciliation_notes == (
+            "Provider reconciliation found no acceptance."
+        )
 
 
 def test_runner_import_does_not_import_flask_application(monkeypatch):

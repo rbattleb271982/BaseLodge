@@ -27,3 +27,4 @@
 - [Production legacy log privacy](production-legacy-log-privacy.md) — Production free-form logs and stdout diagnostics use allowlisted metadata; BL-178 remains independent.
 - [Rate-limit storage validation](rate-limit-storage-validation.md) — validate credential-bearing limiter URIs before library initialization; Production requires native TLS Redis.
 - [Durable messaging outbox](durable-messaging-outbox.md) — enqueue with domain evidence atomically; quarantine ambiguous post-provider failures; Production cutover requires explicit worker configuration.
+- [Reversible messaging cutover](reversible-messaging-cutover.md) — route each exact event family once per transaction; rollback requires pause, full drain, and lineage-aware ambiguity controls.

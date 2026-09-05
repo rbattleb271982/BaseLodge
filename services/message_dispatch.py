@@ -1013,6 +1013,8 @@ def enqueue_messaging_event(
     occurrence_id=None,
     *,
     session=None,
+    configuration_epoch=1,
+    producer_release_sha=None,
 ):
     """Transaction-neutral durable enqueue API.
 
@@ -1058,6 +1060,8 @@ def enqueue_messaging_event(
         actor_user_id=actor_user_id,
         object_type=entity_type,
         object_id=entity_id,
+        configuration_epoch=configuration_epoch,
+        producer_release_sha=producer_release_sha,
         session=session,
     )
 

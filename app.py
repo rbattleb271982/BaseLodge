@@ -108,7 +108,7 @@ from flask_migrate import Migrate
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from authlib.integrations.flask_client import OAuth
-from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, WishlistResortEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown, MessageOutbox
+from models import db, User, SkiTrip, SkiDay, Friend, FriendConnectionEvent, WishlistResortEvent, Invitation, InviteToken, TripInviteToken, Resort, ResortPass, GroupTrip, TripGuest, GuestStatus, ACTIVE_RSVP_STATUSES, is_active_rsvp_status, check_shared_upcoming_trip, EquipmentSetup, EquipmentSlot, EquipmentDiscipline, EquipmentStatus, AccommodationStatus, TransportationStatus, DismissedNudge, DismissedInsightCard, Event, EmailLog, SkiTripParticipant, SkiTripRsvpTransition, SkiTripLifecycleEvent, ParticipantRole, ParticipantTransportation, ParticipantEquipment, Activity, ActivityType, LessonChoice, CarpoolRole, InviteType, PushDeviceToken, UserAvailability, MessageEventLog, MountainPageView, InviteShareEvent, SkiTripPlanningPost, FriendCooldown, FriendSuggestion, SuggestionPushCooldown, MessageOutbox, MessagingDeliveryPolicy, MessagingReplayEvent
 from services.trip_attendance import (
     effective_attendance_date_expressions,
     effective_attendance_dates,
@@ -229,10 +229,20 @@ from services.push_providers import send_onesignal_push, send_onesignal_custom_e
 from services.message_dispatch import (
     emit_messaging_event,
     enqueue_messaging_event,
-    messaging_uses_outbox,
     message_outbox_safety_callback,
 )
 from services.message_outbox import enqueue_message, queue_health, sanitize_error
+from services.messaging_cutover import (
+    drain_status,
+    guarded_transition_inline,
+    mutate_policy,
+    require_production_confirmation,
+    terminalize_eligible,
+)
+from services.messaging_staging import (
+    finish_staged_messaging,
+    stage_messaging_intents,
+)
 from io import BytesIO
 import segno
 import random
@@ -245,19 +255,19 @@ import analytics as ph_analytics
 
 
 def _stage_route_messaging_events(*intents):
-    """Queue intents before the owning commit, or defer them for inline mode."""
-    uses_outbox = messaging_uses_outbox()
-    if uses_outbox:
-        for intent in intents:
-            enqueue_messaging_event(**intent, session=db.session)
-    return uses_outbox
+    """Capture each family's route once in the owning transaction."""
+    return stage_messaging_intents(
+        intents, session=db.session, enqueue=enqueue_messaging_event,
+        producer_release_sha=RELEASE_IDENTITY.sha,
+        require_verified_release=is_production,
+    )
 
 
 def _finish_route_messaging_events(uses_outbox, *intents):
     """Emit deferred compatibility sends only after the domain commit."""
-    if not uses_outbox:
-        return [emit_messaging_event(**intent) for intent in intents]
-    return []
+    return finish_staged_messaging(
+        uses_outbox, intents, inline_emitter=emit_messaging_event
+    )
 
 
 def generate_resort_slug(name):
@@ -21410,6 +21420,9 @@ def _admin_outbox_row(row):
         "id": row.id,
         "event": row.event_name,
         "status": row.status,
+        "configuration_epoch": row.configuration_epoch,
+        "producer_release_sha": row.producer_release_sha,
+        "last_worker_release_sha": row.last_worker_release_sha,
         "attempt_count": row.attempt_count,
         "max_attempts": row.max_attempts,
         "created_at": _admin_outbox_timestamp(row.created_at),
@@ -21427,6 +21440,33 @@ def _admin_outbox_safety_allowed(decision):
     if isinstance(decision, dict):
         return bool(decision.get("allowed"))
     return bool(getattr(decision, "allowed", False))
+
+
+def _locked_replay_lineage(source):
+    """Lock the replay root and all currently linked descendants."""
+    root_id = source.id
+    parent_id = source.replay_of_outbox_id
+    while parent_id is not None:
+        parent = db.session.get(MessageOutbox, parent_id)
+        if parent is None:
+            raise RuntimeError("replay lineage is incomplete")
+        root_id = parent.id
+        parent_id = parent.replay_of_outbox_id
+    root = db.session.execute(
+        sa.select(MessageOutbox).where(MessageOutbox.id == root_id).with_for_update()
+    ).scalar_one()
+    lineage = [root]
+    frontier = [root.id]
+    while frontier:
+        children = db.session.execute(
+            sa.select(MessageOutbox)
+            .where(MessageOutbox.replay_of_outbox_id.in_(frontier))
+            .order_by(MessageOutbox.id)
+            .with_for_update()
+        ).scalars().all()
+        lineage.extend(children)
+        frontier = [row.id for row in children]
+    return root, lineage
 
 
 @app.route("/api/admin/message-outbox/health", methods=["GET"])
@@ -21452,30 +21492,240 @@ def admin_message_outbox_terminal():
     return jsonify({"rows": [_admin_outbox_row(row) for row in rows]})
 
 
+def _cutover_request():
+    data = request.get_json(silent=True) or {}
+    try:
+        revision = int(data["expected_revision"])
+        epoch = int(data["expected_epoch"])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError("expected_revision and expected_epoch are required")
+    reason = data.get("reason")
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+        raise ValueError("a bounded operator reason is required")
+    return data, revision, epoch, reason
+
+
+def _require_cutover_production_confirmation(data):
+    if (
+        is_production
+        or current_app.config.get("BASELODGE_RUNTIME_ENV") == "production"
+    ) and data.get("confirm_production_cutover") is not True:
+        raise PermissionError("production confirmation required")
+
+
+@app.route("/api/admin/message-cutover/policies", methods=["GET"])
+@login_required
+@admin_required
+def admin_message_cutover_policies():
+    policies = MessagingDeliveryPolicy.query.order_by(
+        MessagingDeliveryPolicy.event_name
+    ).all()
+    return jsonify({"policies": [{
+        "event_name": row.event_name,
+        "delivery_mode": row.delivery_mode,
+        "cutover_epoch": row.cutover_epoch,
+        "claims_paused": row.claims_paused,
+        "control_revision": row.control_revision,
+        "updated_at": _admin_outbox_timestamp(row.updated_at),
+    } for row in policies]})
+
+
+@app.route("/api/admin/message-cutover/<path:event_name>/drain", methods=["GET"])
+@login_required
+@admin_required
+def admin_message_cutover_drain(event_name):
+    row = db.session.get(MessagingDeliveryPolicy, event_name)
+    if row is None:
+        return jsonify({"error": "policy_not_found"}), 404
+    return jsonify({"drain": drain_status(
+        event_name, row.cutover_epoch, session=db.session
+    )})
+
+
+@app.route("/api/admin/message-cutover/<path:event_name>/policy", methods=["POST"])
+@login_required
+@admin_required
+def admin_message_cutover_policy(event_name):
+    validate_csrf_request()
+    try:
+        data, revision, epoch, reason = _cutover_request()
+        _require_cutover_production_confirmation(data)
+        row = mutate_policy(
+            event_name,
+            expected_revision=revision,
+            expected_epoch=epoch,
+            reason=reason,
+            audit_identity=f"user:{current_user.id}",
+            claims_paused=data.get("claims_paused"),
+            delivery_mode=data.get("delivery_mode"),
+            session=db.session,
+            production_confirmed=data.get("confirm_production_cutover") is True,
+            production=is_production,
+        )
+        db.session.commit()
+    except (ValueError, LookupError, PermissionError) as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 409
+    return jsonify({"event_name": row.event_name, "delivery_mode": row.delivery_mode,
+                    "cutover_epoch": row.cutover_epoch,
+                    "claims_paused": row.claims_paused,
+                    "control_revision": row.control_revision})
+
+
+@app.route("/api/admin/message-cutover/<path:event_name>/terminalize", methods=["POST"])
+@login_required
+@admin_required
+def admin_message_cutover_terminalize(event_name):
+    validate_csrf_request()
+    try:
+        _data, revision, epoch, reason = _cutover_request()
+        _require_cutover_production_confirmation(_data)
+        policy = db.session.execute(
+            sa.select(MessagingDeliveryPolicy)
+            .where(MessagingDeliveryPolicy.event_name == event_name)
+            .with_for_update()
+        ).scalar_one_or_none()
+        if policy is None:
+            raise ValueError("policy_not_found")
+        if (policy.control_revision != revision or policy.cutover_epoch != epoch
+                or not policy.claims_paused):
+            raise RuntimeError("stale policy or family is not paused")
+        count = terminalize_eligible(
+            event_name, epoch, reason=reason,
+            audit_identity=f"user:{current_user.id}", session=db.session,
+            production_confirmed=_data.get("confirm_production_cutover") is True,
+            production=is_production,
+        )
+        db.session.commit()
+    except (ValueError, PermissionError) as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 409
+    return jsonify({"terminalized": count})
+
+
+@app.route("/api/admin/message-cutover/<path:event_name>/inline", methods=["POST"])
+@login_required
+@admin_required
+def admin_message_cutover_inline(event_name):
+    validate_csrf_request()
+    try:
+        _data, revision, epoch, reason = _cutover_request()
+        _require_cutover_production_confirmation(_data)
+        row = guarded_transition_inline(
+            event_name, expected_revision=revision, expected_epoch=epoch,
+            reason=reason, audit_identity=f"user:{current_user.id}",
+            session=db.session,
+            production_confirmed=_data.get("confirm_production_cutover") is True,
+            production=is_production,
+        )
+        db.session.commit()
+    except (ValueError, LookupError, PermissionError) as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 400
+    except RuntimeError as exc:
+        db.session.rollback()
+        return jsonify({"error": str(exc)}), 409
+    return jsonify({"event_name": row.event_name, "delivery_mode": row.delivery_mode,
+                    "cutover_epoch": row.cutover_epoch,
+                    "control_revision": row.control_revision})
+
+
 @app.route("/api/admin/message-outbox/<int:outbox_id>/replay", methods=["POST"])
 @login_required
 @admin_required
 def admin_message_outbox_replay(outbox_id):
     """Create one new, explicitly requested delivery from a terminal record."""
     validate_csrf_request()
-    if (
-        is_production
-        or current_app.config.get("BASELODGE_RUNTIME_ENV") == "production"
-    ):
-        return jsonify({"error": "not_available_in_production"}), 403
-
-    row = db.session.get(MessageOutbox, outbox_id)
+    row = db.session.execute(
+        sa.select(MessageOutbox).where(MessageOutbox.id == outbox_id)
+    ).scalar_one_or_none()
     if row is None:
         return jsonify({"error": "outbox_not_found"}), 404
     if row.status not in ("dead_letter", "delivery_unknown"):
         return jsonify({"error": "outbox_not_replayable"}), 409
+    try:
+        _root, lineage = _locked_replay_lineage(row)
+    except RuntimeError:
+        db.session.rollback()
+        return jsonify({"error": "replay_lineage_invalid"}), 409
+    row = next((item for item in lineage if item.id == outbox_id), None)
+    if row is None or row.status not in ("dead_letter", "delivery_unknown"):
+        db.session.rollback()
+        return jsonify({"error": "outbox_not_replayable"}), 409
 
     request_data = request.get_json(silent=True) or {}
-    if row.status == "delivery_unknown" and not (
+    production = (
+        is_production
+        or current_app.config.get("BASELODGE_RUNTIME_ENV") == "production"
+    )
+    if production and (
+        row.status != "dead_letter"
+        or request_data.get("confirm_production_replay") is not True
+        or request_data.get("confirm_production_cutover") is not True
+    ):
+        return jsonify({"error": "not_available_in_production"}), 403
+    try:
+        require_production_confirmation(
+            request_data.get("confirm_production_cutover") is True,
+            production=production,
+        )
+    except PermissionError as exc:
+        return jsonify({"error": str(exc)}), 403
+    if production and RELEASE_IDENTITY.sha is None:
+        return jsonify({"error": "verified_producer_release_required"}), 409
+    reason = request_data.get("reason")
+    if not isinstance(reason, str) or not reason.strip() or len(reason) > 500:
+        return jsonify({"error": "bounded_operator_reason_required"}), 400
+    key = request_data.get("idempotency_key")
+    expected_status = request_data.get("expected_source_status")
+    if (not isinstance(key, str) or not key.strip() or len(key) > 120
+            or expected_status != row.status):
+        return jsonify({"error": "idempotency_key_and_expected_source_status_required"}), 400
+    prior = db.session.query(MessagingReplayEvent).filter_by(
+        source_outbox_id=row.id, idempotency_key=key.strip()
+    ).one_or_none()
+    if prior is not None:
+        replay = db.session.get(MessageOutbox, prior.target_outbox_id)
+        return jsonify({"replay": _admin_outbox_row(replay), "idempotent": True}), 200
+    if any(
+        item.id != row.id
+        and item.status in ("pending", "retryable", "processing")
+        for item in lineage
+    ):
+        return jsonify({"error": "active_replay_already_exists"}), 409
+    lineage_has_ambiguity = any(
+        item.status == "delivery_unknown" for item in lineage
+    )
+    if lineage_has_ambiguity and not (
         request_data.get("duplicate_risk_acknowledged") is True
         or request_data.get("acknowledge_duplicate_risk") is True
     ):
         return jsonify({"error": "duplicate_risk_acknowledgement_required"}), 400
+    if lineage_has_ambiguity and not (
+        isinstance(request_data.get("reconciliation_notes"), str)
+        and request_data["reconciliation_notes"].strip()
+        and len(request_data["reconciliation_notes"]) <= 500
+    ):
+        return jsonify({"error": "reconciliation_notes_required"}), 400
+
+    policy = db.session.execute(
+        sa.select(MessagingDeliveryPolicy)
+        .where(MessagingDeliveryPolicy.event_name == row.event_name)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if (
+        policy is None
+        or policy.delivery_mode != "enqueue_only"
+        or policy.claims_paused
+    ):
+        db.session.rollback()
+        return jsonify({"error": "active_enqueue_policy_required"}), 409
 
     # Authorization is intentionally evaluated again at replay time, before a
     # replacement work item exists.  It can account for changed eligibility,
@@ -21508,8 +21758,27 @@ def admin_message_outbox_replay(outbox_id):
             object_id=row.object_id,
             max_attempts=row.max_attempts,
             replay_of_outbox_id=row.id,
+            replay_reason=reason,
+            replayed_by=f"user:{current_user.id}",
+            replayed_at=datetime.utcnow(),
+            configuration_epoch=policy.cutover_epoch,
+            producer_release_sha=RELEASE_IDENTITY.sha,
             session=db.session,
         )
+        db.session.add(MessagingReplayEvent(
+            source_outbox_id=row.id, target_outbox_id=replay.id,
+            source_epoch=row.configuration_epoch,
+            target_epoch=policy.cutover_epoch, source_status=row.status,
+            idempotency_key=key.strip(), operator_reason=sanitize_error(reason),
+            reconciliation_notes=sanitize_error(
+                request_data.get("reconciliation_notes")
+            ) if request_data.get("reconciliation_notes") else None,
+            duplicate_risk_acknowledged=(
+                request_data.get("duplicate_risk_acknowledged") is True
+                or request_data.get("acknowledge_duplicate_risk") is True
+            ),
+            audit_identity=f"user:{current_user.id}",
+        ))
         db.session.commit()
     except Exception:
         db.session.rollback()

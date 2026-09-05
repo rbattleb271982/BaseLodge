@@ -9,18 +9,20 @@ import hashlib
 import json
 import re
 import uuid
+import os
 
 import sqlalchemy as sa
 
-from models import MessageOutbox, db
+from models import MessageOutbox, MessagingDeliveryPolicy, db
 
 
 OUTBOX_STATUSES = frozenset({
     "pending", "processing", "retryable", "provider_accepted", "suppressed",
-    "dead_letter", "delivery_unknown",
+    "dead_letter", "delivery_unknown", "operator_terminalized",
 })
 TERMINAL_STATUSES = frozenset({
     "provider_accepted", "suppressed", "dead_letter", "delivery_unknown",
+    "operator_terminalized",
 })
 PROVIDER_PHASES = frozenset({"not_started", "started", "accepted", "unknown"})
 _READY_STATUSES = ("pending", "retryable")
@@ -166,6 +168,11 @@ def enqueue_message(
     max_attempts=5,
     next_attempt_at=None,
     replay_of_outbox_id=None,
+    replay_reason=None,
+    replayed_by=None,
+    replayed_at=None,
+    configuration_epoch=1,
+    producer_release_sha=None,
     session=None,
 ):
     """Add and flush an outbox row without committing the surrounding transaction."""
@@ -178,6 +185,15 @@ def enqueue_message(
     _validate_evidence_ids([] if evidence_ids is None else evidence_ids)
     if max_attempts < 1:
         raise ValueError("max_attempts must be positive")
+    if not isinstance(configuration_epoch, int) or configuration_epoch < 1:
+        raise ValueError("configuration_epoch must be positive")
+    if producer_release_sha is not None and not re.fullmatch(
+        r"[0-9a-f]{40}", producer_release_sha
+    ):
+        raise ValueError("producer release identity must be a verified SHA")
+    if (os.environ.get("BASELODGE_RUNTIME_ENV", "").lower() == "production"
+            and producer_release_sha is None):
+        raise ValueError("verified producer release identity is required")
     # Refuse accidentally-large payloads: this is routing/render context, not a
     # copy of a domain object or provider response.
     if len(json.dumps(context or {}, default=str)) > 16384:
@@ -205,6 +221,11 @@ def enqueue_message(
         max_attempts=max_attempts,
         next_attempt_at=_now(next_attempt_at),
         replay_of_outbox_id=replay_of_outbox_id,
+        replay_reason=sanitize_error(replay_reason),
+        replayed_by=(str(replayed_by)[:120] if replayed_by is not None else None),
+        replayed_at=replayed_at,
+        configuration_epoch=configuration_epoch,
+        producer_release_sha=producer_release_sha,
     )
     try:
         # A duplicate inserted by another transaction rolls back only this
@@ -280,11 +301,19 @@ def claim_messages(
     lease_seconds=60,
     now=None,
     session=None,
+    worker_release_sha=None,
 ):
     """Lease ready work using SKIP LOCKED on PostgreSQL and CAS elsewhere."""
     if not owner or limit < 1 or lease_seconds < 1:
         raise ValueError("owner, positive limit and positive lease_seconds are required")
     work_session = _session(session)
+    if worker_release_sha is not None and not re.fullmatch(
+        r"[0-9a-f]{40}", worker_release_sha
+    ):
+        raise ValueError("worker release identity must be a verified SHA")
+    if (os.environ.get("BASELODGE_RUNTIME_ENV", "").lower() == "production"
+            and worker_release_sha is None):
+        raise ValueError("verified worker release identity is required")
     timestamp = _now(now)
     expires = timestamp + timedelta(seconds=lease_seconds)
     bind = work_session.get_bind()
@@ -294,6 +323,13 @@ def claim_messages(
         sa.or_(
             MessageOutbox.lease_expires_at.is_(None),
             MessageOutbox.lease_expires_at <= timestamp,
+        ),
+        sa.exists().where(
+            MessagingDeliveryPolicy.event_name == MessageOutbox.event_name,
+            MessagingDeliveryPolicy.delivery_mode == "enqueue_only",
+            MessagingDeliveryPolicy.claims_paused.is_(False),
+            MessagingDeliveryPolicy.cutover_epoch
+            == MessageOutbox.configuration_epoch,
         ),
     )
 
@@ -314,6 +350,7 @@ def claim_messages(
             row.lease_expires_at = expires
             row.provider_phase = "not_started"
             row.updated_at = timestamp
+            row.last_worker_release_sha = worker_release_sha
             claimed.append(row)
         work_session.flush()
         return claimed
@@ -338,6 +375,7 @@ def claim_messages(
                 lease_expires_at=expires,
                 provider_phase="not_started",
                 updated_at=timestamp,
+                last_worker_release_sha=worker_release_sha,
             )
         ).rowcount
         if changed == 1:
@@ -351,8 +389,56 @@ def claim_messages(
     ).scalars().all()
 
 
-def mark_provider_started(outbox_id, lease_token, *, now=None, session=None):
-    """Persist the point after which blind retry could duplicate delivery."""
+def mark_provider_started(
+    outbox_id, lease_token, *, now=None, session=None, worker_release_sha=None
+):
+    """Serialize with policy mutation and persist the provider boundary."""
+    timestamp = _now(now)
+    work_session = _session(session)
+    identity = work_session.execute(
+        sa.select(MessageOutbox.event_name, MessageOutbox.configuration_epoch).where(
+            MessageOutbox.id == outbox_id,
+            MessageOutbox.status == "processing",
+            MessageOutbox.lease_token == lease_token,
+            MessageOutbox.provider_phase == "not_started",
+            MessageOutbox.lease_expires_at > timestamp,
+        )
+    ).one_or_none()
+    if identity is None:
+        return False
+    policy = work_session.execute(
+        sa.select(MessagingDeliveryPolicy)
+        .where(MessagingDeliveryPolicy.event_name == identity.event_name)
+        .with_for_update()
+    ).scalar_one_or_none()
+    if (
+        policy is None
+        or policy.delivery_mode != "enqueue_only"
+        or policy.claims_paused
+        or policy.cutover_epoch != identity.configuration_epoch
+    ):
+        return False
+    result = work_session.execute(
+        sa.update(MessageOutbox)
+        .where(
+            MessageOutbox.id == outbox_id,
+            MessageOutbox.status == "processing",
+            MessageOutbox.lease_token == lease_token,
+            MessageOutbox.provider_phase == "not_started",
+            MessageOutbox.lease_expires_at > timestamp,
+        )
+        .values(
+            provider_phase="started",
+            attempt_count=MessageOutbox.attempt_count + 1,
+            updated_at=timestamp,
+            last_worker_release_sha=worker_release_sha,
+        )
+    )
+    return result.rowcount == 1
+
+
+def release_pre_provider_claim(outbox_id, lease_token, *, now=None, session=None):
+    """Release a still-safe claim without consuming an attempt."""
     timestamp = _now(now)
     result = _session(session).execute(
         sa.update(MessageOutbox)
@@ -363,8 +449,12 @@ def mark_provider_started(outbox_id, lease_token, *, now=None, session=None):
             MessageOutbox.provider_phase == "not_started",
         )
         .values(
-            provider_phase="started",
-            attempt_count=MessageOutbox.attempt_count + 1,
+            status="retryable",
+            next_attempt_at=timestamp,
+            lease_token=None,
+            lease_owner=None,
+            leased_at=None,
+            lease_expires_at=None,
             updated_at=timestamp,
         )
     )
@@ -474,6 +564,95 @@ def queue_health(*, now=None, session=None):
             MessageOutbox.lease_expires_at <= timestamp,
         )
     ).scalar_one()
+    families = []
+    policies = work_session.execute(
+        sa.select(MessagingDeliveryPolicy).order_by(MessagingDeliveryPolicy.event_name)
+    ).scalars().all()
+    for policy in policies:
+        family_counts = dict(work_session.execute(
+            sa.select(MessageOutbox.status, sa.func.count(MessageOutbox.id))
+            .where(MessageOutbox.event_name == policy.event_name)
+            .group_by(MessageOutbox.status)
+        ).all())
+        stale = work_session.execute(
+            sa.select(sa.func.count(MessageOutbox.id)).where(
+                MessageOutbox.event_name == policy.event_name,
+                MessageOutbox.configuration_epoch != policy.cutover_epoch,
+            )
+        ).scalar_one()
+        mismatch = work_session.execute(
+            sa.select(sa.func.count(MessageOutbox.id)).where(
+                MessageOutbox.event_name == policy.event_name,
+                MessageOutbox.last_worker_release_sha.is_not(None),
+                MessageOutbox.producer_release_sha.is_not(None),
+                MessageOutbox.last_worker_release_sha != MessageOutbox.producer_release_sha,
+            )
+        ).scalar_one()
+        deliverable = sum(int(family_counts.get(s, 0)) for s in _READY_STATUSES)
+        live = int(family_counts.get("processing", 0))
+        epochs = []
+        epoch_values = work_session.execute(
+            sa.select(MessageOutbox.configuration_epoch)
+            .where(MessageOutbox.event_name == policy.event_name)
+            .distinct().order_by(MessageOutbox.configuration_epoch)
+        ).scalars().all()
+        for epoch in epoch_values:
+            epoch_counts = dict(work_session.execute(
+                sa.select(MessageOutbox.status, sa.func.count(MessageOutbox.id))
+                .where(
+                    MessageOutbox.event_name == policy.event_name,
+                    MessageOutbox.configuration_epoch == epoch,
+                ).group_by(MessageOutbox.status)
+            ).all())
+            phase_counts = dict(work_session.execute(
+                sa.select(MessageOutbox.provider_phase, sa.func.count(MessageOutbox.id))
+                .where(
+                    MessageOutbox.event_name == policy.event_name,
+                    MessageOutbox.configuration_epoch == epoch,
+                ).group_by(MessageOutbox.provider_phase)
+            ).all())
+            epoch_oldest = work_session.execute(
+                sa.select(sa.func.min(MessageOutbox.next_attempt_at)).where(
+                    MessageOutbox.event_name == policy.event_name,
+                    MessageOutbox.configuration_epoch == epoch,
+                    MessageOutbox.status.in_(_READY_STATUSES),
+                    MessageOutbox.next_attempt_at <= timestamp,
+                )
+            ).scalar_one()
+            epoch_expired = work_session.execute(
+                sa.select(sa.func.count(MessageOutbox.id)).where(
+                    MessageOutbox.event_name == policy.event_name,
+                    MessageOutbox.configuration_epoch == epoch,
+                    MessageOutbox.status == "processing",
+                    MessageOutbox.lease_expires_at <= timestamp,
+                )
+            ).scalar_one()
+            epochs.append({
+                "configuration_epoch": epoch,
+                "active": epoch == policy.cutover_epoch,
+                "counts": {s: int(epoch_counts.get(s, 0)) for s in OUTBOX_STATUSES},
+                "provider_phases": {
+                    phase: int(phase_counts.get(phase, 0))
+                    for phase in PROVIDER_PHASES
+                },
+                "expired_leases": int(epoch_expired or 0),
+                "oldest_ready_age_seconds": (
+                    max(0, int((timestamp - epoch_oldest).total_seconds()))
+                    if epoch_oldest else None
+                ),
+            })
+        families.append({
+            "event_name": policy.event_name,
+            "delivery_mode": policy.delivery_mode,
+            "cutover_epoch": policy.cutover_epoch,
+            "claims_paused": policy.claims_paused,
+            "control_revision": policy.control_revision,
+            "counts": {s: int(family_counts.get(s, 0)) for s in OUTBOX_STATUSES},
+            "stale_generation_rows": int(stale or 0),
+            "release_mismatch_rows": int(mismatch or 0),
+            "drain_ready": deliverable == 0 and live == 0,
+            "epochs": epochs,
+        })
     return {
         "counts": {status: int(counts.get(status, 0)) for status in OUTBOX_STATUSES},
         "ready": sum(int(counts.get(status, 0)) for status in _READY_STATUSES),
@@ -482,6 +661,7 @@ def queue_health(*, now=None, session=None):
             max(0, int((timestamp - oldest_ready).total_seconds()))
             if oldest_ready else None
         ),
+        "families": families,
     }
 
 

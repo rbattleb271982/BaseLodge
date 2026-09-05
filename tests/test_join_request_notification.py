@@ -17,7 +17,7 @@ import pytest
 from app import app
 from models import (
     Activity, db, Friend, GuestStatus, Invitation, InviteType,
-    SkiTripParticipant,
+    SkiTripParticipant, MessagingDeliveryPolicy,
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
@@ -47,6 +47,18 @@ def _connect(first_id, second_id):
         Friend(user_id=first_id, friend_id=second_id),
         Friend(user_id=second_id, friend_id=first_id),
     ])
+
+
+def _enable_join_request_outbox():
+    db.session.add(MessagingDeliveryPolicy(
+        event_name=EventName.TRIP_JOIN_REQUESTED,
+        delivery_mode="enqueue_only",
+        cutover_epoch=7,
+        claims_paused=False,
+        control_revision=1,
+        operator_reason="focused enqueue-path test",
+        audit_identity="test",
+    ))
 
 
 # ── EventSpec registry tests (no HTTP, no DB) ─────────────────────────────────
@@ -102,6 +114,7 @@ class TestJoinRequestNotification:
             requester_id = requester.id
             trip_id      = trip.id
             _connect(owner_id, requester_id)
+            _enable_join_request_outbox()
             db.session.commit()
 
         _login(client, requester_id)
@@ -170,6 +183,7 @@ class TestJoinRequestNotification:
             requester_id = requester.id
             trip_id = trip.id
             _connect(owner_id, requester_id)
+            _enable_join_request_outbox()
             db.session.commit()
 
         _login(client, requester_id)
@@ -252,6 +266,7 @@ class TestJoinRequestNotification:
             requester_id = requester.id
             trip_id      = trip.id
             _connect(owner_id, requester_id)
+            _enable_join_request_outbox()
             db.session.commit()
 
         _login(client, requester_id)
@@ -275,6 +290,7 @@ class TestJoinRequestNotification:
             requester_id = requester.id
             trip_id      = trip.id
             _connect(owner_id, requester_id)
+            _enable_join_request_outbox()
             db.session.commit()
 
         _login(client, requester_id)
@@ -295,6 +311,7 @@ class TestJoinRequestNotification:
             requester_id = requester.id
             trip_id      = trip.id
             _connect(owner.id, requester_id)
+            _enable_join_request_outbox()
             db.session.commit()
 
         _login(client, requester_id)

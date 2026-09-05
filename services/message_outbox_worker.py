@@ -13,10 +13,12 @@ import os
 import sqlalchemy as sa
 
 from models import MessageOutbox
+from release_identity import resolve_release_identity
 from services.message_outbox import (
     claim_messages,
     finalize_message,
     mark_provider_started,
+    release_pre_provider_claim,
     recover_expired_leases,
 )
 
@@ -84,6 +86,7 @@ def process_claim(
     safety_callback,
     provider_callback,
     event_log_callback=None,
+    worker_release_sha=None,
 ):
     """Process one committed lease and return its resulting status."""
     row = session.get(MessageOutbox, outbox_id)
@@ -117,8 +120,14 @@ def process_claim(
         session.commit()
         return "suppressed"
 
-    if not mark_provider_started(row.id, lease_token, session=session):
+    if not mark_provider_started(
+        row.id, lease_token, session=session, worker_release_sha=worker_release_sha
+    ):
         session.rollback()
+        if release_pre_provider_claim(row.id, lease_token, session=session):
+            session.commit()
+        else:
+            session.rollback()
         return "lease_lost"
     # This commit is the safety boundary.  A crash after it is recovered as
     # delivery_unknown rather than risking a duplicate provider submission.
@@ -172,6 +181,7 @@ def run_worker(
     max_batches=1,
     max_messages=None,
     lease_seconds=60,
+    worker_release_sha=None,
 ):
     """Run a bounded number of batches and return aggregate counters."""
     if max_batches < 1 or batch_size < 1:
@@ -187,7 +197,8 @@ def run_worker(
         try:
             recover_expired_leases(session=session)
             claimed = claim_messages(
-                owner, limit=limit, lease_seconds=lease_seconds, session=session
+                owner, limit=limit, lease_seconds=lease_seconds, session=session,
+                worker_release_sha=worker_release_sha,
             )
             leases = [(row.id, row.lease_token) for row in claimed]
             session.commit()
@@ -203,6 +214,7 @@ def run_worker(
                     safety_callback=safety_callback,
                     provider_callback=provider_callback,
                     event_log_callback=event_log_callback,
+                    worker_release_sha=worker_release_sha,
                 )
                 totals[outcome] += 1
                 if remaining is not None:
@@ -248,6 +260,14 @@ def main(argv=None):
         parser.error(
             "--database-url or MESSAGE_OUTBOX_DATABASE_URL is required"
         )
+    release_identity = resolve_release_identity(
+        runtime_env=os.environ.get("BASELODGE_RUNTIME_ENV", "development").lower()
+    )
+    if (
+        os.environ.get("BASELODGE_RUNTIME_ENV", "development").lower() == "production"
+        and release_identity.sha is None
+    ):
+        parser.error("verified worker release identity is required in production")
     return run_worker(
         session_factory_from_url(args.database_url),
         owner=args.owner,
@@ -261,6 +281,7 @@ def main(argv=None):
         max_batches=args.max_batches,
         max_messages=args.max_messages,
         lease_seconds=args.lease_seconds,
+        worker_release_sha=release_identity.sha,
     )
 
 

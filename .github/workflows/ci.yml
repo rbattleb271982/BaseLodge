@@ -23,6 +23,7 @@ jobs:
       BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH: "0000000000000000000000000000000000000000000000000000000000000000"
       SESSION_SECRET: ci-only-test-secret
       BASE_URL: https://example.invalid
+      BL443_REQUIRE_POSTGRES17: "1"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -55,23 +56,41 @@ jobs:
       - name: Make disposable PostgreSQL tools available
         run: |
           set -euo pipefail
-          if ! command -v initdb >/dev/null 2>&1 || ! command -v pg_ctl >/dev/null 2>&1; then
-            sudo apt-get update
-            sudo apt-get install --no-install-recommends -y postgresql
-          fi
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y ca-certificates curl gnupg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql-pgdg.gpg
+          . /etc/os-release
+          echo "deb [signed-by=/usr/share/keyrings/postgresql-pgdg.gpg] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-17
+          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
+          /usr/lib/postgresql/17/bin/initdb --version | grep -E ' 17([.]|$)'
+          /usr/lib/postgresql/17/bin/pg_ctl --version | grep -E ' 17([.]|$)'
 
-          if ! command -v initdb >/dev/null 2>&1 || ! command -v pg_ctl >/dev/null 2>&1; then
-            for bindir in /usr/lib/postgresql/*/bin; do
-              if test -x "$bindir/initdb" && test -x "$bindir/pg_ctl"; then
-                export PATH="$bindir:$PATH"
-                echo "$bindir" >> "$GITHUB_PATH"
-                break
-              fi
-            done
-          fi
+      - name: Run mandatory PostgreSQL 17 cutover concurrency tests
+        run: |
+          set -euo pipefail
+          PATH="/usr/lib/postgresql/17/bin:$PATH" \
+            "$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m pytest -q \
+              tests/test_bl443_cutover_postgres.py \
+              --junitxml=/tmp/pytest-bl443-postgres17.xml
+          "$RUNNER_TEMP/baselodge-ci-venv/bin/python" - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree
 
-          command -v initdb
-          command -v pg_ctl
+          cases = list(ElementTree.parse(
+              Path("/tmp/pytest-bl443-postgres17.xml")
+          ).getroot().iter("testcase"))
+          if len(cases) != 8:
+              raise SystemExit(f"expected 8 BL443 PostgreSQL tests, collected {len(cases)}")
+          skipped = [case.attrib.get("name") for case in cases
+                     if case.find("skipped") is not None]
+          if skipped:
+              raise SystemExit("BL443 PostgreSQL tests skipped: " + ", ".join(skipped))
+          print("BL443 PostgreSQL 17 tests: 8 run, 0 skipped")
+          PY
 
       - name: Run full test suite
         run: |

@@ -1978,6 +1978,80 @@ class MessageEventLog(db.Model):
     )
 
 
+class MessagingDeliveryPolicy(db.Model):
+    """Serialized, database-backed delivery control for one canonical event."""
+    __tablename__ = "messaging_delivery_policy"
+
+    event_name = db.Column(db.String(120), primary_key=True)
+    delivery_mode = db.Column(db.String(24), nullable=False, default="inline")
+    cutover_epoch = db.Column(db.Integer, nullable=False, default=1)
+    claims_paused = db.Column(db.Boolean, nullable=False, default=True)
+    control_revision = db.Column(db.Integer, nullable=False, default=1)
+    operator_reason = db.Column(db.String(500), nullable=False, default="bootstrap")
+    audit_identity = db.Column(db.String(120), nullable=False, default="migration")
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "delivery_mode IN ('inline','enqueue_only')",
+            name="ck_messaging_policy_mode",
+        ),
+        db.CheckConstraint(
+            "cutover_epoch > 0 AND control_revision > 0",
+            name="ck_messaging_policy_versions",
+        ),
+    )
+
+
+class MessagingDeliveryPolicyEvent(db.Model):
+    """Append-only audit evidence for a messaging control-plane mutation."""
+    __tablename__ = "messaging_delivery_policy_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_name = db.Column(
+        db.String(120),
+        db.ForeignKey("messaging_delivery_policy.event_name"),
+        nullable=False,
+        index=True,
+    )
+    delivery_mode = db.Column(db.String(24), nullable=False)
+    cutover_epoch = db.Column(db.Integer, nullable=False)
+    claims_paused = db.Column(db.Boolean, nullable=False)
+    control_revision = db.Column(db.Integer, nullable=False)
+    action = db.Column(db.String(40), nullable=False)
+    operator_reason = db.Column(db.String(500), nullable=False)
+    audit_identity = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class MessagingReplayEvent(db.Model):
+    """Append-only operator evidence for an idempotent outbox replay request."""
+    __tablename__ = "messaging_replay_event"
+
+    id = db.Column(db.Integer, primary_key=True)
+    source_outbox_id = db.Column(db.Integer, db.ForeignKey("message_outbox.id"), nullable=False)
+    target_outbox_id = db.Column(db.Integer, db.ForeignKey("message_outbox.id"), nullable=False)
+    source_epoch = db.Column(db.Integer, nullable=False)
+    target_epoch = db.Column(db.Integer, nullable=False)
+    source_status = db.Column(db.String(32), nullable=False)
+    idempotency_key = db.Column(db.String(120), nullable=False)
+    operator_reason = db.Column(db.String(500), nullable=False)
+    reconciliation_notes = db.Column(db.String(500), nullable=True)
+    duplicate_risk_acknowledged = db.Column(db.Boolean, nullable=False, default=False)
+    audit_identity = db.Column(db.String(120), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "source_outbox_id", "idempotency_key",
+            name="uq_messaging_replay_request",
+        ),
+    )
+
+
 class MessageOutbox(db.Model):
     """Durable, provider-bound work item for one logical message delivery."""
     __tablename__ = "message_outbox"
@@ -2001,6 +2075,9 @@ class MessageOutbox(db.Model):
     # only the minimum values required to render/send the message.
     context_json = db.Column(db.JSON, nullable=False, default=dict)
     evidence_ids_json = db.Column(db.JSON, nullable=False, default=list)
+    configuration_epoch = db.Column(db.Integer, nullable=False, default=1)
+    producer_release_sha = db.Column(db.String(40), nullable=True)
+    last_worker_release_sha = db.Column(db.String(40), nullable=True)
 
     status = db.Column(db.String(32), nullable=False, default="pending", index=True)
     attempt_count = db.Column(db.Integer, nullable=False, default=0)
@@ -2025,6 +2102,12 @@ class MessageOutbox(db.Model):
     replay_of_outbox_id = db.Column(
         db.Integer, db.ForeignKey("message_outbox.id"), nullable=True
     )
+    replay_reason = db.Column(db.String(500), nullable=True)
+    replayed_by = db.Column(db.String(120), nullable=True)
+    replayed_at = db.Column(db.DateTime, nullable=True)
+    terminalized_at = db.Column(db.DateTime, nullable=True)
+    terminalization_reason = db.Column(db.String(500), nullable=True)
+    terminalized_by = db.Column(db.String(120), nullable=True)
 
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(
@@ -2047,7 +2130,7 @@ class MessageOutbox(db.Model):
         ),
         db.CheckConstraint(
             "status IN ('pending','processing','retryable','provider_accepted',"
-            "'suppressed','dead_letter','delivery_unknown')",
+            "'suppressed','dead_letter','delivery_unknown','operator_terminalized')",
             name="ck_outbox_status",
         ),
         db.CheckConstraint(
@@ -2059,6 +2142,14 @@ class MessageOutbox(db.Model):
             name="ck_outbox_attempt_bounds",
         ),
         db.Index("ix_outbox_claim", "status", "next_attempt_at", "id"),
+        db.Index(
+            "ix_outbox_family_epoch_claim",
+            "event_name", "configuration_epoch", "status", "next_attempt_at", "id",
+        ),
+        db.Index(
+            "ix_outbox_family_epoch_lease",
+            "event_name", "configuration_epoch", "status", "lease_expires_at",
+        ),
     )
 
 

@@ -44,7 +44,7 @@ def main(argv=None):
     try:
         # These imports belong in the executable path: importing this runner is
         # intentionally side-effect free with respect to Flask and migrations.
-        from app import app
+        from app import app, is_production, RELEASE_IDENTITY
         from models import db
         from services.message_dispatch import (
             message_outbox_event_log_callback,
@@ -53,6 +53,8 @@ def main(argv=None):
         )
         from services.message_outbox_worker import run_worker
 
+        if is_production and RELEASE_IDENTITY.sha is None:
+            raise RuntimeError("verified worker release identity required")
         with app.app_context():
             result = run_worker(
                 db.session,
@@ -64,6 +66,7 @@ def main(argv=None):
                 max_batches=args.max_batches,
                 max_messages=args.max_messages,
                 lease_seconds=args.lease_seconds,
+                worker_release_sha=RELEASE_IDENTITY.sha,
             )
         print(json.dumps(_result_payload(result), sort_keys=True))
         return 0
