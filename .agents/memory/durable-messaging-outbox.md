@@ -14,3 +14,9 @@ Once the worker commits that provider invocation has started, a timeout or conne
 **Why:** Transport failure after the provider boundary cannot prove the provider rejected the request; automatic retry could duplicate user-visible delivery.
 
 **How to apply:** Quarantine ambiguous outcomes for explicit admin review/replay with duplicate-risk acknowledgement. Do not enable enqueue-only in Production until a bounded standalone worker is explicitly configured.
+
+Continuous worker identity is a delivery fence, not only a monitoring label. Verify and lock heartbeat ownership in the same transaction immediately before claim and again immediately before provider-start; every ownership-loss path must terminate the fenced process.
+
+**Why:** Post-cycle heartbeat checks leave an inter-cycle window where a replaced process can claim and send before discovering that a new process owns its stable identity.
+
+**How to apply:** Roll back pre-provider work on fence loss and make the ownership-loss category fatal. Once provider-start commits, preserve normal finalization and `delivery_unknown` handling rather than using fencing to guess whether delivery occurred.

@@ -6,11 +6,13 @@ the Flask-SQLAlchemy test application, whose ordinary suite remains SQLite.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta
 import getpass
 import os
 from pathlib import Path
 import shutil
+import signal
 import socket
 import subprocess
 import threading
@@ -31,7 +33,10 @@ from models import (
     MessageOutbox,
     MessagingDeliveryPolicy,
     MessagingReplayEvent,
+    MessagingWorkerHeartbeat,
 )
+from release_identity import ReleaseIdentity
+from runtime_config import DatabaseConfiguration, RuntimeConfigurationError
 from services.message_outbox import (
     claim_messages,
     enqueue_message,
@@ -48,11 +53,29 @@ from services.messaging_staging import (
     finish_staged_messaging,
     stage_messaging_intents,
 )
-from services.message_outbox_worker import run_worker
+from services.message_outbox_worker import WorkerResult, run_worker
+from services.message_worker_runtime import (
+    WorkerPreflightError,
+    WorkerSettings,
+    RuntimeCounters,
+    acquire_heartbeat,
+    create_worker_resources,
+    inspect_heartbeat,
+    install_signal_handlers,
+    load_worker_settings,
+    restore_signal_handlers,
+    run_continuous,
+    run_startup_preflight,
+    publish_heartbeat,
+    verify_delivery_ownership,
+)
 
 
 ROOT = Path(__file__).parents[1]
-REQUIRE_PG17 = os.environ.get("BL443_REQUIRE_POSTGRES17") == "1"
+REQUIRE_PG17 = (
+    os.environ.get("BL443_REQUIRE_POSTGRES17") == "1"
+    or os.environ.get("BL442_REQUIRE_POSTGRES17") == "1"
+)
 
 
 def _free_port():
@@ -98,12 +121,25 @@ def bl443_postgres17(tmp_path_factory):
         check=True, capture_output=True, text=True,
     )
     subprocess.run(
+        [
+            "openssl", "req", "-new", "-x509", "-nodes", "-days", "1",
+            "-subj", "/CN=localhost",
+            "-keyout", str(data / "server.key"),
+            "-out", str(data / "server.crt"),
+        ],
+        check=True, capture_output=True, text=True,
+    )
+    (data / "server.key").chmod(0o600)
+    subprocess.run(
         [pg_ctl, "-D", str(data), "-o",
-         f"-F -h 127.0.0.1 -k {sockets} -p {port}",
+         f"-F -h 127.0.0.1 -k {sockets} -p {port} -c ssl=on",
          "-l", str(log), "-w", "start"],
         check=True, capture_output=True, text=True,
     )
-    admin_url = f"postgresql://{quote(role, safe='')}@127.0.0.1:{port}/postgres"
+    admin_url = (
+        f"postgresql://{quote(role, safe='')}@localhost:{port}/postgres"
+        f"?sslmode=verify-full&sslrootcert={data / 'server.crt'}"
+    )
 
     def database():
         name = f"bl443_{uuid4().hex}"
@@ -118,7 +154,10 @@ def bl443_postgres17(tmp_path_factory):
                 ))
         finally:
             connection.close()
-        return f"postgresql://{quote(role, safe='')}@127.0.0.1:{port}/{name}"
+        return (
+            f"postgresql://{quote(role, safe='')}@localhost:{port}/{name}"
+            f"?sslmode=verify-full&sslrootcert={data / 'server.crt'}"
+        )
 
     try:
         yield database
@@ -157,6 +196,13 @@ def bl443_sessions(bl443_postgres17):
         MessageEventLog.__table__.create(connection)
         _run_migration(connection, _migration("bl440_message_outbox"))
         _run_migration(connection, _migration("bl443_reversible_cutover"))
+        _run_migration(connection, _migration("bl442_worker_heartbeat"))
+        connection.exec_driver_sql(
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) PRIMARY KEY)"
+        )
+        connection.exec_driver_sql(
+            "INSERT INTO alembic_version VALUES ('bl442_worker_heartbeat')"
+        )
         connection.execute(sa.text(
             'INSERT INTO "user" (id) SELECT generate_series(1, 20)'
         ))
@@ -574,4 +620,719 @@ def test_concurrent_replay_idempotency_uses_source_lock_postgres(bl443_sessions)
     assert verify.query(MessageOutbox).filter_by(
         replay_of_outbox_id=source_id
     ).count() == 1
+    verify.close()
+
+
+def _runtime_settings(mode, *, batch_size=1):
+    return WorkerSettings(
+        database_url="postgresql://unused?sslmode=require",
+        worker_identity=f"postgres-{mode}",
+        release_sha="a" * 40,
+        mode=mode,
+        batch_size=batch_size,
+        lease_seconds=60,
+        idle_seconds=0.1,
+        backoff_initial_seconds=0.1,
+        backoff_max_seconds=1,
+        stale_seconds=30,
+        pool_size=1,
+        max_overflow=0,
+    )
+
+
+def test_continuous_idle_only_cannot_claim_or_call_postgres(bl443_sessions):
+    seed = bl443_sessions()
+    _policy(seed, "family.a")
+    row = _enqueue(seed, "idle-only-row")
+    seed.commit()
+    row_id = row.id
+    seed.close()
+    stop = threading.Event()
+
+    counters = run_continuous(
+        _runtime_settings("idle-only"),
+        bl443_sessions,
+        stop_event=stop,
+        delivery_callbacks=None,
+        sleep=lambda _delay: True,
+    )
+
+    verify = bl443_sessions()
+    assert counters.claimed_total == counters.finalized_total == 0
+    assert verify.get(MessageOutbox, row_id).status == "pending"
+    heartbeat = verify.get(MessagingWorkerHeartbeat, "postgres-idle-only")
+    assert heartbeat.graceful_shutdown
+    assert heartbeat.claimed_total == 0
+    verify.close()
+
+
+def test_continuous_normal_processes_one_bounded_cycle_postgres(bl443_sessions):
+    seed = bl443_sessions()
+    _policy(seed, "family.a")
+    for number in range(2):
+        _enqueue(seed, f"bounded-{number}", recipient=number + 1)
+    seed.commit()
+    seed.close()
+    calls = []
+
+    counters = run_continuous(
+        _runtime_settings("normal", batch_size=1),
+        bl443_sessions,
+        stop_event=threading.Event(),
+        delivery_callbacks=(
+            lambda _row: True,
+            lambda row: calls.append(row.id) or {"status": "provider_accepted"},
+            None,
+        ),
+        max_cycles=1,
+    )
+
+    assert counters.claimed_total == counters.finalized_total == 1
+    assert len(calls) == 1
+    verify = bl443_sessions()
+    assert verify.query(MessageOutbox).filter_by(status="pending").count() == 1
+    delivered = verify.query(MessageOutbox).filter_by(
+        status="provider_accepted"
+    ).one()
+    assert delivered.last_worker_release_sha == "a" * 40
+    verify.close()
+
+
+def test_continuous_normal_repeats_bounded_cycles_postgres(bl443_sessions):
+    seed = bl443_sessions()
+    _policy(seed, "family.a")
+    for number in range(3):
+        _enqueue(seed, f"continuous-{number}", recipient=number + 1)
+    seed.commit()
+    seed.close()
+    calls = []
+
+    counters = run_continuous(
+        _runtime_settings("normal", batch_size=1),
+        bl443_sessions,
+        stop_event=threading.Event(),
+        delivery_callbacks=(
+            lambda _row: True,
+            lambda row: calls.append(row.id) or {"status": "provider_accepted"},
+            None,
+        ),
+        max_cycles=2,
+    )
+
+    assert counters.cycles_total == 2
+    assert counters.claimed_total == counters.finalized_total == 2
+    assert len(calls) == 2
+    verify = bl443_sessions()
+    assert verify.query(MessageOutbox).filter_by(status="pending").count() == 1
+    verify.close()
+
+
+def test_worker_heartbeat_staleness_and_redaction_postgres(bl443_sessions):
+    stop = threading.Event()
+    run_continuous(
+        _runtime_settings("idle-only"),
+        bl443_sessions,
+        stop_event=stop,
+        sleep=lambda _delay: True,
+    )
+    session = bl443_sessions()
+    heartbeat = session.get(MessagingWorkerHeartbeat, "postgres-idle-only")
+    assert "recipient" not in str(heartbeat.queue_health_json).lower()
+    snapshot = inspect_heartbeat(
+        session,
+        "postgres-idle-only",
+        stale_seconds=30,
+        now=heartbeat.updated_at + timedelta(seconds=31),
+    )
+    assert snapshot["stale"] is True
+    assert set(snapshot["queue_health"]) == {
+        "counts", "ready", "expired_leases", "oldest_ready_age_seconds",
+    }
+    session.close()
+
+
+def test_worker_rejects_schema_older_than_bl443_postgres(bl443_sessions):
+    session = bl443_sessions()
+    session.execute(sa.text(
+        "UPDATE alembic_version SET version_num = 'bl440_message_outbox'"
+    ))
+    session.commit()
+    with pytest.raises(WorkerPreflightError) as error:
+        run_startup_preflight(session)
+    assert error.value.category == "schema_incompatible"
+    session.close()
+
+
+@pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGINT])
+def test_worker_signal_requests_graceful_stop(signum):
+    stop = threading.Event()
+    previous = install_signal_handlers(stop)
+    try:
+        signal.getsignal(signum)(signum, None)
+        assert stop.is_set()
+    finally:
+        restore_signal_handlers(previous)
+
+
+def test_worker_does_not_claim_after_shutdown_begins_postgres(bl443_sessions):
+    seed = bl443_sessions()
+    _policy(seed, "family.a")
+    row = _enqueue(seed, "shutdown-before-claim")
+    seed.commit()
+    row_id = row.id
+    seed.close()
+    stop = threading.Event()
+    stop.set()
+
+    counters = run_continuous(
+        _runtime_settings("normal"),
+        bl443_sessions,
+        stop_event=stop,
+        delivery_callbacks=(
+            lambda _row: True,
+            lambda _row: pytest.fail("provider must not be called"),
+            None,
+        ),
+    )
+
+    assert counters.claimed_total == 0
+    verify = bl443_sessions()
+    assert verify.get(MessageOutbox, row_id).status == "pending"
+    verify.close()
+
+
+def test_worker_database_failure_uses_bounded_backoff_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_worker_runtime as runtime
+
+    delays = []
+    monkeypatch.setattr(
+        runtime,
+        "run_worker",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            sa.exc.OperationalError("SELECT 1", {}, RuntimeError("offline"))
+        ),
+    )
+    counters = run_continuous(
+        replace(_runtime_settings("normal"), backoff_max_seconds=0.15),
+        bl443_sessions,
+        stop_event=threading.Event(),
+        delivery_callbacks=(lambda _row: True, lambda _row: True, None),
+        sleep=lambda delay: delays.append(delay) or False,
+        max_cycles=4,
+    )
+    assert counters.cycles_failed == 4
+    assert delays == pytest.approx([0.117, 0.15, 0.15])
+
+
+def _production_worker_environment():
+    return {
+        "BASELODGE_RUNTIME_ENV": "production",
+        "BASELODGE_WORKER_IDENTITY": "pg17-full-path",
+        "BASELODGE_WORKER_MODE": "idle-only",
+        "BASELODGE_APPROVED_WORKER_RELEASE_SHA": "b" * 40,
+        "ONESIGNAL_APP_ID": "123e4567-e89b-42d3-a456-426614174000",
+        "ONESIGNAL_REST_API_KEY": "x" * 16,
+    }
+
+
+def test_full_path_production_settings_resources_and_preflight_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_worker_runtime as runtime
+
+    # The fixture factory deliberately hides its engine; use a checked-out
+    # connection's safe URL for this isolated full-path wiring test.
+    session = bl443_sessions()
+    url = str(session.get_bind().url)
+    session.close()
+    monkeypatch.setattr(
+        runtime, "resolve_worker_database_config",
+        lambda _env: DatabaseConfiguration("production", url, "worker_production"),
+    )
+    monkeypatch.setattr(
+        runtime, "resolve_release_identity",
+        lambda **_kwargs: ReleaseIdentity("b" * 40, "VERIFIED"),
+    )
+    settings = load_worker_settings(_production_worker_environment())
+    engine, sessions = create_worker_resources(settings)
+    try:
+        session = sessions()
+        run_startup_preflight(session)
+        session.close()
+    finally:
+        sessions.remove()
+        engine.dispose()
+
+
+def test_full_path_rejects_release_mismatch_postgres(bl443_sessions, monkeypatch):
+    import services.message_worker_runtime as runtime
+
+    monkeypatch.setattr(
+        runtime, "resolve_worker_database_config",
+        lambda _env: DatabaseConfiguration(
+            "production", "postgresql://localhost/db?sslmode=verify-full",
+            "worker_production",
+        ),
+    )
+    monkeypatch.setattr(
+        runtime, "resolve_release_identity",
+        lambda **_kwargs: ReleaseIdentity("c" * 40, "VERIFIED"),
+    )
+    with pytest.raises(WorkerPreflightError, match="release_identity_invalid"):
+        load_worker_settings(_production_worker_environment())
+
+
+def test_full_path_rejects_protected_identity_mismatch_postgres(monkeypatch):
+    import services.message_worker_runtime as runtime
+
+    monkeypatch.setattr(
+        runtime, "resolve_worker_database_config",
+        lambda _env: (_ for _ in ()).throw(RuntimeConfigurationError("mismatch")),
+    )
+    with pytest.raises(WorkerPreflightError, match="database_identity_invalid"):
+        load_worker_settings(_production_worker_environment())
+
+
+def test_full_path_rejects_nonverifying_tls_postgres(monkeypatch):
+    import services.message_worker_runtime as runtime
+
+    monkeypatch.setattr(
+        runtime, "resolve_worker_database_config",
+        lambda _env: DatabaseConfiguration(
+            "production", "postgresql://localhost/db?sslmode=require",
+            "worker_production",
+        ),
+    )
+    with pytest.raises(WorkerPreflightError, match="database_tls_invalid"):
+        load_worker_settings(_production_worker_environment())
+
+
+def test_shutdown_inside_claim_transaction_rolls_back_lease_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_outbox_worker as worker
+
+    seed = bl443_sessions()
+    _policy(seed, "family.a")
+    row = _enqueue(seed, "stop-during-claim")
+    seed.commit()
+    row_id = row.id
+    seed.close()
+    stop = threading.Event()
+    original_claim = worker.claim_messages
+
+    def claim_then_stop(*args, **kwargs):
+        rows = original_claim(*args, **kwargs)
+        stop.set()
+        return rows
+
+    monkeypatch.setattr(worker, "claim_messages", claim_then_stop)
+    result = worker.run_worker(
+        bl443_sessions, owner="claim-race", safety_callback=lambda _row: True,
+        provider_callback=lambda _row: pytest.fail("provider must not run"),
+        batch_size=1, max_batches=1, stop_requested=stop.is_set,
+    )
+    assert result.claimed == 0
+    verify = bl443_sessions()
+    assert verify.get(MessageOutbox, row_id).status == "pending"
+    verify.close()
+
+
+def test_heartbeat_identity_fencing_and_stale_replacement_postgres(bl443_sessions):
+    settings = _runtime_settings("idle-only")
+    started = datetime.utcnow()
+    first = bl443_sessions()
+    acquire_heartbeat(first, settings, started, "first")
+    first.close()
+
+    duplicate = bl443_sessions()
+    with pytest.raises(WorkerPreflightError, match="worker_identity_in_use"):
+        acquire_heartbeat(duplicate, settings, started, "second")
+    duplicate.close()
+
+    replace_owner = bl443_sessions()
+    row = replace_owner.get(MessagingWorkerHeartbeat, settings.worker_identity)
+    row.updated_at = datetime.utcnow() - timedelta(seconds=settings.stale_seconds + 1)
+    replace_owner.commit()
+    acquire_heartbeat(replace_owner, settings, started, "second")
+    replace_owner.close()
+
+    old = bl443_sessions()
+    assert not publish_heartbeat(
+        old, settings, started, RuntimeCounters(), "first",
+        readiness="stopped", shutdown=True,
+    )
+    old.close()
+    verify = bl443_sessions()
+    assert verify.get(
+        MessagingWorkerHeartbeat, settings.worker_identity
+    ).instance_token == "second"
+    verify.close()
+
+
+def test_replaced_runner_exits_before_another_claim_cycle_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_worker_runtime as runtime
+
+    settings = replace(
+        _runtime_settings("normal"),
+        worker_identity="coordinated-replacement",
+        stale_seconds=1,
+    )
+    cycle_heartbeat_reached = threading.Event()
+    replacement_ready = threading.Event()
+    calls = []
+    errors = []
+    original_publish = runtime.publish_heartbeat
+    publish_count = 0
+
+    def coordinated_publish(*args, **kwargs):
+        nonlocal publish_count
+        publish_count += 1
+        if publish_count == 2:
+            cycle_heartbeat_reached.set()
+            assert replacement_ready.wait(timeout=5)
+        return original_publish(*args, **kwargs)
+
+    monkeypatch.setattr(runtime, "publish_heartbeat", coordinated_publish)
+    monkeypatch.setattr(
+        runtime, "run_worker",
+        lambda *_args, **_kwargs: calls.append("bounded-cycle") or WorkerResult(),
+    )
+
+    def old_runner():
+        try:
+            run_continuous(
+                settings,
+                bl443_sessions,
+                stop_event=threading.Event(),
+                delivery_callbacks=(lambda _row: True, lambda _row: True, None),
+            )
+        except WorkerPreflightError as exc:
+            errors.append(exc.category)
+
+    thread = threading.Thread(target=old_runner, daemon=True)
+    thread.start()
+    assert cycle_heartbeat_reached.wait(timeout=5)
+    replacement = bl443_sessions()
+    row = replacement.get(
+        MessagingWorkerHeartbeat, settings.worker_identity, with_for_update=True
+    )
+    row.updated_at = datetime.utcnow() - timedelta(seconds=2)
+    replacement.commit()
+    acquire_heartbeat(
+        replacement, settings, datetime.utcnow(), "replacement-instance"
+    )
+    replacement.close()
+    replacement_ready.set()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive()
+    assert errors == ["heartbeat_ownership_lost"]
+    assert calls == ["bounded-cycle"]
+    verify = bl443_sessions()
+    heartbeat = verify.get(
+        MessagingWorkerHeartbeat, settings.worker_identity
+    )
+    assert heartbeat.instance_token == "replacement-instance"
+    assert heartbeat.readiness_state == "starting"
+    assert not heartbeat.graceful_shutdown
+    verify.close()
+
+
+def test_replacement_immediately_before_final_heartbeat_is_fatal_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_worker_runtime as runtime
+
+    settings = replace(
+        _runtime_settings("normal"),
+        worker_identity="final-heartbeat-replacement",
+        stale_seconds=1,
+    )
+    final_heartbeat_reached = threading.Event()
+    replacement_ready = threading.Event()
+    errors = []
+    original_publish = runtime.publish_heartbeat
+    publish_count = 0
+
+    def coordinated_publish(*args, **kwargs):
+        nonlocal publish_count
+        publish_count += 1
+        if publish_count == 3:
+            final_heartbeat_reached.set()
+            assert replacement_ready.wait(timeout=5)
+        return original_publish(*args, **kwargs)
+
+    monkeypatch.setattr(runtime, "publish_heartbeat", coordinated_publish)
+    monkeypatch.setattr(runtime, "run_worker", lambda *_a, **_k: WorkerResult())
+
+    def old_runner():
+        try:
+            run_continuous(
+                settings,
+                bl443_sessions,
+                stop_event=threading.Event(),
+                delivery_callbacks=(lambda _row: True, lambda _row: True, None),
+                max_cycles=1,
+            )
+        except WorkerPreflightError as exc:
+            errors.append(exc.category)
+
+    thread = threading.Thread(target=old_runner, daemon=True)
+    thread.start()
+    assert final_heartbeat_reached.wait(timeout=5)
+    replacement = bl443_sessions()
+    row = replacement.get(
+        MessagingWorkerHeartbeat, settings.worker_identity, with_for_update=True
+    )
+    row.updated_at = datetime.utcnow() - timedelta(seconds=2)
+    replacement.commit()
+    acquire_heartbeat(
+        replacement, settings, datetime.utcnow(), "replacement-at-final"
+    )
+    replacement.close()
+    replacement_ready.set()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive()
+    assert errors == ["heartbeat_ownership_lost"]
+    verify = bl443_sessions()
+    heartbeat = verify.get(
+        MessagingWorkerHeartbeat, settings.worker_identity
+    )
+    assert heartbeat.instance_token == "replacement-at-final"
+    assert heartbeat.readiness_state == "starting"
+    assert not heartbeat.graceful_shutdown
+    verify.close()
+
+
+def test_deleted_heartbeat_fences_runner_before_next_cycle_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_worker_runtime as runtime
+
+    settings = replace(
+        _runtime_settings("normal"),
+        worker_identity="deleted-heartbeat-owner",
+    )
+    cycle_heartbeat_reached = threading.Event()
+    heartbeat_deleted = threading.Event()
+    calls = []
+    errors = []
+    original_publish = runtime.publish_heartbeat
+    publish_count = 0
+
+    def coordinated_publish(*args, **kwargs):
+        nonlocal publish_count
+        publish_count += 1
+        if publish_count == 2:
+            cycle_heartbeat_reached.set()
+            assert heartbeat_deleted.wait(timeout=5)
+        return original_publish(*args, **kwargs)
+
+    monkeypatch.setattr(runtime, "publish_heartbeat", coordinated_publish)
+    monkeypatch.setattr(
+        runtime, "run_worker",
+        lambda *_args, **_kwargs: calls.append("bounded-cycle") or WorkerResult(),
+    )
+
+    def runner():
+        try:
+            run_continuous(
+                settings,
+                bl443_sessions,
+                stop_event=threading.Event(),
+                delivery_callbacks=(lambda _row: True, lambda _row: True, None),
+            )
+        except WorkerPreflightError as exc:
+            errors.append(exc.category)
+
+    thread = threading.Thread(target=runner, daemon=True)
+    thread.start()
+    assert cycle_heartbeat_reached.wait(timeout=5)
+    deleting = bl443_sessions()
+    deleting.execute(sa.delete(MessagingWorkerHeartbeat).where(
+        MessagingWorkerHeartbeat.worker_identity == settings.worker_identity
+    ))
+    deleting.commit()
+    deleting.close()
+    heartbeat_deleted.set()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive()
+    assert errors == ["heartbeat_ownership_lost"]
+    assert calls == ["bounded-cycle"]
+    verify = bl443_sessions()
+    assert verify.get(
+        MessagingWorkerHeartbeat, settings.worker_identity
+    ) is None
+    verify.close()
+
+
+def test_deleted_heartbeat_immediately_before_final_is_fatal_postgres(
+    bl443_sessions, monkeypatch,
+):
+    import services.message_worker_runtime as runtime
+
+    settings = replace(
+        _runtime_settings("normal"),
+        worker_identity="deleted-final-heartbeat",
+    )
+    final_heartbeat_reached = threading.Event()
+    heartbeat_deleted = threading.Event()
+    errors = []
+    original_publish = runtime.publish_heartbeat
+    publish_count = 0
+
+    def coordinated_publish(*args, **kwargs):
+        nonlocal publish_count
+        publish_count += 1
+        if publish_count == 3:
+            final_heartbeat_reached.set()
+            assert heartbeat_deleted.wait(timeout=5)
+        return original_publish(*args, **kwargs)
+
+    monkeypatch.setattr(runtime, "publish_heartbeat", coordinated_publish)
+    monkeypatch.setattr(runtime, "run_worker", lambda *_a, **_k: WorkerResult())
+
+    def runner():
+        try:
+            run_continuous(
+                settings,
+                bl443_sessions,
+                stop_event=threading.Event(),
+                delivery_callbacks=(lambda _row: True, lambda _row: True, None),
+                max_cycles=1,
+            )
+        except WorkerPreflightError as exc:
+            errors.append(exc.category)
+
+    thread = threading.Thread(target=runner, daemon=True)
+    thread.start()
+    assert final_heartbeat_reached.wait(timeout=5)
+    deleting = bl443_sessions()
+    deleting.execute(sa.delete(MessagingWorkerHeartbeat).where(
+        MessagingWorkerHeartbeat.worker_identity == settings.worker_identity
+    ))
+    deleting.commit()
+    deleting.close()
+    heartbeat_deleted.set()
+    thread.join(timeout=5)
+
+    assert not thread.is_alive()
+    assert errors == ["heartbeat_ownership_lost"]
+    verify = bl443_sessions()
+    assert verify.get(
+        MessagingWorkerHeartbeat, settings.worker_identity
+    ) is None
+    verify.close()
+
+
+def test_replacement_before_claim_is_atomically_fenced_postgres(bl443_sessions):
+    settings = replace(
+        _runtime_settings("normal"),
+        worker_identity="replacement-before-claim",
+        stale_seconds=1,
+    )
+    started = datetime.utcnow()
+    old = bl443_sessions()
+    acquire_heartbeat(old, settings, started, "old-instance")
+    _policy(old, "family.a")
+    row = _enqueue(old, "fenced-before-claim")
+    old.commit()
+    row_id = row.id
+    old.close()
+
+    replacement = bl443_sessions()
+    heartbeat = replacement.get(
+        MessagingWorkerHeartbeat, settings.worker_identity, with_for_update=True
+    )
+    heartbeat.updated_at = datetime.utcnow() - timedelta(seconds=2)
+    replacement.commit()
+    acquire_heartbeat(
+        replacement, settings, datetime.utcnow(), "replacement-instance"
+    )
+    replacement.close()
+    provider_calls = []
+
+    with pytest.raises(WorkerPreflightError, match="heartbeat_ownership_lost"):
+        run_worker(
+            bl443_sessions,
+            owner=settings.worker_identity,
+            safety_callback=lambda _row: True,
+            provider_callback=lambda row: provider_calls.append(row.id),
+            batch_size=1,
+            max_batches=1,
+            ownership_guard=lambda session, phase: verify_delivery_ownership(
+                session, settings, "old-instance", phase
+            ),
+        )
+
+    verify = bl443_sessions()
+    fenced = verify.get(MessageOutbox, row_id)
+    assert fenced.status == "pending"
+    assert fenced.lease_token is None
+    assert provider_calls == []
+    verify.close()
+
+
+def test_replacement_after_claim_before_provider_start_is_safe_postgres(
+    bl443_sessions,
+):
+    settings = replace(
+        _runtime_settings("normal"),
+        worker_identity="replacement-before-provider",
+        stale_seconds=1,
+    )
+    started = datetime.utcnow()
+    seed = bl443_sessions()
+    acquire_heartbeat(seed, settings, started, "old-instance")
+    _policy(seed, "family.a")
+    row = _enqueue(seed, "fenced-before-provider")
+    seed.commit()
+    row_id = row.id
+    seed.close()
+    provider_calls = []
+
+    def coordinated_guard(session, phase):
+        if phase == "before_provider_start":
+            replacement = bl443_sessions()
+            heartbeat = replacement.get(
+                MessagingWorkerHeartbeat,
+                settings.worker_identity,
+                with_for_update=True,
+            )
+            heartbeat.updated_at = datetime.utcnow() - timedelta(seconds=2)
+            replacement.commit()
+            acquire_heartbeat(
+                replacement,
+                settings,
+                datetime.utcnow(),
+                "replacement-instance",
+            )
+            replacement.close()
+        verify_delivery_ownership(session, settings, "old-instance", phase)
+
+    with pytest.raises(WorkerPreflightError, match="heartbeat_ownership_lost"):
+        run_worker(
+            bl443_sessions,
+            owner=settings.worker_identity,
+            safety_callback=lambda _row: True,
+            provider_callback=lambda row: provider_calls.append(row.id),
+            batch_size=1,
+            max_batches=1,
+            ownership_guard=coordinated_guard,
+        )
+
+    verify = bl443_sessions()
+    fenced = verify.get(MessageOutbox, row_id)
+    assert fenced.status == "retryable"
+    assert fenced.provider_phase == "not_started"
+    assert fenced.lease_token is None
+    assert fenced.attempt_count == 0
+    assert provider_calls == []
     verify.close()

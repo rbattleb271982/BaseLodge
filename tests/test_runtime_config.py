@@ -574,4 +574,4 @@ def test_migration_graph_inspection_does_not_import_app():
     )
 
     assert result.returncode == 0, result.stderr
-    assert "bl70_user_season_pass" in result.stdout
+    assert "bl442_worker_heartbeat" in result.stdout

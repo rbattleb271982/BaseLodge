@@ -41,13 +41,18 @@ Canonical return shape (Phase D-1):
 """
 
 import os
+import logging
+from types import SimpleNamespace
 
 import httpx
-from flask import current_app
 
 from models import db, User, PushDeviceToken
 
 
+logger = logging.getLogger(__name__)
+# Keep the existing call sites and log messages while removing their runtime
+# dependency on a Flask application context.
+current_app = SimpleNamespace(logger=logger)
 _RETRYABLE_HTTP_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 
@@ -120,8 +125,8 @@ def send_onesignal_push(user_ids, title, body, data=None):
         }
         if opted_out:
             current_app.logger.warning(
-                "[OneSignal] send_push: skipping %d opted-out user(s): %s",
-                len(opted_out), sorted(opted_out),
+                "[OneSignal] send_push: skipping opted-out recipients count=%d",
+                len(opted_out),
             )
         all_ids = [uid for uid in all_ids if uid not in opted_out]
     except Exception as _filter_err:
@@ -151,8 +156,7 @@ def send_onesignal_push(user_ids, title, body, data=None):
         ).first() is not None
         if not has_active_token:
             current_app.logger.warning(
-                "[OneSignal] send_push: no active device token for user(s) %s — skipping (no_device_token)",
-                sorted(all_ids),
+                "[OneSignal] send_push: no active device token — skipping (no_device_token)",
             )
             return {"success": True, "provider_message_id": None,
                     "skipped": True, "skipped_reason": "no_device_token", "error": None}
@@ -220,9 +224,8 @@ def send_onesignal_push(user_ids, title, body, data=None):
         if (isinstance(errors, dict)
                 and set(errors.keys()) == {"invalid_aliases"}):
             current_app.logger.warning(
-                "[OneSignal] send_push: invalid_aliases for external_ids=%s — "
-                "recipient(s) not registered with OneSignal (channel_unavailable)",
-                external_ids,
+                "[OneSignal] send_push: recipient(s) not registered with "
+                "OneSignal (channel_unavailable)",
             )
             return {"success": True, "provider_message_id": None,
                     "skipped": True, "skipped_reason": "channel_unavailable",
@@ -294,8 +297,8 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
     props = properties or {}
 
     current_app.logger.warning(
-        "[OneSignal] send_event → event_name=%r recipient_count=%d",
-        event_name, len(all_ids),
+        "[OneSignal] send_event recipient_count=%d",
+        len(all_ids),
     )
 
     sent = 0
@@ -314,14 +317,14 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
             resp = httpx.post(url, headers=headers, json=payload, timeout=10.0)
             if resp.status_code in (200, 202):
                 current_app.logger.warning(
-                    "[OneSignal] send_event: external_id=%s status=%d",
-                    ext_id, resp.status_code,
+                    "[OneSignal] send_event: provider response status=%d",
+                    resp.status_code,
                 )
                 sent += 1
             else:
                 current_app.logger.warning(
-                    "[OneSignal] send_event: external_id=%s status=%d",
-                    ext_id, resp.status_code,
+                    "[OneSignal] send_event: provider response status=%d",
+                    resp.status_code,
                 )
                 failed += 1
                 retryable_failure = retryable_failure or (
@@ -333,13 +336,13 @@ def send_onesignal_custom_event(user_ids, event_name, properties=None):
                         retry_after = max(retry_after or 0, hint)
         except (httpx.TimeoutException, httpx.RequestError):
             current_app.logger.warning(
-                "[OneSignal] send_event request failure for external_id=%s", ext_id,
+                "[OneSignal] send_event request failure",
             )
             failed += 1
             ambiguous_failure = True
         except Exception:
             current_app.logger.warning(
-                "[OneSignal] send_event unexpected failure for external_id=%s", ext_id,
+                "[OneSignal] send_event unexpected failure",
             )
             failed += 1
 

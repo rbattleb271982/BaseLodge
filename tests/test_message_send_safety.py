@@ -1,6 +1,7 @@
 """Focused BL-147 synchronous message send-safety coverage."""
 
 from dataclasses import replace
+import logging
 import threading
 from unittest.mock import MagicMock, patch
 
@@ -602,3 +603,26 @@ def test_provider_eligibility_lookup_failures_never_send(
     assert result["skipped"] is True
     assert result["skipped_reason"] == "eligibility_error"
     provider.assert_not_called()
+
+
+def test_provider_logs_do_not_include_recipient_or_external_identifiers(
+    client, monkeypatch, caplog,
+):
+    monkeypatch.setenv("ONESIGNAL_APP_ID", "test-app")
+    monkeypatch.setenv("ONESIGNAL_REST_API_KEY", "test-key")
+    preference_query = MagicMock()
+    preference_query.filter.return_value.all.return_value = []
+    token_query = MagicMock()
+    token_query.filter.return_value.first.return_value = None
+
+    with app.app_context(), patch.object(
+        db.session, "query", side_effect=[preference_query, token_query],
+    ), caplog.at_level(logging.WARNING, logger="services.push_providers"):
+        result = send_onesignal_push(
+            [987654321], "Protected title", "Protected body",
+        )
+
+    assert result["skipped_reason"] == "no_device_token"
+    logged = "\n".join(record.getMessage() for record in caplog.records)
+    assert "987654321" not in logged
+    assert "external_id" not in logged

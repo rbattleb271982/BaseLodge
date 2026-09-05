@@ -20,4 +20,7 @@ than Flask app startup. Maintenance requires its own target URL, mode, write
 authorization, dry-run/report, singleton lock, and transaction, and must never
 import the Flask app or contact push providers. Do not deploy the startup-call
 removal to production until production BL-306 has separately succeeded; do not
-fold MountainPageView orphan repair into an application rollout.
+fold MountainPageView orphan repair into an application rollout. Invoke guarded
+Alembic as `python -m alembic` from the repository root; the installed console
+launcher can omit the repository from Python's import path and fail before the
+migration environment imports `runtime_config`.

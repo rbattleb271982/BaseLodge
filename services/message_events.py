@@ -7,8 +7,8 @@ should_retry          — retry eligibility check for a failed log row
 """
 
 from datetime import datetime, timedelta
+import logging
 
-from flask import current_app
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
@@ -21,6 +21,8 @@ from services.messaging_constants import (
     MAX_RETRY_COUNT,
     RETRYABLE_STATUSES,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_message_event(
@@ -101,7 +103,7 @@ def create_message_event(
     else:
         db.session.flush()
 
-    current_app.logger.debug(
+    logger.debug(
         "[MessageEvent] created id=%d event=%s status=%s",
         row.id, row.event_name, row.delivery_status,
     )

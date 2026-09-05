@@ -2052,6 +2052,48 @@ class MessagingReplayEvent(db.Model):
     )
 
 
+class MessagingWorkerHeartbeat(db.Model):
+    """Current privacy-safe operational state for one stable worker."""
+    __tablename__ = "messaging_worker_heartbeat"
+
+    worker_identity = db.Column(db.String(120), primary_key=True)
+    instance_token = db.Column(db.String(64), nullable=False)
+    worker_release_sha = db.Column(db.String(40), nullable=False)
+    process_started_at = db.Column(db.DateTime, nullable=False)
+    readiness_state = db.Column(db.String(24), nullable=False)
+    operating_mode = db.Column(db.String(24), nullable=False)
+    last_successful_poll_at = db.Column(db.DateTime, nullable=True)
+    last_successful_database_check_at = db.Column(db.DateTime, nullable=True)
+    last_claim_at = db.Column(db.DateTime, nullable=True)
+    last_finalization_at = db.Column(db.DateTime, nullable=True)
+    cycles_total = db.Column(db.Integer, nullable=False, default=0)
+    cycles_failed = db.Column(db.Integer, nullable=False, default=0)
+    claimed_total = db.Column(db.Integer, nullable=False, default=0)
+    finalized_total = db.Column(db.Integer, nullable=False, default=0)
+    queue_health_json = db.Column(db.JSON, nullable=False, default=dict)
+    last_error_category = db.Column(db.String(40), nullable=True)
+    graceful_shutdown = db.Column(db.Boolean, nullable=False, default=False)
+    updated_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "operating_mode IN ('idle-only','normal')",
+            name="ck_worker_heartbeat_mode",
+        ),
+        db.CheckConstraint(
+            "readiness_state IN ('starting','ready','unhealthy','stopping','stopped')",
+            name="ck_worker_heartbeat_readiness",
+        ),
+        db.CheckConstraint(
+            "cycles_total >= 0 AND cycles_failed >= 0 AND claimed_total >= 0 "
+            "AND finalized_total >= 0",
+            name="ck_worker_heartbeat_counters",
+        ),
+    )
+
+
 class MessageOutbox(db.Model):
     """Durable, provider-bound work item for one logical message delivery."""
     __tablename__ = "message_outbox"

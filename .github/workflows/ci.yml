@@ -24,6 +24,7 @@ jobs:
       SESSION_SECRET: ci-only-test-secret
       BASE_URL: https://example.invalid
       BL443_REQUIRE_POSTGRES17: "1"
+      BL442_REQUIRE_POSTGRES17: "1"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -69,7 +70,7 @@ jobs:
           /usr/lib/postgresql/17/bin/initdb --version | grep -E ' 17([.]|$)'
           /usr/lib/postgresql/17/bin/pg_ctl --version | grep -E ' 17([.]|$)'
 
-      - name: Run mandatory PostgreSQL 17 cutover concurrency tests
+      - name: Run mandatory PostgreSQL 17 worker and cutover tests
         run: |
           set -euo pipefail
           PATH="/usr/lib/postgresql/17/bin:$PATH" \
@@ -83,13 +84,13 @@ jobs:
           cases = list(ElementTree.parse(
               Path("/tmp/pytest-bl443-postgres17.xml")
           ).getroot().iter("testcase"))
-          if len(cases) != 8:
-              raise SystemExit(f"expected 8 BL443 PostgreSQL tests, collected {len(cases)}")
+          if len(cases) != 29:
+            raise SystemExit(f"expected 29 worker/cutover PostgreSQL tests, collected {len(cases)}")
           skipped = [case.attrib.get("name") for case in cases
                      if case.find("skipped") is not None]
           if skipped:
-              raise SystemExit("BL443 PostgreSQL tests skipped: " + ", ".join(skipped))
-          print("BL443 PostgreSQL 17 tests: 8 run, 0 skipped")
+              raise SystemExit("Worker/cutover PostgreSQL tests skipped: " + ", ".join(skipped))
+          print("Worker/cutover PostgreSQL 17 tests: 29 run, 0 skipped")
           PY
 
       - name: Run full test suite
@@ -267,6 +268,7 @@ jobs:
             migrations \
             release_identity.py \
             release_preflight.py \
+            run_continuous_message_worker.py \
             runtime_config.py \
             scripts \
             services \

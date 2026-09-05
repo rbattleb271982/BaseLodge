@@ -425,6 +425,45 @@ def resolve_application_database_config(
     )
 
 
+def resolve_worker_database_config(
+    environ: Mapping[str, str] | None = None,
+) -> DatabaseConfiguration:
+    """Resolve the protected Production runtime target for a standalone worker."""
+    environment = os.environ if environ is None else environ
+    runtime_env = _runtime_env(environment)
+    if runtime_env != "production":
+        raise RuntimeConfigurationError(
+            "Worker database access requires BASELODGE_RUNTIME_ENV=production."
+        )
+    database_url = _require_url(
+        environment, "BASELODGE_PRODUCTION_DATABASE_URL", runtime_env
+    )
+    _validate_protected_live_production_target(database_url, environment)
+
+    for key in ("BASELODGE_DEVELOPMENT_DATABASE_URL", "DATABASE_URL"):
+        other_url = _value(environment, key)
+        if not other_url:
+            continue
+        try:
+            if database_identity(database_url) == database_identity(other_url):
+                raise RuntimeConfigurationError(
+                    "Production worker target must not match a Development or "
+                    "generic Replit database target."
+                )
+        except RuntimeConfigurationError:
+            raise
+        except ValueError as exc:
+            raise RuntimeConfigurationError(
+                "Comparison database target is invalid."
+            ) from exc
+    return DatabaseConfiguration(
+        runtime_env=runtime_env,
+        database_url=database_url,
+        source="worker_production",
+        verified_identity_hash=database_identity_hash(database_url),
+    )
+
+
 def resolve_migration_database_config(
     environ: Mapping[str, str] | None = None,
 ) -> DatabaseConfiguration:

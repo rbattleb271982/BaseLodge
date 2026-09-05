@@ -87,6 +87,7 @@ def process_claim(
     provider_callback,
     event_log_callback=None,
     worker_release_sha=None,
+    ownership_guard=None,
 ):
     """Process one committed lease and return its resulting status."""
     row = session.get(MessageOutbox, outbox_id)
@@ -119,6 +120,17 @@ def process_claim(
             return "lease_lost"
         session.commit()
         return "suppressed"
+
+    if ownership_guard is not None:
+        try:
+            ownership_guard(session, "before_provider_start")
+        except Exception:
+            session.rollback()
+            if release_pre_provider_claim(row.id, lease_token, session=session):
+                session.commit()
+            else:
+                session.rollback()
+            raise
 
     if not mark_provider_started(
         row.id, lease_token, session=session, worker_release_sha=worker_release_sha
@@ -182,6 +194,8 @@ def run_worker(
     max_messages=None,
     lease_seconds=60,
     worker_release_sha=None,
+    stop_requested=None,
+    ownership_guard=None,
 ):
     """Run a bounded number of batches and return aggregate counters."""
     if max_batches < 1 or batch_size < 1:
@@ -190,23 +204,43 @@ def run_worker(
     totals = {field: 0 for field in WorkerResult.__dataclass_fields__}
 
     for _ in range(max_batches):
+        if stop_requested is not None and stop_requested():
+            break
         if remaining is not None and remaining <= 0:
             break
         limit = min(batch_size, remaining) if remaining is not None else batch_size
         session = session_factory()
         try:
+            if ownership_guard is not None:
+                ownership_guard(session, "before_claim")
             recover_expired_leases(session=session)
             claimed = claim_messages(
                 owner, limit=limit, lease_seconds=lease_seconds, session=session,
                 worker_release_sha=worker_release_sha,
             )
             leases = [(row.id, row.lease_token) for row in claimed]
+            # A termination request can arrive while the database claim is
+            # still uncommitted. Rolling back here guarantees it cannot turn
+            # into a committed processing lease.
+            if stop_requested is not None and stop_requested():
+                session.rollback()
+                break
             session.commit()
             totals["claimed"] += len(leases)
             if not leases:
                 break
 
-            for outbox_id, lease_token in leases:
+            for index, (outbox_id, lease_token) in enumerate(leases):
+                if stop_requested is not None and stop_requested():
+                    # Claims whose provider boundary has not begun are safe to
+                    # release immediately. Never reinterpret an in-flight or
+                    # ambiguous provider attempt as retryable.
+                    for pending_id, pending_token in leases[index:]:
+                        release_pre_provider_claim(
+                            pending_id, pending_token, session=session
+                        )
+                    session.commit()
+                    break
                 outcome = process_claim(
                     session,
                     outbox_id,
@@ -215,6 +249,7 @@ def run_worker(
                     provider_callback=provider_callback,
                     event_log_callback=event_log_callback,
                     worker_release_sha=worker_release_sha,
+                    ownership_guard=ownership_guard,
                 )
                 totals[outcome] += 1
                 if remaining is not None:
