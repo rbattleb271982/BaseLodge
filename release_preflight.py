@@ -7,11 +7,16 @@ then performs only metadata SELECTs against the resolved application target.
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
+import json
 import os
 from pathlib import Path
 import re
 from typing import Callable, Mapping, Sequence
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
@@ -21,6 +26,13 @@ from sqlalchemy.pool import NullPool
 from release_identity import (
     ReleaseIdentity,
     resolve_candidate_release_identity,
+    resolve_release_ready_workspace_identity,
+)
+from github_ci_evidence import (
+    BASELODGE_GITHUB_REPOSITORY,
+    GitHubCiEvidence,
+    fetch_github_ci_evidence,
+    validate_full_sha,
 )
 from runtime_config import (
     DatabaseConfiguration,
@@ -432,6 +444,7 @@ def run_preflight(
     database_reader: Callable[
         [DatabaseConfiguration], LiveDatabaseSnapshot
     ] = read_live_database,
+    prerequisite_checks: Sequence[CheckResult] = (),
 ) -> PreflightReport:
     environment = dict(os.environ if environ is None else environ)
     checks: list[CheckResult] = []
@@ -462,6 +475,7 @@ def run_preflight(
         except Exception:
             identity = ReleaseIdentity(sha=None, status="UNVERIFIED")
     checks.append(validate_release_identity(identity))
+    checks.extend(prerequisite_checks)
 
     if source_heads is None:
         try:
@@ -508,6 +522,235 @@ def run_preflight(
     return PreflightReport(tuple(checks))
 
 
+def validate_approved_sha(approved_sha: str | None) -> CheckResult:
+    validated = validate_full_sha(approved_sha)
+    if validated is None:
+        return CheckResult(
+            "APPROVED CI SHA",
+            False,
+            "must be an exact lowercase 40-character Git commit SHA",
+        )
+    return CheckResult("APPROVED CI SHA", True, validated)
+
+
+def validate_workspace_sha(
+    identity: ReleaseIdentity,
+    approved_sha: str | None,
+) -> CheckResult:
+    validated = validate_full_sha(approved_sha)
+    if (
+        validated is None
+        or identity.status != "VERIFIED"
+        or identity.sha != validated
+    ):
+        return CheckResult(
+            "WORKSPACE SHA",
+            False,
+            "clean workspace HEAD does not equal the approved CI SHA",
+        )
+    return CheckResult("WORKSPACE SHA", True, validated)
+
+
+def validate_github_evidence(
+    evidence: GitHubCiEvidence | None,
+    approved_sha: str | None,
+) -> CheckResult:
+    validated = validate_full_sha(approved_sha)
+    if (
+        validated is None
+        or evidence is None
+        or not evidence.verified
+        or evidence.sha != validated
+    ):
+        detail = (
+            evidence.detail
+            if evidence is not None
+            else "exact-SHA GitHub CI evidence is not verified"
+        )
+        return CheckResult("GITHUB CI EVIDENCE", False, detail)
+    return CheckResult("GITHUB CI EVIDENCE", True, evidence.detail)
+
+
+def _read_post_publish_health(
+    health_url: str,
+    *,
+    expected_base_url: str,
+    opener: Callable[..., object],
+) -> Mapping[str, object]:
+    parsed = urlsplit(health_url)
+    expected = urlsplit(expected_base_url)
+    if (
+        parsed.scheme != "https"
+        or expected.scheme != "https"
+        or not parsed.hostname
+        or not expected.hostname
+        or parsed.username
+        or parsed.password
+        or expected.username
+        or expected.password
+        or parsed.fragment
+        or expected.fragment
+        or parsed.path != "/health"
+        or parsed.query
+        or parsed.hostname != expected.hostname
+        or parsed.port != expected.port
+    ):
+        raise RuntimeError(
+            "health URL does not match the configured Production origin"
+        )
+    request = Request(
+        health_url,
+        headers={"Accept": "application/json", "User-Agent": "BaseLodge-release-preflight"},
+        method="GET",
+    )
+    try:
+        response = opener(request, timeout=10)
+        with response:
+            if getattr(response, "status", None) != 200:
+                raise RuntimeError("health endpoint did not return HTTP 200")
+            response_url = getattr(response, "geturl", lambda: health_url)()
+            if response_url != health_url:
+                raise RuntimeError("health endpoint redirected")
+            raw = response.read(1_000_001)
+    except (HTTPError, URLError, OSError, TimeoutError, ValueError):
+        raise RuntimeError("health endpoint could not be read") from None
+    if len(raw) > 1_000_000:
+        raise RuntimeError("health response is too large")
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeError, json.JSONDecodeError):
+        raise RuntimeError("health response is invalid") from None
+    if not isinstance(payload, Mapping):
+        raise RuntimeError("health response is invalid")
+    return payload
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT_OPENER = build_opener(_NoRedirectHandler())
+
+
+def _open_without_redirects(request: Request, *, timeout: int):
+    return _NO_REDIRECT_OPENER.open(request, timeout=timeout)
+
+
+def validate_post_publish_health(
+    payload: Mapping[str, object] | None,
+    approved_sha: str | None,
+) -> CheckResult:
+    validated = validate_full_sha(approved_sha)
+    if payload is None or validated is None:
+        return CheckResult(
+            "POST-PUBLISH RELEASE",
+            False,
+            "deployed release identity is not verified",
+        )
+    if (
+        payload.get("status") != "healthy"
+        or payload.get("environment") != "production"
+        or payload.get("release_identity_status") != "VERIFIED"
+        or payload.get("release_sha") != validated
+    ):
+        return CheckResult(
+            "POST-PUBLISH RELEASE",
+            False,
+            "healthy Production release does not match the approved CI SHA",
+        )
+    return CheckResult(
+        "POST-PUBLISH RELEASE",
+        True,
+        "healthy Production release matches the approved CI SHA",
+    )
+
+
+def run_release_ready(
+    approved_sha: str,
+    environ: Mapping[str, str] | None = None,
+    *,
+    identity: ReleaseIdentity | None = None,
+    source_heads: Sequence[str] | None = None,
+    live_database: LiveDatabaseSnapshot | None = None,
+    database_reader: Callable[
+        [DatabaseConfiguration], LiveDatabaseSnapshot
+    ] = read_live_database,
+    evidence_fetcher: Callable[..., GitHubCiEvidence] = fetch_github_ci_evidence,
+    health_url: str | None = None,
+    health_opener: Callable[..., object] = _open_without_redirects,
+    workspace_identity_resolver: Callable[
+        [], ReleaseIdentity
+    ] = resolve_release_ready_workspace_identity,
+) -> PreflightReport:
+    """Prove an exact CI-approved SHA is ready for a human Publish."""
+    environment = dict(os.environ if environ is None else environ)
+    if identity is None:
+        try:
+            identity = workspace_identity_resolver()
+        except Exception:
+            identity = ReleaseIdentity(sha=None, status="UNVERIFIED")
+
+    approved_check = validate_approved_sha(approved_sha)
+    workspace_check = validate_workspace_sha(identity, approved_sha)
+    evidence = None
+    if approved_check.passed and workspace_check.passed:
+        try:
+            evidence = evidence_fetcher(
+                BASELODGE_GITHUB_REPOSITORY,
+                approved_sha,
+                token=environment.get("GITHUB_TOKEN"),
+            )
+        except Exception:
+            evidence = None
+    evidence_check = validate_github_evidence(evidence, approved_sha)
+    prerequisites: list[CheckResult] = [
+        approved_check,
+        workspace_check,
+        evidence_check,
+    ]
+
+    if health_url is not None:
+        payload = None
+        if all(check.passed for check in prerequisites):
+            try:
+                expected_base_url = environment["BASE_URL"]
+                payload = _read_post_publish_health(
+                    health_url,
+                    expected_base_url=expected_base_url,
+                    opener=health_opener,
+                )
+            except Exception:
+                payload = None
+        prerequisites.append(
+            validate_post_publish_health(payload, approved_sha)
+        )
+
+    report = run_preflight(
+        environment,
+        identity=identity,
+        source_heads=source_heads,
+        live_database=live_database,
+        database_reader=database_reader,
+        prerequisite_checks=prerequisites,
+    )
+    try:
+        final_identity = workspace_identity_resolver()
+    except Exception:
+        final_identity = ReleaseIdentity(sha=None, status="UNVERIFIED")
+    final_check = validate_workspace_sha(final_identity, approved_sha)
+    final_check = CheckResult(
+        "FINAL WORKSPACE SHA",
+        final_check.passed,
+        (
+            final_check.detail
+            if not final_check.passed
+            else "workspace remained clean at the approved CI SHA"
+        ),
+    )
+    return PreflightReport((*report.checks, final_check))
+
+
 def format_report(report: PreflightReport) -> str:
     lines = [f"PREFLIGHT: {'PASS' if report.passed else 'FAIL'}"]
     for check in report.checks:
@@ -516,9 +759,37 @@ def format_report(report: PreflightReport) -> str:
     return "\n".join(lines)
 
 
-def main() -> int:
+def format_release_ready_report(report: PreflightReport) -> str:
+    state = "YES" if report.passed else "NO"
+    return (
+        f"RELEASE READY: {state}\n"
+        + format_report(report)
+        + "\nHUMAN PUBLISH REQUIRED: "
+        + ("YES" if report.passed else "NOT AUTHORIZED")
+    )
+
+
+def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--approved-sha",
+        required=True,
+        help="Exact lowercase 40-character Git SHA approved by CI.",
+    )
+    parser.add_argument(
+        "--health-url",
+        help="Optional post-publish HTTPS /health endpoint.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parse_args(argv)
     try:
-        report = run_preflight()
+        report = run_release_ready(
+            args.approved_sha,
+            health_url=args.health_url,
+        )
     except Exception:
         report = PreflightReport(
             (
@@ -529,7 +800,7 @@ def main() -> int:
                 ),
             )
         )
-    print(format_report(report))
+    print(format_release_ready_report(report))
     return 0 if report.passed else 1
 
 

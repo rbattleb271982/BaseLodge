@@ -6,6 +6,7 @@ import pytest
 import sqlalchemy as sa
 
 import release_preflight
+from github_ci_evidence import CheckRun, GitHubCiEvidence
 from release_identity import ReleaseIdentity
 from runtime_config import DatabaseConfiguration, database_identity_hash
 
@@ -339,10 +340,16 @@ def test_cli_returns_nonzero_for_failed_required_check(monkeypatch, capsys):
             ),
         )
     )
-    monkeypatch.setattr(release_preflight, "run_preflight", lambda: failed)
+    monkeypatch.setattr(
+        release_preflight,
+        "run_release_ready",
+        lambda *_args, **_kwargs: failed,
+    )
 
-    assert release_preflight.main() == 1
-    assert "PREFLIGHT: FAIL" in capsys.readouterr().out
+    assert release_preflight.main(["--approved-sha", GIT_SHA]) == 1
+    output = capsys.readouterr().out
+    assert "RELEASE READY: NO" in output
+    assert "PREFLIGHT: FAIL" in output
 
 
 def test_cli_converts_unexpected_failure_to_safe_nonzero_result(
@@ -350,15 +357,15 @@ def test_cli_converts_unexpected_failure_to_safe_nonzero_result(
 ):
     monkeypatch.setattr(
         release_preflight,
-        "run_preflight",
-        lambda: (_ for _ in ()).throw(
+        "run_release_ready",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
             RuntimeError(
                 "postgresql://user:top-secret@private.example/baselodge"
             )
         ),
     )
 
-    assert release_preflight.main() == 1
+    assert release_preflight.main(["--approved-sha", GIT_SHA]) == 1
     output = capsys.readouterr().out
     assert "PREFLIGHT: FAIL" in output
     assert "top-secret" not in output
@@ -468,3 +475,230 @@ def test_sqlite_read_only_mode_rejects_writes(tmp_path):
     engine.dispose()
 
     assert count == 0
+
+
+def _passing_evidence(sha=GIT_SHA):
+    return GitHubCiEvidence(
+        sha=sha,
+        checks=(
+            CheckRun(
+                "Tests", sha, "completed", "success", 1, "github-actions"
+            ),
+            CheckRun(
+                "Source integrity",
+                sha,
+                "completed",
+                "success",
+                2,
+                "github-actions",
+            ),
+        ),
+        verified=True,
+        detail="Tests and Source integrity passed for the exact SHA",
+    )
+
+
+def test_clean_matching_workspace_sha_passes_identity_portion():
+    identity = ReleaseIdentity(GIT_SHA, "VERIFIED")
+
+    assert release_preflight.validate_approved_sha(GIT_SHA).passed
+    assert release_preflight.validate_workspace_sha(identity, GIT_SHA).passed
+
+
+def test_dirty_or_unverified_workspace_fails_release_identity():
+    check = release_preflight.validate_workspace_sha(
+        ReleaseIdentity(None, "UNVERIFIED"),
+        GIT_SHA,
+    )
+
+    assert check.passed is False
+
+
+def test_mismatched_workspace_head_fails_release_identity():
+    check = release_preflight.validate_workspace_sha(
+        ReleaseIdentity("f" * 40, "VERIFIED"),
+        GIT_SHA,
+    )
+
+    assert check.passed is False
+
+
+def test_release_ready_requires_exact_sha_passing_ci_and_existing_preflight():
+    calls = []
+
+    def fetch(repository, sha, *, token=None):
+        calls.append((repository, sha, token))
+        return _passing_evidence(sha)
+
+    report = release_preflight.run_release_ready(
+        GIT_SHA,
+        _environment(),
+        identity=ReleaseIdentity(GIT_SHA, "VERIFIED"),
+        source_heads=("bl70_user_season_pass",),
+        live_database=_snapshot(),
+        evidence_fetcher=fetch,
+        workspace_identity_resolver=lambda: ReleaseIdentity(GIT_SHA, "VERIFIED"),
+    )
+
+    assert report.passed is True
+    assert calls == [
+        ("rbattleb271982/BaseLodge", GIT_SHA, None)
+    ]
+    assert "RELEASE READY: YES" in (
+        release_preflight.format_release_ready_report(report)
+    )
+
+
+def test_github_api_failure_is_not_verified_and_blocks_database():
+    def fail_fetch(*_args, **_kwargs):
+        raise RuntimeError("synthetic-token-must-not-appear")
+
+    def unexpected_reader(_configuration):
+        raise AssertionError("database must remain blocked")
+
+    report = release_preflight.run_release_ready(
+        GIT_SHA,
+        _environment(),
+        identity=ReleaseIdentity(GIT_SHA, "VERIFIED"),
+        source_heads=("bl70_user_season_pass",),
+        evidence_fetcher=fail_fetch,
+        database_reader=unexpected_reader,
+        workspace_identity_resolver=lambda: ReleaseIdentity(GIT_SHA, "VERIFIED"),
+    )
+    output = release_preflight.format_release_ready_report(report)
+
+    assert report.passed is False
+    assert "exact-SHA GitHub CI evidence is not verified" in output
+    assert "synthetic-token" not in output
+
+
+def test_evidence_from_different_sha_fails_release_ready():
+    report = release_preflight.run_release_ready(
+        GIT_SHA,
+        _environment(),
+        identity=ReleaseIdentity(GIT_SHA, "VERIFIED"),
+        source_heads=("bl70_user_season_pass",),
+        evidence_fetcher=lambda *_args, **_kwargs: _passing_evidence("f" * 40),
+        database_reader=lambda _configuration: (_ for _ in ()).throw(
+            AssertionError("database must remain blocked")
+        ),
+        workspace_identity_resolver=lambda: ReleaseIdentity(GIT_SHA, "VERIFIED"),
+    )
+
+    assert report.passed is False
+    assert any(
+        check.label == "GITHUB CI EVIDENCE" and not check.passed
+        for check in report.checks
+    )
+
+
+def test_post_publish_exact_sha_and_production_health_pass():
+    check = release_preflight.validate_post_publish_health(
+        {
+            "status": "healthy",
+            "environment": "production",
+            "release_identity_status": "VERIFIED",
+            "release_sha": GIT_SHA,
+        },
+        GIT_SHA,
+    )
+
+    assert check.passed is True
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            "status": "healthy",
+            "environment": "production",
+            "release_identity_status": "VERIFIED",
+            "release_sha": "f" * 40,
+        },
+        {
+            "status": "healthy",
+            "environment": "development",
+            "release_identity_status": "VERIFIED",
+            "release_sha": GIT_SHA,
+        },
+        {
+            "status": "healthy",
+            "environment": "production",
+            "release_identity_status": "UNVERIFIED",
+            "release_sha": None,
+        },
+    ],
+)
+def test_post_publish_identity_mismatch_fails(payload):
+    check = release_preflight.validate_post_publish_health(payload, GIT_SHA)
+
+    assert check.passed is False
+
+
+def test_post_publish_health_requires_exact_configured_origin_and_path():
+    opened = False
+
+    def unexpected_open(*_args, **_kwargs):
+        nonlocal opened
+        opened = True
+        raise AssertionError("unsafe URL must not be opened")
+
+    for candidate in (
+        "http://app.example/health",
+        "https://app.example/",
+        "https://app.example/health?verbose=1",
+        "https://other.example/health",
+    ):
+        with pytest.raises(RuntimeError, match="Production origin"):
+            release_preflight._read_post_publish_health(
+                candidate,
+                expected_base_url="https://app.example",
+                opener=unexpected_open,
+            )
+
+    assert opened is False
+
+
+def test_post_publish_health_rejects_redirected_response():
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def geturl(self):
+            return "https://other.example/health"
+
+        def read(self, _limit):
+            return b"{}"
+
+    with pytest.raises(RuntimeError, match="redirected"):
+        release_preflight._read_post_publish_health(
+            "https://app.example/health",
+            expected_base_url="https://app.example",
+            opener=lambda *_args, **_kwargs: Response(),
+        )
+
+
+def test_final_workspace_recheck_blocks_stale_ready_result():
+    identities = iter(
+        [
+            ReleaseIdentity(GIT_SHA, "VERIFIED"),
+            ReleaseIdentity(None, "UNVERIFIED"),
+        ]
+    )
+    report = release_preflight.run_release_ready(
+        GIT_SHA,
+        _environment(),
+        source_heads=("bl70_user_season_pass",),
+        live_database=_snapshot(),
+        evidence_fetcher=lambda *_args, **_kwargs: _passing_evidence(),
+        workspace_identity_resolver=lambda: next(identities),
+    )
+
+    assert report.passed is False
+    assert report.checks[-1].label == "FINAL WORKSPACE SHA"
+    assert report.checks[-1].passed is False

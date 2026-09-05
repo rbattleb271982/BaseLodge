@@ -121,6 +121,47 @@ def _read_git_sha(repository_path: Path | None = None) -> str | None:
     return result.stdout
 
 
+def _read_strict_clean_git_sha(
+    repository_path: Path | None = None,
+) -> str | None:
+    """Return HEAD only when Git reports no tracked or untracked changes."""
+    repository_path = (
+        Path(__file__).parent
+        if repository_path is None
+        else Path(repository_path)
+    )
+    try:
+        status = subprocess.run(
+            [
+                "git",
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "-z",
+            ],
+            cwd=repository_path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=1,
+        )
+        if status.returncode != 0 or status.stdout:
+            return None
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+            cwd=repository_path,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=1,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout
+
+
 def resolve_release_identity(
     *,
     runtime_env: str,
@@ -144,4 +185,13 @@ def resolve_candidate_release_identity(
 ) -> ReleaseIdentity:
     """Resolve the clean checkout SHA for a pre-release candidate."""
     lookup = _read_git_sha if git_lookup is None else git_lookup
+    return _validated_identity(lookup())
+
+
+def resolve_release_ready_workspace_identity(
+    *,
+    git_lookup: Callable[[], str | None] | None = None,
+) -> ReleaseIdentity:
+    """Resolve the SHA only for a workspace that is strictly clean."""
+    lookup = _read_strict_clean_git_sha if git_lookup is None else git_lookup
     return _validated_identity(lookup())

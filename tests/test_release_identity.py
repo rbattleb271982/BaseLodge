@@ -8,6 +8,7 @@ import release_identity
 from release_identity import (
     ReleaseIdentity,
     resolve_candidate_release_identity,
+    resolve_release_ready_workspace_identity,
     resolve_release_identity,
 )
 
@@ -116,6 +117,28 @@ def test_candidate_allows_untracked_attached_assets_txt(tmp_path):
     _add_untracked(repository, "attached_assets/prompt.txt")
 
     assert _candidate_identity(repository).status == "VERIFIED"
+
+
+def test_release_ready_workspace_rejects_prompt_artifacts(tmp_path):
+    repository = _temporary_git_repository(tmp_path)
+    _add_untracked(repository, "attached_assets/prompt.txt")
+
+    identity = resolve_release_ready_workspace_identity(
+        git_lookup=lambda: release_identity._read_strict_clean_git_sha(repository)
+    )
+
+    assert identity == ReleaseIdentity(sha=None, status="UNVERIFIED")
+
+
+def test_release_ready_workspace_accepts_strictly_clean_head(tmp_path):
+    repository = _temporary_git_repository(tmp_path)
+    head = _git(repository, "rev-parse", "HEAD").stdout.strip()
+
+    identity = resolve_release_ready_workspace_identity(
+        git_lookup=lambda: release_identity._read_strict_clean_git_sha(repository)
+    )
+
+    assert identity == ReleaseIdentity(sha=head, status="VERIFIED")
 
 
 def test_candidate_allows_untracked_attached_assets_md(tmp_path):
