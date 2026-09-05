@@ -20,3 +20,9 @@ Continuous worker identity is a delivery fence, not only a monitoring label. Ver
 **Why:** Post-cycle heartbeat checks leave an inter-cycle window where a replaced process can claim and send before discovering that a new process owns its stable identity.
 
 **How to apply:** Roll back pre-provider work on fence loss and make the ownership-loss category fatal. Once provider-start commits, preserve normal finalization and `delivery_unknown` handling rather than using fencing to guess whether delivery occurred.
+
+Production has the durable-outbox, reversible-policy, and worker-heartbeat schema installed, while delivery remains inline, every policy remains paused, and no worker is active.
+
+**Why:** Schema rollout was intentionally separated from application deployment, worker provisioning, and event-family cutover so that no notification behavior changed during migration.
+
+**How to apply:** Treat Production schema migration as complete. Any deployment, worker startup, unpause, enqueue-only transition, or canary remains a separate approval boundary.
