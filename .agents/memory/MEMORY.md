@@ -28,3 +28,4 @@
 - [Rate-limit storage validation](rate-limit-storage-validation.md) — validate credential-bearing limiter URIs before library initialization; Production requires native TLS Redis.
 - [Durable messaging outbox](durable-messaging-outbox.md) — enqueue with domain evidence atomically; quarantine ambiguous post-provider failures; Production cutover requires explicit worker configuration.
 - [Reversible messaging cutover](reversible-messaging-cutover.md) — route each exact event family once per transaction; rollback requires pause, full drain, and lineage-aware ambiguity controls.
+- [Worker CI process isolation](worker-ci-process-isolation.md) — standalone worker PostgreSQL tests must not share a process with the Flask-SQLAlchemy SQLite suite.

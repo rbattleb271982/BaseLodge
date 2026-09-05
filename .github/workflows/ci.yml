@@ -23,8 +23,6 @@ jobs:
       BASELODGE_PRODUCTION_DATABASE_IDENTITY_HASH: "0000000000000000000000000000000000000000000000000000000000000000"
       SESSION_SECRET: ci-only-test-secret
       BASE_URL: https://example.invalid
-      BL443_REQUIRE_POSTGRES17: "1"
-      BL442_REQUIRE_POSTGRES17: "1"
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -66,7 +64,6 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y postgresql-17
-          echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
           /usr/lib/postgresql/17/bin/initdb --version | grep -E ' 17([.]|$)'
           /usr/lib/postgresql/17/bin/pg_ctl --version | grep -E ' 17([.]|$)'
 
@@ -76,6 +73,9 @@ jobs:
           node-version: "22"
 
       - name: Run mandatory PostgreSQL 17 worker and cutover tests
+        env:
+          BL443_REQUIRE_POSTGRES17: "1"
+          BL442_REQUIRE_POSTGRES17: "1"
         run: |
           set -euo pipefail
           PATH="/usr/lib/postgresql/17/bin:$PATH" \
@@ -116,6 +116,8 @@ jobs:
             -u BASELODGE_BOOTSTRAP_DATABASE_URL \
             -u BASELODGE_REFERENCE_IMPORT_DATABASE_URL \
             -u BASELODGE_DEVELOPMENT_USER_DATABASE_URL \
+            -u BL443_REQUIRE_POSTGRES17 \
+            -u BL442_REQUIRE_POSTGRES17 \
             "$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m pytest -q \
               --junitxml=/tmp/pytest-results.xml
 
@@ -129,20 +131,18 @@ jobs:
           from pathlib import Path
           from xml.etree import ElementTree
 
-          report = Path("/tmp/pytest-results.xml")
-          root = ElementTree.parse(report).getroot()
-          postgres_cases = [
-              case
-              for case in root.iter("testcase")
-              if "_postgres" in case.attrib.get("classname", "")
-          ]
+          report = Path("/tmp/pytest-bl443-postgres17.xml")
+          postgres_cases = list(ElementTree.parse(report).getroot().iter("testcase"))
           skipped = [
               case.attrib.get("name", "<unnamed>")
               for case in postgres_cases
               if case.find("skipped") is not None
           ]
-          if not postgres_cases:
-              raise SystemExit("no PostgreSQL-specific tests were collected")
+          if len(postgres_cases) != 29:
+              raise SystemExit(
+                  f"expected 29 worker/cutover PostgreSQL tests, "
+                  f"collected {len(postgres_cases)}"
+              )
           if skipped:
               raise SystemExit(
                   "PostgreSQL-specific tests were skipped: " + ", ".join(skipped)

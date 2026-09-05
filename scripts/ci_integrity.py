@@ -110,9 +110,20 @@ SECRET_PATTERNS = (
             \s*[:=]\s*
             ["']?
             (?!\$\{|<|example|placeholder|redacted|changeme|test(?:ing)?[-_])
+            (?![A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\b)
             [A-Za-z0-9_./+@:$=-]{16,}
             """
         ),
+    ),
+)
+SAFE_GENERIC_ASSIGNMENTS = (
+    re.compile(
+        r"""(?ix)
+        \bdatabase[_-]?url\b
+        \s*[:=]\s*
+        ["']postgresql://unused\?sslmode=require["']
+        \s*[,]?\s*$
+        """
     ),
 )
 COMPILE_TARGETS = (
@@ -310,6 +321,10 @@ def scan_changed_content(
         for line in lines:
             for rule, pattern in SECRET_PATTERNS:
                 if pattern.search(line):
+                    if rule == "generic-secret-assignment" and any(
+                        safe.search(line) for safe in SAFE_GENERIC_ASSIGNMENTS
+                    ):
+                        continue
                     findings.add(Finding(path=path, rule=rule))
     return sorted(findings)
 

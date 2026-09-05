@@ -109,6 +109,35 @@ def test_synthetic_secret_fails_without_echoing_value():
     assert synthetic not in output
 
 
+def test_generic_secret_assignment_still_detects_literal_values():
+    name = "API_" + "KEY"
+    suspicious = "not-a-real-value-" + "x" * 20
+
+    findings = ci_integrity.scan_changed_content(
+        {"config.py": [f'{name} = "{suspicious}"']}
+    )
+
+    assert ci_integrity.Finding(
+        path="config.py",
+        rule="generic-secret-assignment",
+    ) in findings
+
+
+def test_generic_secret_assignment_ignores_references_and_safe_urls():
+    database_label = "database_" + "url"
+    postgres_scheme = "postgresql" + "://"
+    additions = {
+        "services/message_worker_runtime.py": [
+            "database_url=database.database_url,"
+        ],
+        "tests/test_bl443_cutover_postgres.py": [
+            f'{database_label}="{postgres_scheme}unused?sslmode=require",'
+        ],
+    }
+
+    assert ci_integrity.scan_changed_content(additions) == []
+
+
 def test_protected_signing_path_fails_without_reading_contents():
     findings = ci_integrity.scan_changed_content({
         "android/baselodge-release-key.jks": None,
@@ -215,6 +244,41 @@ def test_credential_bearing_database_url_is_redacted():
 
     assert "credential-bearing-url" in output
     assert password not in output
+
+
+def test_username_only_database_url_credential_is_detected_and_redacted():
+    username = "-".join(("synthetic", "database", "token"))
+    scheme = "postgresql" + "://"
+    line = f'DATABASE_URL="{scheme}{username}@db.invalid/test"'
+
+    output = ci_integrity.format_findings(
+        ci_integrity.scan_changed_content({"settings.py": [line]})
+    )
+
+    assert "generic-secret-assignment" in output
+    assert username not in output
+
+
+def test_ci_scopes_mandatory_postgres_to_its_dedicated_process():
+    workflow = (
+        Path(__file__).resolve().parents[1] / ".github" / "workflows" / "ci.yml"
+    ).read_text(encoding="utf-8")
+    job_environment, steps = workflow.split("    steps:\n", 1)
+    mandatory, full_suite = steps.split(
+        "      - name: Run full test suite\n", 1
+    )
+    full_suite, report = full_suite.split(
+        "      - name: Run JavaScript tests\n", 1
+    )
+
+    assert "BL443_REQUIRE_POSTGRES17" not in job_environment
+    assert "BL442_REQUIRE_POSTGRES17" not in job_environment
+    assert 'BL443_REQUIRE_POSTGRES17: "1"' in mandatory
+    assert 'BL442_REQUIRE_POSTGRES17: "1"' in mandatory
+    assert '"$GITHUB_PATH"' not in mandatory
+    assert "-u BL443_REQUIRE_POSTGRES17" in full_suite
+    assert "-u BL442_REQUIRE_POSTGRES17" in full_suite
+    assert "/tmp/pytest-bl443-postgres17.xml" in report
 
 
 def test_alembic_head_parser_requires_exactly_one_head():
