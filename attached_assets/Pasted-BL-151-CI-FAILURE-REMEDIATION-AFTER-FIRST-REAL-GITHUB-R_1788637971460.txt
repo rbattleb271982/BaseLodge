@@ -1,0 +1,150 @@
+BL-151 — CI FAILURE REMEDIATION AFTER FIRST REAL GITHUB RUN
+
+Context
+
+We just pushed the BL-151 work to GitHub and ran the real GitHub Actions workflow for exact commit:
+
+d3bf96ab1e9da513ab9616682c169b4eba878994
+
+Workflow:
+CI Test and Integrity Gates #10
+
+Both required jobs failed:
+- Tests
+- Source integrity
+
+Do not deploy.
+Do not republish.
+Do not touch Production.
+Do not mutate any authoritative database.
+Do not rewrite migration history.
+Do not weaken the required CI gates.
+Do not remove the exact-SHA release requirement.
+Do not change messaging rollout state.
+
+Your task is to diagnose and fix the CI failures caused by the current repository/workflow state, while preserving the intended BL-151 protections.
+
+KNOWN SOURCE INTEGRITY FAILURE
+
+The new repository-owned fast integrity gate failed immediately with:
+
+FAIL: integrity findings:
+services/message_worker_runtime.py: generic-secret-assignment
+tests/test_bl443_cutover_postgres.py: generic-secret-assignment
+
+Error: Process completed with exit code 1.
+
+Investigate the exact flagged assignments.
+
+Requirements:
+1. Determine whether these are actual secret exposures or false positives.
+2. If false positives, fix the scanner or add narrowly-scoped safe handling so legitimate runtime/test assignments do not fail CI.
+3. Do not broadly disable generic-secret-assignment scanning.
+4. Do not print/read actual secret values.
+5. Preserve redaction.
+6. Add or update focused tests proving:
+   - true suspicious secret assignments still fail;
+   - these known legitimate cases pass;
+   - scanner does not become materially weaker.
+
+KNOWN TEST JOB FAILURE
+
+The mandatory PostgreSQL 17 worker/cutover test step PASSED.
+
+The subsequent full test suite then produced a very large number of failures/errors across the suite. The first visible setup error was:
+
+test_push_register_ios_valid_csrf_succeeds
+
+The failure pattern was broad, with many F and E results across the suite.
+
+This is different from the known local baseline where the full suite had only 13 pre-existing failures.
+
+Investigate why the GitHub Actions full-suite environment is causing widespread failures.
+
+Focus on:
+- CI environment variables
+- PostgreSQL service/database setup
+- whether DATABASE_URL / test DB variables are leaking from the mandatory PostgreSQL worker/cutover step into the full suite
+- whether tests that normally expect SQLite are being forced onto PostgreSQL
+- test isolation
+- environment setup ordering
+- production-aligned CI environment creation
+- whether the full suite is unintentionally running against the wrong backend/config
+- whether schema/bootstrap state is persisting into later tests
+
+Do NOT “fix” this by:
+- skipping large groups of tests
+- marking failures xfail
+- weakening assertions
+- changing application behavior just to satisfy CI
+- rewriting historical Alembic migrations
+- removing the PostgreSQL worker/cutover coverage
+- deleting the full-suite test step
+
+Desired CI contract
+
+Keep the required stable GitHub check names:
+- Tests
+- Source integrity
+
+The Tests job should continue to include:
+- mandatory PostgreSQL 17 worker/cutover coverage
+- the repository’s normal full pytest suite under the appropriate test environment
+
+The Source integrity job should continue to include:
+- repository-owned fast integrity gate
+- secret/conflict/integrity checks
+- dependency sync
+- compilation
+- release identity
+- Alembic graph
+- repo cleanliness as appropriate to CI
+
+Release safety must remain:
+- exact lowercase 40-character approved SHA
+- exact GitHub Actions provenance
+- both required checks must complete successfully
+- manual publish only
+- no automatic deployment
+
+Verification
+
+After fixing:
+
+1. Run the focused tests for the scanner/integrity changes.
+2. Reproduce the GitHub Tests job locally as closely as practical.
+3. Run the mandatory PostgreSQL 17 worker/cutover tests.
+4. Run the full pytest suite under the same environment the GitHub workflow will use.
+5. Confirm the result is back to the known repository baseline, not hundreds of new failures.
+6. Run:
+   python -m scripts.ci_integrity fast
+7. Run npm test.
+8. Run Python compilation.
+9. Run git diff --check.
+10. Confirm exactly one Alembic head and report it.
+11. Do not deploy or publish.
+
+Git handling
+
+Do not use git add -A or git add .
+Stage only the files you intentionally change.
+
+If the remediation is clean, commit it with a focused commit message.
+
+Final report must include:
+- exact root cause of Source integrity failure
+- exact root cause of widespread Tests failure
+- files changed
+- tests run and counts
+- full-suite result
+- whether the 13 known baseline failures remain, disappear, or change
+- exact commit SHA
+- confirmation that nothing was deployed
+- whether GitHub should now be rerun for the new commit
+
+Stop if the fix would require:
+- migration-history surgery
+- Production mutation
+- weakening the CI contract
+- broad test suppression
+- new secrets or privileged credentials

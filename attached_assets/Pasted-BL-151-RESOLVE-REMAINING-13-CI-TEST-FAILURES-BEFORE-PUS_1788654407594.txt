@@ -1,0 +1,169 @@
+BL-151 — RESOLVE REMAINING 13 CI TEST FAILURES BEFORE PUSH
+
+Context
+
+The CI contamination/scanner remediation is complete in commit:
+
+c77ffb4596ab8d0c6b4f8d71f111bba2d54fe7bd
+Fix CI scanner and test process isolation
+
+Do NOT push yet.
+
+The remediation restored the full suite from hundreds of failures to the known repository baseline:
+
+1,763 passed
+39 skipped
+13 failed
+
+The 13 remaining failures are currently classified as:
+
+- 5 stale migration-head expectations
+- 3 authentication response expectations
+- 5 messaging behavior expectations
+
+The GitHub `Tests` required check cannot pass while these 13 failures remain, so resolve them now before we push another commit.
+
+GOAL
+
+Get the normal CI full suite to:
+
+- zero failures caused by stale/incorrect tests or current application regressions;
+- without weakening CI;
+- without suppressing failures;
+- without changing Production state.
+
+Do not use:
+- skip
+- xfail
+- broad exclusions
+- reduced test scope
+- CI allow-failure behavior
+- migration-history rewrites
+- Production mutations
+- messaging rollout activation
+
+PHASE A — CLASSIFY ALL 13 FAILURES
+
+For every failing test, report:
+
+1. exact test name
+2. exact failure reason
+3. whether:
+   A. test expectation is stale and application behavior is correct, or
+   B. application behavior regressed and code must be fixed
+4. evidence for that classification from current repository contracts, migrations, surrounding tests, or existing implementation
+
+Do not assume the test is wrong merely because it is old.
+
+MIGRATION-HEAD FAILURES — 5
+
+Known current Alembic head is:
+
+bl442_worker_heartbeat
+
+For each migration-head failure:
+
+- determine what head the test currently expects;
+- determine whether the expectation is simply stale;
+- if stale, update only the expectation/assertion to the current legitimate head;
+- do not edit historical migrations;
+- do not add/downgrade/rewrite migration revisions;
+- do not mutate Development or Production databases.
+
+AUTHENTICATION RESPONSE FAILURES — 3
+
+Inspect the current intended authentication API behavior and the failing expectations.
+
+For each:
+- determine whether the application response contract or the test is wrong;
+- preserve current security/privacy behavior;
+- preserve intentional 404 vs 403 behavior where existence leakage matters;
+- do not broadly rewrite auth handling;
+- make the smallest correct fix.
+
+MESSAGING BEHAVIOR FAILURES — 5
+
+Messaging operational rollout remains PAUSED.
+
+Current messaging architecture includes:
+- outbox infrastructure
+- reversible cutover infrastructure
+- worker heartbeat infrastructure
+- inline/paused policy state as currently implemented
+
+Do not activate the worker.
+Do not alter Production messaging policy.
+Do not send messages.
+
+For each failing test:
+- determine whether its expectation predates the current messaging architecture;
+- update stale expectations only when current implementation is intentional and covered by newer architecture/tests;
+- if application behavior is actually wrong, fix minimally;
+- preserve reversible cutover and paused operational state.
+
+VERIFICATION
+
+After resolving the 13 failures:
+
+1. Run focused tests for every changed area.
+2. Run the mandatory PostgreSQL 17 worker/cutover tests.
+3. Run the complete normal pytest suite under the same environment GitHub Actions uses.
+4. Require zero failures before considering this step complete.
+5. Run:
+   python -m scripts.ci_integrity fast
+6. Run:
+   npm test
+7. Run Python compilation.
+8. Run:
+   git diff --check
+9. Confirm exactly one Alembic head.
+10. Confirm the workspace contains no accidental/unrelated changes.
+
+If any of the 13 failures cannot safely be resolved without:
+- Production mutation
+- migration-history surgery
+- weakening security/privacy behavior
+- activating messaging
+- weakening CI
+
+STOP and report the blocker instead of forcing green.
+
+GIT
+
+Do not use:
+git add -A
+git add .
+
+Stage only intentional files.
+
+If and only if the full suite reaches zero failures and all other verification passes:
+
+- commit the remediation
+- do NOT push
+- report the exact new commit SHA
+
+FINAL REPORT
+
+Include:
+
+- all 13 original failing test names grouped by category
+- stale-test vs real-regression classification
+- exact fixes made
+- files changed
+- focused test counts
+- PostgreSQL worker/cutover result
+- complete pytest result
+- integrity-gate result
+- npm test result
+- Alembic head
+- exact commit SHA
+- confirmation nothing was pushed
+- confirmation nothing was deployed
+- confirmation Production databases and messaging state were untouched
+- explicit verdict:
+
+BL-151 CI LOCALLY GREEN — READY TO PUSH
+
+or
+
+BL-151 CI STILL BLOCKED — DO NOT PUSH
