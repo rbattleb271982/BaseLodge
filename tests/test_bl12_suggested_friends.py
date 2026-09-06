@@ -647,7 +647,7 @@ class TestPushCooldown:
             rid, jid, bid = richard.id, jon.id, bob.id
 
         _login(client, rid)
-        with patch('app.enqueue_messaging_event') as mock_push:
+        with patch('app.emit_messaging_event') as mock_push:
             form_post(client, f'/friends/{jid}/suggest',
                       {'suggested_user_ids': bid})
             mock_push.assert_not_called()
@@ -672,7 +672,7 @@ class TestPushCooldown:
 
         _login(client, rid)
         with patch(
-            'app.enqueue_messaging_event',
+            'app.emit_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ) as mock_push:
             form_post(client, f'/friends/{jid}/suggest',
@@ -692,12 +692,43 @@ class TestPushCooldown:
 
         _login(client, rid)
         with patch(
-            'app.enqueue_messaging_event',
+            'app.emit_messaging_event',
             return_value=SimpleNamespace(status='sent'),
         ) as mock_push:
             form_post(client, f'/friends/{jid}/suggest',
                       {'suggested_user_ids': aid})
             mock_push.assert_called_once()
+
+    def test_failed_inline_push_does_not_start_cooldown(self, client):
+        """A failed inline attempt remains eligible for the next request."""
+        with _app.app_context():
+            richard = _make_user('Richard')
+            jon = _make_user('Jon')
+            alice = _make_user('AliceFailedPush')
+            _make_friend(richard.id, jon.id)
+            _make_friend(richard.id, alice.id)
+            _db.session.commit()
+            rid, jid, aid = richard.id, jon.id, alice.id
+
+        _login(client, rid)
+        with patch(
+            'app.emit_messaging_event',
+            return_value=SimpleNamespace(status='failed'),
+        ) as mock_push:
+            form_post(client, f'/friends/{jid}/suggest',
+                      {'suggested_user_ids': aid})
+            mock_push.assert_called_once()
+
+        with _app.app_context():
+            assert FriendSuggestion.query.filter_by(
+                suggester_id=rid,
+                recipient_id=jid,
+                suggested_user_id=aid,
+            ).one()
+            assert SuggestionPushCooldown.query.filter_by(
+                suggester_id=rid,
+                recipient_id=jid,
+            ).first() is None
 
 
 # ---------------------------------------------------------------------------

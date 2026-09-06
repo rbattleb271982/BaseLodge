@@ -48,7 +48,7 @@ def test_mountains_hides_education_after_account_has_seen_it(client):
 
 def test_filter_education_endpoint_requires_authentication(client):
     response = client.post("/api/mountains/filter-education-seen")
-    assert response.status_code == 302
+    assert response.status_code == 403
 
 
 def test_filter_education_endpoint_requires_valid_csrf(client):

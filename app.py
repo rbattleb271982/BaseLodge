@@ -10492,6 +10492,7 @@ def submit_suggestions(friend_id):
             or cooldown_row.last_sent_at < now - timedelta(hours=_SUGGESTION_PUSH_COOLDOWN_HOURS)
         )
         push_intent = None
+        push_plan = False
         uses_outbox = False
         if send_push:
             push_intent = {
@@ -10509,7 +10510,8 @@ def submit_suggestions(friend_id):
                 },
                 "source_route": "suggest_connections_submit",
             }
-            uses_outbox = _stage_route_messaging_events(push_intent)
+            push_plan = _stage_route_messaging_events(push_intent)
+            uses_outbox = bool(push_plan[0])
             if uses_outbox:
                 if cooldown_row is None:
                     db.session.add(SuggestionPushCooldown(
@@ -10525,7 +10527,7 @@ def submit_suggestions(friend_id):
         if push_intent is not None:
             try:
                 push_results = _finish_route_messaging_events(
-                    uses_outbox, push_intent
+                    push_plan, push_intent
                 )
                 # Inline mode updates cooldown only on success or skip. Outbox
                 # mode committed the cooldown atomically with the queued event.

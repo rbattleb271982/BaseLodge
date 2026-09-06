@@ -204,7 +204,7 @@ def test_same_user_second_acceptance_sends_no_new_notification(client, token_set
         db.session.commit()
     user_id = token_setup["joiner1_id"]
 
-    with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit, \
+    with unittest.mock.patch("app.emit_messaging_event") as mock_emit, \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, user_id)
@@ -280,7 +280,7 @@ def test_trip_invite_accepted_notifies_owner(client, token_setup):
     owner_id  = token_setup["owner_id"]
     joiner_id = token_setup["joiner1_id"]
 
-    with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit, \
+    with unittest.mock.patch("app.emit_messaging_event") as mock_emit, \
          unittest.mock.patch("app.emit_trip_invite_accepted_activity"), \
          unittest.mock.patch("app.emit_friend_joined_trip_activities"):
         _login(client, joiner_id)
@@ -311,7 +311,7 @@ def test_trip_planning_post_created_notifies_other_members(client):
         m2_id    = member2.id
 
     _login(client, m1_id)
-    with unittest.mock.patch("app.enqueue_messaging_event") as mock_emit:
+    with unittest.mock.patch("app.emit_messaging_event") as mock_emit:
         json_post(client, f"/api/trip/{trip_id}/planning-posts",
                   {"category": "Other", "body": "What bindings?"})
 
@@ -322,6 +322,4 @@ def test_trip_planning_post_created_notifies_other_members(client):
     recipient_ids = [c.kwargs.get("recipient_user_id") for c in post_created_calls]
 
     assert m1_id not in recipient_ids, "Author must not receive their own post notification"
-    assert owner_id in recipient_ids or m2_id in recipient_ids, (
-        "Other accepted members must receive TRIP_PLANNING_POST_CREATED"
-    )
+    assert sorted(recipient_ids) == sorted([owner_id, m2_id])

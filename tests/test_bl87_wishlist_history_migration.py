@@ -63,7 +63,7 @@ def test_revision_is_linear_single_head_and_within_identifier_limit():
     assert len(migration.revision) <= 32
     assert script.get_revision("bl70_user_season_pass").down_revision == migration.revision
     assert [revision.revision for revision in script.get_revisions("heads")] == [
-        "bl70_user_season_pass"
+        "bl442_worker_heartbeat"
     ]
 
 

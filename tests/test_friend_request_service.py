@@ -259,7 +259,7 @@ class TestCancelFriendInvite:
             inv_id = self._make_pending_invite(users['A'], users['B'])
 
         rv = json_delete(client, f'/api/friends/invite/{inv_id}')
-        assert rv.status_code in (401, 302)
+        assert rv.status_code == 403
 
     def test_cancel_already_resolved_rejected(self, client, users):
         with app.app_context():
@@ -597,4 +597,4 @@ class TestUserConnectEndpoint:
 
     def test_connect_requires_auth(self, client, users):
         rv = json_post(client, f'/api/users/{users["B"]}/connect')
-        assert rv.status_code in (401, 302)
+        assert rv.status_code == 403
