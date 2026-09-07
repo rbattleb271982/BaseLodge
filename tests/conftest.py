@@ -21,6 +21,7 @@ CSRF pattern:
 """
 import os
 import secrets as _secrets
+import time
 from datetime import datetime, timedelta, date
 
 import pytest
@@ -246,9 +247,20 @@ def _add_participant(trip, user, status=GuestStatus.INTERESTED):
 
 def _login(client, user_id, csrf=_TEST_CSRF):
     """Inject Flask-Login session + CSRF token without going through /auth."""
+    with app.test_request_context(
+        "/",
+        environ_base={
+            "REMOTE_ADDR": "127.0.0.1",
+            "HTTP_USER_AGENT": "Werkzeug/3.1.4",
+        },
+    ):
+        session_identifier = app.login_manager._session_identifier_generator()
     with client.session_transaction() as sess:
         sess["_user_id"] = str(user_id)
         sess["_fresh"] = True
+        sess["_id"] = session_identifier
+        sess["_bl_authenticated_at"] = time.time()
+        sess["_last_active_stamp"] = time.time()
         sess["_csrf_token"] = csrf
 
 

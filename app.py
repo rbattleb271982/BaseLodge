@@ -16,6 +16,7 @@ SYSTEM OF RECORD (as of 2026-01-15):
 """
 
 import os
+import math
 import secrets
 import time
 import json
@@ -341,6 +342,7 @@ if is_production:
 def begin_request_observability():
     """Create server-owned request correlation before all other request hooks."""
     begin_request()
+    _enforce_authenticated_session_age()
 
 # ── Response compression ───────────────────────────────────────────────────
 # Gzip HTML/JSON responses — typically 60-70% size reduction on page HTML.
@@ -670,6 +672,47 @@ _PRESERVED_AUTH_SESSION_KEYS = (
     "post_onboarding_redirect",
 )
 
+_AUTHENTICATED_SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+_AUTHENTICATED_SESSION_KEY = "_bl_authenticated_at"
+
+
+def _authenticated_session_now():
+    return time.time()
+
+
+def _authenticated_session_timestamp_is_valid(value, *, now=None):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    timestamp = float(value)
+    if not math.isfinite(timestamp) or timestamp <= 0:
+        return False
+    current_time = _authenticated_session_now() if now is None else now
+    if timestamp > current_time:
+        return False
+    return current_time - timestamp < _AUTHENTICATED_SESSION_MAX_AGE_SECONDS
+
+
+def _discard_expired_authenticated_session():
+    """Drop only the normal login so a valid remember cookie can restore it."""
+    for key in (
+        "_user_id",
+        "_fresh",
+        "_id",
+        _AUTHENTICATED_SESSION_KEY,
+        "_auth_session_logged",
+        "_last_active_stamp",
+        "_bl_auth_method",
+    ):
+        session.pop(key, None)
+
+
+def _enforce_authenticated_session_age():
+    """Reject invalid normal-session metadata before current_user is loaded."""
+    if "_user_id" in session and not _authenticated_session_timestamp_is_valid(
+        session.get(_AUTHENTICATED_SESSION_KEY)
+    ):
+        _discard_expired_authenticated_session()
+
 
 def _trusted_local_redirect(value):
     """Return a local absolute-path redirect or None."""
@@ -686,7 +729,9 @@ def _trusted_local_redirect(value):
     return target
 
 
-def _establish_authenticated_session(user, *, remember, auth_method):
+def _establish_authenticated_session(
+    user, *, remember, auth_method, update_remember_cookie=True
+):
     """Create a fresh login while retaining only approved invite context."""
     preserved = {}
     for key in _PRESERVED_AUTH_SESSION_KEYS:
@@ -698,15 +743,20 @@ def _establish_authenticated_session(user, *, remember, auth_method):
 
     session.clear()
     session.update(preserved)
-    login_user(user, remember=remember, fresh=True)
-    if not remember:
+    login_user(
+        user,
+        remember=remember if update_remember_cookie else False,
+        fresh=True,
+    )
+    if update_remember_cookie and not remember:
         # A non-remembered login must also delete any remember cookie left by a
         # prior account in this browser; login_user(..., remember=False) alone
         # does not clear an existing cookie.
         session["_remember"] = "clear"
     session["_bl_auth_method"] = auth_method
+    session[_AUTHENTICATED_SESSION_KEY] = _authenticated_session_now()
     session["_last_active_stamp"] = time.time()
-    session.permanent = True
+    session.permanent = bool(remember)
     session.modified = True
 
 
@@ -721,6 +771,9 @@ def _on_user_loaded_from_cookie(sender, user, **kwargs):
     Fires once per request where the cookie — not the session — is the auth source.
     Does NOT log passwords, tokens, or cookie contents.
     """
+    session["_bl_auth_method"] = "remember_cookie"
+    session[_AUTHENTICATED_SESSION_KEY] = _authenticated_session_now()
+    session.permanent = True
     try:
         _xff = (request.headers.get("X-Forwarded-For") or "")[:80]
         app.logger.info(
@@ -735,7 +788,6 @@ def _on_user_loaded_from_cookie(sender, user, **kwargs):
             request.path,
             request.method,
         )
-        session["_bl_auth_method"] = "remember_cookie"
     except Exception:
         pass
 
@@ -1360,11 +1412,6 @@ def before_request_handlers():
                 app._bl_qc_registered = True
             except Exception:
                 pass
-
-    # Make sessions permanent for Replit iframe compatibility. Protected action
-    # routes defer all session writes until their handler has validated CSRF.
-    if not _defer_request_side_effects:
-        session.permanent = True
 
     # ── Gate skip list ────────────────────────────────────────────────────────
     # These paths bypass the nav gate and are handled by their own logic.
@@ -16702,7 +16749,7 @@ def logout():
     # tags from the previous session.
     for _sk in ("invite_token", "post_login_redirect", "post_onboarding_redirect",
                 "trip_invite_token", "_auth_session_logged", "_last_active_stamp",
-                "_bl_auth_method"):
+                 "_bl_auth_method", _AUTHENTICATED_SESSION_KEY):
         session.pop(_sk, None)
 
     session['ph_reset'] = True
@@ -16936,6 +16983,7 @@ def delete_account():
     user       = current_user._get_current_object()
     user_id    = user.id
     user_email = user.email
+    session_was_permanent = session.permanent
 
     confirm_email       = request.form.get("confirm_email", "").strip()
     confirmation_matched = confirm_email.lower() == user_email.lower()
@@ -17202,8 +17250,9 @@ def delete_account():
             if _fresh:
                 _establish_authenticated_session(
                     _fresh,
-                    remember=True,
+                    remember=session_was_permanent,
                     auth_method="delete_account_recovery",
+                    update_remember_cookie=False,
                 )
         except Exception:
             pass

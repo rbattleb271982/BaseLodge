@@ -339,12 +339,21 @@ def test_nonfresh_delete_reauth_stays_fresh_when_deletion_rolls_back(
     )
 
     assert response.status_code == 302
+    set_cookie_headers = response.headers.getlist("Set-Cookie")
+    session_header = next(
+        header for header in set_cookie_headers if header.startswith("session=")
+    )
+    assert "Expires=" not in session_header
+    assert "Max-Age=" not in session_header
+    assert client.get_cookie("remember_token") is None
     with app.app_context():
         assert db.session.get(User, s["user_id"]) is not None
         assert SkiTrip.query.get(s["owned_trip_id"]) is not None
     with client.session_transaction() as session:
         assert session["_fresh"] is True
         assert "_user_id" in session
+        assert session["_bl_authenticated_at"] > 0
+        assert session.permanent is False
 
 
 def test_nonfresh_delete_reauthentication_is_rate_limited(rate_limit_client):

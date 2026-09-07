@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import time
 from unittest.mock import patch
 
 import pytest
@@ -113,6 +114,7 @@ def test_logout_valid_post_preserves_invite_return_and_transient_cleanup(
         session["_auth_session_logged"] = True
         session["_last_active_stamp"] = 123.0
         session["_bl_auth_method"] = "email"
+        session["_bl_authenticated_at"] = time.time()
 
     with patch("app.ph_analytics.track"):
         response = form_post(
@@ -131,6 +133,7 @@ def test_logout_valid_post_preserves_invite_return_and_transient_cleanup(
             "_auth_session_logged",
             "_last_active_stamp",
             "_bl_auth_method",
+            "_bl_authenticated_at",
         ):
             assert key not in session
 
