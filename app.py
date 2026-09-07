@@ -22,6 +22,7 @@ import time
 import json
 import hashlib
 import hmac
+from contextvars import ContextVar
 import jwt
 import httpx
 from datetime import datetime, date, timedelta, timezone
@@ -113,6 +114,7 @@ from flask_login import (
     logout_user,
     user_loaded_from_cookie,
 )
+from itsdangerous import BadData, TimestampSigner, URLSafeTimedSerializer
 from functools import wraps, lru_cache
 from flask_migrate import Migrate
 from flask_limiter import Limiter
@@ -639,7 +641,154 @@ app.config.update(
 # When disabled: zero overhead — no logs, no JS cost.
 app.config["BL_NAV_DEBUG"] = os.environ.get("BL_NAV_DEBUG", "0").strip() == "1"
 
-login_manager = LoginManager()
+_REMEMBER_TOKEN_ENVELOPE_VERSION = 1
+_REMEMBER_TOKEN_SIGNING_SALT = "baselodge-remember-token-v1"
+_REMEMBER_TOKEN_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
+_remember_token_signing_timestamp = ContextVar(
+    "remember_token_signing_timestamp",
+    default=None,
+)
+
+
+def _remember_token_now():
+    return time.time()
+
+
+class _RememberTokenTimestampSigner(TimestampSigner):
+    """Use the application clock hook for deterministic boundary validation."""
+
+    def get_timestamp(self):
+        timestamp = _remember_token_signing_timestamp.get()
+        if timestamp is None:
+            timestamp = _remember_token_now()
+        return int(timestamp)
+
+
+def _remember_token_serializer():
+    return URLSafeTimedSerializer(
+        current_app.config["SECRET_KEY"],
+        salt=_REMEMBER_TOKEN_SIGNING_SALT,
+        signer=_RememberTokenTimestampSigner,
+        signer_kwargs={"digest_method": hashlib.sha256},
+    )
+
+
+def _encode_timed_remember_identity(identity, *, issued_at=None):
+    issuance = _remember_token_now() if issued_at is None else issued_at
+    if (
+        isinstance(issuance, bool)
+        or not isinstance(issuance, (int, float))
+        or not math.isfinite(issuance)
+        or issuance <= 0
+    ):
+        raise ValueError("Remember-token issuance time must be finite and positive")
+    issuance = float(issuance)
+    context_token = _remember_token_signing_timestamp.set(issuance)
+    try:
+        return _remember_token_serializer().dumps(
+            {
+                "version": _REMEMBER_TOKEN_ENVELOPE_VERSION,
+                "identity": str(identity),
+                "issued_at": issuance,
+                "nonce": secrets.token_urlsafe(16),
+            }
+        )
+    finally:
+        _remember_token_signing_timestamp.reset(context_token)
+
+
+def _decode_timed_remember_identity(value):
+    try:
+        payload, signed_at = _remember_token_serializer().loads(
+            value,
+            return_timestamp=True,
+        )
+        if not isinstance(payload, dict):
+            return None
+        if type(payload.get("version")) is not int:
+            return None
+        if payload["version"] != _REMEMBER_TOKEN_ENVELOPE_VERSION:
+            return None
+        identity = payload.get("identity")
+        if not isinstance(identity, str) or not identity:
+            return None
+        nonce = payload.get("nonce")
+        if not isinstance(nonce, str) or not 16 <= len(nonce) <= 64:
+            return None
+        issued_timestamp = payload.get("issued_at")
+        if (
+            isinstance(issued_timestamp, bool)
+            or not isinstance(issued_timestamp, (int, float))
+            or not math.isfinite(issued_timestamp)
+            or issued_timestamp <= 0
+        ):
+            return None
+        issued_timestamp = float(issued_timestamp)
+        if int(issued_timestamp) != int(signed_at.timestamp()):
+            return None
+        now = _remember_token_now()
+        if not math.isfinite(now) or issued_timestamp > now:
+            return None
+        if now - issued_timestamp >= _REMEMBER_TOKEN_MAX_AGE_SECONDS:
+            return None
+        return identity
+    except (BadData, TypeError, ValueError, OSError, OverflowError):
+        return None
+
+
+class BaseLodgeLoginManager(LoginManager):
+    """Preserve Flask-Login lifecycle with a server-timed remember envelope."""
+
+    def _set_cookie(self, response):
+        config = current_app.config
+        cookie_name = config.get("REMEMBER_COOKIE_NAME", "remember_token")
+        domain = config.get("REMEMBER_COOKIE_DOMAIN")
+        path = config.get("REMEMBER_COOKIE_PATH", "/")
+        secure = config.get("REMEMBER_COOKIE_SECURE", False)
+        httponly = config.get("REMEMBER_COOKIE_HTTPONLY", True)
+        samesite = config.get("REMEMBER_COOKIE_SAMESITE")
+        issued_at = _remember_token_now()
+        expires = datetime.fromtimestamp(
+            math.ceil(issued_at + _REMEMBER_TOKEN_MAX_AGE_SECONDS),
+            tz=timezone.utc,
+        )
+        response.set_cookie(
+            cookie_name,
+            value=_encode_timed_remember_identity(
+                session["_user_id"],
+                issued_at=issued_at,
+            ),
+            expires=expires,
+            domain=domain,
+            path=path,
+            secure=secure,
+            httponly=httponly,
+            samesite=samesite,
+        )
+
+    def _load_user_from_remember_cookie(self, cookie):
+        identity = _decode_timed_remember_identity(cookie)
+        if identity is None:
+            session["_remember"] = "clear"
+            return None
+
+        session["_user_id"] = identity
+        session["_fresh"] = False
+        user = self._user_callback(identity) if self._user_callback else None
+        if user is None:
+            session.pop("_user_id", None)
+            session.pop("_fresh", None)
+            session["_remember"] = "clear"
+            return None
+
+        user_loaded_from_cookie.send(
+            current_app._get_current_object(),
+            user=user,
+        )
+        return user
+
+
+login_manager = BaseLodgeLoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth"
 login_manager.login_message = None
