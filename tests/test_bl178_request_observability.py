@@ -87,7 +87,12 @@ def test_unhandled_error_emits_one_safe_structured_event(client, monkeypatch, ca
     events = _parse_events(captured.out)
 
     assert response.status_code == 500
-    assert response.mimetype == "text/html"
+    assert response.mimetype == "application/json"
+    assert response.get_json() == {
+        "error": "internal_server_error",
+        "message": "An unexpected error occurred. Please try again.",
+        "request_id": response.headers[REQUEST_ID_HEADER],
+    }
     assert response.headers[REQUEST_ID_HEADER]
     assert len(events) == 1
     event = events[0]

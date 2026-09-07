@@ -187,6 +187,7 @@ from services.friends_trips_paging import (
 from services.request_observability import (
     begin_request,
     emit_unhandled_error,
+    ensure_request_context,
     finish_response,
 )
 from services.log_privacy import (
@@ -1041,6 +1042,7 @@ def health_check():
         }), 200
     except Exception as e:
         app.logger.error(f"Health check failed: {e}")
+        emit_unhandled_error(e, 500)
         return jsonify({
             "status": "unhealthy",
             "database": "disconnected",
@@ -3526,6 +3528,23 @@ ICONS_VERSION     = _asset_version("static/icons/favicon-32x32.png")
 # ============================================================================
 # ERROR HANDLERS - Must be registered at module level, not inside functions
 # ============================================================================
+def unexpected_server_error_response(error):
+    """Return one safely negotiated unexpected-error response and event."""
+    emit_unhandled_error(error, 500)
+    wants_json = (
+        request.path.startswith("/api/")
+        or request.is_json
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if wants_json:
+        return jsonify({
+            "error": "internal_server_error",
+            "message": "An unexpected error occurred. Please try again.",
+            "request_id": ensure_request_context(),
+        }), 500
+    return render_template("500.html"), 500
+
+
 @app.errorhandler(404)
 def not_found_error(error):
     """Handle 404 Not Found errors with user-friendly template."""
@@ -3534,13 +3553,12 @@ def not_found_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     """Handle internal server errors without exposing exception values."""
-    emit_unhandled_error(error)
     db.session.rollback()
-    return render_template("500.html"), 500
+    return unexpected_server_error_response(error)
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Handle all exceptions with full traceback logging (except HTTP errors)."""
+    """Handle unexpected exceptions while preserving expected HTTP errors."""
     from werkzeug.exceptions import HTTPException
     
     # Don't catch HTTP errors like 404 - let them return normally
@@ -3548,12 +3566,12 @@ def handle_exception(e):
         if e.code == 404:
             return render_template("404.html"), 404
         if e.code == 500:
-            emit_unhandled_error(e, 500)
+            db.session.rollback()
+            return unexpected_server_error_response(e)
         return e
     
-    emit_unhandled_error(e)
     db.session.rollback()
-    return render_template("500.html"), 500
+    return unexpected_server_error_response(e)
 
 def get_existing_invite_token(user):
     """Return the user's reusable permanent invite token without creating one."""
@@ -17589,10 +17607,8 @@ def init_db_http():
                 "details": messages
             }), 200
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": f"Failed to initialize database: {str(e)}"
-        }), 500
+        db.session.rollback()
+        return unexpected_server_error_response(e)
 
 
 MOUNTAIN_NAME_ALIASES = {
@@ -17756,13 +17772,8 @@ def backfill_resort_ids_endpoint():
         }), 200
         
     except Exception as e:
-        import traceback
         db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": f"Backfill failed: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/seed-test-users", methods=["POST"])
@@ -17794,12 +17805,8 @@ def seed_test_users_endpoint():
             "details": results
         }), 200
     except Exception as e:
-        import traceback
-        return jsonify({
-            "status": "error",
-            "message": f"Failed to seed test users: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        db.session.rollback()
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/seed-narrative-states", methods=["POST"])
@@ -17831,12 +17838,8 @@ def seed_narrative_states_endpoint():
             "details": results
         }), 200
     except Exception as e:
-        import traceback
-        return jsonify({
-            "status": "error",
-            "message": f"Failed to seed narrative state users: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        db.session.rollback()
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/seed-screenshot-data", methods=["POST"])
@@ -17869,12 +17872,8 @@ def seed_screenshot_data_endpoint():
             "details": results,
         }), 200
     except Exception as e:
-        import traceback
-        return jsonify({
-            "status":    "error",
-            "message":   f"Screenshot seed failed: {str(e)}",
-            "traceback": traceback.format_exc(),
-        }), 500
+        db.session.rollback()
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/seed-screenshot-expansion", methods=["POST"])
@@ -17905,12 +17904,8 @@ def seed_screenshot_expansion_endpoint():
             "details": results,
         }), 200
     except Exception as e:
-        import traceback
-        return jsonify({
-            "status":    "error",
-            "message":   f"Screenshot expansion seed failed: {str(e)}",
-            "traceback": traceback.format_exc(),
-        }), 500
+        db.session.rollback()
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/backfill-planning-timestamp", methods=["POST"])
@@ -17943,12 +17938,8 @@ def backfill_planning_timestamp_endpoint():
             "details": results
         }), 200
     except Exception as e:
-        import traceback
-        return jsonify({
-            "status": "error",
-            "message": f"Backfill failed: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        db.session.rollback()
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/backfill-primary-rider-type", methods=["POST"])
@@ -17988,13 +17979,8 @@ def backfill_primary_rider_type_endpoint():
             }
         }), 200
     except Exception as e:
-        import traceback
         db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": f"Backfill failed: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/backfill-organizers-as-participants", methods=["POST"])
@@ -18042,13 +18028,8 @@ def backfill_organizers_as_participants():
             }
         }), 200
     except Exception as e:
-        import traceback
         db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": f"Backfill failed: {str(e)}",
-            "traceback": traceback.format_exc()
-        }), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/run-backfill-last-active", methods=["GET", "POST"])
@@ -18164,7 +18145,7 @@ def run_backfill_last_active():
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"status": "error", "reason": str(exc)}), 500
+        return unexpected_server_error_response(exc)
 
     # ── Post-write verification ───────────────────────────────────────────────
     now = datetime.utcnow()
@@ -19543,13 +19524,8 @@ def backfill_country_codes():
             "total_resorts": len(resorts)
         }), 200
     except Exception as e:
-        import traceback
         db.session.rollback()
-        return jsonify({
-            "status": "error",
-            "message": str(e),
-            "traceback": traceback.format_exc()
-        }), 500
+        return unexpected_server_error_response(e)
 
 
 
@@ -20298,11 +20274,8 @@ def admin_export_resorts_excel():
             download_name=filename
         )
     except Exception as e:
-        # Log the error for admin debugging
-        app.logger.error(f"Excel Export Error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'status': 'error', 'message': f'Export failed: {str(e)}'}), 500
+        app.logger.exception("Excel export failed")
+        return unexpected_server_error_response(e)
 
 
 @app.route("/api/admin/resorts/update-pass-brand", methods=["POST"])
@@ -20736,7 +20709,7 @@ def admin_import_resorts_excel():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/api/admin/resorts/<int:resort_id>", methods=["PUT"])
@@ -20892,7 +20865,7 @@ def admin_bulk_activate_resorts():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/api/admin/resorts/bulk-deactivate", methods=["POST"])
@@ -20923,7 +20896,7 @@ def admin_bulk_deactivate_resorts():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/api/admin/resorts/merge", methods=["POST"])
@@ -21007,7 +20980,7 @@ def admin_merge_resorts():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/api/admin/resorts/add", methods=["POST"])
@@ -21110,7 +21083,7 @@ def admin_add_resort():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/api/admin/resorts/export-canonical", methods=["POST"])
@@ -21160,7 +21133,7 @@ def admin_export_canonical():
             'message': f'Exported {len(resorts)} resorts to canonical_resorts.json'
         })
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/admin/sync-from-canonical", methods=["GET", "POST"])
@@ -21312,7 +21285,7 @@ def admin_sync_from_canonical():
         })
     except Exception as e:
         db.session.rollback()
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 # TEMP DEBUG ROUTE — safe to remove after use
@@ -21413,7 +21386,7 @@ def admin_resorts_duplicates():
             "groups": result_groups
         })
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return unexpected_server_error_response(e)
 
 
 @app.route("/download")
@@ -22288,8 +22261,10 @@ def admin_retry_failed_events():
             ), {"cutoff": _stale_cutoff}).scalar() or 0
 
         except Exception as _qe:
-            current_app.logger.exception("[RetryRunner] dry-run query failed: %s", _qe)
-            return jsonify({"error": f"query failed: {_qe}"}), 500
+            current_app.logger.exception(
+                "Retry runner dry-run query failed", exc_info=True
+            )
+            return unexpected_server_error_response(_qe)
 
         return jsonify({
             "execute_enabled":    RETRY_EXECUTION_ENABLED,
@@ -22326,8 +22301,10 @@ def admin_retry_failed_events():
             db.text(_RETRY_ELIGIBILITY_SQL), _params
         ).fetchall()
     except Exception as _qe:
-        current_app.logger.exception("[RetryRunner] execute eligibility query failed: %s", _qe)
-        return jsonify({"error": f"eligibility query failed: {_qe}"}), 500
+        current_app.logger.exception(
+            "Retry runner eligibility query failed", exc_info=True
+        )
+        return unexpected_server_error_response(_qe)
 
     results = {
         "attempted":          0,
@@ -26386,8 +26363,8 @@ def admin_test_founder_app_open_push():
             "note":              "Session throttle NOT updated — safe to call multiple times for QA",
         })
     except Exception as exc:
-        app.logger.exception("[founder_app_open_push] TEST error: %s", exc)
-        return jsonify({"sent": False, "reason": "exception", "error": str(exc)}), 500
+        app.logger.exception("Founder app-open push test failed")
+        return unexpected_server_error_response(exc)
 
 
 @app.route("/admin/test-founder-signup-push", methods=["POST"])
@@ -26414,8 +26391,8 @@ def admin_test_founder_signup_push():
                             "provider_message_id": result.get("provider_message_id")})
         return jsonify({"success": False, "error": result.get("error")}), 500
     except Exception as exc:
-        app.logger.exception("[TestFounderPush] unexpected error: %s", exc)
-        return jsonify({"success": False, "error": str(exc)}), 500
+        app.logger.exception("Founder signup push test failed")
+        return unexpected_server_error_response(exc)
 
 
 @app.route("/admin/users/<int:user_id>")
