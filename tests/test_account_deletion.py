@@ -6,7 +6,9 @@ Setup context is CLOSED before yield; assertions use their own
 """
 import logging
 import secrets
+import time
 from datetime import date
+from unittest.mock import patch
 import pytest
 from app import app
 from models import (
@@ -16,7 +18,7 @@ from models import (
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
-    _login, form_post,
+    _login as _base_login, form_post,
 )
 
 
@@ -24,7 +26,7 @@ from tests.conftest import (
 def deletion_setup(client):
     with app.app_context():
         resort = _make_resort()
-        user   = _make_user("doomed")
+        user   = _make_user("doomed", auth_provider="email")
         other  = _make_user("other")
         unrelated_a = _make_user("unrelated-a")
         unrelated_b = _make_user("unrelated-b")
@@ -140,6 +142,27 @@ def deletion_setup(client):
     yield data
 
 
+def _login(client, user_id):
+    _base_login(client, user_id)
+    with app.test_request_context(
+        "/",
+        environ_base={
+            "REMOTE_ADDR": "127.0.0.1",
+            "HTTP_USER_AGENT": "Werkzeug/3.1.4",
+        },
+    ):
+        session_identifier = app.login_manager._session_identifier_generator()
+    with client.session_transaction() as session:
+        session["_id"] = session_identifier
+        session["_last_active_stamp"] = time.time()
+
+
+def _login_nonfresh(client, user_id):
+    _login(client, user_id)
+    with client.session_transaction() as session:
+        session["_fresh"] = False
+
+
 # ── Correct email → full deletion ─────────────────────────────────────────────
 
 def test_delete_account_removes_user(client, deletion_setup):
@@ -150,6 +173,209 @@ def test_delete_account_removes_user(client, deletion_setup):
 
     with app.app_context():
         assert User.query.get(s["user_id"]) is None
+
+
+def test_delete_account_modal_requests_password_only_for_nonfresh_session(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+
+    fresh_response = client.get("/profile")
+    assert fresh_response.status_code == 200
+    assert b'name="current_password"' not in fresh_response.data
+
+    with client.session_transaction() as session:
+        session["_fresh"] = False
+    nonfresh_response = client.get("/profile")
+    assert nonfresh_response.status_code == 200
+    assert b'name="current_password"' in nonfresh_response.data
+    assert b"remembered session" in nonfresh_response.data
+
+
+@pytest.mark.parametrize("current_password", [None, "", "WrongPass9!"])
+def test_nonfresh_delete_requires_correct_current_password_without_side_effects(
+    client, deletion_setup, current_password
+):
+    s = deletion_setup
+    _login_nonfresh(client, s["user_id"])
+    data = {"confirm_email": s["user_email"]}
+    if current_password is not None:
+        data["current_password"] = current_password
+
+    with patch.object(db.session, "commit") as commit:
+        response = form_post(client, "/delete-account", data=data)
+
+    assert response.status_code == 302
+    commit.assert_not_called()
+    with app.app_context():
+        user = db.session.get(User, s["user_id"])
+        assert user is not None
+        assert user.email == s["user_email"]
+        assert SkiTrip.query.get(s["owned_trip_id"]) is not None
+    with client.session_transaction() as session:
+        assert session["_fresh"] is False
+        assert "_user_id" in session
+
+
+def test_nonfresh_delete_failure_defers_global_request_side_effects(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login_nonfresh(client, s["user_id"])
+    with client.session_transaction() as session:
+        session.pop("_last_active_stamp", None)
+        session.pop("_auth_session_logged", None)
+
+    with patch.object(db.session, "commit") as commit:
+        response = form_post(
+            client,
+            "/delete-account",
+            data={
+                "confirm_email": s["user_email"],
+                "current_password": "WrongPass9!",
+            },
+        )
+
+    assert response.status_code == 302
+    commit.assert_not_called()
+    with app.app_context():
+        user = db.session.get(User, s["user_id"])
+        assert user is not None
+        assert user.last_active_at is None
+    with client.session_transaction() as session:
+        assert session["_fresh"] is False
+        assert "_auth_session_logged" not in session
+        assert "_last_active_stamp" not in session
+
+
+def test_nonfresh_delete_correct_password_confirms_and_deletes(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login_nonfresh(client, s["user_id"])
+
+    response = form_post(
+        client,
+        "/delete-account",
+        data={
+            "confirm_email": s["user_email"],
+            "current_password": "TestPass1!",
+        },
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(User, s["user_id"]) is None
+    with client.session_transaction() as session:
+        assert "_user_id" not in session
+
+
+def test_nonfresh_delete_mismatched_email_does_not_confirm_login(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login_nonfresh(client, s["user_id"])
+
+    response = form_post(
+        client,
+        "/delete-account",
+        data={
+            "confirm_email": "wrong@example.com",
+            "current_password": "TestPass1!",
+        },
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(User, s["user_id"]) is not None
+    with client.session_transaction() as session:
+        assert session["_fresh"] is False
+
+
+def test_nonfresh_delete_provider_mismatch_fails_closed(
+    client, deletion_setup
+):
+    s = deletion_setup
+    with app.app_context():
+        user = db.session.get(User, s["user_id"])
+        user.auth_provider = "google"
+        db.session.commit()
+    _login_nonfresh(client, s["user_id"])
+
+    response = form_post(
+        client,
+        "/delete-account",
+        data={
+            "confirm_email": s["user_email"],
+            "current_password": "TestPass1!",
+        },
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(User, s["user_id"]) is not None
+    with client.session_transaction() as session:
+        assert session["_fresh"] is False
+
+
+def test_nonfresh_delete_reauth_stays_fresh_when_deletion_rolls_back(
+    client, deletion_setup, monkeypatch
+):
+    s = deletion_setup
+    _login_nonfresh(client, s["user_id"])
+
+    def fail_commit():
+        raise RuntimeError("forced deletion failure")
+
+    monkeypatch.setattr(db.session, "commit", fail_commit)
+    response = form_post(
+        client,
+        "/delete-account",
+        data={
+            "confirm_email": s["user_email"],
+            "current_password": "TestPass1!",
+        },
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(User, s["user_id"]) is not None
+        assert SkiTrip.query.get(s["owned_trip_id"]) is not None
+    with client.session_transaction() as session:
+        assert session["_fresh"] is True
+        assert "_user_id" in session
+
+
+def test_nonfresh_delete_reauthentication_is_rate_limited(rate_limit_client):
+    client = rate_limit_client
+    with app.app_context():
+        user = _make_user("delete-reauth-limit", auth_provider="email")
+        db.session.commit()
+        user_id = user.id
+        email = user.email
+    _login_nonfresh(client, user_id)
+
+    responses = [
+        form_post(
+            client,
+            "/delete-account",
+            data={
+                "confirm_email": email,
+                "current_password": "WrongPass9!",
+            },
+        )
+        for _ in range(6)
+    ]
+
+    assert all(response.status_code == 302 for response in responses[:5])
+    assert responses[5].status_code == 429
+    assert responses[5].headers["Retry-After"]
+    with app.app_context():
+        assert db.session.get(User, user_id) is not None
+    with client.session_transaction() as session:
+        assert session["_fresh"] is False
+        assert "_user_id" in session
 
 
 def test_delete_account_removes_owned_trip_and_children(client, deletion_setup):

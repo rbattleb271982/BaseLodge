@@ -384,6 +384,23 @@
                     data-expected="{{ current_user.email | lower }}"
                     style="width:100%; padding:12px; border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; background:var(--bl-color-surface); color:var(--bl-color-text); box-sizing:border-box; margin-bottom:16px;"
                 >
+                {% if delete_requires_reauth %}
+                <label for="delete-current-password" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px;">
+                    Enter your current password
+                </label>
+                <p style="font-size:13px; color:var(--bl-color-text-muted); line-height:1.4; margin:0 0 10px;">
+                    For your security, please confirm your password because you signed in using a remembered session.
+                </p>
+                <input
+                    id="delete-current-password"
+                    type="password"
+                    name="current_password"
+                    placeholder="Current password"
+                    autocomplete="current-password"
+                    required
+                    style="width:100%; padding:12px; border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; background:var(--bl-color-surface); color:var(--bl-color-text); box-sizing:border-box; margin-bottom:16px;"
+                >
+                {% endif %}
                 <button
                     id="delete-confirm-btn"
                     type="submit"

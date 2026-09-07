@@ -23,3 +23,13 @@ The heartbeat is essential for users who stay logged in via remember-me cookies 
 
 **How to apply:**
 Any future login path (e.g. Apple Sign-In) must also stamp `last_active_at`. The heartbeat covers persistent sessions automatically. Always use `datetime.utcnow()` (naive UTC) to match the column type (`db.DateTime`, no timezone).
+
+## Authenticated route tests
+
+Shortcut login fixtures that exercise Flask-Login session protection must include a request-matching session identifier. Tests asserting that a rejected protected action performs no database writes must also account for the activity heartbeat by either modeling the normal activity stamp or deliberately verifying protected-action deferral.
+
+**Why:**
+An injected user ID and fresh flag alone can be silently downgraded to non-fresh on the first request, while an absent activity stamp can trigger an unrelated heartbeat commit before the tested route runs. Both behaviors can produce misleading security-test results.
+
+**How to apply:**
+For freshness-sensitive tests, prefer a real login/remember restoration. If a shortcut is necessary, model the session identifier and activity stamp explicitly; remove the stamp only when the test is specifically proving that a sensitive route defers global request side effects.

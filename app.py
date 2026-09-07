@@ -102,7 +102,16 @@ import uuid
 from sqlalchemy import func
 from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g, make_response
-from flask_login import LoginManager, login_required, current_user, login_user, logout_user, user_loaded_from_cookie
+from flask_login import (
+    LoginManager,
+    confirm_login,
+    current_user,
+    login_fresh,
+    login_required,
+    login_user,
+    logout_user,
+    user_loaded_from_cookie,
+)
 from functools import wraps, lru_cache
 from flask_migrate import Migrate
 from flask_limiter import Limiter
@@ -1277,6 +1286,7 @@ def before_request_handlers():
     # database write, including the normal auth-restore/activity heartbeat.
     _protected_action_paths = {
         "/logout",
+        "/delete-account",
         "/admin/test-push",
         "/admin/test-push-all",
         "/admin/test-onesignal-push",
@@ -12715,6 +12725,7 @@ def profile():
         print(f"[ROUTE_PERF] route=profile total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template("profile.html",
                            page_title="Profile",
+                           delete_requires_reauth=not login_fresh(),
                            mountains_visited_count=mountains_visited_count,
                            has_equipment=has_equipment,
                            equipment_summary=equipment_summary,
@@ -16913,6 +16924,11 @@ def change_password():
 
 @app.route("/delete-account", methods=["POST"])
 @login_required
+@limiter.limit(
+    "5 per 15 minutes",
+    key_func=_user_or_ip,
+    exempt_when=login_fresh,
+)
 def delete_account():
     validate_csrf_request()
 
@@ -16935,6 +16951,23 @@ def delete_account():
     if not confirmation_matched:
         flash("Email address did not match. Account was not deleted.", "error")
         return redirect(url_for("profile"))
+
+    # A remember-cookie restoration is authenticated but non-fresh. Require
+    # the currently launched email/password credential before any deletion
+    # query or mutation. The profile form's conditional field is UX only;
+    # this server-side freshness check is authoritative for crafted requests.
+    if not login_fresh():
+        current_password = request.form.get("current_password", "")
+        if user.auth_provider != "email" or not user.password_hash:
+            flash(
+                "Please sign in again before deleting your account.",
+                "error",
+            )
+            return redirect(url_for("profile"))
+        if not current_password or not user.check_password(current_password):
+            flash("Current password is incorrect.", "error")
+            return redirect(url_for("profile"))
+        confirm_login()
 
     try:
         # 1. Activity feed rows (actor or recipient)

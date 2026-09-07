@@ -112,6 +112,27 @@ def test_email_login_remember_behavior_and_cookie_samesite(client):
     ]
 
 
+def test_remember_cookie_restoration_creates_nonfresh_session(client):
+    with app.app_context():
+        user = _make_user(
+            "auth-session-restore-freshness",
+            auth_provider="email",
+        )
+        db.session.commit()
+        email = user.email
+
+    _real_login(client, email, remember=True)
+    assert client.get_cookie("remember_token") is not None
+    client.delete_cookie(app.config.get("SESSION_COOKIE_NAME", "session"))
+
+    response = client.get("/profile")
+
+    assert response.status_code == 200
+    with client.session_transaction() as session:
+        assert session["_fresh"] is False
+        assert session["_bl_auth_method"] == "remember_cookie"
+
+
 def test_nonremembered_reset_clears_prior_accounts_remember_cookie(client):
     with app.app_context():
         first = _make_user("auth-session-prior-remember")
