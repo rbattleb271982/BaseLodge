@@ -1,14 +1,12 @@
 ---
-name: Migration backup custody
-description: Approved storage and verification contract for temporary logical migration backups.
+name: Independent backup custody
+description: How to describe and verify the failure boundary of an independent logical backup copy.
 ---
 
-Use the private Replit App Storage bucket designated for migration backups under the `bl135/development/` prefix. Stream backup output directly through the authenticated App Storage SDK, then verify listing, authenticated download, and checksum before treating the object as a recovery copy. Delete artifacts after the approved rollback window.
+Call a backup copy “independent” only when its storage control plane and administrative recovery path are separate from the live database provider, and name the failure boundary it survives. A Replit App Storage copy may be independent from Supabase project/account deletion, but it is not independent from loss of the Replit account/platform.
 
-Use the SDK's default client for the bucket already attached to the Repl. A bucket display name is not necessarily the SDK bucket ID, so passing the display name as `bucketId` can produce a false “bucket does not exist” result.
+Treat an independent copy as recoverable only after an authenticated full read verifies size and checksum, archive readability is checked separately, retention/expiry is defined, and storage access recovery is owned by an authorized operator.
 
-Verify full-download size/checksum and `pg_restore --list` with independent authenticated reads. `pg_restore --list` may finish before a piped custom archive reaches EOF, so it cannot safely share the stream used for the complete checksum.
+**Why:** Provider-native backups can disappear with their source project/account, while storage in another control plane still fails if that second platform account or its access path is lost. Archive listing alone also does not prove every byte is readable.
 
-**Why:** Synthetic verification proved authenticated stream upload, listing, download, checksum equality, anonymous-read denial, deletion, and post-delete absence without adding credentials. A real backup verifier also showed that early `pg_restore` completion can surface a benign `EPIPE` and race hash finalization.
-
-**How to apply:** Do not use the repository, `attached_assets`, or ordinary workspace storage for backup custody. Use transient `/tmp` staging only if a future stream implementation cannot provide reliable error handling and verification, and delete staging immediately after the verified upload. Keep App Storage as the sole recovery copy.
+**How to apply:** For each DR scenario, state which provider/account failures the copy survives. Keep provider-native recovery plus a separately controlled copy when account/project deletion is in scope; never treat repository, attached prompt assets, or ordinary workspace files as authoritative backup custody.
