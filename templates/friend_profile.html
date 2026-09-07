@@ -545,3 +545,12 @@
     </div>
 
     {% endblock %}
+
+{% block scripts %}
+<script>
+window.blFetch(
+    {{ url_for('acknowledge_friend_profile_view', friend_id=friend.id) | tojson }},
+    { method: 'POST' }
+).catch(function() {});
+</script>
+{% endblock %}

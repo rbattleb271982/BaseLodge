@@ -486,6 +486,13 @@ def finish_request_observability(response):
     return finish_response(response)
 
 # ── CSRF helpers ──────────────────────────────────────────────────────────────
+from werkzeug.exceptions import Forbidden
+
+
+class CsrfValidationError(Forbidden):
+    """A rejected synchronizer-token request."""
+
+
 def generate_csrf_token():
     """Return a per-session CSRF token, creating one if absent."""
     if '_csrf_token' not in session:
@@ -501,7 +508,23 @@ def validate_csrf_request():
         or request.headers.get('X-CSRFToken')
     )
     if not session_token or not secrets.compare_digest(session_token, request_token or ''):
-        abort(403)
+        raise CsrfValidationError("CSRF token missing or invalid.")
+
+
+@app.errorhandler(CsrfValidationError)
+def handle_csrf_validation_error(error):
+    """Keep browser-form failures HTML while giving API clients stable JSON."""
+    wants_json = (
+        request.path.startswith("/api/")
+        or request.is_json
+        or request.accept_mimetypes.best == "application/json"
+    )
+    if wants_json:
+        return jsonify({
+            "error": "csrf_failed",
+            "message": "CSRF token missing or invalid.",
+        }), 403
+    return error.get_response()
 
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
@@ -1521,23 +1544,6 @@ def before_request_handlers():
             session.modified = True
         except Exception:
             pass
-
-    # ── Activity heartbeat (throttled to 1 DB write per user per hour) ────────
-    # Uses a session timestamp so no extra SELECT is needed; just one UPDATE
-    # at most once per hour. Skips static assets. Runs for all authenticated
-    # users including admin so metrics reflect real usage accurately.
-    if (current_user.is_authenticated
-            and not request.path.startswith('/static/')
-            and not _defer_request_side_effects):
-        _now_ts = time.time()
-        if _now_ts - session.get('_last_active_stamp', 0) > 3600:
-            try:
-                current_user.last_active_at = datetime.utcnow()
-                db.session.commit()
-                session['_last_active_stamp'] = _now_ts
-                session.modified = True
-            except Exception:
-                db.session.rollback()
 
     # ── Founder login-alert push ───────────────────────────────────────────────
     # Moved to login paths (email, Google OAuth, password-reset).
@@ -3549,6 +3555,19 @@ def handle_exception(e):
     db.session.rollback()
     return render_template("500.html"), 500
 
+def get_existing_invite_token(user):
+    """Return the user's reusable permanent invite token without creating one."""
+    if not can_sender_accept_more_invites(user):
+        return None
+
+    return (
+        InviteToken.query
+        .filter_by(inviter_id=user.id, expires_at=None)
+        .order_by(InviteToken.id.asc())
+        .first()
+    )
+
+
 def get_or_create_invite_token(user):
     """Return a valid invite token for user, creating one only when necessary.
 
@@ -3568,12 +3587,9 @@ def get_or_create_invite_token(user):
     if not can_sender_accept_more_invites(user):
         return None
 
-    existing = InviteToken.query.filter_by(inviter_id=user.id).all()
-
-    # Reuse the first permanent (non-rotated) token — reusable regardless of used_at
-    for token_obj in existing:
-        if token_obj.expires_at is None:
-            return token_obj
+    existing = get_existing_invite_token(user)
+    if existing:
+        return existing
 
     # No permanent token exists (all rotated out by unfriend) — create a new one
     token = secrets.token_urlsafe(16)
@@ -10057,7 +10073,7 @@ def _render_bounded_friends():
     user = current_user
     filters = _friends_filter_args()
     page = load_friends_page(user.id, **filters)
-    invite_token_obj = get_or_create_invite_token(user)
+    invite_token_obj = get_existing_invite_token(user)
     invite_url = (
         f"{BASE_URL}{url_for('invite_token_landing', token=invite_token_obj.token)}"
         if invite_token_obj else None
@@ -10187,15 +10203,6 @@ def friend_profile(friend_id):
         _friendship = Friend.query.filter_by(
             user_id=user.id, friend_id=friend.id
         ).first()
-
-    # Mark profile as viewed — clears the NEW badge on the Friends screen.
-    # Reuses the friendship record already fetched for the auth guard above.
-    try:
-        if _friendship and not _friendship.has_viewed_profile:
-            _friendship.has_viewed_profile = True
-            db.session.commit()
-    except Exception:
-        db.session.rollback()
 
     # Parse overlap context from URL params (for context banner)
     overlap_context = None
@@ -10443,6 +10450,25 @@ def friend_profile(friend_id):
         stat_trips_total=SkiTrip.query.filter_by(user_id=friend.id).count(),
         is_friend=already_friends,
     )
+
+
+@app.route("/api/friends/<int:friend_id>/viewed", methods=["POST"])
+@login_required
+def acknowledge_friend_profile_view(friend_id):
+    """Idempotently clear a friend's NEW badge after their page is displayed."""
+    if friend_id == current_user.id:
+        return jsonify({"success": True})
+    if not is_reciprocal_friend(current_user.id, friend_id):
+        abort(403)
+
+    friendship = Friend.query.filter_by(
+        user_id=current_user.id,
+        friend_id=friend_id,
+    ).first()
+    if friendship and not friendship.has_viewed_profile:
+        friendship.has_viewed_profile = True
+        db.session.commit()
+    return jsonify({"success": True})
 
 @app.route("/friends/<int:friend_id>/remove", methods=["POST"])
 @login_required
@@ -11052,8 +11078,11 @@ def invite():
     if not can_sender_accept_more_invites(current_user):
         return render_template("invite_limit_reached.html", user=current_user)
 
-    invite_token = get_or_create_invite_token(current_user)
-    invite_url = f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
+    invite_token = get_existing_invite_token(current_user)
+    invite_url = (
+        f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
+        if invite_token else None
+    )
 
     resp = make_response(render_template("invite.html", user=current_user, invite_url=invite_url, remaining_invites=None))
     resp.headers["Cache-Control"] = "no-store"
@@ -11062,15 +11091,32 @@ def invite():
 @app.route("/my-qr")
 @login_required
 def my_qr():
-    invite_token = get_or_create_invite_token(current_user)
+    invite_token = get_existing_invite_token(current_user)
     if not invite_token:
-        return render_template("invite_limit_reached.html", user=current_user)
+        abort(404)
     qr_url = f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
     qr = segno.make(qr_url)
     buf = BytesIO()
     qr.save(buf, kind="png", scale=8)
     buf.seek(0)
     return send_file(buf, mimetype="image/png")
+
+
+@app.route("/api/invite/token", methods=["POST"])
+@login_required
+def provision_invite_token():
+    """Idempotently provision the current user's reusable invite token."""
+    invite_token = get_or_create_invite_token(current_user)
+    if not invite_token:
+        return jsonify({"error": "Invite limit reached"}), 409
+    invite_url = (
+        f"{BASE_URL}{url_for('invite_token_landing', token=invite_token.token)}"
+    )
+    return jsonify({
+        "success": True,
+        "invite_url": invite_url,
+        "qr_url": url_for("my_qr"),
+    })
 
 @app.route("/connect/<int:user_id>")
 def connect_via_qr(user_id):
@@ -12863,10 +12909,6 @@ def profile():
         )
         .first()
     )
-    if primary_equipment and not primary_equipment.is_primary:
-        primary_equipment.is_primary = True
-        db.session.commit()
-
     has_equipment = primary_equipment is not None
     equipment_summary = ""
     if primary_equipment:
@@ -13232,14 +13274,36 @@ def notifications():
 
     if app.debug:
         print(f"[ROUTE_PERF] notifications.activity_loop={time.perf_counter()-_t:.4f}s activity_count={len(raw_activities)}")
-    # Mark all as viewed
-    session['notif_last_viewed_at'] = datetime.utcnow().isoformat()
-
     if app.debug:
         print(f"[ROUTE_PERF] route=notifications total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template('notifications.html',
                            pending_connects=pending_connects,
                            notifs=notifs)
+
+
+@app.route("/api/notifications/viewed", methods=["POST"])
+@login_required
+def acknowledge_notifications_viewed():
+    """Idempotently record that the notification center was displayed."""
+    session["notif_last_viewed_at"] = datetime.utcnow().isoformat()
+    return jsonify({"success": True})
+
+
+@app.route("/api/activity/heartbeat", methods=["POST"])
+@login_required
+def activity_heartbeat():
+    """Record authenticated activity only through an explicit CSRF mutation."""
+    now_ts = time.time()
+    if now_ts - session.get("_last_active_stamp", 0) > 3600:
+        try:
+            current_user.last_active_at = datetime.utcnow()
+            db.session.commit()
+            session["_last_active_stamp"] = now_ts
+            session.modified = True
+        except Exception:
+            db.session.rollback()
+            return jsonify({"success": False}), 500
+    return jsonify({"success": True})
 
 
 @app.route("/settings")
@@ -13262,17 +13326,6 @@ def settings_equipment():
         EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
     ).all()
 
-    # Ensure at most one is_primary — repair if data is inconsistent
-    primary_setups = [s for s in all_setups if s.is_primary]
-    if len(primary_setups) > 1:
-        # Keep the first, unset the rest
-        for extra in primary_setups[1:]:
-            extra.is_primary = False
-        db.session.commit()
-        all_setups = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
-            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
-        ).all()
-
     return render_template("settings_equipment.html",
                            all_setups=all_setups,
                            user=current_user,
@@ -13282,6 +13335,29 @@ def settings_equipment():
                            boot_brands=BOOT_BRANDS,
                            binding_types=BINDING_TYPES,
                            binding_brands_by_type=BINDING_BRANDS_BY_TYPE)
+
+
+def _normalize_equipment_primaries(user_id, preferred=None):
+    """Enforce exactly one deterministic primary when equipment rows exist."""
+    setups = (
+        EquipmentSetup.query
+        .filter_by(user_id=user_id)
+        .order_by(
+            EquipmentSetup.created_at.asc().nullsfirst(),
+            EquipmentSetup.id.asc(),
+        )
+        .all()
+    )
+    if not setups:
+        return None
+
+    selected = preferred if preferred in setups else next(
+        (setup for setup in setups if setup.is_primary),
+        setups[0],
+    )
+    for setup in setups:
+        setup.is_primary = setup.id == selected.id
+    return selected
 
 
 @app.route("/settings/equipment/save", methods=["POST"])
@@ -13366,10 +13442,7 @@ def settings_equipment_save():
 
     db.session.flush()  # get id if new
 
-    # If no primary exists, make this one primary
-    has_primary = any(s.is_primary for s in existing_setups if s.id != equipment.id)
-    if not has_primary:
-        equipment.is_primary = True
+    _normalize_equipment_primaries(current_user.id)
 
     # Also keep User.equipment_status consistent
     current_user.equipment_status = "have_own_equipment"
@@ -13417,9 +13490,7 @@ def settings_equipment_make_primary():
     if not equipment:
         return jsonify({"error": "Setup not found"}), 404
 
-    # Unset all primaries for this user
-    EquipmentSetup.query.filter_by(user_id=current_user.id, is_primary=True).update({"is_primary": False})
-    equipment.is_primary = True
+    _normalize_equipment_primaries(current_user.id, preferred=equipment)
     db.session.commit()
     return jsonify({"success": True})
 
@@ -13442,17 +13513,9 @@ def settings_equipment_delete():
     if not equipment:
         return jsonify({"success": True})
 
-    was_primary = equipment.is_primary
     db.session.delete(equipment)
     db.session.flush()
-
-    if was_primary:
-        # Promote the next oldest setup
-        next_setup = EquipmentSetup.query.filter_by(user_id=current_user.id).order_by(
-            EquipmentSetup.created_at.asc().nullsfirst(), EquipmentSetup.id.asc()
-        ).first()
-        if next_setup:
-            next_setup.is_primary = True
+    _normalize_equipment_primaries(current_user.id)
 
     db.session.commit()
     return jsonify({"success": True})

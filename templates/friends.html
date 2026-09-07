@@ -841,18 +841,16 @@
         <div class="fr-empty-section">
             <h2 class="fr-empty-headline">Add a friend</h2>
             <p class="fr-empty-sub">BaseLodge is link-based — no username search. Send your personal link, have them scan your QR code, or text them directly to connect instantly.</p>
-            {% if invite_url %}
-            <div class="fr-qr-block">
-                <img src="{{ url_for('my_qr') }}" alt="Scan to connect" class="fr-qr-img" loading="lazy">
+            <div class="fr-qr-block" id="fr-invite-qr-block"{% if not invite_url %} style="display:none"{% endif %}>
+                <img id="fr-invite-qr" {% if invite_url %}src="{{ url_for('my_qr') }}"{% endif %} alt="Scan to connect" class="fr-qr-img" loading="lazy">
             </div>
-            <div class="fr-copy-wrap">
+            <div class="fr-copy-wrap" id="fr-invite-copy-wrap"{% if not invite_url %} style="display:none"{% endif %}>
                 <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link</button>
             </div>
-            <div class="fr-copy-wrap" style="margin-top: 10px;">
-                <a href="sms:?&body=Hey! I'm using BaseLodge to plan ski trips with friends. Join me here: {{ invite_url }}"
+            <div class="fr-copy-wrap" id="fr-invite-text-wrap" style="margin-top:10px;{% if not invite_url %}display:none{% endif %}">
+                <a id="fr-invite-text" href="{% if invite_url %}sms:?&body=Hey! I'm using BaseLodge to plan ski trips with friends. Join me here: {{ invite_url }}{% else %}#{% endif %}"
                    class="fr-copy-link" style="display: block; text-align: center; text-decoration: none;">Invite via text →</a>
             </div>
-            {% endif %}
         </div>
 
         {% else %}
@@ -1008,8 +1006,31 @@
 {% block scripts %}
 
     <script>
-    {% if invite_url %}
     var _inviteUrl = {{ invite_url | tojson }};
+
+    function _applyFriendInvite(data) {
+        _inviteUrl = data.invite_url;
+        var qr = document.getElementById('fr-invite-qr');
+        if (qr) qr.src = data.qr_url;
+        var text = document.getElementById('fr-invite-text');
+        if (text) text.href = "sms:?&body=" + encodeURIComponent(
+            "Hey! I'm using BaseLodge to plan ski trips with friends. Join me here: " + _inviteUrl
+        );
+        ['fr-invite-qr-block', 'fr-invite-copy-wrap', 'fr-invite-text-wrap'].forEach(function(id) {
+            var element = document.getElementById(id);
+            if (element) element.style.display = '';
+        });
+    }
+
+    if (!_inviteUrl && document.getElementById('fr-invite-qr')) {
+        window.blFetch('/api/invite/token', { method: 'POST' })
+            .then(function(r) {
+                if (!r.ok) throw new Error('invite provision failed');
+                return r.json();
+            })
+            .then(_applyFriendInvite)
+            .catch(function() {});
+    }
 
     function _trackFriendShare(action) {
         try {
@@ -1033,6 +1054,7 @@
     });
 
     function copyInviteLink(btn) {
+        if (!_inviteUrl) return;
         var orig = btn.textContent;
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(_inviteUrl).then(function () {
@@ -1058,7 +1080,6 @@
         btn.textContent = 'Copied!';
         setTimeout(function () { btn.textContent = orig; }, 2000);
     }
-    {% endif %}
 
     // ── Server-backed reciprocal-friend search/filter paging ─────────────
     var _frDirectoryTimer = null;

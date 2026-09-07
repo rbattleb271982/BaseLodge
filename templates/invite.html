@@ -47,7 +47,7 @@
         <p class="bl-page-subtitle">Share this link or QR code to connect with friends on BaseLodge.</p>
 
         <div class="invite-action-row">
-            <a href="sms:?&body=Hey! I'm using BaseLodge to plan mountain trips with friends. Join me here. {{ invite_url }}"
+            <a id="inviteText" href="{% if invite_url %}sms:?&body=Hey! I'm using BaseLodge to plan mountain trips with friends. Join me here. {{ invite_url }}{% else %}#{% endif %}"
                class="bl-btn-primary" style="display: block; width: 100%; text-align: center; text-decoration: none; box-sizing: border-box;">
                 Invite via text
             </a>
@@ -56,7 +56,7 @@
         <button id="copyInvite" class="invite-copy-btn">Copy invite link</button>
 
         <div class="invite-qr-block">
-            <img src="{{ url_for('my_qr') }}" alt="Your QR Code">
+            <img id="inviteQr" {% if invite_url %}src="{{ url_for('my_qr') }}"{% endif %} alt="Your QR Code">
             <p class="invite-qr-label">Scan to connect.</p>
         </div>
     </div>
@@ -66,7 +66,29 @@
 {% block scripts %}
 
     <script>
-        const inviteUrl = "{{ invite_url }}";
+        let inviteUrl = {{ invite_url | tojson }};
+        const inviteText = document.getElementById('inviteText');
+        const inviteQr = document.getElementById('inviteQr');
+
+        function applyInvite(data) {
+            inviteUrl = data.invite_url;
+            inviteText.href = "sms:?&body=" + encodeURIComponent(
+                "Hey! I'm using BaseLodge to plan mountain trips with friends. Join me here. " + inviteUrl
+            );
+            inviteQr.src = data.qr_url;
+        }
+
+        if (!inviteUrl) {
+            window.blFetch('/api/invite/token', { method: 'POST' })
+                .then(function(r) {
+                    if (!r.ok) throw new Error('invite provision failed');
+                    return r.json();
+                })
+                .then(applyInvite)
+                .catch(function() {
+                    blToast("Couldn't prepare your invite. Please refresh and try again.");
+                });
+        }
 
         // Fire-and-forget tracking — never blocks or throws
         function _trackShare(action) {
@@ -86,6 +108,10 @@
         }
 
         document.getElementById("copyInvite").onclick = () => {
+            if (!inviteUrl) {
+                blToast("Your invite is still being prepared.");
+                return;
+            }
             navigator.clipboard.writeText(inviteUrl).then(() => {
                 _trackShare('copy');
                 const btn = document.getElementById("copyInvite");
