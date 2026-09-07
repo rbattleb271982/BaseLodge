@@ -31,3 +31,4 @@
 - [Worker CI process isolation](worker-ci-process-isolation.md) — standalone worker PostgreSQL tests must not share a process with the Flask-SQLAlchemy SQLite suite.
 - [Client-session expiration ordering](client-session-expiration-ordering.md) — validate signed age before current_user loads; keep mandatory restore metadata outside best-effort logging.
 - [Remember-cookie age enforcement](remember-cookie-age-enforcement.md) — Flask-Login 0.6.3 browser expiry is not server max-age; copied untimed values remain replayable until identity changes.
+- [CSRF mutation contract](csrf-mutation-contract.md) — global unsafe-method protection is sound; cookie-backed WebViews stay protected; safe-method persistence must be corrected or explicitly bounded.
