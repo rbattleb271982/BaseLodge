@@ -12,13 +12,19 @@
       opts = opts || {};
       var method = opts.method || (url && url.method) || 'GET';
       if (method.toUpperCase() === 'GET') return _origFetch(url, opts);
-      opts.headers = opts.headers || {};
-      if (opts.headers instanceof Headers) {
-        if (!opts.headers.has('X-CSRF-Token')) opts.headers.set('X-CSRF-Token', _csrfToken);
-      } else {
-        opts.headers['X-CSRF-Token'] = opts.headers['X-CSRF-Token'] || _csrfToken;
+      var isRequest = typeof Request !== 'undefined' && url instanceof Request;
+      var headers = new Headers(isRequest ? url.headers : undefined);
+      if (opts.headers) {
+        new Headers(opts.headers).forEach(function(value, name) {
+          headers.set(name, value);
+        });
       }
-      return _origFetch(url, opts);
+      if (!headers.has('X-CSRF-Token')) headers.set('X-CSRF-Token', _csrfToken);
+      var requestOpts = Object.assign({}, opts, {
+        credentials: opts.credentials || (isRequest && url.credentials) || 'same-origin',
+        headers: headers
+      });
+      return _origFetch(url, requestOpts);
     }
     /* Canonical mutation helper. Callers that must not depend on fetch patch
        timing (notably the deferred native bridge) use this directly. */
