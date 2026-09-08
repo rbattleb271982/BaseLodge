@@ -11,6 +11,7 @@ from app import app
 from models import (
     Friend,
     GuestStatus,
+    Invitation,
     ResortPass,
     User,
     UserAvailability,
@@ -66,6 +67,163 @@ def _warm_and_measure(client, user_id, path):
     _login(client, user_id)
     assert client.get(path).status_code == 200
     return _measured_get(client, path)
+
+
+def test_active_navigation_state_needs_no_trip_or_friend_queries(client):
+    with app.app_context():
+        users = [
+            _make_user("nav-no-query-empty"),
+            _make_user("nav-no-query-trip"),
+        ]
+        _make_trip(users[1], resort=_make_resort("Nav Query Peak"))
+        db.session.commit()
+
+        engine = db.engine
+        for user in users:
+            # Materialize the committed row before query capture. The assertion
+            # is specifically about compute_user_state's trip/friend work.
+            user.is_core_profile_complete
+            statements = []
+
+            def record(
+                _connection, _cursor, statement, _params, _context, _many
+            ):
+                statements.append(_normalized(statement))
+
+            with app.test_request_context("/profile"):
+                event.listen(engine, "before_cursor_execute", record)
+                try:
+                    assert app_module.compute_user_state(user) == "ACTIVE_FULL"
+                finally:
+                    event.remove(engine, "before_cursor_execute", record)
+
+            assert statements == []
+
+
+def test_representative_app_shell_routes_skip_unused_activity_query(client):
+    with app.app_context():
+        owner = _make_user("global-query-owner")
+        friend = _make_user("global-query-friend")
+        _connect(owner, friend)
+        trip = _make_trip(
+            owner, resort=_make_resort("Global Query Peak")
+        )
+        _add_participant(trip, friend, GuestStatus.GOING)
+        db.session.commit()
+        owner_id, trip_id = owner.id, trip.id
+
+    paths = (
+        "/home",
+        "/my-trips",
+        f"/trips/{trip_id}",
+        "/friends",
+        "/profile",
+    )
+    for path in paths:
+        _response, statements = _warm_and_measure(client, owner_id, path)
+        activity_selects = [
+            statement
+            for statement in statements
+            if statement.startswith("select count(")
+            and " from activity " in f" {statement} "
+        ]
+        assert activity_selects == [], path
+
+
+def test_profile_query_budget_is_seven_with_or_without_owned_trip(client):
+    with app.app_context():
+        empty_user = _make_user("profile-budget-empty")
+        trip_user = _make_user("profile-budget-trip")
+        _make_trip(
+            trip_user, resort=_make_resort("Profile Budget Peak")
+        )
+        db.session.commit()
+        user_ids = (empty_user.id, trip_user.id)
+
+    for user_id in user_ids:
+        _response, statements = _warm_and_measure(
+            client, user_id, "/profile"
+        )
+        assert len(statements) == 7
+        assert _table_select_count(statements, "activity") == 0
+        assert _table_select_count(statements, "invitation") == 1
+
+
+def test_navigation_gates_still_protect_verification_and_onboarding(client):
+    with app.app_context():
+        unverified = _make_user("nav-unverified", is_verified=False)
+        incomplete = _make_user("nav-incomplete")
+        incomplete.rider_types = []
+        incomplete.primary_rider_type = None
+        incomplete.rider_type = None
+        db.session.commit()
+        user_ids = unverified.id, incomplete.id
+
+    _login(client, user_ids[0])
+    unverified_response = client.get("/profile")
+    assert unverified_response.status_code == 302
+    assert unverified_response.headers["Location"].endswith("/auth/verify")
+
+    _login(client, user_ids[1])
+    onboarding_response = client.get("/profile")
+    assert onboarding_response.status_code == 302
+    assert onboarding_response.headers["Location"].endswith("/onboarding")
+
+    anonymous_client = app.test_client()
+    anonymous_response = anonymous_client.get(
+        "/profile", follow_redirects=False
+    )
+    assert anonymous_response.status_code == 302
+    assert "/auth" in anonymous_response.headers["Location"]
+
+
+def test_pending_friend_badge_preserves_zero_one_and_nine_plus(client):
+    with app.app_context():
+        viewer = _make_user("pending-badge-viewer")
+        senders = [
+            _make_user(f"pending-badge-sender-{index}")
+            for index in range(10)
+        ]
+        db.session.commit()
+        viewer_id = viewer.id
+        sender_ids = [sender.id for sender in senders]
+
+    _login(client, viewer_id)
+    zero_response, zero_statements = _measured_get(client, "/profile")
+    zero_html = zero_response.get_data(as_text=True)
+    assert 'class="bl-nav-badge"' not in zero_html
+    assert _table_select_count(zero_statements, "invitation") == 1
+
+    with app.app_context():
+        db.session.add(Invitation(
+            sender_id=sender_ids[0],
+            receiver_id=viewer_id,
+            status="pending",
+        ))
+        db.session.commit()
+
+    one_response, one_statements = _measured_get(client, "/profile")
+    one_html = one_response.get_data(as_text=True)
+    assert 'aria-label="1 pending friend request"' in one_html
+    assert ">1</span>" in one_html
+    assert _table_select_count(one_statements, "invitation") == 1
+
+    with app.app_context():
+        db.session.add_all([
+            Invitation(
+                sender_id=sender_id,
+                receiver_id=viewer_id,
+                status="pending",
+            )
+            for sender_id in sender_ids[1:]
+        ])
+        db.session.commit()
+
+    many_response, many_statements = _measured_get(client, "/profile")
+    many_html = many_response.get_data(as_text=True)
+    assert 'aria-label="10 pending friend requests"' in many_html
+    assert ">9+</span>" in many_html
+    assert _table_select_count(many_statements, "invitation") == 1
 
 
 def test_trip_idea_participant_queries_are_bounded_for_1_5_20(client):

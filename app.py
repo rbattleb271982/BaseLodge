@@ -980,28 +980,6 @@ _NOTIF_TYPES = [
 
 
 @app.context_processor
-def inject_notif_count():
-    """Inject notification unread count into every template."""
-    if not current_user.is_authenticated:
-        return {'notif_unread_count': 0}
-    try:
-        q = Activity.query.filter(
-            Activity.recipient_user_id == current_user.id,
-            Activity.type.in_(_NOTIF_TYPES)
-        )
-        last_viewed = session.get('notif_last_viewed_at')
-        if last_viewed:
-            try:
-                last_viewed_dt = datetime.fromisoformat(last_viewed)
-                q = q.filter(Activity.created_at > last_viewed_dt)
-            except (ValueError, TypeError):
-                pass
-        return {'notif_unread_count': q.count()}
-    except Exception:
-        return {'notif_unread_count': 0}
-
-
-@app.context_processor
 def inject_pending_friend_count():
     """Inject pending friend-request count into every app-shell template for the nav badge."""
     if not current_user.is_authenticated:
@@ -1409,9 +1387,7 @@ def compute_user_state(user):
       ANONYMOUS             — not authenticated
       PENDING_VERIFICATION  — authenticated but is_verified == False
       ONBOARDING            — authenticated, verified, core profile incomplete
-      ACTIVE_EMPTY          — onboarded, 0 friends, 0 trips
-      ACTIVE_SOCIAL         — onboarded, ≥1 friend, 0 trips
-      ACTIVE_FULL           — onboarded, ≥1 trip (friend count irrelevant)
+      ACTIVE_FULL           — authenticated, verified, and onboarded
 
     This is the single source of truth for all navigation decisions.
     Result is cached in flask.g for the duration of the request so that
@@ -1427,12 +1403,9 @@ def compute_user_state(user):
     elif not user.is_core_profile_complete:
         state = "ONBOARDING"
     else:
-        trip_count = SkiTrip.query.filter_by(user_id=user.id).count()
-        if trip_count > 0:
-            state = "ACTIVE_FULL"
-        else:
-            friend_count = len(reciprocal_friend_ids(user.id))
-            state = "ACTIVE_SOCIAL" if friend_count > 0 else "ACTIVE_EMPTY"
+        # All active substates have identical navigation behavior. Avoid
+        # querying trips and friendships solely to distinguish among them.
+        state = "ACTIVE_FULL"
 
     g._computed_user_state = state
     return state
