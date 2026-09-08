@@ -380,6 +380,33 @@ def test_mountain_detail_resolves_pass_mappings_once(client):
     assert _table_select_count(statements, "resort_pass") == 1
 
 
+def test_mountain_detail_contextual_insights_add_no_queries_at_scale(client):
+    with app.app_context():
+        viewer = _make_user("mountain-insight-query-viewer")
+        resort = _make_resort("Mountain Insight Query Peak")
+        for index in range(20):
+            friend = _make_user(f"mountain-insight-query-friend-{index}")
+            friend.first_name = f"Friend{index:02d}"
+            _connect(viewer, friend)
+            if index < 10:
+                trip = _make_trip(friend, resort=resort, is_public=True)
+                trip.participants[0].status = GuestStatus.GOING
+            else:
+                friend.visited_resort_ids = [resort.id]
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    response, statements = _warm_and_measure(
+        client, viewer_id, f"/mountain/{resort_slug}"
+    )
+
+    html = response.get_data(as_text=True)
+    assert html.count('class="md-context-insight"') == 10
+    assert len(statements) <= 12
+    assert _table_select_count(statements, "user") == 2
+    assert _table_select_count(statements, "ski_trip_participant") == 1
+
+
 @pytest.mark.parametrize(
     (
         "mapped_passes",

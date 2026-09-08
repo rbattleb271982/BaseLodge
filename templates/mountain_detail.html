@@ -153,6 +153,36 @@
             color: var(--bl-color-text-tertiary);
             white-space: nowrap;
         }
+        .md-context-insight {
+            padding: 14px;
+            border: 1px solid rgba(92, 18, 25, 0.14);
+            border-radius: 12px;
+            background: rgba(92, 18, 25, 0.035);
+            overflow-wrap: anywhere;
+        }
+        .md-context-insight + .md-context-insight {
+            margin-top: 10px;
+        }
+        .md-context-insight-copy,
+        .md-context-insight-helpers {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .md-context-insight details {
+            margin-top: 8px;
+        }
+        .md-context-insight summary {
+            width: fit-content;
+            color: #5C1219;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .md-context-insight-helpers {
+            margin-top: 8px;
+            color: var(--bl-color-text-muted);
+        }
 
         /* ── Inline trip rows ── */
         .md-row {
@@ -343,7 +373,7 @@
             </div>
         {% endmacro %}
 
-        {% if going_friends or interested_friends or availability_overlaps or recorded_visit_friends.count or wishlist_friends.count %}
+        {% if going_friends or interested_friends or contextual_friend_insights or availability_overlaps or recorded_visit_friends.count or wishlist_friends.count %}
         <section class="md-social-section" aria-label="Friends at this mountain">
             {% if going_friends %}
             <div class="md-social-group">
@@ -366,6 +396,27 @@
                 {% if interested_friends|length > 3 %}
                 <p class="md-social-summary-names md-social-more">+{{ interested_friends|length - 3 }} more</p>
                 {% endif %}
+            </div>
+            {% endif %}
+
+            {% if contextual_friend_insights %}
+            <div class="md-social-group" aria-labelledby="md-context-insights-label">
+                <p id="md-context-insights-label" class="md-social-group-label md-social-group-label--going">Friend insight</p>
+                {% for insight in contextual_friend_insights %}
+                <article class="md-context-insight">
+                    <p class="md-context-insight-copy">
+                        <a class="md-social-summary-link" href="{{ url_for('friend_profile', friend_id=insight.traveler.user_id) }}">{{ insight.traveler.full_name }}</a>
+                        is heading to {{ resort.name }} and doesn't have a previous visit recorded.
+                    </p>
+                    <details>
+                        <summary aria-label="See friends who may be able to help {{ insight.traveler.full_name }}">See who can help</summary>
+                        <p class="md-context-insight-helpers">
+                            {% for helper in insight.helpers %}{% if not loop.first %}{% if loop.last %}{{ ', and ' if insight.helpers|length > 2 else ' and ' }}{% else %}, {% endif %}{% endif %}<a class="md-social-summary-link" href="{{ url_for('friend_mountains_visited', user_id=helper.id) }}">{{ helper.first_name }}{% if helper.last_name %} {{ helper.last_name }}{% endif %}</a>{% endfor %}
+                            {{ 'has' if insight.helpers|length == 1 else 'have' }} been before.
+                        </p>
+                    </details>
+                </article>
+                {% endfor %}
             </div>
             {% endif %}
 

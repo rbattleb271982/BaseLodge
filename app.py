@@ -13836,6 +13836,39 @@ def mountain_detail(slug):
     going_friends = _sort_mountain_friend_rows(_going_by_user.values())
     interested_friends = _sort_mountain_friend_rows(_interested_by_user.values())
 
+    has_recorded_visit = resort.id in (current_user.visited_resort_ids or [])
+    experienced_friends = sorted(
+        (
+            friend
+            for friend in friends_by_id.values()
+            if resort.id in (friend.visited_resort_ids or [])
+        ),
+        key=lambda friend: (
+            (friend.first_name or "").lower(),
+            (friend.last_name or "").lower(),
+            friend.id,
+        ),
+    )
+    contextual_friend_insights = []
+    if not has_recorded_visit and experienced_friends:
+        for traveler_row in going_friends:
+            traveler = friends_by_id.get(traveler_row["user_id"])
+            if (
+                not traveler
+                or resort.id in (traveler.visited_resort_ids or [])
+            ):
+                continue
+            helpers = [
+                friend
+                for friend in experienced_friends
+                if friend.id != traveler.id
+            ]
+            if helpers:
+                contextual_friend_insights.append({
+                    "traveler": traveler_row,
+                    "helpers": helpers,
+                })
+
     # Secondary signals intentionally remain compact. Their counts include all
     # qualifying friends, while names already visible in current-intent rows are
     # suppressed from previews to avoid repetitive copy.
@@ -13863,10 +13896,9 @@ def mountain_detail(slug):
             'remaining_count': max(len(preview_candidates) - len(preview), 0),
         }
 
-    recorded_visit_friends = _compact_mountain_friend_summary([
-        friend for friend in friends_by_id.values()
-        if resort.id in (friend.visited_resort_ids or [])
-    ])
+    recorded_visit_friends = _compact_mountain_friend_summary(
+        experienced_friends
+    )
     _wishlist_eligible_resort = bool(resort.is_active and not resort.is_region)
     wishlist_friends = _compact_mountain_friend_summary([
         friend for friend in friends_by_id.values()
@@ -13924,8 +13956,6 @@ def mountain_detail(slug):
             current_user.wish_list_resorts, strict=False
         )
     )
-    has_recorded_visit = resort.id in (current_user.visited_resort_ids or [])
-
     if app.debug:
         print(f"[ROUTE_PERF] route=mountain_detail total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template(
@@ -13936,6 +13966,7 @@ def mountain_detail(slug):
         state_full=state_full,
         going_friends=going_friends,
         interested_friends=interested_friends,
+        contextual_friend_insights=contextual_friend_insights,
         recorded_visit_friends=recorded_visit_friends,
         user_pass_covered=user_pass_covered,
         user_pass_name=user_pass_name,

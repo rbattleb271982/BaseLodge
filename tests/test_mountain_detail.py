@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import re
 
 import pytest
 import sqlalchemy as sa
@@ -477,6 +478,333 @@ def test_mountain_page_history_is_conservative_and_suppresses_repeated_name(clie
     assert "first time" not in html_lower
     assert "expert" not in html_lower
     assert "completed visit" not in html_lower
+
+
+def test_mountain_page_shows_recorded_history_insight_for_going_friend(client):
+    with app.app_context():
+        viewer = _make_user("insight-viewer")
+        traveler = _friend("insight-traveler", "Traveler")
+        helper = _friend("insight-helper", "Helper")
+        resort = _make_resort("Insight Peak")
+        for friend in (traveler, helper):
+            _connect(viewer, friend)
+        helper.visited_resort_ids = [resort.id]
+        trip = _make_trip(traveler, resort=resort)
+        _set_rsvp(trip, traveler, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+        traveler_id, helper_id = traveler.id, helper.id
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Friend insight" in html
+    assert "Traveler Friend" in html
+    assert "is heading to Insight Peak" in html
+    assert "doesn't have a previous visit recorded" in html
+    assert "See who can help" in html
+    assert "Helper Friend" in html
+    assert "has been before" in html
+    assert f'href="/friends/{traveler_id}"' in html
+    assert f'href="/mountains-visited/{helper_id}"' in html
+    assert "first time ever" not in html.lower()
+    assert "has never" not in html.lower()
+    assert "<details>" in html
+    assert 'aria-label="See friends who may be able to help Traveler Friend"' in html
+
+
+@pytest.mark.parametrize("visited_party", ["viewer", "traveler"])
+def test_mountain_page_suppresses_insight_for_recorded_visit(
+    client, visited_party
+):
+    with app.app_context():
+        viewer = _make_user(f"visited-{visited_party}-viewer")
+        traveler = _friend(f"visited-{visited_party}-traveler", "Traveler")
+        helper = _friend(f"visited-{visited_party}-helper", "Helper")
+        resort = _make_resort(f"Visited {visited_party} Insight Peak")
+        for friend in (traveler, helper):
+            _connect(viewer, friend)
+        helper.visited_resort_ids = [resort.id]
+        if visited_party == "viewer":
+            viewer.visited_resort_ids = [resort.id]
+        else:
+            traveler.visited_resort_ids = [resort.id]
+        trip = _make_trip(traveler, resort=resort)
+        _set_rsvp(trip, traveler, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Friend insight" not in html
+    assert "See who can help" not in html
+
+
+@pytest.mark.parametrize(
+    "traveler_state",
+    [
+        GuestStatus.INTERESTED,
+        GuestStatus.PENDING,
+        GuestStatus.DECLINED,
+        GuestStatus.REMOVED,
+    ],
+)
+def test_mountain_page_insight_requires_going_traveler(client, traveler_state):
+    with app.app_context():
+        viewer = _make_user(f"status-insight-viewer-{traveler_state.value}")
+        traveler = _friend(
+            f"status-insight-traveler-{traveler_state.value}", "Traveler"
+        )
+        helper = _friend(
+            f"status-insight-helper-{traveler_state.value}", "Helper"
+        )
+        resort = _make_resort(
+            f"Status {traveler_state.value} Insight Peak"
+        )
+        for friend in (traveler, helper):
+            _connect(viewer, friend)
+        helper.visited_resort_ids = [resort.id]
+        trip = _make_trip(traveler, resort=resort)
+        _set_rsvp(trip, traveler, traveler_state)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Friend insight" not in html
+    assert "See who can help" not in html
+
+
+@pytest.mark.parametrize(
+    "trip_case",
+    ["private", "past", "completed", "cancelled"],
+)
+def test_mountain_page_insight_requires_public_active_current_trip(
+    client, trip_case
+):
+    with app.app_context():
+        viewer = _make_user(f"{trip_case}-insight-viewer")
+        traveler = _friend(f"{trip_case}-insight-traveler", "Traveler")
+        helper = _friend(f"{trip_case}-insight-helper", "Helper")
+        resort = _make_resort(f"{trip_case.title()} Insight Peak")
+        for friend in (traveler, helper):
+            _connect(viewer, friend)
+        helper.visited_resort_ids = [resort.id]
+        trip_kwargs = {}
+        if trip_case == "private":
+            trip_kwargs["is_public"] = False
+        elif trip_case == "past":
+            trip_kwargs.update(
+                start_date=date.today() - timedelta(days=2),
+                end_date=date.today() - timedelta(days=1),
+            )
+        trip = _make_trip(
+            traveler,
+            resort=resort,
+            **trip_kwargs,
+        )
+        if trip_case in {"completed", "cancelled"}:
+            trip.lifecycle_state = trip_case
+        _set_rsvp(trip, traveler, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Friend insight" not in html
+    assert "See who can help" not in html
+
+
+def test_mountain_page_does_not_use_wishlist_or_private_trip_as_history(client):
+    with app.app_context():
+        viewer = _make_user("no-helper-insight-viewer")
+        traveler = _friend("no-helper-insight-traveler", "Traveler")
+        wishlist_friend = _friend("wishlist-insight-friend", "Wishlist")
+        private_history_friend = _friend(
+            "private-history-insight-friend", "Private History"
+        )
+        resort = _make_resort("No Eligible Helper Insight Peak")
+        for friend in (traveler, wishlist_friend, private_history_friend):
+            _connect(viewer, friend)
+        wishlist_friend.wish_list_resorts = [resort.id]
+        traveler_trip = _make_trip(traveler, resort=resort)
+        _set_rsvp(traveler_trip, traveler, GuestStatus.GOING)
+        private_history_trip = _make_trip(
+            private_history_friend,
+            resort=resort,
+            is_public=False,
+            start_date=date.today() - timedelta(days=20),
+            end_date=date.today() - timedelta(days=19),
+        )
+        _set_rsvp(
+            private_history_trip,
+            private_history_friend,
+            GuestStatus.GOING,
+        )
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Friend insight" not in html
+    assert "See who can help" not in html
+
+
+@pytest.mark.parametrize("relationship_case", ["nonfriend", "removed"])
+def test_mountain_page_insight_requires_current_reciprocal_traveler(
+    client, relationship_case
+):
+    with app.app_context():
+        viewer = _make_user(f"{relationship_case}-insight-viewer")
+        traveler = _friend(
+            f"{relationship_case}-insight-traveler", "Traveler"
+        )
+        helper = _friend(f"{relationship_case}-insight-helper", "Helper")
+        resort = _make_resort(
+            f"{relationship_case.title()} Relationship Insight Peak"
+        )
+        _connect(viewer, helper)
+        helper.visited_resort_ids = [resort.id]
+        if relationship_case == "removed":
+            _connect(viewer, traveler)
+            Friend.query.filter(
+                sa.or_(
+                    sa.and_(
+                        Friend.user_id == viewer.id,
+                        Friend.friend_id == traveler.id,
+                    ),
+                    sa.and_(
+                        Friend.friend_id == viewer.id,
+                        Friend.user_id == traveler.id,
+                    ),
+                )
+            ).delete(synchronize_session=False)
+        trip = _make_trip(traveler, resort=resort)
+        _set_rsvp(trip, traveler, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Traveler Friend" not in html
+    assert "Friend insight" not in html
+
+
+@pytest.mark.parametrize(
+    ("attendance_start", "attendance_end", "should_show"),
+    [
+        (
+            date.today() - timedelta(days=2),
+            date.today() - timedelta(days=1),
+            False,
+        ),
+        (
+            date.today() + timedelta(days=2),
+            date.today() + timedelta(days=3),
+            True,
+        ),
+    ],
+)
+def test_mountain_page_insight_uses_participant_effective_dates(
+    client, attendance_start, attendance_end, should_show
+):
+    with app.app_context():
+        viewer = _make_user("effective-date-insight-viewer")
+        traveler = _friend("effective-date-insight-traveler", "Traveler")
+        helper = _friend("effective-date-insight-helper", "Helper")
+        host = _make_user("effective-date-insight-host")
+        resort = _make_resort("Effective Date Insight Peak")
+        for friend in (traveler, helper):
+            _connect(viewer, friend)
+        helper.visited_resort_ids = [resort.id]
+        trip = _make_trip(
+            host,
+            resort=resort,
+            start_date=date.today() - timedelta(days=5),
+            end_date=date.today() + timedelta(days=5),
+        )
+        participant = _add_participant(
+            trip, traveler, GuestStatus.GOING
+        )
+        participant.start_date = attendance_start
+        participant.end_date = attendance_end
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert ("Friend insight" in html) is should_show
+    assert ("See who can help" in html) is should_show
+    if should_show:
+        assert attendance_start.strftime("%b %-d") in html
+
+
+def test_mountain_page_keeps_separate_insights_with_all_helpers(client):
+    with app.app_context():
+        viewer = _make_user("many-insights-viewer")
+        resort = _make_resort("Many Insights Peak")
+        travelers = [
+            _friend("many-insights-traveler-a", "Traveler Alpha"),
+            _friend("many-insights-traveler-b", "Traveler Bravo"),
+        ]
+        helpers = [
+            _friend("many-insights-helper-c", "Charlie"),
+            _friend("many-insights-helper-a", "Alpha"),
+            _friend("many-insights-helper-b", "Bravo"),
+        ]
+        for friend in travelers + helpers:
+            _connect(viewer, friend)
+        for helper in helpers:
+            helper.visited_resort_ids = [resort.id]
+        for offset, traveler in enumerate(travelers):
+            trip = _make_trip(
+                traveler,
+                resort=resort,
+                start_date=date.today() + timedelta(days=offset),
+                end_date=date.today() + timedelta(days=offset + 1),
+            )
+            _set_rsvp(trip, traveler, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+        expected_helper_ids = [
+            helper.id for helper in sorted(
+                helpers,
+                key=lambda friend: (
+                    (friend.first_name or "").lower(),
+                    (friend.last_name or "").lower(),
+                    friend.id,
+                ),
+            )
+        ]
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert html.count('class="md-context-insight"') == 2
+    assert html.count("See who can help") == 2
+    assert html.count("Alpha Friend") >= 2
+    assert html.count("Bravo Friend") >= 2
+    assert html.count("Charlie Friend") >= 2
+    details_blocks = re.findall(r"<details>(.*?)</details>", html, re.S)
+    assert len(details_blocks) == 2
+    for details_html in details_blocks:
+        helper_ids = [
+            int(friend_id)
+            for friend_id in re.findall(
+                r'href="/mountains-visited/(\d+)"', details_html
+            )
+        ]
+        assert helper_ids == expected_helper_ids
+        normalized_details = re.sub(r"\s+", " ", details_html)
+        assert "Alpha Friend</a>, " in normalized_details
+        assert "</a>, and <a " in normalized_details
+        assert ">Charlie Friend</a> have been before" in normalized_details
 
 
 def test_mountain_page_wishlist_has_exact_total_truncated_names_and_tap_throughs(client):
