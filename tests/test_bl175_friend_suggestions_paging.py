@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import event
 from app import app
-from models import FriendSuggestion, db
+from models import Friend, FriendSuggestion, db
 from services.friend_suggestions_paging import (
     SUGGESTIONS_PAGE_SIZE, FriendSuggestionsCursorError,
     count_active_suggestions, load_suggestions_page,
@@ -80,6 +80,21 @@ def test_expired_dismissed_and_other_recipient_are_excluded(client):
         _suggest(other, foreign, suggester)
         db.session.commit()
         assert [r["user"].id for r in load_suggestions_page(viewer.id).rows] == [active.id]
+
+
+def test_reciprocal_friends_are_excluded_from_count_and_pages(client):
+    with app.app_context():
+        viewer = _make_user("connected-scope-viewer")
+        suggested = _make_user("connected-scope-person")
+        suggester = _make_user("connected-scope-suggester")
+        _suggest(viewer, suggested, suggester)
+        db.session.add_all([
+            Friend(user_id=viewer.id, friend_id=suggested.id),
+            Friend(user_id=suggested.id, friend_id=viewer.id),
+        ])
+        db.session.commit()
+        assert count_active_suggestions(viewer.id) == 0
+        assert load_suggestions_page(viewer.id).rows == []
 
 def test_cursor_is_signed_and_viewer_scoped(client):
     with app.app_context():

@@ -67,10 +67,61 @@ def test_friends_regions_and_only_approved_reload_paths_are_converted():
     for region in ("requests", "tabs", "directory", "suggestions"):
         assert _region_count(FRIENDS, "fr", region) == 1
     assert "window.frRefreshRegions = _frRefreshController.refresh;" in FRIENDS
-    assert "await window.frRefreshRegions([" in FRIENDS
     assert "window.frRefreshRegions([" in FRIENDS
     assert "location.reload" not in FRIENDS
     assert "window.location.href = '/login'" in FRIENDS
+
+
+def test_friend_acceptance_uses_bounded_presentation_without_full_page_refresh():
+    handler = FRIENDS[
+        FRIENDS.index("function acceptRequest"):
+        FRIENDS.index("function declineRequest")
+    ]
+    assert "_frApplyAcceptancePresentation" in handler
+    assert "data.presentation" in handler
+    assert "frRefreshRegions" not in handler
+    assert "DOMParser" not in handler
+    assert "location.reload" not in handler
+    assert "window.location.href = '/friends'" not in handler
+    assert "window.location.href = '/login'" in handler
+    capture = FRIENDS[
+        FRIENDS.index("function _frCaptureAcceptanceState"):
+        FRIENDS.index("async function _frApplyAcceptancePresentation")
+    ]
+    assert "visibleFriendCount" in capture
+    assert "_frAcceptanceVersion" in FRIENDS
+    assert "_frAcceptancePending" in handler
+
+
+def test_all_friends_accept_entry_points_use_one_canonical_presentation_path():
+    global_accept = FRIENDS[
+        FRIENDS.index("function _frAcceptRequest"):
+        FRIENDS.index("function _frCancelRequest")
+    ]
+    suggestion_accept = FRIENDS[
+        FRIENDS.index("function frSuggAccept"):
+        FRIENDS.index("</script>", FRIENDS.index("function frSuggAccept"))
+    ]
+    for handler in (global_accept, suggestion_accept):
+        assert "_frCaptureAcceptanceState" in handler
+        assert "_frApplyAcceptancePresentation" in handler
+        assert "data.presentation" in handler
+        assert "_frAcceptancePending" in handler
+        assert ".finally(" in handler
+
+
+def test_acceptance_reconciles_committed_row_before_stale_guard():
+    apply_handler = FRIENDS[
+        FRIENDS.index("async function _frApplyAcceptancePresentation"):
+        FRIENDS.index("function acceptRequest")
+    ]
+    assert apply_handler.index("_removeRequestRow(invitationId)") < (
+        apply_handler.index("ticket !== _frAcceptanceVersion")
+    )
+    assert "frSuggClosePreview(false, false)" in apply_handler
+    assert apply_handler.index("frSuggClosePreview(false, false)") < (
+        apply_handler.index("suggestedRow.remove()")
+    )
 
 
 def test_friends_refresh_preserves_bounded_state_without_full_dataset_fetch():

@@ -7704,6 +7704,15 @@ def accept_invitation(invitation_id):
         return jsonify({"success": False, "error": "This invitation is no longer active"}), 409
 
     invitation.status = 'accepted'
+    accepted_user_id = invitation.sender_id
+    FriendSuggestion.query.filter(
+        FriendSuggestion.recipient_id == current_user.id,
+        FriendSuggestion.suggested_user_id == accepted_user_id,
+        FriendSuggestion.dismissed_at.is_(None),
+    ).update(
+        {"dismissed_at": datetime.utcnow()},
+        synchronize_session=False,
+    )
     transition = transition_connection(
         user_id=current_user.id,
         other_user_id=invitation.sender_id,
@@ -7713,7 +7722,11 @@ def accept_invitation(invitation_id):
     )
     if transition.preexisting_row_count:
         db.session.commit()
-        return jsonify({"success": True, "message": "Already friends"}), 200
+        return jsonify({
+            "success": True,
+            "message": "Already friends",
+            "presentation": _friends_acceptance_presentation(accepted_user_id),
+        }), 200
 
     emit_connection_accepted_activity(current_user.id, invitation.sender_id)
     _accepted_intent = {
@@ -7732,13 +7745,18 @@ def accept_invitation(invitation_id):
     _accepted_uses_outbox = _stage_route_messaging_events(_accepted_intent)
     db.session.commit()
     _finish_route_messaging_events(_accepted_uses_outbox, _accepted_intent)
-    _fc_count = len(reciprocal_friend_ids(current_user.id))
+    presentation = _friends_acceptance_presentation(accepted_user_id)
+    _fc_count = presentation["friend_count"]
     ph_analytics.track(current_user.id, 'friend_connected', {
         'source':          'invitation_accept',
         'is_first_friend': _fc_count == 1,
     })
 
-    return jsonify({"success": True, "message": "Friend added"}), 200
+    return jsonify({
+        "success": True,
+        "message": "Friend added",
+        "presentation": presentation,
+    }), 200
 
 @app.route("/api/friends/invite/<int:invitation_id>/decline", methods=["POST"])
 @login_required
@@ -10057,6 +10075,34 @@ def _friends_filter_args():
         "passes": values("pass"),
         "riders": values("rider"),
         "skills": values("level"),
+    }
+
+
+def _friends_acceptance_presentation(accepted_user_id):
+    page = load_friends_page(current_user.id)
+    directory_html = app.jinja_env.get_template(
+        "partials/friends_directory_region.html"
+    ).render(
+        friend_count=page.authorized_count,
+        alpha_groups=page.alpha_groups,
+        friends_has_more=page.has_more,
+        friends_next_cursor=page.next_cursor,
+        invite_url=None,
+        initial_tab="friends",
+    )
+    pending_count = (
+        Invitation.query
+        .filter_by(receiver_id=current_user.id, status="pending")
+        .filter(Invitation.trip_id.is_(None))
+        .count()
+    )
+    return {
+        "kind": "friends_acceptance",
+        "accepted_user_id": accepted_user_id,
+        "friend_count": page.authorized_count,
+        "pending_count": pending_count,
+        "suggested_count": count_active_suggestions(current_user.id),
+        "directory_html": directory_html,
     }
 
 

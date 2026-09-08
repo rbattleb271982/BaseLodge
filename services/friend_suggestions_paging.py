@@ -4,6 +4,7 @@ from datetime import datetime
 import sqlalchemy as sa
 from itsdangerous import BadData, URLSafeSerializer
 from models import FriendSuggestion, Invitation, User, db
+from services.visibility import reciprocal_friend_predicate
 
 SUGGESTIONS_PAGE_SIZE = 20
 _VERSION = 1
@@ -53,6 +54,9 @@ def count_active_suggestions(viewer_id):
         FriendSuggestion.recipient_id == viewer_id,
         FriendSuggestion.dismissed_at.is_(None),
         FriendSuggestion.expires_at > datetime.utcnow(),
+        ~reciprocal_friend_predicate(
+            viewer_id, FriendSuggestion.suggested_user_id
+        ),
     ).scalar() or 0
 
 def load_suggestions_page(viewer_id, cursor_value=None):
@@ -65,6 +69,9 @@ def load_suggestions_page(viewer_id, cursor_value=None):
         FriendSuggestion.recipient_id == viewer_id,
         FriendSuggestion.dismissed_at.is_(None),
         FriendSuggestion.expires_at > now,
+        ~reciprocal_friend_predicate(
+            viewer_id, FriendSuggestion.suggested_user_id
+        ),
     ).group_by(FriendSuggestion.suggested_user_id)
     grouped = grouped.subquery("suggestion_groups")
     query = db.session.query(

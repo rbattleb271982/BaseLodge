@@ -1,0 +1,67 @@
+<div id="segment-friends" class="segment-content {% if initial_tab != 'suggested' %}active{% endif %}">
+{% if friend_count == 0 %}
+<div class="fr-header-row">
+    <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0; line-height:1.45; flex:1; min-width:0;">The people who make the season better.</p>
+    <a href="{{ url_for('invite') }}" class="fr-invite-link" style="margin-left:12px;">Invite →</a>
+</div>
+
+<div class="fr-empty-section">
+    <h2 class="fr-empty-headline">Add a friend</h2>
+    <p class="fr-empty-sub">BaseLodge is link-based — no username search. Send your personal link, have them scan your QR code, or text them directly to connect instantly.</p>
+    <div class="fr-qr-block" id="fr-invite-qr-block"{% if not invite_url %} style="display:none"{% endif %}>
+        <img id="fr-invite-qr" {% if invite_url %}src="{{ url_for('my_qr') }}"{% endif %} alt="Scan to connect" class="fr-qr-img" loading="lazy">
+    </div>
+    <div class="fr-copy-wrap" id="fr-invite-copy-wrap"{% if not invite_url %} style="display:none"{% endif %}>
+        <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link</button>
+    </div>
+    <div class="fr-copy-wrap" id="fr-invite-text-wrap" style="margin-top:10px;{% if not invite_url %}display:none{% endif %}">
+        <a id="fr-invite-text" href="{% if invite_url %}sms:?&body=Hey! I'm using BaseLodge to plan ski trips with friends. Join me here: {{ invite_url }}{% else %}#{% endif %}"
+           class="fr-copy-link" style="display: block; text-align: center; text-decoration: none;">Invite via text →</a>
+    </div>
+</div>
+{% else %}
+<div class="fr-header-row">
+    <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0; line-height:1.45; flex:1; min-width:0;">The people who make the season better.</p>
+    <a href="{{ url_for('invite') }}" class="fr-invite-link" style="margin-left:12px;">Invite →</a>
+</div>
+
+<div class="fr-search-wrap">
+    <input type="search" class="bl-search-input" id="fr-search"
+           placeholder="Search friends"
+           autocomplete="off" autocorrect="off" autocapitalize="off"
+           oninput="searchFriends(this.value)"
+           onkeydown="if(event.key==='Enter'){event.preventDefault();_frGlobalSearch();}">
+</div>
+
+<div class="fr-filter-bar">
+    <button class="fr-filter-btn" id="fr-filter-btn" onclick="frOpenFilter()" aria-label="Filter friends">
+        Filter<span id="fr-filter-count-badge" style="display:none"> (<span id="fr-filter-count">0</span>)</span>
+    </button>
+</div>
+<div class="fr-chips" id="fr-chips" style="display:none"></div>
+
+<p id="fr-search-hint" style="display:none; font-size:13px; color:var(--bl-color-text-muted); margin:6px 0 0;"></p>
+<p id="fr-local-result-count" class="fr-result-count" style="display:none;" aria-live="polite"></p>
+<p id="fr-global-result-count" class="fr-result-count" style="display:none;" aria-live="polite"></p>
+
+<p class="fr-no-results" id="fr-no-results" style="display: none;">
+    No friends match &ldquo;<span id="fr-query-text"></span>&rdquo;.
+</p>
+
+<p class="fr-filter-no-results" id="fr-filter-no-results" style="display:none;">
+    No friends match these filters.
+    <button class="fr-filter-clear-all" onclick="frClearAll()">Clear all</button>
+</p>
+
+<div id="fr-global-results" style="display:none;"></div>
+
+<div id="fr-alpha-list">
+    {% include "components/friends_directory_groups.html" %}
+</div>
+<button type="button"
+        id="fr-load-more"
+        class="fr-load-more"
+        data-cursor="{{ friends_next_cursor or '' }}"
+        {% if not friends_has_more %}style="display:none"{% endif %}>Load more</button>
+{% endif %}
+</div>

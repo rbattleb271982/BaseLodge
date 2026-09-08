@@ -124,7 +124,8 @@ def test_suggested_preview_client_controls_are_scoped_to_the_friends_page():
     assert "function frSuggOpenPreview(trigger)" in html
     assert "function frSuggRunAction(btn)" in html
     assert "function frSuggClosePreview(fromPopState, restoreFocus)" in html
-    assert "frSuggSetActionState(suggestedUserId, 'connected'" in html
+    assert "_frApplyAcceptancePresentation(" in html
+    assert "invitationId, data.presentation, state, ticket" in html
     assert "function _frSuggTrapPreviewFocus(event)" in html
     assert "_frSuggSetPreviewBackgroundInert(true)" in html
     assert "pageContent.inert = isInert;" in html

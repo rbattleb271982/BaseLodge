@@ -827,87 +827,7 @@
         </div><!-- /tabs region -->
 
         <div data-fr-region="directory">
-        <div id="segment-friends" class="segment-content {% if initial_tab != 'suggested' %}active{% endif %}">
-
-        {% if friend_count == 0 %}
-        <!-- ══════════════════════════════════════════════════════════════
-             EMPTY STATE — 0 friends
-        ══════════════════════════════════════════════════════════════ -->
-        <div class="fr-header-row">
-            <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0; line-height:1.45; flex:1; min-width:0;">The people who make the season better.</p>
-            <a href="{{ url_for('invite') }}" class="fr-invite-link" style="margin-left:12px;">Invite →</a>
-        </div>
-
-        <div class="fr-empty-section">
-            <h2 class="fr-empty-headline">Add a friend</h2>
-            <p class="fr-empty-sub">BaseLodge is link-based — no username search. Send your personal link, have them scan your QR code, or text them directly to connect instantly.</p>
-            <div class="fr-qr-block" id="fr-invite-qr-block"{% if not invite_url %} style="display:none"{% endif %}>
-                <img id="fr-invite-qr" {% if invite_url %}src="{{ url_for('my_qr') }}"{% endif %} alt="Scan to connect" class="fr-qr-img" loading="lazy">
-            </div>
-            <div class="fr-copy-wrap" id="fr-invite-copy-wrap"{% if not invite_url %} style="display:none"{% endif %}>
-                <button onclick="copyInviteLink(this)" class="fr-copy-link">Copy invite link</button>
-            </div>
-            <div class="fr-copy-wrap" id="fr-invite-text-wrap" style="margin-top:10px;{% if not invite_url %}display:none{% endif %}">
-                <a id="fr-invite-text" href="{% if invite_url %}sms:?&body=Hey! I'm using BaseLodge to plan ski trips with friends. Join me here: {{ invite_url }}{% else %}#{% endif %}"
-                   class="fr-copy-link" style="display: block; text-align: center; text-decoration: none;">Invite via text →</a>
-            </div>
-        </div>
-
-        {% else %}
-        <!-- ══════════════════════════════════════════════════════════════
-             POPULATED STATE — 1+ friends
-        ══════════════════════════════════════════════════════════════ -->
-
-        <div class="fr-header-row">
-            <p style="font-size:15px; color:var(--bl-color-text-muted); margin:0; line-height:1.45; flex:1; min-width:0;">The people who make the season better.</p>
-            <a href="{{ url_for('invite') }}" class="fr-invite-link" style="margin-left:12px;">Invite →</a>
-        </div>
-
-        <div class="fr-search-wrap">
-            <input type="search" class="bl-search-input" id="fr-search"
-                   placeholder="Search friends"
-                   autocomplete="off" autocorrect="off" autocapitalize="off"
-                   oninput="searchFriends(this.value)"
-                   onkeydown="if(event.key==='Enter'){event.preventDefault();_frGlobalSearch();}">
-        </div>
-
-        <!-- ── Filter bar ── -->
-        <div class="fr-filter-bar">
-            <button class="fr-filter-btn" id="fr-filter-btn" onclick="frOpenFilter()" aria-label="Filter friends">
-                Filter<span id="fr-filter-count-badge" style="display:none"> (<span id="fr-filter-count">0</span>)</span>
-            </button>
-        </div>
-        <!-- Active filter chips -->
-        <div class="fr-chips" id="fr-chips" style="display:none"></div>
-
-        <p id="fr-search-hint" style="display:none; font-size:13px; color:var(--bl-color-text-muted); margin:6px 0 0;"></p>
-        <p id="fr-local-result-count" class="fr-result-count" style="display:none;" aria-live="polite"></p>
-        <p id="fr-global-result-count" class="fr-result-count" style="display:none;" aria-live="polite"></p>
-
-        <p class="fr-no-results" id="fr-no-results" style="display: none;">
-            No friends match &ldquo;<span id="fr-query-text"></span>&rdquo;.
-        </p>
-
-        <p class="fr-filter-no-results" id="fr-filter-no-results" style="display:none;">
-            No friends match these filters.
-            <button class="fr-filter-clear-all" onclick="frClearAll()">Clear all</button>
-        </p>
-
-        <!-- Global member search results (hidden until search is triggered) -->
-        <div id="fr-global-results" style="display:none;"></div>
-
-        <div id="fr-alpha-list">
-            {% include "components/friends_directory_groups.html" %}
-        </div>
-        <button type="button"
-                id="fr-load-more"
-                class="fr-load-more"
-                data-cursor="{{ friends_next_cursor or '' }}"
-                {% if not friends_has_more %}style="display:none"{% endif %}>Load more</button>
-
-        {% endif %}
-
-        </div>{# /segment-friends #}
+        {% include "partials/friends_directory_region.html" %}
         </div><!-- /directory region -->
 
         <!-- ── BL-12: Suggested Friends segment ── -->
@@ -1417,6 +1337,8 @@
     }
 
     var _frCsrf = {{ csrf_token() | tojson }};
+    var _frAcceptanceVersion = 0;
+    var _frAcceptancePending = false;
     var _frRefreshController = window.BLTargetedRefresh.create({
         regionAttribute: 'data-fr-region',
         refreshHeaderName: 'X-Friends-Refresh',
@@ -1527,6 +1449,10 @@
     }
 
     function _frAcceptRequest(uid, invId, btn) {
+        if (_frAcceptancePending) return;
+        var state = _frCaptureAcceptanceState();
+        var ticket = ++_frAcceptanceVersion;
+        _frAcceptancePending = true;
         if (btn) { btn.disabled = true; btn.textContent = 'Accepting\u2026'; }
 
         fetch('/api/friends/invite/' + invId + '/accept', {
@@ -1534,23 +1460,20 @@
             headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': _frCsrf }
         })
         .then(function(res) { return res.json(); })
-        .then(function(data) {
+        .then(async function(data) {
             if (data.success) {
-                // 1. Immediately swap accepted row to Connected
-                var row = document.getElementById('fr-gr-' + uid);
-                if (row) {
-                    row.dataset.state = 'friend';
-                    var actionDiv = row.querySelector('.fr-global-action');
-                    if (actionDiv) actionDiv.innerHTML = '<span class="fr-action-connected">Connected</span>';
-                }
-                // 2. Re-run current search to refresh all mutual counts and states
-                _frRefreshSearch();
+                await _frApplyAcceptancePresentation(
+                    invId, data.presentation, state, ticket
+                );
             } else {
                 if (btn) { btn.disabled = false; btn.textContent = 'Accept'; }
             }
         })
         .catch(function() {
             if (btn) { btn.disabled = false; btn.textContent = 'Accept'; }
+        })
+        .finally(function() {
+            if (ticket === _frAcceptanceVersion) _frAcceptancePending = false;
         });
     }
 
@@ -1602,8 +1525,99 @@
         }
     }
 
+    function _frSetSuggestionCount(count) {
+        var badge = document.getElementById('fr-sugg-badge');
+        if (!badge) return;
+        var next = Math.max(0, parseInt(count || '0', 10) || 0);
+        badge.textContent = next;
+        badge.style.display = next > 0 ? '' : 'none';
+    }
+
+    function _frCaptureAcceptanceState() {
+        var input = document.getElementById('fr-search');
+        return {
+            tab: _frCurrentTab,
+            searchValue: input ? input.value : '',
+            globalSearchActive: Boolean(_frSearchQuery),
+            visibleFriendCount: document.querySelectorAll(
+                '#fr-alpha-list [data-friend-id]'
+            ).length
+        };
+    }
+
+    async function _frApplyAcceptancePresentation(invitationId, presentation, state, ticket) {
+        if (!presentation || presentation.kind !== 'friends_acceptance') {
+            throw new Error('Invalid Friends acceptance presentation');
+        }
+        _removeRequestRow(invitationId);
+        if (ticket !== _frAcceptanceVersion) return;
+
+        var directory = document.querySelector('[data-fr-region="directory"]');
+        if (!directory) throw new Error('Friends directory is unavailable');
+        directory.innerHTML = presentation.directory_html || '';
+        _frSetSuggestionCount(presentation.suggested_count);
+
+        var suggestedRow = document.getElementById(
+            'fr-sugg-row-' + presentation.accepted_user_id
+        );
+        if (_frSuggPreviewOpen &&
+            String(_frSuggPreviewUserId) === String(presentation.accepted_user_id)) {
+            frSuggClosePreview(false, false);
+        }
+        if (suggestedRow) {
+            _frSuggFocusAfterRemoval(suggestedRow);
+            suggestedRow.remove();
+        }
+
+        var input = document.getElementById('fr-search');
+        if (input) input.value = state.searchValue || '';
+        _frUpdateChips();
+        _frUpdateFilterBtn();
+        _frCurrentTab = null;
+        frSelectTab(state.tab || 'friends');
+
+        if (state.globalSearchActive && input && input.value.trim()) {
+            _frSearchQuery = '';
+            _frGlobalSearch();
+        } else if (input) {
+            _frSearchQuery = '';
+            var hasFilters = _frActiveFilters.pass.size > 0
+                || _frActiveFilters.rider.size > 0
+                || _frActiveFilters.level.size > 0;
+            if (input.value.trim() || hasFilters) {
+                await _frFetchDirectory(true);
+                if (ticket !== _frAcceptanceVersion) return;
+            }
+            var currentCount = document.querySelectorAll(
+                '#fr-alpha-list [data-friend-id]'
+            ).length;
+            var previousCount = -1;
+            while (currentCount < state.visibleFriendCount && currentCount > previousCount) {
+                var loadMore = document.getElementById('fr-load-more');
+                if (!loadMore || !loadMore.getAttribute('data-cursor')) break;
+                previousCount = currentCount;
+                await _frFetchDirectory(false);
+                if (ticket !== _frAcceptanceVersion) return;
+                currentCount = document.querySelectorAll(
+                    '#fr-alpha-list [data-friend-id]'
+                ).length;
+            }
+        }
+
+        var acceptedRow = document.querySelector(
+            '#fr-alpha-list [data-friend-id="' + presentation.accepted_user_id + '"]'
+        );
+        var focusTarget = acceptedRow
+            || document.querySelector('.tab-btn[data-tab="' + (state.tab || 'friends') + '"]');
+        if (focusTarget) focusTarget.focus({ preventScroll: true });
+    }
+
     function acceptRequest(invitationId, btn) {
+        if (_frAcceptancePending) return;
         var row = document.getElementById('fr-req-' + invitationId);
+        var state = _frCaptureAcceptanceState();
+        var ticket = ++_frAcceptanceVersion;
+        _frAcceptancePending = true;
         _setRequestRowLoading(row, true);
         if (btn) btn.textContent = 'Accepting…';
 
@@ -1622,9 +1636,9 @@
         })
         .then(async function(data) {
             if (data.success) {
-                await window.frRefreshRegions([
-                    'requests', 'tabs', 'directory', 'suggestions'
-                ]);
+                await _frApplyAcceptancePresentation(
+                    invitationId, data.presentation, state, ticket
+                );
             } else {
                 _setRequestRowLoading(row, false);
                 if (btn) btn.textContent = 'Accept';
@@ -1640,6 +1654,9 @@
             } else {
                 _showRequestError(row, 'Network error. Try again.');
             }
+        })
+        .finally(function() {
+            if (ticket === _frAcceptanceVersion) _frAcceptancePending = false;
         });
     }
 
@@ -2322,12 +2339,9 @@
         }
         // Update badge count
         var badge = document.getElementById('fr-sugg-badge');
-        if (badge) {
-            var cur = parseInt(badge.textContent || '0', 10);
-            var next = Math.max(0, cur - 1);
-            badge.textContent = next;
-            badge.style.display = next > 0 ? '' : 'none';
-        }
+        _frSetSuggestionCount(
+            Math.max(0, parseInt(badge ? badge.textContent : '0', 10) - 1)
+        );
     }
 
     function frSuggDismiss(suggestedUserId, btn) {
@@ -2386,6 +2400,10 @@
     }
 
     function frSuggAccept(invitationId, suggestedUserId, btn) {
+        if (_frAcceptancePending) return;
+        var state = _frCaptureAcceptanceState();
+        var ticket = ++_frAcceptanceVersion;
+        _frAcceptancePending = true;
         frSuggSetActionState(suggestedUserId, 'accepting', invitationId);
         fetch('/api/friends/invite/' + invitationId + '/accept', {
             method: 'POST',
@@ -2397,24 +2415,20 @@
             },
         })
         .then(function(r) { return r.json(); })
-        .then(function(data) {
+        .then(async function(data) {
             if (data.success) {
-                frSuggSetActionState(suggestedUserId, 'connected', invitationId);
-                if (_frSuggPreviewOpen &&
-                    String(_frSuggPreviewUserId) === String(suggestedUserId)) {
-                    frSuggClosePreview(false, false);
-                    _frSuggFocusAfterRemoval(
-                        document.getElementById('fr-sugg-row-' + suggestedUserId)
-                    );
-                }
-                // Remove the row after a brief pause
-                setTimeout(function() { _frSuggRemoveRow(suggestedUserId); }, 900);
+                await _frApplyAcceptancePresentation(
+                    invitationId, data.presentation, state, ticket
+                );
             } else {
                 frSuggSetActionState(suggestedUserId, 'accept', invitationId);
             }
         })
         .catch(function() {
             frSuggSetActionState(suggestedUserId, 'accept', invitationId);
+        })
+        .finally(function() {
+            if (ticket === _frAcceptanceVersion) _frAcceptancePending = false;
         });
     }
 
