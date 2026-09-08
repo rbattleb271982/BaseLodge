@@ -32,7 +32,6 @@ This is simple and solid for a single-admin setup. There is no admin session tok
 | `/admin/export-live-data` | GET | Full PII export | All tables; excludes `password_hash` |
 | `/admin/resorts-audit` | GET | All resorts as JSON | name, state, country, pass_brands |
 | `/admin/resorts/duplicates` | GET | Duplicate resort groups | Normalized (name, state, country) |
-| `/admin/debug-resort-duplicates` | GET | Duplicate resort scan | **⚠ TEMP route — comment says "safe to remove"** |
 | `/admin/push-diagnostics` | GET | Push pipeline diagnostic | **⚠ Hardcodes `target_user_id = 2`** |
 | `/admin/retry-failed-events` | GET | Dry-run retry inspection | No mutations; safe |
 | `/admin/message-events` | GET | Last 200 MEL rows | Renders `admin_message_events.html` |
@@ -138,15 +137,7 @@ The diagnostic report is always for user ID 2. If the dev account is ever re-see
 
 ---
 
-### 3.4 ⚠ LOW — `/admin/debug-resort-duplicates` is a leftover temp route
-
-**Line 12943:** The route decorator comment reads: "TEMP DEBUG ROUTE — safe to remove after use". A permanent duplicate detection endpoint now exists at `/admin/resorts/duplicates`.
-
-**Recommendation:** Remove `debug_resort_duplicates` and its route.
-
----
-
-### 3.5 ⚠ LOW — `/open-data-debug` lives outside the `/admin/` prefix
+### 3.4 ⚠ LOW — `/open-data-debug` lives outside the `/admin/` prefix
 
 **Line:** 10456 in `app.py`
 
@@ -209,9 +200,8 @@ Both templates correctly include `components/analytics_head.html` for PostHog. N
 | 1 | HIGH | `backfill-country-codes` GET writes to DB | `app.py` ~11696 |
 | 2 | MEDIUM | `test-push-broadcast` has no opt-out check, GET-accessible | `app.py` ~5219 |
 | 3 | MEDIUM | `push-diagnostics` hardcodes `target_user_id = 2` | `app.py` 4644 |
-| 4 | LOW | `debug-resort-duplicates` is a leftover temp route | `app.py` ~12942 |
-| 5 | LOW | `/open-data-debug` outside `/admin/` prefix | `app.py` 10456 |
-| 6 | INFO | Email delivery has no MEL logging | `app.py` / `services/` |
-| 7 | INFO | `ADMIN_FEEDBACK_EMAIL` not set as Replit secret | `.env` / Replit secrets |
-| 8 | INFO | No central admin index or action audit trail | — |
-| 9 | INFO | `RETRY_EXECUTION_ENABLED=False` — intentional, no action | `app.py` 13241 |
+| 4 | LOW | `/open-data-debug` outside `/admin/` prefix | `app.py` 10456 |
+| 5 | INFO | Email delivery has no MEL logging | `app.py` / `services/` |
+| 6 | INFO | `ADMIN_FEEDBACK_EMAIL` not set as Replit secret | `.env` / Replit secrets |
+| 7 | INFO | No central admin index or action audit trail | — |
+| 8 | INFO | `RETRY_EXECUTION_ENABLED=False` — intentional, no action | `app.py` 13241 |
