@@ -7,7 +7,10 @@ import re
 BASE = Path("templates/base_app.html").read_text()
 FRIENDS = Path("templates/friends.html").read_text()
 PLANNING = Path("templates/trip_planning.html").read_text()
-TRIP = Path("templates/trip_detail.html").read_text()
+TRIP = (
+    Path("templates/trip_detail.html").read_text()
+    + Path("templates/partials/trip_detail_planning_region.html").read_text()
+)
 UTILITY = Path("static/js/bl-targeted-refresh.js").read_text()
 
 
@@ -94,7 +97,7 @@ def test_friends_refresh_preserves_bounded_state_without_full_dataset_fetch():
 def test_planning_regions_cover_create_edit_delete_and_empty_state():
     assert _region_count(TRIP, "td", "planning") == 1
     assert _region_count(PLANNING, "tp", "posts") == 1
-    assert "await window.tdRefreshRegions(['planning'])" in TRIP
+    assert "await window.tdRefreshRegions(['planning', 'attention'])" in TRIP
     assert PLANNING.count("await window.tpRefreshRegions(['posts'])") == 2
     assert "location.reload" not in PLANNING
     assert 'class="tp-empty"' in PLANNING

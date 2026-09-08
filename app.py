@@ -14749,6 +14749,26 @@ def _planning_post_date_label(dt, today=None):
     return dt.strftime("%b %-d")
 
 
+def _trip_detail_planning_preview_state(trip_id):
+    """Return the canonical count and newest Trip Detail planning previews."""
+    planning_post_count = SkiTripPlanningPost.query.filter_by(
+        trip_id=trip_id
+    ).count()
+    planning_preview_posts = (
+        SkiTripPlanningPost.query
+        .options(selectinload(SkiTripPlanningPost.author))
+        .filter_by(trip_id=trip_id)
+        .order_by(SkiTripPlanningPost.created_at.desc())
+        .limit(3)
+        .all()
+    )
+    for planning_post in planning_preview_posts:
+        planning_post.date_label = _planning_post_date_label(
+            planning_post.created_at
+        )
+    return planning_post_count, planning_preview_posts
+
+
 _RSVP_ACTION_TO_STATUS = {
     "going": GuestStatus.GOING,
     "interested": GuestStatus.INTERESTED,
@@ -15032,23 +15052,11 @@ def trip_detail(trip_id):
     # Planning board access + post count
     can_plan = not is_terminal and can_access_trip_planning(trip, current_user)
     planning_preview_posts = []
-    planning_post_count = (
-        SkiTripPlanningPost.query.filter_by(trip_id=trip_id).count()
-        if can_plan else 0
-    )
+    planning_post_count = 0
     if can_plan:
-        planning_preview_posts = (
-            SkiTripPlanningPost.query
-            .options(selectinload(SkiTripPlanningPost.author))
-            .filter_by(trip_id=trip_id)
-            .order_by(SkiTripPlanningPost.created_at.desc())
-            .limit(3)
-            .all()
+        planning_post_count, planning_preview_posts = (
+            _trip_detail_planning_preview_state(trip_id)
         )
-        for planning_post in planning_preview_posts:
-            planning_post.date_label = _planning_post_date_label(
-                planning_post.created_at
-            )
 
     # My Setup: current user is editable only while actively participating.
     is_member = (is_owner or is_guest) and not is_terminal
@@ -15078,18 +15086,21 @@ def trip_detail(trip_id):
     attention_items = []
     if is_owner and pending_requests:
         attention_items.append({
+            "kind": "join-requests",
             "title": "Review join requests",
             "detail": f"{len(pending_requests)} request{'s' if len(pending_requests) != 1 else ''} waiting",
             "target": "#td-join-requests",
         })
     if is_owner and pending_participants:
         attention_items.append({
+            "kind": "pending-invites",
             "title": "Follow up on invitations",
             "detail": f"{len(pending_participants)} invite{'s' if len(pending_participants) != 1 else ''} pending",
             "target": "#td-rsvp-section",
         })
     if can_plan and planning_post_count == 0:
         attention_items.append({
+            "kind": "planning",
             "title": "Start planning together",
             "detail": "Share the first idea with the group",
             "target": url_for("trip_planning", trip_id=trip.id),
@@ -15108,6 +15119,7 @@ def trip_detail(trip_id):
             setup_missing.append("lessons")
         if setup_missing:
             attention_items.append({
+                "kind": "setup",
                 "title": "Finish your setup",
                 "detail": "Set " + ", ".join(setup_missing),
                 "target": "#td-setup-card",
@@ -15434,7 +15446,24 @@ def planning_posts_create(trip_id):
     except Exception as _e:
         app.logger.warning(f"planning_post notification failed: {_e}")
 
-    return jsonify({"ok": True, "id": post.id}), 201
+    planning_post_count, planning_preview_posts = (
+        _trip_detail_planning_preview_state(trip_id)
+    )
+    planning_html = render_template(
+        "partials/trip_detail_planning_region.html",
+        trip=trip,
+        planning_post_count=planning_post_count,
+        planning_preview_posts=planning_preview_posts,
+    )
+    return jsonify({
+        "ok": True,
+        "id": post.id,
+        "presentation": {
+            "version": 1,
+            "planning_html": planning_html,
+            "attention_action": "remove-planning",
+        },
+    }), 201
 
 
 @app.route("/api/trip/<int:trip_id>/planning-posts/<int:post_id>", methods=["PATCH"])

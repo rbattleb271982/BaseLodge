@@ -4,7 +4,10 @@ from pathlib import Path
 import re
 
 
-TEMPLATE = Path("templates/trip_detail.html").read_text()
+TEMPLATE = (
+    Path("templates/trip_detail.html").read_text()
+    + Path("templates/partials/trip_detail_planning_region.html").read_text()
+)
 UTILITY = Path("static/js/bl-targeted-refresh.js").read_text()
 
 
@@ -21,6 +24,7 @@ def test_canonical_trip_detail_regions_are_stable_and_unique():
         "participant-editor",
         "participant-tools",
         "planning",
+        "attention",
     }
     for region in expected:
         marker = re.compile(
@@ -46,6 +50,27 @@ def test_safe_mutations_use_targeted_refresh_mappings():
         in TEMPLATE
     )
     assert 'data-td-targeted-form="people,actions,invite-controls"' in TEMPLATE
+
+
+def test_planning_create_uses_narrow_presentation_with_targeted_fallback_only():
+    handler = TEMPLATE[
+        TEMPLATE.index("function applyPlanningPresentation"):
+        TEMPLATE.index("{% endif %}", TEMPLATE.index("function applyPlanningPresentation"))
+    ]
+    assert "document.createElement('template')" in handler
+    assert "new DOMParser" not in handler
+    assert "applyPlanningPresentation(data.presentation)" in handler
+    assert "if (!applied)" in handler
+    assert "await window.tdRefreshRegions(['planning', 'attention'])" in handler
+    assert handler.index("if (!applied)") < handler.index(
+        "await window.tdRefreshRegions(['planning', 'attention'])"
+    )
+
+
+def test_planning_attention_has_a_canonical_removal_marker():
+    assert 'data-td-region="attention"' in TEMPLATE
+    assert '"kind": "planning"' in Path("app.py").read_text()
+    assert 'data-td-attention="{{ item.kind }}"' in TEMPLATE
 
 
 def test_lifecycle_and_access_ending_forms_keep_normal_navigation():

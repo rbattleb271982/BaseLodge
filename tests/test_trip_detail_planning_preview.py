@@ -173,6 +173,54 @@ def test_trip_detail_and_full_board_read_the_same_canonical_post_records(
         assert post.link_url == "https://example.com/carpool"
 
 
+def test_create_returns_canonical_one_request_presentation(client, preview_setup):
+    _login(client, preview_setup["owner_id"])
+    response = json_post(
+        client,
+        f"/api/trip/{preview_setup['trip_id']}/planning-posts",
+        {
+            "category": "Food & Drink",
+            "body": "<script>alert('no')</script>" + ("x" * 180),
+            "link_url": "https://example.com/dinner?a=1&b=2",
+        },
+    )
+
+    assert response.status_code == 201
+    data = response.get_json()
+    presentation = data["presentation"]
+    html = presentation["planning_html"]
+    assert presentation["version"] == 1
+    assert presentation["attention_action"] == "remove-planning"
+    assert 'data-td-region="planning"' in html
+    assert "1 post" in html
+    assert "Food &amp; Drink" in html
+    assert "&lt;script&gt;alert" in html
+    assert "<script>alert" not in html
+    assert ("x" * 160) not in html
+    assert "…" in html
+    assert 'href="https://example.com/dinner?a=1&amp;b=2"' in html
+    assert 'target="_blank" rel="noopener noreferrer"' in html
+    assert "Posted by" in html
+
+
+def test_create_presentation_is_newest_first_limited_to_three(client, preview_setup):
+    _login(client, preview_setup["owner_id"])
+    for body in ("first", "second", "third", "fourth"):
+        response = json_post(
+            client,
+            f"/api/trip/{preview_setup['trip_id']}/planning-posts",
+            {"category": "Other", "body": body},
+        )
+        assert response.status_code == 201
+
+    html = response.get_json()["presentation"]["planning_html"]
+    assert "4 posts" in html
+    assert "first" not in html
+    assert html.index(">fourth</p>") < html.index(">third</p>") < html.index(
+        ">second</p>"
+    )
+
+
 def test_composer_exposes_all_existing_canonical_categories(client, preview_setup):
     html = _detail_html(
         client, preview_setup["owner_id"], preview_setup["trip_id"]

@@ -1944,6 +1944,7 @@
         {% endif %}
         </div><!-- /summary region -->
 
+        <div data-td-region="attention">
         {% if attention_items %}
         <section class="td-hub-attention td-hub-section" aria-labelledby="td-attention-heading">
             <p class="td-section-label">What needs attention</p>
@@ -1953,7 +1954,7 @@
                     <h2 id="td-attention-heading">A few things to review</h2>
                 </div>
                 {% for item in attention_items %}
-                <a class="td-attention-item" href="{{ item.target }}">
+                <a class="td-attention-item" href="{{ item.target }}"{% if item.kind %} data-td-attention="{{ item.kind }}"{% endif %}>
                     <span class="td-attention-copy">
                         <span class="td-attention-title">{{ item.title }}</span>
                         <span class="td-attention-detail">{{ item.detail }}</span>
@@ -1964,6 +1965,7 @@
             </div>
         </section>
         {% endif %}
+        </div>
 
         <section class="td-hub-your-trip td-hub-section" aria-labelledby="td-your-trip-heading" data-td-region="setup">
             <p class="td-section-label" id="td-your-trip-heading">Your trip</p>
@@ -2259,41 +2261,7 @@
 
         <!-- Trip Planning -->
         {% if can_plan %}
-        <section class="td-hub-planning td-hub-section" aria-labelledby="td-planning-heading" data-td-region="planning">
-        <p class="td-section-label" id="td-planning-heading">Trip planning</p>
-        <div class="td-planning-card">
-            <button type="button" class="td-planning-compose-row" onclick="openTripPlanningSheet()" aria-controls="td-planning-sheet">
-                <span class="td-planning-compose-icon" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </span>
-                <span>Share an idea or link…</span>
-            </button>
-            {% if planning_preview_posts %}
-            <div class="td-planning-preview-list">
-                {% for post in planning_preview_posts %}
-                <article class="td-planning-preview">
-                    <div class="td-planning-preview-meta">
-                        <span class="td-planning-preview-category">{{ post.category }}</span>
-                        <span aria-hidden="true">·</span>
-                        <span>{{ post.date_label }}</span>
-                    </div>
-                    <p class="td-planning-preview-body">{% if post.body|length > 160 %}{{ post.body[:160] }}…{% else %}{{ post.body }}{% endif %}</p>
-                    <p class="td-planning-preview-author">Posted by {{ post.author|display_name(current_user.id) }}</p>
-                    {% if post.link_url and (post.link_url|lower).startswith(('http://', 'https://')) %}
-                    <a class="td-planning-preview-link" href="{{ post.link_url }}" target="_blank" rel="noopener noreferrer">View link <span aria-hidden="true">↗</span></a>
-                    {% endif %}
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="td-planning-empty">Share ideas and links with everyone going.</p>
-            {% endif %}
-            <div class="td-planning-footer">
-                <p class="td-planning-count">{% if planning_post_count > 0 %}{{ planning_post_count }} post{{ 's' if planning_post_count != 1 else '' }}{% else %}No posts yet{% endif %}</p>
-                <a class="td-planning-view-all" href="{{ url_for('trip_planning', trip_id=trip.id) }}">View all posts <span aria-hidden="true">›</span></a>
-            </div>
-        </div>
-        </section>
+        {% include "partials/trip_detail_planning_region.html" %}
         {% endif %}
 
         <!-- Join requests remain separate from RSVP groups. -->
@@ -2728,6 +2696,39 @@
                 });
             }
 
+            function applyPlanningPresentation(presentation) {
+                if (!presentation || presentation.version !== 1) return false;
+                if (typeof presentation.planning_html !== 'string') return false;
+                if (presentation.attention_action !== 'remove-planning') return false;
+
+                var currentPlanning = document.querySelector('[data-td-region="planning"]');
+                var fragmentTemplate = document.createElement('template');
+                fragmentTemplate.innerHTML = presentation.planning_html.trim();
+                var incomingPlanning = fragmentTemplate.content.querySelector('[data-td-region="planning"]');
+                if (
+                    !currentPlanning
+                    || !incomingPlanning
+                    || fragmentTemplate.content.querySelectorAll('[data-td-region="planning"]').length !== 1
+                ) {
+                    return false;
+                }
+
+                var planningAttention = document.querySelector('[data-td-attention="planning"]');
+                var attentionSection = planningAttention
+                    ? planningAttention.closest('.td-hub-attention')
+                    : null;
+
+                currentPlanning.replaceWith(incomingPlanning);
+                if (planningAttention) planningAttention.remove();
+                if (
+                    attentionSection
+                    && !attentionSection.querySelector('.td-attention-item')
+                ) {
+                    attentionSection.remove();
+                }
+                return true;
+            }
+
             window.openTripPlanningSheet = function() {
                 var sheet = document.getElementById('td-planning-sheet');
                 if (!sheet) return;
@@ -2795,7 +2796,15 @@
                                 has_link: Boolean(linkUrl)
                             });
                         }
-                        await window.tdRefreshRegions(['planning']);
+                        var applied = false;
+                        try {
+                            applied = applyPlanningPresentation(data.presentation);
+                        } catch (presentationError) {
+                            applied = false;
+                        }
+                        if (!applied) {
+                            await window.tdRefreshRegions(['planning', 'attention']);
+                        }
                         if (bodyEl) bodyEl.value = '';
                         if (linkEl) linkEl.value = '';
                         window.syncTripPlanningCount();
