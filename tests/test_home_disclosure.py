@@ -9,6 +9,15 @@ from app import app
 
 MACRO_TEMPLATE = Path("templates/macros/home_disclosure.html").read_text()
 HOME_TEMPLATE = Path("templates/home.html").read_text()
+TARGET_DISCLOSURE_TEMPLATES = {
+    "About You & Your Gear": Path(
+        "templates/partials/home/_about_you_gear.html"
+    ).read_text(),
+    "Your Activity": Path("templates/partials/home/_activity.html").read_text(),
+    "Friends' Passes": Path(
+        "templates/partials/home/_section_friend_passes.html"
+    ).read_text(),
+}
 
 
 def _render_disclosures(*disclosures):
@@ -85,6 +94,61 @@ def test_multiple_home_disclosures_have_independent_unique_ids():
     assert html.count('id="passes-title"') == 1
     assert html.count('id="passes-panel"') == 1
     assert html.count("home-disclosure__chevron") == 2
+
+
+def test_bl199_named_home_disclosures_request_down_arrow_only():
+    for title, template in TARGET_DISCLOSURE_TEMPLATES.items():
+        assert title in template
+        assert template.count("indicator='down-arrow'") == 1
+
+
+def test_down_arrow_preserves_native_accessible_independent_disclosures():
+    source = """
+    {% from 'macros/home_disclosure.html' import home_disclosure %}
+    {% call home_disclosure(
+        'about-you-gear',
+        'About You & Your Gear',
+        'Skier · Intermediate',
+        indicator='down-arrow'
+    ) %}Gear details{% endcall %}
+    {% call home_disclosure(
+        'your-activity',
+        'Your Activity',
+        '2 trips',
+        indicator='down-arrow'
+    ) %}Activity details{% endcall %}
+    {% call home_disclosure(
+        'friends-passes',
+        "Friends' Passes",
+        '3 friends',
+        indicator='down-arrow'
+    ) %}Pass details{% endcall %}
+    """
+    with app.app_context():
+        html = app.jinja_env.from_string(source).render()
+
+    assert html.count("<details") == 3
+    assert html.count("<summary") == 3
+    assert " open" not in html
+    assert html.count("home-disclosure__arrow") == 3
+    assert "home-disclosure__chevron" not in html
+    assert html.count('aria-hidden="true"') == 3
+    assert html.count('focusable="false"') == 3
+    assert html.count('role="region"') == 3
+    for disclosure_id in ("about-you-gear", "your-activity", "friends-passes"):
+        assert html.count(f'id="{disclosure_id}"') == 1
+        assert html.count(f'id="{disclosure_id}-title"') == 1
+        assert html.count(f'aria-labelledby="{disclosure_id}-title"') == 1
+
+
+def test_bl199_keeps_shared_default_chevron_available():
+    html = _render_disclosures(
+        ("next-trip", "Next Trip", "Vail · Jan 12", "Trip details")
+    )
+
+    assert "indicator='chevron'" in MACRO_TEMPLATE
+    assert html.count("home-disclosure__chevron") == 1
+    assert "home-disclosure__arrow" not in html
 
 
 def test_home_disclosure_escapes_long_title_and_summary_without_clipping():
