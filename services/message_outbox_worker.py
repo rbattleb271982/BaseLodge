@@ -14,6 +14,7 @@ import sqlalchemy as sa
 
 from models import MessageOutbox
 from release_identity import resolve_release_identity
+from services.messaging_constants import is_opportunity_event
 from services.message_outbox import (
     claim_messages,
     finalize_message,
@@ -78,6 +79,18 @@ def _event_log_id(callback, row, status, details):
     return result.id if hasattr(result, "id") else result
 
 
+def _special_status(result):
+    if isinstance(result, dict):
+        return result.get("status")
+    return getattr(result, "status", None)
+
+
+def _special_reason(result):
+    if isinstance(result, dict):
+        return result.get("reason")
+    return getattr(result, "reason", None)
+
+
 def process_claim(
     session,
     outbox_id,
@@ -88,62 +101,129 @@ def process_claim(
     event_log_callback=None,
     worker_release_sha=None,
     ownership_guard=None,
+    opportunity_start_callback=None,
 ):
     """Process one committed lease and return its resulting status."""
     row = session.get(MessageOutbox, outbox_id)
     if row is None or row.status != "processing" or row.lease_token != lease_token:
         return "lease_lost"
 
-    try:
-        decision = safety_callback(row)
-    except Exception as exc:
-        finalize_message(
-            row.id, lease_token, "retryable", error=exc, session=session
-        )
-        session.commit()
-        return "retryable" if row.status == "retryable" else "dead_letter"
-
-    if not _decision_allowed(decision):
-        details = {"suppression_reason": _decision_reason(decision)}
-        event_log_id = _event_log_id(
-            event_log_callback, row, "suppressed", details
-        )
-        if not finalize_message(
-            row.id,
-            lease_token,
-            "suppressed",
-            error=details["suppression_reason"],
-            final_event_log_id=event_log_id,
-            session=session,
-        ):
-            session.rollback()
+    if is_opportunity_event(row.event_name):
+        if opportunity_start_callback is None:
+            if release_pre_provider_claim(
+                row.id, lease_token, session=session
+            ):
+                session.commit()
+            else:
+                session.rollback()
             return "lease_lost"
-        session.commit()
-        return "suppressed"
-
-    if ownership_guard is not None:
         try:
-            ownership_guard(session, "before_provider_start")
+            special = opportunity_start_callback(
+                session,
+                row,
+                lease_token,
+                safety_callback=safety_callback,
+                event_log_callback=event_log_callback,
+                ownership_guard=ownership_guard,
+                worker_release_sha=worker_release_sha,
+            )
         except Exception:
+            session.rollback()
+            if release_pre_provider_claim(
+                row.id, lease_token, session=session
+            ):
+                session.commit()
+            else:
+                session.rollback()
+            raise
+        status = _special_status(special)
+        if status == "suppressed":
+            details = {
+                "suppression_reason": (
+                    _special_reason(special) or "recipient_ineligible"
+                )
+            }
+            event_log_id = _event_log_id(
+                event_log_callback, row, "suppressed", details
+            )
+            if not finalize_message(
+                row.id,
+                lease_token,
+                "suppressed",
+                error=details["suppression_reason"],
+                final_event_log_id=event_log_id,
+                session=session,
+            ):
+                session.rollback()
+                return "lease_lost"
+            session.commit()
+            return "suppressed"
+        if status == "lease_lost":
+            session.rollback()
+            if release_pre_provider_claim(
+                row.id, lease_token, session=session
+            ):
+                session.commit()
+            else:
+                session.rollback()
+            return "lease_lost"
+        if status != "started":
+            session.rollback()
+            raise RuntimeError("invalid opportunity provider-start result")
+        # Same durability boundary as the ordinary path: provider execution is
+        # impossible until the locked authorization/start transaction commits.
+        session.commit()
+    else:
+        try:
+            decision = safety_callback(row)
+        except Exception as exc:
+            finalize_message(
+                row.id, lease_token, "retryable", error=exc, session=session
+            )
+            session.commit()
+            return "retryable" if row.status == "retryable" else "dead_letter"
+
+        if not _decision_allowed(decision):
+            details = {"suppression_reason": _decision_reason(decision)}
+            event_log_id = _event_log_id(
+                event_log_callback, row, "suppressed", details
+            )
+            if not finalize_message(
+                row.id,
+                lease_token,
+                "suppressed",
+                error=details["suppression_reason"],
+                final_event_log_id=event_log_id,
+                session=session,
+            ):
+                session.rollback()
+                return "lease_lost"
+            session.commit()
+            return "suppressed"
+
+        if ownership_guard is not None:
+            try:
+                ownership_guard(session, "before_provider_start")
+            except Exception:
+                session.rollback()
+                if release_pre_provider_claim(row.id, lease_token, session=session):
+                    session.commit()
+                else:
+                    session.rollback()
+                raise
+
+        if not mark_provider_started(
+            row.id, lease_token, session=session, worker_release_sha=worker_release_sha
+        ):
             session.rollback()
             if release_pre_provider_claim(row.id, lease_token, session=session):
                 session.commit()
             else:
                 session.rollback()
-            raise
-
-    if not mark_provider_started(
-        row.id, lease_token, session=session, worker_release_sha=worker_release_sha
-    ):
-        session.rollback()
-        if release_pre_provider_claim(row.id, lease_token, session=session):
-            session.commit()
-        else:
-            session.rollback()
-        return "lease_lost"
-    # This commit is the safety boundary.  A crash after it is recovered as
-    # delivery_unknown rather than risking a duplicate provider submission.
-    session.commit()
+            return "lease_lost"
+        # This commit is the safety boundary. A crash after it is recovered as
+        # delivery_unknown rather than risking a duplicate provider submission.
+        session.commit()
 
     row = session.get(MessageOutbox, outbox_id)
     try:
@@ -196,6 +276,7 @@ def run_worker(
     worker_release_sha=None,
     stop_requested=None,
     ownership_guard=None,
+    opportunity_start_callback=None,
 ):
     """Run a bounded number of batches and return aggregate counters."""
     if max_batches < 1 or batch_size < 1:
@@ -250,6 +331,7 @@ def run_worker(
                     event_log_callback=event_log_callback,
                     worker_release_sha=worker_release_sha,
                     ownership_guard=ownership_guard,
+                    opportunity_start_callback=opportunity_start_callback,
                 )
                 totals[outcome] += 1
                 if remaining is not None:

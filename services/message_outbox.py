@@ -4,6 +4,7 @@ None of these functions commits.  The caller owns transaction boundaries,
 including the transaction which creates the business event and its outbox row.
 """
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 import hashlib
 import json
@@ -13,7 +14,13 @@ import os
 
 import sqlalchemy as sa
 
-from models import MessageOutbox, MessagingDeliveryPolicy, db
+from models import MessageOutbox, MessagingDeliveryPolicy, SkiTrip, db
+from services.messaging_constants import (
+    EventName,
+    OPPORTUNITY_EVENT_TYPES,
+    is_opportunity_event,
+)
+from services.opportunity_messaging import lock_opportunity_policy_decisions
 
 
 OUTBOX_STATUSES = frozenset({
@@ -41,6 +48,7 @@ _EVIDENCE_IDENTIFIER = re.compile(r"[A-Za-z][A-Za-z0-9_]{0,63}:[1-9][0-9]{0,18}\
 _EVIDENCE_KINDS = frozenset({
     "policy", "invitation_id", "planning_post_id", "lifecycle_event_id",
     "suggestion_batch_id", "subject_user_id", "invite_share_event_id",
+    "resort_id", "rsvp_transition_id",
 })
 _MAX_EVIDENCE_IDS = 20
 _ALLOWED_CONTEXT_KEYS = frozenset({
@@ -393,6 +401,25 @@ def mark_provider_started(
     outbox_id, lease_token, *, now=None, session=None, worker_release_sha=None
 ):
     """Serialize with policy mutation and persist the provider boundary."""
+    return _mark_provider_started(
+        outbox_id,
+        lease_token,
+        now=now,
+        session=session,
+        worker_release_sha=worker_release_sha,
+        allow_opportunity=False,
+    )
+
+
+def _mark_provider_started(
+    outbox_id,
+    lease_token,
+    *,
+    now=None,
+    session=None,
+    worker_release_sha=None,
+    allow_opportunity=False,
+):
     timestamp = _now(now)
     work_session = _session(session)
     identity = work_session.execute(
@@ -406,10 +433,13 @@ def mark_provider_started(
     ).one_or_none()
     if identity is None:
         return False
+    if is_opportunity_event(identity.event_name) and not allow_opportunity:
+        return False
     policy = work_session.execute(
         sa.select(MessagingDeliveryPolicy)
         .where(MessagingDeliveryPolicy.event_name == identity.event_name)
         .with_for_update()
+        .execution_options(populate_existing=True)
     ).scalar_one_or_none()
     if (
         policy is None
@@ -435,6 +465,295 @@ def mark_provider_started(
         )
     )
     return result.rowcount == 1
+
+
+@dataclass(frozen=True)
+class OpportunityProviderStartResult:
+    status: str
+    winner_outbox_id: int | None
+    suppressed_outbox_ids: tuple[int, ...] = ()
+    reason: str | None = None
+
+
+class _OpportunityProviderStartRefused(RuntimeError):
+    pass
+
+
+def lock_opportunity_trip(trip_id, *, session=None):
+    """Lock the authoritative trip row used as the opportunity mutex."""
+    if type(trip_id) is not int or trip_id < 1:
+        raise ValueError("trip_id must be a positive integer")
+    trip = _session(session).execute(
+        sa.select(SkiTrip)
+        .where(SkiTrip.id == trip_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+    if trip is None:
+        raise LookupError("opportunity trip not found")
+    return trip
+
+
+def _lock_opportunity_siblings_after_trip(current, work_session):
+    return tuple(work_session.execute(
+        sa.select(MessageOutbox)
+        .where(
+            MessageOutbox.object_type == "trip",
+            MessageOutbox.object_id == current.object_id,
+            MessageOutbox.recipient_user_id == current.recipient_user_id,
+            MessageOutbox.channel == current.channel,
+            MessageOutbox.provider == current.provider,
+            MessageOutbox.event_name.in_(OPPORTUNITY_EVENT_TYPES),
+        )
+        .order_by(MessageOutbox.id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalars().all())
+
+
+def lock_opportunity_siblings(outbox_id, *, session=None):
+    """Lock trip first, then same-recipient opportunity rows by ascending ID."""
+    work_session = _session(session)
+    current = work_session.get(MessageOutbox, outbox_id)
+    if (
+        current is None
+        or not is_opportunity_event(current.event_name)
+        or current.object_type != "trip"
+        or type(current.object_id) is not int
+        or current.object_id < 1
+        or type(current.recipient_user_id) is not int
+    ):
+        raise ValueError("outbox row is not a valid trip opportunity")
+    trip = lock_opportunity_trip(current.object_id, session=work_session)
+    siblings = _lock_opportunity_siblings_after_trip(current, work_session)
+    return trip, siblings
+
+
+def _suppress_locked_opportunity(row, reason, timestamp):
+    row.status = "suppressed"
+    row.last_error = sanitize_error(reason)
+    row.completed_at = timestamp
+    row.updated_at = timestamp
+    row.lease_token = None
+    row.lease_owner = None
+    row.leased_at = None
+    row.lease_expires_at = None
+
+
+def _decision_allowed(decision):
+    if isinstance(decision, bool):
+        return decision
+    if isinstance(decision, dict):
+        return bool(decision.get("allowed"))
+    return bool(getattr(decision, "allowed", False))
+
+
+def _decision_reason(decision):
+    if isinstance(decision, dict):
+        return decision.get("suppression_reason") or decision.get("reason")
+    return getattr(decision, "suppression_reason", None)
+
+
+def _record_sibling_suppression(row, reason, callback):
+    if callback is None:
+        return None
+    result = callback(row, "suppressed", {"suppression_reason": reason})
+    return result.id if hasattr(result, "id") else result
+
+
+def mark_opportunity_provider_started(
+    outbox_id,
+    lease_token,
+    *,
+    safety_callback,
+    event_log_callback=None,
+    ownership_guard=None,
+    now=None,
+    session=None,
+    worker_release_sha=None,
+):
+    """Arbitrate sibling opportunity rows and persist one provider-start winner.
+
+    Authorization executes only after the trip and sibling rows are locked.
+    Missing callbacks fail closed. This helper never commits or calls a provider.
+    """
+    work_session = _session(session)
+    timestamp = _now(now)
+    current = work_session.get(MessageOutbox, outbox_id)
+    if (
+        current is None
+        or current.status != "processing"
+        or current.lease_token != lease_token
+        or current.provider_phase != "not_started"
+    ):
+        return OpportunityProviderStartResult(
+            "lease_lost", None, reason="invalid_claim"
+        )
+
+    connection = work_session.connection()
+    if (
+        connection.dialect.name == "sqlite"
+        and not getattr(connection.connection, "in_transaction", False)
+    ):
+        connection.exec_driver_sql("BEGIN")
+    try:
+        with work_session.begin_nested():
+            lock_opportunity_trip(current.object_id, session=work_session)
+            policy_decisions = lock_opportunity_policy_decisions(
+                OPPORTUNITY_EVENT_TYPES, session=work_session
+            )
+            policy = policy_decisions[current.event_name]
+            if (
+                not policy.eligible
+                or policy.claims_paused
+                or policy.cutover_epoch != current.configuration_epoch
+            ):
+                raise _OpportunityProviderStartRefused(
+                    "opportunity policy generation is not deliverable"
+                )
+            siblings = _lock_opportunity_siblings_after_trip(
+                current, work_session
+            )
+            current = next((row for row in siblings if row.id == outbox_id), None)
+            if (
+                current is None
+                or current.status != "processing"
+                or current.lease_token != lease_token
+                or current.provider_phase != "not_started"
+            ):
+                raise _OpportunityProviderStartRefused(
+                    "opportunity claim changed during arbitration"
+                )
+
+            current_decision = safety_callback(current)
+            if not _decision_allowed(current_decision):
+                reason = (
+                    _decision_reason(current_decision)
+                    or "opportunity_authorization_denied"
+                )
+                return OpportunityProviderStartResult(
+                    "suppressed", None, (), reason
+                )
+
+            generic_rows = [
+                row for row in siblings
+                if row.event_name == EventName.FRIEND_TRIP_CREATED
+                and row.id != current.id
+            ]
+            wishlist_rows = [
+                row for row in siblings
+                if row.event_name == EventName.WISHLIST_MATCH_DETECTED
+                and row.id != current.id
+            ]
+            irreversible_generic = any(
+                row.provider_phase in {"started", "accepted", "unknown"}
+                or row.status in {"provider_accepted", "delivery_unknown"}
+                for row in generic_rows
+            )
+            deliverable_wishlist = False
+            invalid_wishlist_rows = []
+            for row in wishlist_rows:
+                irreversible = (
+                    row.provider_phase in {"started", "accepted", "unknown"}
+                    or row.status in {"provider_accepted", "delivery_unknown"}
+                )
+                if irreversible:
+                    deliverable_wishlist = True
+                    continue
+                if row.status not in {"pending", "processing", "retryable"}:
+                    continue
+                row_policy = policy_decisions[row.event_name]
+                valid_generation = (
+                    row_policy.eligible
+                    and row.configuration_epoch == row_policy.cutover_epoch
+                )
+                decision = (
+                    safety_callback(row) if valid_generation else None
+                )
+                if valid_generation and _decision_allowed(decision):
+                    deliverable_wishlist = True
+                else:
+                    invalid_wishlist_rows.append((
+                        row,
+                        (
+                            _decision_reason(decision)
+                            if valid_generation
+                            else "stale_opportunity_policy_generation"
+                        )
+                        or "opportunity_authorization_denied",
+                    ))
+
+            for row, reason in invalid_wishlist_rows:
+                final_event_log_id = _record_sibling_suppression(
+                    row, reason, event_log_callback
+                )
+                _suppress_locked_opportunity(row, reason, timestamp)
+                row.final_event_log_id = final_event_log_id
+
+            if (
+                current.event_name == EventName.WISHLIST_MATCH_DETECTED
+                and irreversible_generic
+            ):
+                work_session.flush()
+                return OpportunityProviderStartResult(
+                    "suppressed",
+                    None,
+                    tuple(row.id for row, _reason in invalid_wishlist_rows),
+                    "generic_already_irreversible",
+                )
+            if (
+                current.event_name == EventName.FRIEND_TRIP_CREATED
+                and deliverable_wishlist
+            ):
+                work_session.flush()
+                return OpportunityProviderStartResult(
+                    "suppressed",
+                    None,
+                    tuple(row.id for row, _reason in invalid_wishlist_rows),
+                    "wishlist_precedence",
+                )
+
+            suppressed_ids = [
+                row.id for row, _reason in invalid_wishlist_rows
+            ]
+            if current.event_name == EventName.WISHLIST_MATCH_DETECTED:
+                for row in generic_rows:
+                    if (
+                        row.provider_phase == "not_started"
+                        and row.status in {"pending", "processing", "retryable"}
+                    ):
+                        reason = "wishlist_precedence"
+                        final_event_log_id = _record_sibling_suppression(
+                            row, reason, event_log_callback
+                        )
+                        _suppress_locked_opportunity(
+                            row, reason, timestamp
+                        )
+                        row.final_event_log_id = final_event_log_id
+                        suppressed_ids.append(row.id)
+                work_session.flush()
+
+            if ownership_guard is not None:
+                ownership_guard(work_session, "before_provider_start")
+            provider_start_timestamp = _now(now)
+            if not _mark_provider_started(
+                current.id,
+                lease_token,
+                now=provider_start_timestamp,
+                session=work_session,
+                worker_release_sha=worker_release_sha,
+                allow_opportunity=True,
+            ):
+                raise _OpportunityProviderStartRefused(
+                    "opportunity provider start was refused"
+                )
+        return OpportunityProviderStartResult(
+            "started", outbox_id, tuple(suppressed_ids)
+        )
+    except _OpportunityProviderStartRefused:
+        return OpportunityProviderStartResult(
+            "lease_lost", None, reason="provider_start_refused"
+        )
 
 
 def release_pre_provider_claim(outbox_id, lease_token, *, now=None, session=None):

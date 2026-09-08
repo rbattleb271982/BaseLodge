@@ -64,9 +64,14 @@ from services.messaging_constants import (
     EventName,
     Provider,
     SuppressionReason,
+    is_opportunity_event,
 )
 from services.push_providers import send_onesignal_push
-from services.message_outbox import enqueue_message, sanitize_error
+from services.message_outbox import (
+    enqueue_message,
+    mark_opportunity_provider_started,
+    sanitize_error,
+)
 from services.pass_utils import format_passes_for_display, normalize_pass_selection
 from services.visibility import is_reciprocal_friend
 
@@ -527,7 +532,8 @@ _TRIP_MEMBER_TO_MEMBER_EVENTS = frozenset({
     EventName.TRIP_PLANNING_POST_CREATED,
 })
 _INTERNAL_PATH_RE = re.compile(
-    r"^/(?:friends(?:/\d+)?(?:\?requests=1)?|trips(?:/\d+(?:/planning)?)?|"
+    r"^/(?:friends(?:/\d+)?(?:\?requests=1)?|friend-trip/[1-9][0-9]*|"
+    r"trips(?:/\d+(?:/planning)?)?|"
     r"admin(?:/users)?)$"
 )
 
@@ -793,6 +799,8 @@ def _privacy_allowed(
 
 
 def _provider_for_spec(spec):
+    if is_opportunity_event(spec.event_name):
+        return Provider.ONESIGNAL
     if spec.delivery_strategy == DeliveryStrategy.AUTOMATION_EVENT:
         return Provider.ONESIGNAL_JOURNEY
     if spec.delivery_strategy == DeliveryStrategy.SILENT:
@@ -817,6 +825,14 @@ def evaluate_message_safety(
     )
     provider = _provider_for_spec(spec)
     audit = _audit_metadata(source_route)
+
+    if is_opportunity_event(spec.event_name):
+        return MessagingSafetyDecision(
+            False, spec.event_name, occurrence_id, recipient_user_id,
+            actor_user_id, entity_type, entity_id, Channel.PUSH, provider,
+            SuppressionReason.NOT_IMPLEMENTED,
+            _audit_metadata(source_route, "opportunity_authorization_incomplete"),
+        )
 
     if spec.delivery_strategy == DeliveryStrategy.SILENT:
         return MessagingSafetyDecision(
@@ -994,6 +1010,7 @@ def _outbox_evidence_ids(metadata):
     keys = (
         "invitation_id", "planning_post_id", "lifecycle_event_id",
         "suggestion_batch_id", "subject_user_id", "invite_share_event_id",
+        "resort_id", "rsvp_transition_id",
     )
     return [
         f"{key}:{meta[key]}"
@@ -1014,6 +1031,8 @@ def enqueue_messaging_event(
     *,
     session=None,
     configuration_epoch=1,
+    activation_boundary=None,
+    opportunity_policy_decision=None,
     producer_release_sha=None,
 ):
     """Transaction-neutral durable enqueue API.
@@ -1024,7 +1043,13 @@ def enqueue_messaging_event(
     transaction after this function returns.
     """
     spec = _get_event_spec(event_name)
-    if spec is None or spec.delivery_strategy == DeliveryStrategy.SILENT:
+    if (
+        spec is None
+        or (
+            spec.delivery_strategy == DeliveryStrategy.SILENT
+            and not is_opportunity_event(event_name)
+        )
+    ):
         raise ValueError("event is not a deliverable registered messaging event")
     occurrence_id = _normalized_occurrence_id(
         occurrence_id or _derive_occurrence_id(
@@ -1033,6 +1058,59 @@ def enqueue_messaging_event(
     )
     if not occurrence_id:
         raise ValueError("enqueue_messaging_event requires an occurrence identity")
+    if is_opportunity_event(event_name):
+        if opportunity_policy_decision is not None:
+            decision = opportunity_policy_decision
+            work_session = session if session is not None else db.session
+            actual_session = (
+                work_session()
+                if callable(work_session)
+                and not hasattr(work_session, "get_transaction")
+                else work_session
+            )
+            current_scope = (
+                actual_session.get_nested_transaction()
+                or actual_session.get_transaction()
+            )
+            acquisition_scope = getattr(decision, "transaction", None)
+            scope = current_scope
+            scope_is_current = False
+            while scope is not None:
+                if scope is acquisition_scope:
+                    scope_is_current = True
+                    break
+                scope = getattr(
+                    scope, "parent", getattr(scope, "_parent", None)
+                )
+            valid_boundary = (
+                getattr(decision, "event_name", None) == event_name
+                and getattr(decision, "eligible", False) is True
+                and getattr(decision, "cutover_epoch", None)
+                == configuration_epoch
+                and getattr(decision, "activation_boundary", None)
+                == activation_boundary
+                and acquisition_scope is not None
+                and acquisition_scope.is_active
+                and scope_is_current
+            )
+        else:
+            from services.opportunity_messaging import (
+                lock_opportunity_policy_decisions,
+            )
+
+            decision = lock_opportunity_policy_decisions(
+                (event_name,), session=session
+            )[event_name]
+            valid_boundary = (
+                activation_boundary is not None
+                and decision.eligible
+                and decision.activation_boundary == activation_boundary
+                and decision.cutover_epoch == configuration_epoch
+            )
+        if not valid_boundary:
+            raise ValueError(
+                "opportunity enqueue requires its audited activation boundary"
+            )
     provider = _provider_for_spec(spec)
     if provider is None:
         raise ValueError("event has no provider")
@@ -1303,6 +1381,7 @@ def _outbox_render_metadata(row, spec):
     for key in (
         "invitation_id", "planning_post_id", "lifecycle_event_id",
         "suggestion_batch_id", "subject_user_id", "invite_share_event_id",
+        "resort_id", "rsvp_transition_id",
     ):
         value = _outbox_evidence_value(row, key)
         if value is not None:
@@ -1352,6 +1431,11 @@ def message_outbox_safety_callback(row):
 
 def message_outbox_provider_callback(row):
     """Worker callback which renders only after the current safety pass."""
+    if is_opportunity_event(row.event_name):
+        return {
+            "status": "dead_letter",
+            "error": "opportunity_authorization_not_implemented",
+        }
     spec = _get_event_spec(row.event_name)
     if spec is None:
         return {"status": "dead_letter", "error": "unregistered_event"}
@@ -1387,6 +1471,30 @@ def message_outbox_provider_callback(row):
         "error": result.get("error") or "provider_error",
         "retry_after": result.get("retry_after"),
     }
+
+
+def message_outbox_opportunity_start_callback(
+    session,
+    row,
+    lease_token,
+    *,
+    safety_callback,
+    event_log_callback=None,
+    ownership_guard=None,
+    worker_release_sha=None,
+):
+    """Run locked opportunity authorization/arbitration, or decline the row."""
+    if not is_opportunity_event(row.event_name):
+        return None
+    return mark_opportunity_provider_started(
+        row.id,
+        lease_token,
+        safety_callback=safety_callback,
+        event_log_callback=event_log_callback,
+        ownership_guard=ownership_guard,
+        session=session,
+        worker_release_sha=worker_release_sha,
+    )
 
 
 def message_outbox_event_log_callback(row, status, details):
@@ -1425,6 +1533,7 @@ def message_outbox_event_log_callback(row, status, details):
 outbox_safety_callback = message_outbox_safety_callback
 outbox_provider_callback = message_outbox_provider_callback
 outbox_event_log_callback = message_outbox_event_log_callback
+outbox_opportunity_start_callback = message_outbox_opportunity_start_callback
 
 
 def _record_suppression(
@@ -2018,6 +2127,17 @@ def emit_messaging_event(
             "[MESSAGE_DISPATCH] event=%s strategy=%s actor=%s recipient=%s",
             event_name, spec.delivery_strategy, actor_user_id, recipient_user_id,
         )
+
+        if is_opportunity_event(spec.event_name):
+            _dispatch_not_implemented(
+                event_name, actor_user_id, recipient_user_id,
+                entity_type, entity_id, source_route,
+            )
+            return MessagingEmitResult(
+                status=DeliveryStatus.SKIPPED,
+                occurrence_id=occurrence_id,
+                suppression_reason=SuppressionReason.NOT_IMPLEMENTED,
+            )
 
         if spec.delivery_strategy == DeliveryStrategy.IMMEDIATE_PUSH:
             return _dispatch_immediate_push(

@@ -26,6 +26,7 @@ def main():
         if settings.mode == "normal":
             from services.message_dispatch import (
                 message_outbox_event_log_callback,
+                message_outbox_opportunity_start_callback,
                 message_outbox_provider_callback,
                 message_outbox_safety_callback,
             )
@@ -33,6 +34,7 @@ def main():
                 message_outbox_safety_callback,
                 message_outbox_provider_callback,
                 message_outbox_event_log_callback,
+                message_outbox_opportunity_start_callback,
             )
         run_continuous(
             settings,

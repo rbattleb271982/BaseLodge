@@ -1,5 +1,6 @@
 """Per-intent messaging route capture shared by web integration and tests."""
 
+from services.messaging_constants import is_opportunity_event
 from services.messaging_cutover import lock_policy_decisions
 
 
@@ -12,6 +13,10 @@ def stage_messaging_intents(
     require_verified_release=False,
 ):
     """Capture exact-family decisions once and enqueue in the owning transaction."""
+    if any(is_opportunity_event(intent.get("event_name")) for intent in intents):
+        raise RuntimeError(
+            "opportunity events require audited opportunity staging"
+        )
     decisions = lock_policy_decisions(
         [intent.get("event_name") for intent in intents], session=session
     )
@@ -40,6 +45,11 @@ def finish_staged_messaging(plan, intents, *, inline_emitter):
         plan if isinstance(plan, (tuple, list))
         else tuple(bool(plan) for _ in intents)
     )
+    if any(
+        not queued and is_opportunity_event(intent.get("event_name"))
+        for intent, queued in zip(intents, normalized)
+    ):
+        raise RuntimeError("opportunity events have no inline delivery path")
     return [
         inline_emitter(**intent)
         for intent, queued in zip(intents, normalized)

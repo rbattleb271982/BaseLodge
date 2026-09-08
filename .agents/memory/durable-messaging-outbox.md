@@ -26,3 +26,9 @@ Production has the durable-outbox, reversible-policy, and worker-heartbeat schem
 **Why:** Schema rollout was intentionally separated from application deployment, worker provisioning, and event-family cutover so that no notification behavior changed during migration.
 
 **How to apply:** Treat Production schema migration as complete. Any deployment, worker startup, unpause, enqueue-only transition, or canary remains a separate approval boundary.
+
+Opportunity-message authorization is a send-time transaction contract: lock the trip, then sorted policies, then deterministic sibling rows; refresh locked ORM state; authorize under those locks; and re-check lease time immediately before provider-start.
+
+**Why:** SQLAlchemy identity-map objects can stay stale across `FOR UPDATE`, SQLite savepoints can escape caller rollback without an explicit outer transaction, and a policy proof from a rolled-back savepoint no longer represents a held lock.
+
+**How to apply:** Use `populate_existing` for locked ORM reads, bind reusable policy decisions to the exact active root/nested transaction scope, invalidate them after commit/rollback, and commit provider-start before any provider call.

@@ -44,6 +44,17 @@ class EventName:
     PUSH_BROADCAST_SENT     = "push.broadcast.sent"
 
 
+OPPORTUNITY_EVENT_TYPES = frozenset({
+    EventName.FRIEND_TRIP_CREATED,
+    EventName.WISHLIST_MATCH_DETECTED,
+})
+
+
+def is_opportunity_event(event_name):
+    """Return whether an event belongs to the dormant opportunity family."""
+    return event_name in OPPORTUNITY_EVENT_TYPES
+
+
 class Category:
     TRIP      = "trip"
     FRIEND    = "friend"

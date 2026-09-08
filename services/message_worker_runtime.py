@@ -451,7 +451,12 @@ def run_continuous(
             if settings.mode == "normal":
                 if stop_event.is_set():
                     break
-                safety, provider, event_log = delivery_callbacks
+                safety, provider, event_log = delivery_callbacks[:3]
+                opportunity_start = (
+                    delivery_callbacks[3]
+                    if len(delivery_callbacks) > 3
+                    else None
+                )
                 result = run_worker(
                     session_factory,
                     owner=settings.worker_identity,
@@ -467,6 +472,7 @@ def run_continuous(
                     ownership_guard=lambda session, phase: verify_delivery_ownership(
                         session, settings, instance_token, phase
                     ),
+                    opportunity_start_callback=opportunity_start,
                 )
                 counters.claimed_total += result.claimed
                 counters.finalized_total += _finalized(result)
