@@ -1,0 +1,18 @@
+{% for candidate in friends_for_invite %}
+<div class="friend-select-row{% if candidate.disabled %} disabled{% endif %}"
+     data-full-name="{{ candidate.user.first_name|lower }} {{ (candidate.user.last_name or '')|lower }}">
+    <input type="checkbox"
+           name="friend_ids"
+           value="{{ candidate.user.id }}"
+           id="friend_{{ candidate.user.id }}"
+           {% if candidate.disabled %}disabled{% endif %}
+           onchange="updateSelectionState()">
+    <div class="friend-select-info">
+        <p class="friend-select-name">{{ candidate.user.first_name | format_name }} {{ candidate.user.last_name | format_name }}</p>
+        <p class="friend-select-identity">{{ candidate.user|identity_line }}</p>
+        {% if candidate.label %}
+        <p class="friend-select-identity">{{ candidate.label }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

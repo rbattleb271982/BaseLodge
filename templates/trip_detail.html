@@ -2350,32 +2350,34 @@
     {% endblock %}
 
 {% block scripts %}
+    <script src="{{ url_for('static', filename='js/trip-detail-invite-loader.js') }}"></script>
 
     <!-- Invite Friends Modal (owner only) -->
     <div data-td-region="invite-controls">
     {% if is_owner %}
     <div class="modal-overlay" id="inviteModal">
-        <div class="modal-sheet">
+        <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="inviteModalTitle">
             <div class="modal-header">
-                <h2>Invite friends</h2>
+                <h2 id="inviteModalTitle">Invite friends</h2>
                 <button class="modal-close" onclick="closeInviteModal()">&times;</button>
             </div>
-            <form method="POST" action="{{ url_for('send_trip_invites', trip_id=trip.id) }}" id="inviteForm" data-td-targeted-form="people,actions,invite-controls">
+            <form method="POST"
+                  action="{{ url_for('send_trip_invites', trip_id=trip.id) }}"
+                  id="inviteForm"
+                  data-invite-candidates-url="{{ url_for('trip_invite_candidates', trip_id=trip.id) }}"
+                  data-td-targeted-form="people,actions,invite-controls">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <p class="td-invite-section-label">Friends on BaseLodge</p>
                 <div class="modal-search">
                     <input type="text" id="friendSearchInput" placeholder="Search friends..." class="bl-search-input">
                 </div>
-                <div class="modal-body" id="friendsList">
-                    {% for f in friends_for_invite %}
-                    <div class="friend-select-row {% if f.disabled %}disabled{% endif %}" data-full-name="{{ f.user.first_name|lower }} {{ (f.user.last_name or '')|lower }}">
-                        <input type="checkbox" name="friend_ids" value="{{ f.user.id }}" id="friend_{{ f.user.id }}" {% if f.disabled %}disabled{% endif %} onchange="updateSelectionState()">
-                        <div class="friend-select-info">
-                            <p class="friend-select-name">{{ f.user.first_name | format_name }} {{ f.user.last_name | format_name }}</p>
-                            <p class="friend-select-identity">{{ f.user|identity_line }}</p>
-                        </div>
-                    </div>
-                    {% endfor %}
+                <p id="inviteFriendsLoading" role="status" aria-live="polite" hidden>Loading friends…</p>
+                <p id="inviteFriendsEmpty" role="status" hidden>No friends available to invite.</p>
+                <div id="inviteFriendsError" role="alert" hidden>
+                    <p>Could not load friends.</p>
+                    <button type="button" class="td-invite-ext-btn" onclick="retryInviteCandidates()">Try again</button>
+                </div>
+                <div class="modal-body" id="friendsList" aria-live="polite">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="bl-btn-primary" id="sendInvitesBtn" disabled onclick="showConfirmModal()">Send invites</button>
@@ -2659,6 +2661,9 @@
                     }
                     if (context.regions.includes('invite-controls')) {
                         document.body.classList.remove('modal-open');
+                        if (window.tdInvalidateInviteCandidates) {
+                            window.tdInvalidateInviteCandidates();
+                        }
                     }
                 },
                 onError: function(error) {
@@ -2928,6 +2933,30 @@
         // that can be safely added and removed — no duplicate listeners.
         (function () {
             var _inviteVpListening = false;
+            var _inviteReturnFocus = null;
+            var _inviteLoader = window.TripDetailInviteLoader.create({
+                url: document.getElementById('inviteForm')?.dataset.inviteCandidatesUrl || '',
+                fetchImpl: window.fetch.bind(window),
+                getResults: function() { return document.getElementById('friendsList'); },
+                getState: function(name) {
+                    return document.getElementById({
+                        loading: 'inviteFriendsLoading',
+                        empty: 'inviteFriendsEmpty',
+                        error: 'inviteFriendsError'
+                    }[name]);
+                },
+                onLoaded: function() {
+                    updateSelectionState();
+                    var search = document.getElementById('friendSearchInput');
+                    filterInviteCandidates(search ? search.value : '');
+                }
+            });
+            window.tdInvalidateInviteCandidates = function() {
+                _inviteLoader.invalidate();
+            };
+            window.retryInviteCandidates = function() {
+                _inviteLoader.load().catch(function() {});
+            };
 
             function _inviteVpUpdate() {
                 var vp = window.visualViewport;
@@ -2956,6 +2985,7 @@
             window.openInviteModal = function () {
                 var overlay = document.getElementById('inviteModal');
                 if (!overlay) return;
+                _inviteReturnFocus = document.activeElement;
                 overlay.classList.add('active');
                 document.body.classList.add('modal-open');
                 if (window.visualViewport && !_inviteVpListening) {
@@ -2965,6 +2995,9 @@
                 }
                 // Run immediately so the sheet is already sized if keyboard is open.
                 _inviteVpUpdate();
+                var search = document.getElementById('friendSearchInput');
+                if (search) search.focus();
+                _inviteLoader.load().catch(function() {});
             };
 
             window.closeInviteModal = function () {
@@ -2977,6 +3010,10 @@
                     _inviteVpListening = false;
                 }
                 _inviteVpReset();
+                if (_inviteReturnFocus && typeof _inviteReturnFocus.focus === 'function') {
+                    _inviteReturnFocus.focus();
+                }
+                _inviteReturnFocus = null;
             };
         }());
         // Fire-and-forget share tracking — never blocks or throws.
@@ -3082,6 +3119,12 @@
             const count = document.querySelectorAll('#inviteForm input[type="checkbox"]:checked').length;
             document.getElementById('sendInvitesBtn').disabled = count === 0;
         }
+        function filterInviteCandidates(value) {
+            const term = String(value || '').toLowerCase();
+            document.querySelectorAll('.friend-select-row').forEach(row => {
+                row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
+            });
+        }
         function showConfirmModal() { document.getElementById('confirmInviteModal').classList.add('active'); }
         function hideConfirmModal() { document.getElementById('confirmInviteModal').classList.remove('active'); }
         function submitInvites(button) {
@@ -3098,18 +3141,9 @@
         document.addEventListener('click', function(e) {
             if (e.target.matches('#confirmInviteModal')) hideConfirmModal();
         });
-        document.getElementById('friendSearchInput')?.addEventListener('input', function(e) {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.friend-select-row').forEach(row => {
-                row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
-            });
-        });
         document.addEventListener('input', function(e) {
             if (!e.target.matches('#friendSearchInput')) return;
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('.friend-select-row').forEach(row => {
-                row.style.display = row.dataset.fullName.includes(term) ? '' : 'none';
-            });
+            filterInviteCandidates(e.target.value);
         });
 
         // ── Owner Edit Mode ──

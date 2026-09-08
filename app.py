@@ -14815,6 +14815,45 @@ def _trip_detail_planning_preview_state(trip_id):
     return planning_post_count, planning_preview_posts
 
 
+def _trip_invite_candidate_rows(trip_id, organizer_id):
+    """Return the canonical, alphabetized invite candidates for one organizer."""
+    friend_ids = list(reciprocal_friend_ids(organizer_id))
+    if not friend_ids:
+        return []
+
+    friends = User.query.filter(User.id.in_(friend_ids)).all()
+    friends.sort(key=lambda user: (
+        (user.first_name or "").strip().lower(),
+        (user.last_name or "").strip().lower(),
+    ))
+    participant_statuses = {
+        participant.user_id: participant.status
+        for participant in SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id == trip_id,
+            SkiTripParticipant.user_id.in_(friend_ids),
+        ).all()
+    }
+
+    candidates = []
+    for friend in friends:
+        status = participant_statuses.get(friend.id)
+        is_active = status in ACTIVE_RSVP_STATUSES
+        is_pending = status == GuestStatus.PENDING
+        candidates.append({
+            "user": friend,
+            "status": status.value if status else None,
+            "disabled": is_active or is_pending,
+            "label": (
+                "Already on trip" if is_active
+                else "Invite sent" if is_pending
+                else "Declined — reinvite" if status == GuestStatus.DECLINED
+                else "Removed — reinvite" if status == GuestStatus.REMOVED
+                else None
+            ),
+        })
+    return candidates
+
+
 _RSVP_ACTION_TO_STATUS = {
     "going": GuestStatus.GOING,
     "interested": GuestStatus.INTERESTED,
@@ -14936,39 +14975,6 @@ def trip_detail(trip_id):
         )
     }
 
-    # Get connected friends for invite modal (owner only)
-    friends_for_invite = []
-    if is_owner and not is_terminal:
-        if friend_ids:
-            friends = list(friend_users.values())
-            # Sort alphabetically by first name (case-insensitive, leading/trailing
-            # spaces stripped), with last name as a tie-breaker — matches the
-            # alphabetical ordering used by the Friends page (alpha_groups, line ~7540).
-            friends.sort(key=lambda u: (
-                (u.first_name or '').strip().lower(),
-                (u.last_name  or '').strip().lower(),
-            ))
-
-            # Use already-loaded RSVP records to avoid a redundant lazy load.
-            existing_participants = {p.user_id: p.status for p in participant_rows}
-            
-            for friend in friends:
-                status = existing_participants.get(friend.id)
-                is_active = status in ACTIVE_RSVP_STATUSES
-                is_pending = status == GuestStatus.PENDING
-                friends_for_invite.append({
-                    'user': friend,
-                    'status': status.value if status else None,
-                    'disabled': is_active or is_pending,
-                    'label': (
-                        'Already on trip' if is_active
-                        else 'Invite sent' if is_pending
-                        else 'Declined — reinvite' if status == GuestStatus.DECLINED
-                        else 'Removed — reinvite' if status == GuestStatus.REMOVED
-                        else None
-                    ),
-                })
-    
     # External trip invite URL intentionally disabled.
     # The TripInviteToken flow is not product-ready: it creates trip membership but
     # does not handle friendship creation, new-user onboarding continuity, or identity
@@ -15188,7 +15194,6 @@ def trip_detail(trip_id):
         interested_participants=interested_participants,
         pending_participants=pending_participants,
         declined_participants=declined_participants,
-        friends_for_invite=friends_for_invite,
         invite_count=len(pending_participants),
         trip_invite_url=trip_invite_url,
         group_signals=group_signals,
@@ -15216,6 +15221,26 @@ def trip_detail(trip_id):
             and trip.end_date < today
         ),
     )
+
+
+@app.route("/trips/<int:trip_id>/invite-candidates")
+@login_required
+def trip_invite_candidates(trip_id):
+    """Return current organizer-only invite rows for lazy modal presentation."""
+    trip = SkiTrip.query.get_or_404(trip_id)
+    if trip.user_id != current_user.id:
+        abort(403)
+    if is_terminal_trip(trip):
+        return jsonify({"error": "This trip is read-only."}), 409
+
+    candidates = _trip_invite_candidate_rows(trip.id, current_user.id)
+    return jsonify({
+        "html": render_template(
+            "partials/trip_invite_candidate_rows.html",
+            friends_for_invite=candidates,
+        ),
+        "count": len(candidates),
+    })
 
 
 @app.route("/trips/<int:trip_id>/complete", methods=["POST"])

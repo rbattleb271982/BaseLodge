@@ -254,3 +254,151 @@ test('JSON form success refreshes canonical regions and shows message', async ()
   assert.deepEqual(replacements, ['canonical']);
   assert.deepEqual(toasts, ['Saved']);
 });
+
+function inviteLoaderHarness() {
+  const states = {
+    loading: { hidden: true },
+    empty: { hidden: true },
+    error: { hidden: true },
+  };
+  const attributes = {};
+  const results = {
+    innerHTML: '',
+    setAttribute(name, value) { attributes[name] = value; },
+    removeAttribute(name) { delete attributes[name]; },
+  };
+  const window = {};
+  const context = { Error, Number, Promise, window };
+  vm.runInNewContext(
+    fs.readFileSync('static/js/trip-detail-invite-loader.js', 'utf8'),
+    context
+  );
+  return {
+    results,
+    states,
+    create(options) {
+      return window.TripDetailInviteLoader.create({
+        url: '/trips/1/invite-candidates',
+        fetchImpl: options.fetchImpl,
+        getResults() { return results; },
+        getState(name) { return states[name]; },
+        onLoaded: options.onLoaded,
+      });
+    },
+  };
+}
+
+function inviteResponse(data, { ok = true, status = 200 } = {}) {
+  return {
+    ok,
+    status,
+    async json() { return data; },
+  };
+}
+
+test('invite loader deduplicates concurrent retrieval and caches success', async () => {
+  const h = inviteLoaderHarness();
+  let resolveFetch;
+  let fetchCount = 0;
+  const loader = h.create({
+    fetchImpl() {
+      fetchCount += 1;
+      return new Promise(resolve => { resolveFetch = resolve; });
+    },
+  });
+
+  const first = loader.load();
+  const second = loader.load();
+  assert.equal(fetchCount, 1);
+  assert.equal(loader.isLoading(), true);
+  assert.equal(h.states.loading.hidden, false);
+
+  resolveFetch(inviteResponse({ html: '<div class="friend-select-row"></div>', count: 1 }));
+  await Promise.all([first, second]);
+  assert.equal(loader.isLoaded(), true);
+  assert.equal(h.results.innerHTML, '<div class="friend-select-row"></div>');
+
+  await loader.load();
+  assert.equal(fetchCount, 1);
+});
+
+test('invite loader exposes empty state and supports invalidation', async () => {
+  const h = inviteLoaderHarness();
+  let fetchCount = 0;
+  const loader = h.create({
+    async fetchImpl() {
+      fetchCount += 1;
+      return inviteResponse({ html: '', count: 0 });
+    },
+  });
+
+  await loader.load();
+  assert.equal(h.states.empty.hidden, false);
+  loader.invalidate();
+  assert.equal(loader.isLoaded(), false);
+  assert.equal(h.results.innerHTML, '');
+  await loader.load();
+  assert.equal(fetchCount, 2);
+});
+
+test('invite loader clears stale rows on failure and allows retry', async () => {
+  const h = inviteLoaderHarness();
+  let fetchCount = 0;
+  const loader = h.create({
+    async fetchImpl() {
+      fetchCount += 1;
+      return fetchCount === 1
+        ? inviteResponse({ error: 'Nope' }, { ok: false, status: 500 })
+        : inviteResponse({ html: '<div>Recovered</div>', count: 1 });
+    },
+  });
+
+  await assert.rejects(loader.load(), error => error.status === 500);
+  assert.equal(h.states.error.hidden, false);
+  assert.equal(h.results.innerHTML, '');
+  await loader.load();
+  assert.equal(h.results.innerHTML, '<div>Recovered</div>');
+  assert.equal(fetchCount, 2);
+});
+
+test('invite loader ignores a response invalidated during retrieval', async () => {
+  const h = inviteLoaderHarness();
+  const resolvers = [];
+  const loader = h.create({
+    fetchImpl() {
+      return new Promise(resolve => { resolvers.push(resolve); });
+    },
+  });
+
+  const oldRequest = loader.load();
+  loader.invalidate();
+  const newRequest = loader.load();
+  assert.equal(resolvers.length, 2);
+
+  resolvers[0](inviteResponse({ html: '<div>Stale</div>', count: 1 }));
+  const staleResult = await oldRequest;
+  assert.equal(staleResult.loaded, false);
+  assert.equal(staleResult.stale, true);
+  assert.equal(h.results.innerHTML, '');
+  assert.equal(loader.isLoading(), true);
+
+  resolvers[1](inviteResponse({ html: '<div>Current</div>', count: 1 }));
+  await newRequest;
+  assert.equal(h.results.innerHTML, '<div>Current</div>');
+  assert.equal(loader.isLoaded(), true);
+  assert.equal(loader.isLoading(), false);
+});
+
+test('modal focuses search on open and never from late loader completion', () => {
+  const template = fs.readFileSync('templates/trip_detail.html', 'utf8');
+  const openHandler = template.slice(
+    template.indexOf('window.openInviteModal = function'),
+    template.indexOf('window.closeInviteModal = function')
+  );
+  const onLoaded = template.slice(
+    template.indexOf('onLoaded: function()'),
+    template.indexOf('});', template.indexOf('onLoaded: function()'))
+  );
+  assert.match(openHandler, /search\.focus\(\)/);
+  assert.doesNotMatch(onLoaded, /\.focus\(/);
+});
