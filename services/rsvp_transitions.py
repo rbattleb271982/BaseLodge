@@ -11,6 +11,9 @@ from models import (
     SkiTripRsvpTransition,
     db,
 )
+from services.wishlist_match_opportunities import (
+    stage_wishlist_match_opportunity,
+)
 
 
 CANONICAL_RSVP_STATUSES: FrozenSet[str] = frozenset(
@@ -85,6 +88,8 @@ def transition_rsvp(
     actor_user_id: Optional[int] = None,
     allowed_current_statuses: Optional[Iterable] = None,
     establish_missing: bool = False,
+    opportunity_producer_release_sha=None,
+    require_verified_opportunity_release=False,
 ) -> RsvpTransitionResult:
     """Apply one authoritative guest RSVP transition without committing.
 
@@ -144,6 +149,16 @@ def transition_rsvp(
         )
         db.session.add_all((participant, transition))
         db.session.flush()
+        if target == GuestStatus.GOING.value:
+            stage_wishlist_match_opportunity(
+                trip.id,
+                actor_user_id=user_id,
+                rsvp_transition_id=transition.id,
+                session=db.session,
+                source_route=f"rsvp_transition:{source}",
+                producer_release_sha=opportunity_producer_release_sha,
+                require_verified_release=require_verified_opportunity_release,
+            )
         return RsvpTransitionResult(
             trip=trip,
             participant=participant,
@@ -196,6 +211,16 @@ def transition_rsvp(
     )
     db.session.add(transition)
     db.session.flush()
+    if target == GuestStatus.GOING.value:
+        stage_wishlist_match_opportunity(
+            trip.id,
+            actor_user_id=user_id,
+            rsvp_transition_id=transition.id,
+            session=db.session,
+            source_route=f"rsvp_transition:{source}",
+            producer_release_sha=opportunity_producer_release_sha,
+            require_verified_release=require_verified_opportunity_release,
+        )
     return RsvpTransitionResult(
         trip=trip,
         participant=participant,

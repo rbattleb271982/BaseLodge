@@ -73,8 +73,10 @@ from services.message_outbox import (
     mark_opportunity_provider_started,
     sanitize_error,
 )
+from services.opportunity_messaging import opportunity_timestamp_at_or_after
 from services.pass_utils import format_passes_for_display, normalize_pass_selection
 from services.visibility import is_reciprocal_friend
+from services.wishlist import normalize_wishlist_resort_ids
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -504,9 +506,20 @@ _EVENT_REGISTRY: dict[str, EventSpec] = {
     EventName.WISHLIST_MATCH_DETECTED: EventSpec(
         event_name=EventName.WISHLIST_MATCH_DETECTED,
         category=Category.WISHLIST,
-        delivery_strategy=DeliveryStrategy.SILENT,
+        delivery_strategy=DeliveryStrategy.IMMEDIATE_PUSH,
+        title_template="Wishlist match",
+        body_template=(
+            "{actor_first_name} {wishlist_action} {resort}{wishlist_suffix}"
+        ),
+        deep_link_template="/friend-trip/{entity_id}",
+        url_template="/friend-trip/{entity_id}",
+        context_keys=[
+            "actor_first_name", "resort", "trip_id",
+            "wishlist_action", "wishlist_suffix",
+        ],
+        data_keys=["trip_id"],
         bypass_dedupe=False,
-        email_eligible=True,  # Future candidate for email
+        email_eligible=False,
     ),
 
     EventName.DIGEST_WEEKLY_GENERATED: EventSpec(
@@ -652,6 +665,86 @@ def _authorize_trip_event(
                     GuestStatus.GOING,
                 )
             )
+        )
+
+    if spec.event_name == EventName.WISHLIST_MATCH_DETECTED:
+        resort_id = (metadata or {}).get("resort_id")
+        rsvp_transition_id = (metadata or {}).get("rsvp_transition_id")
+        resort = (
+            db.session.get(Resort, resort_id)
+            if isinstance(resort_id, int)
+            else None
+        )
+        direct_invitation = Invitation.query.filter_by(
+            trip_id=trip.id,
+            receiver_id=recipient_user_id,
+            invite_type=InviteType.OUTBOUND,
+            status="pending",
+        ).first()
+        normalized_wishlist = normalize_wishlist_resort_ids(
+            db.session.get(User, recipient_user_id).wish_list_resorts,
+            strict=False,
+        )
+        common_allowed = bool(
+            recipient_user_id != actor_user_id
+            and recipient_user_id != trip.user_id
+            and trip.is_public is True
+            and (trip.lifecycle_state or "active") == "active"
+            and trip.start_date is not None
+            and trip.end_date is not None
+            and trip.end_date >= date.today()
+            and resort
+            and resort.is_active is True
+            and resort.is_region is False
+            and trip.resort_id == resort_id
+            and resort_id in normalized_wishlist
+            and is_reciprocal_friend(actor_user_id, recipient_user_id)
+            and direct_invitation is None
+            and not (
+                recipient_participant
+                and recipient_participant.status in (
+                    GuestStatus.PENDING,
+                    GuestStatus.INTERESTED,
+                    GuestStatus.GOING,
+                )
+            )
+        )
+        if not common_allowed:
+            return False
+
+        from services.opportunity_messaging import (
+            opportunity_activation_boundary,
+        )
+
+        boundary = opportunity_activation_boundary(
+            EventName.WISHLIST_MATCH_DETECTED, session=db.session
+        )
+        if boundary is None:
+            return False
+        if rsvp_transition_id is None:
+            return bool(
+                trip.user_id == actor_user_id
+                and trip.created_at is not None
+                and opportunity_timestamp_at_or_after(
+                    trip.created_at, boundary
+                )
+            )
+        transition = (
+            db.session.get(SkiTripRsvpTransition, rsvp_transition_id)
+            if isinstance(rsvp_transition_id, int)
+            else None
+        )
+        return bool(
+            transition
+            and transition.trip_id == trip.id
+            and transition.user_id == actor_user_id
+            and transition.new_status == GuestStatus.GOING.value
+            and transition.changed_at is not None
+            and opportunity_timestamp_at_or_after(
+                transition.changed_at, boundary
+            )
+            and actor_participant
+            and actor_participant.status == GuestStatus.GOING
         )
 
     if spec.event_name == EventName.TRIP_CANCELLED:
@@ -862,17 +955,6 @@ def evaluate_message_safety(
     )
     provider = _provider_for_spec(spec)
     audit = _audit_metadata(source_route)
-
-    if (
-        is_opportunity_event(spec.event_name)
-        and spec.event_name != EventName.FRIEND_TRIP_CREATED
-    ):
-        return MessagingSafetyDecision(
-            False, spec.event_name, occurrence_id, recipient_user_id,
-            actor_user_id, entity_type, entity_id, Channel.PUSH, provider,
-            SuppressionReason.NOT_IMPLEMENTED,
-            _audit_metadata(source_route, "opportunity_authorization_incomplete"),
-        )
 
     if spec.delivery_strategy == DeliveryStrategy.SILENT:
         return MessagingSafetyDecision(
@@ -1413,26 +1495,6 @@ def _outbox_render_metadata(row, spec):
                 )
             metadata["new_pass"] = pass_value
             metadata["new_pass_display"] = format_passes_for_display(pass_value)
-    if isinstance(row.object_id, int) and row.object_type == "trip":
-        trip = db.session.get(SkiTrip, row.object_id)
-        if trip:
-            metadata["trip_id"] = trip.id
-            resort = (
-                db.session.get(Resort, trip.resort_id)
-                if isinstance(trip.resort_id, int)
-                else None
-            )
-            resort_name = (
-                resort.name.strip()
-                if resort and isinstance(resort.name, str) and resort.name.strip()
-                else (
-                    trip.mountain.strip()
-                    if isinstance(trip.mountain, str) and trip.mountain.strip()
-                    else None
-                )
-            )
-            if resort_name:
-                metadata["resort"] = resort_name
     for key in (
         "invitation_id", "planning_post_id", "lifecycle_event_id",
         "suggestion_batch_id", "subject_user_id", "invite_share_event_id",
@@ -1441,6 +1503,58 @@ def _outbox_render_metadata(row, spec):
         value = _outbox_evidence_value(row, key)
         if value is not None:
             metadata[key] = value
+    if isinstance(row.object_id, int) and row.object_type == "trip":
+        trip = db.session.get(SkiTrip, row.object_id)
+        if trip:
+            metadata["trip_id"] = trip.id
+            evidence_resort_id = metadata.get("resort_id")
+            canonical_wishlist_event = (
+                spec.event_name == EventName.WISHLIST_MATCH_DETECTED
+            )
+            selected_resort_id = (
+                evidence_resort_id
+                if canonical_wishlist_event
+                else trip.resort_id
+            )
+            resort = db.session.get(Resort, selected_resort_id) if isinstance(
+                selected_resort_id, int
+            ) else None
+            resort_name = (
+                resort.name.strip()
+                if (
+                    resort
+                    and (
+                        not canonical_wishlist_event
+                        or (
+                            trip.resort_id == evidence_resort_id
+                            and resort.is_active is True
+                            and resort.is_region is False
+                        )
+                    )
+                    and isinstance(resort.name, str)
+                    and resort.name.strip()
+                )
+                else (
+                    trip.mountain.strip()
+                    if (
+                        not canonical_wishlist_event
+                        and isinstance(trip.mountain, str)
+                        and trip.mountain.strip()
+                    )
+                    else None
+                )
+            )
+            if resort_name:
+                metadata["resort"] = resort_name
+            if canonical_wishlist_event:
+                if metadata.get("rsvp_transition_id") is None:
+                    metadata["wishlist_action"] = "added a trip to"
+                    metadata["wishlist_suffix"] = (
+                        ", which is on your wishlist."
+                    )
+                else:
+                    metadata["wishlist_action"] = "is going to"
+                    metadata["wishlist_suffix"] = "—on your wishlist."
 
     # Founder templates historically accepted caller-owned alert text.  The
     # outbox deliberately never retains it; use fixed safe copy and validate
@@ -1488,10 +1602,7 @@ def message_outbox_provider_callback(row):
     """Worker callback which renders only after the current safety pass."""
     if (
         is_opportunity_event(row.event_name)
-        and (
-            row.event_name != EventName.FRIEND_TRIP_CREATED
-            or row.provider_phase != "started"
-        )
+        and row.provider_phase != "started"
     ):
         return {
             "status": "dead_letter",

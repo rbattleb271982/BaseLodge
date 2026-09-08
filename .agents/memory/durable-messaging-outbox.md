@@ -32,3 +32,9 @@ Opportunity-message authorization is a send-time transaction contract: lock the 
 **Why:** SQLAlchemy identity-map objects can stay stale across `FOR UPDATE`, SQLite savepoints can escape caller rollback without an explicit outer transaction, and a policy proof from a rolled-back savepoint no longer represents a held lock.
 
 **How to apply:** Use `populate_existing` for locked ORM reads, bind reusable policy decisions to the exact active root/nested transaction scope, invalidate them after commit/rollback, and commit provider-start before any provider call.
+
+Opportunity rows that are ineligible when their occurrence is consumed must be terminally suppressed in the owning transaction, but duplicate producers must never reapply initial-state suppression to an older row.
+
+**Why:** Relying only on later authorization lets opt-in, token addition, or invite removal resurrect historical work; suppressing a deduped older row from a later trigger can incorrectly destroy a previously valid occurrence.
+
+**How to apply:** Perform fixed-count bulk eligibility checks after staging, terminally suppress only rows newly inserted by that trigger, and retain send-time authorization for state changes that occur afterward.

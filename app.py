@@ -248,6 +248,9 @@ from services.message_outbox import enqueue_message, queue_health, sanitize_erro
 from services.friend_trip_opportunities import (
     stage_friend_trip_created_opportunity,
 )
+from services.wishlist_match_opportunities import (
+    stage_wishlist_match_opportunity,
+)
 from services.messaging_cutover import (
     drain_status,
     guarded_transition_inline,
@@ -6744,14 +6747,6 @@ def create_trip():
     )
     db.session.add(trip)
     db.session.flush()  # Get trip.id before adding participants
-    stage_friend_trip_created_opportunity(
-        trip.id,
-        session=db.session,
-        source_route="create_trip",
-        producer_release_sha=RELEASE_IDENTITY.sha,
-        require_verified_release=is_production,
-    )
-    
     # Auto-add owner as participant
     trip.add_owner_as_participant()
     
@@ -6765,6 +6760,21 @@ def create_trip():
             actor_user_id=user.id,
             establish_missing=True,
         )
+    stage_friend_trip_created_opportunity(
+        trip.id,
+        session=db.session,
+        source_route="create_trip",
+        producer_release_sha=RELEASE_IDENTITY.sha,
+        require_verified_release=is_production,
+    )
+    stage_wishlist_match_opportunity(
+        trip.id,
+        actor_user_id=user.id,
+        session=db.session,
+        source_route="create_trip",
+        producer_release_sha=RELEASE_IDENTITY.sha,
+        require_verified_release=is_production,
+    )
     
     # Track first trip created if not already set
     if not user.first_trip_created_at:
@@ -7161,6 +7171,14 @@ def update_trip_visibility(trip_id):
         if became_public:
             stage_friend_trip_created_opportunity(
                 trip.id,
+                session=db.session,
+                source_route="update_trip_visibility",
+                producer_release_sha=RELEASE_IDENTITY.sha,
+                require_verified_release=is_production,
+            )
+            stage_wishlist_match_opportunity(
+                trip.id,
+                actor_user_id=current_user.id,
                 session=db.session,
                 source_route="update_trip_visibility",
                 producer_release_sha=RELEASE_IDENTITY.sha,
@@ -14609,6 +14627,14 @@ def add_trip():
                         producer_release_sha=RELEASE_IDENTITY.sha,
                         require_verified_release=is_production,
                     )
+                    stage_wishlist_match_opportunity(
+                        _trip.id,
+                        actor_user_id=current_user.id,
+                        session=db.session,
+                        source_route="add_trip_batch",
+                        producer_release_sha=RELEASE_IDENTITY.sha,
+                        require_verified_release=is_production,
+                    )
                     _trip.add_owner_as_participant()
                     emit_trip_created_activities(_trip, current_user.id)
                 db.session.commit()
@@ -14736,13 +14762,6 @@ def add_trip():
         try:
             db.session.add(trip)
             db.session.flush()
-            stage_friend_trip_created_opportunity(
-                trip.id,
-                session=db.session,
-                source_route="add_trip",
-                producer_release_sha=RELEASE_IDENTITY.sha,
-                require_verified_release=is_production,
-            )
             trip.add_owner_as_participant()
             if friend_id:
                 transition_rsvp(
@@ -14753,6 +14772,21 @@ def add_trip():
                     actor_user_id=current_user.id,
                     establish_missing=True,
                 )
+            stage_friend_trip_created_opportunity(
+                trip.id,
+                session=db.session,
+                source_route="add_trip",
+                producer_release_sha=RELEASE_IDENTITY.sha,
+                require_verified_release=is_production,
+            )
+            stage_wishlist_match_opportunity(
+                trip.id,
+                actor_user_id=current_user.id,
+                session=db.session,
+                source_route="add_trip",
+                producer_release_sha=RELEASE_IDENTITY.sha,
+                require_verified_release=is_production,
+            )
             emit_trip_created_activities(trip, current_user.id)
             invite_intent = None
             if friend_id:
@@ -15976,6 +16010,8 @@ def trip_invite_token_accept(token):
             actor_user_id=current_user.id,
             allowed_current_statuses={GuestStatus.PENDING},
             establish_missing=True,
+            opportunity_producer_release_sha=RELEASE_IDENTITY.sha,
+            require_verified_opportunity_release=is_production,
         )
     except RsvpCurrentStateError as exc:
         if exc.current_status in {
@@ -16436,6 +16472,8 @@ def respond_to_trip_invite(trip_id):
             source="invite_response",
             actor_user_id=current_user.id,
             allowed_current_statuses=allowed_statuses,
+            opportunity_producer_release_sha=RELEASE_IDENTITY.sha,
+            require_verified_opportunity_release=is_production,
         )
     except RsvpCurrentStateError as exc:
         if exc.current_status in {
@@ -16591,6 +16629,8 @@ def update_own_trip_rsvp(trip_id):
             source="self_rsvp",
             actor_user_id=current_user.id,
             allowed_current_statuses=ACTIVE_RSVP_STATUSES,
+            opportunity_producer_release_sha=RELEASE_IDENTITY.sha,
+            require_verified_opportunity_release=is_production,
         )
     except RsvpCurrentStateError:
         return jsonify({
@@ -16639,6 +16679,8 @@ def organizer_update_trip_rsvp(trip_id, user_id):
             source="organizer_rsvp",
             actor_user_id=current_user.id,
             allowed_current_statuses=ACTIVE_RSVP_STATUSES,
+            opportunity_producer_release_sha=RELEASE_IDENTITY.sha,
+            require_verified_opportunity_release=is_production,
         )
     except RsvpCurrentStateError:
         return jsonify({

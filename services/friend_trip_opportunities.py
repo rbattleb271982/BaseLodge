@@ -14,6 +14,10 @@ from services.opportunity_messaging import (
     opportunity_occurrence_id,
     stage_opportunity_intents,
 )
+from services.opportunity_suppression import (
+    initial_opportunity_suppressions,
+    terminally_suppress_staged_opportunities,
+)
 
 
 @dataclass(frozen=True)
@@ -117,6 +121,15 @@ def stage_friend_trip_created_opportunity(
     )
     if not staged or not all(staged):
         raise RuntimeError("friend trip opportunity staging was refused")
+    suppressions = initial_opportunity_suppressions(
+        trip.id, recipient_ids, session=session
+    )
+    terminally_suppress_staged_opportunities(
+        EventName.FRIEND_TRIP_CREATED,
+        occurrence_id,
+        suppressions,
+        session=session,
+    )
     marker = session.execute(
         sa.select(MessageOutbox)
         .where(

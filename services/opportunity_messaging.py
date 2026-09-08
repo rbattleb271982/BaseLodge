@@ -1,7 +1,7 @@
 """Fail-closed staging contract for dormant trip opportunity messages."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import sqlalchemy as sa
 
@@ -60,6 +60,19 @@ def opportunity_occurrence_id(event_name, trip_id):
     if len(occurrence_id) > 191:
         raise ValueError("opportunity occurrence exceeds storage bounds")
     return occurrence_id
+
+
+def opportunity_timestamp_at_or_after(candidate, boundary):
+    """Compare UTC timestamps safely across naive and timezone-aware columns."""
+    if not isinstance(candidate, datetime) or not isinstance(boundary, datetime):
+        return False
+
+    def utc_naive(value):
+        if value.tzinfo is not None and value.utcoffset() is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.replace(tzinfo=None)
+
+    return utc_naive(candidate) >= utc_naive(boundary)
 
 
 def _invalid_policy(event_name, reason):

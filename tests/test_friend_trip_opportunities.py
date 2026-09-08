@@ -132,8 +132,8 @@ def _deliverable_setup(*, resort=True, legacy_mountain=None, paused=True):
     )
     if legacy_mountain is not None:
         trip.mountain = legacy_mountain
-    result = _stage(trip)
     _add_token(friend)
+    result = _stage(trip)
     db.session.flush()
     return owner, friend, trip, result
 
@@ -481,6 +481,63 @@ def test_pending_invitee_consumes_occurrence_but_is_not_deliverable(client):
         assert result.recipient_user_ids == (friend.id,)
         assert decision.allowed is False
         assert decision.suppression_reason == SuppressionReason.PRIVACY_DENIED
+
+
+@pytest.mark.parametrize(
+    "initial_state",
+    ["push_disabled", "tokenless", "inactive_token", "participant", "invite"],
+)
+def test_initial_ineligibility_is_terminal_and_never_resurrects(
+    client, initial_state
+):
+    with app.app_context():
+        _register_bl110()
+        owner = _make_user(f"bl110-initial-owner-{initial_state}")
+        friend = _make_user(f"bl110-initial-friend-{initial_state}")
+        _connect(owner, friend)
+        trip = _make_trip(owner)
+        if initial_state == "push_disabled":
+            friend.push_notifications_enabled = False
+            _add_token(friend)
+        elif initial_state == "inactive_token":
+            _add_token(friend, active=False)
+        elif initial_state == "participant":
+            _add_participant(trip, friend, GuestStatus.INTERESTED)
+            _add_token(friend)
+        elif initial_state == "invite":
+            _add_token(friend)
+            db.session.add(Invitation(
+                sender_id=owner.id,
+                receiver_id=friend.id,
+                trip_id=trip.id,
+                invite_type=InviteType.OUTBOUND,
+                status="pending",
+            ))
+        db.session.flush()
+        _stage(trip)
+        row = _recipient_row(trip, friend)
+        assert row.status == "suppressed"
+        assert row.provider_phase == "not_started"
+
+        friend.push_notifications_enabled = True
+        if initial_state == "tokenless":
+            _add_token(friend)
+        elif initial_state == "inactive_token":
+            PushDeviceToken.query.filter_by(user_id=friend.id).update({
+                PushDeviceToken.active: True,
+            })
+        if initial_state == "participant":
+            SkiTripParticipant.query.filter_by(
+                trip_id=trip.id, user_id=friend.id
+            ).one().status = GuestStatus.DECLINED
+        if initial_state == "invite":
+            Invitation.query.filter_by(
+                trip_id=trip.id, receiver_id=friend.id
+            ).delete()
+        db.session.flush()
+        assert _stage(trip).consumed is False
+        assert row.status == "suppressed"
+        assert message_outbox_safety_callback(row).allowed is True
 
 
 def test_render_uses_canonical_resort_first_name_and_friend_trip_link(client):
