@@ -501,7 +501,7 @@ def test_participant_friend_grants_only_current_public_social_trip_access(client
     assert client.get(f"/friend-trip/{trip_id}").status_code == 403
 
 
-def test_normalized_availability_never_falls_back_to_stale_legacy_dates(client):
+def test_historical_normalized_rows_preserve_legacy_in_matching_consumer(client):
     with app.app_context():
         viewer = _make_user("normalized-availability-viewer")
         friend = _make_user("normalized-availability-friend")
@@ -517,12 +517,21 @@ def test_normalized_availability_never_falls_back_to_stale_legacy_dates(client):
         db.session.commit()
 
         resolved = get_available_dates_for_users([viewer, friend])
-        assert resolved[friend.id] == set()
-        assert get_open_date_matches(
+        assert resolved[friend.id] == {future_day.isoformat()}
+        matches = get_open_date_matches(
             viewer,
             cached_my_dates={future_day.isoformat()},
             cached_friends=[friend],
-        ) == []
+        )
+        assert matches == [{
+            "date": future_day.isoformat(),
+            "friend_id": friend.id,
+            "friend_name": (
+                f"{friend.first_name or ''} {friend.last_name or ''}".strip()
+            ),
+            "friend_pass": "epic",
+            "same_pass": True,
+        }]
 
 
 def test_friend_public_trip_access_expires_with_trip_and_attendance(client):

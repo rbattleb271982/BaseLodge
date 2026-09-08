@@ -10,9 +10,20 @@ from app import (
     build_friend_at_mountain_card,
     build_trip_overlap_today_card,
     check_trip_invite_eligibility,
+    compute_friend_trip_availability_overlaps,
+    count_friends_open_on_same_dates,
+    emit_availability_overlap_activities_for_trip,
     format_trip_dates,
 )
-from models import Friend, GuestStatus, SkiTripParticipant, db
+from models import (
+    Activity,
+    ActivityType,
+    Friend,
+    GuestStatus,
+    SkiTripParticipant,
+    UserAvailability,
+    db,
+)
 from tests.conftest import (
     _add_participant,
     _login,
@@ -39,6 +50,142 @@ def _link_friends(user, friend):
         Friend(user_id=user.id, friend_id=friend.id),
         Friend(user_id=friend.id, friend_id=user.id),
     ])
+
+
+def test_invite_eligibility_uses_normalized_dates_and_inactive_tombstones(client):
+    shared_day = date.today() + timedelta(days=10)
+    with app.app_context():
+        user = _make_user("invite-avail-user", open_dates=[])
+        friend = _make_user("invite-avail-friend", open_dates=[])
+        _link_friends(user, friend)
+        user_row = UserAvailability(
+            user_id=user.id,
+            date=shared_day,
+            is_available=True,
+        )
+        friend_row = UserAvailability(
+            user_id=friend.id,
+            date=shared_day,
+            is_available=True,
+        )
+        db.session.add_all([user_row, friend_row])
+        db.session.commit()
+
+        assert check_trip_invite_eligibility(user.id, friend.id)
+
+        friend.open_dates = [shared_day.isoformat()]
+        friend_row.is_available = False
+        db.session.commit()
+
+        assert not check_trip_invite_eligibility(user.id, friend.id)
+
+
+def test_availability_activity_overlap_uses_normalized_dates(client):
+    shared_day = date.today() + timedelta(days=10)
+    with app.app_context():
+        user = _make_user("activity-avail-user", open_dates=[])
+        friend = _make_user("activity-avail-friend")
+        resort = _make_resort("Activity Availability Peak")
+        _link_friends(user, friend)
+        _make_trip(
+            friend,
+            resort=resort,
+            start_date=shared_day,
+            end_date=shared_day,
+        )
+        row = UserAvailability(
+            user_id=user.id,
+            date=shared_day,
+            is_available=True,
+        )
+        db.session.add(row)
+        db.session.commit()
+
+        overlaps = compute_friend_trip_availability_overlaps(user)
+        assert len(overlaps) == 1
+        assert overlaps[0]["overlap_start_date"] == shared_day
+        assert overlaps[0]["overlap_end_date"] == shared_day
+
+        user.open_dates = [shared_day.isoformat()]
+        row.is_available = False
+        db.session.commit()
+
+        assert compute_friend_trip_availability_overlaps(user) == []
+
+
+def test_shared_date_counter_uses_canonical_batch_resolution(client):
+    shared_day = date.today() + timedelta(days=10)
+    with app.app_context():
+        user = _make_user("counter-avail-user", open_dates=[])
+        active_friend = _make_user("counter-active-friend", open_dates=[])
+        tombstoned_friend = _make_user(
+            "counter-tombstone-friend",
+            open_dates=[shared_day.isoformat()],
+        )
+        _link_friends(user, active_friend)
+        _link_friends(user, tombstoned_friend)
+        db.session.add_all([
+            UserAvailability(
+                user_id=user.id,
+                date=shared_day,
+                is_available=True,
+            ),
+            UserAvailability(
+                user_id=active_friend.id,
+                date=shared_day,
+                is_available=True,
+            ),
+            UserAvailability(
+                user_id=tombstoned_friend.id,
+                date=shared_day,
+                is_available=False,
+            ),
+        ])
+        db.session.commit()
+
+        assert count_friends_open_on_same_dates(user) == (1, True)
+
+
+def test_trip_recompute_deletes_stale_activity_for_empty_resolved_dates(client):
+    shared_day = date.today() + timedelta(days=10)
+    with app.app_context():
+        owner = _make_user("stale-activity-owner")
+        friend = _make_user(
+            "stale-activity-friend",
+            open_dates=[shared_day.isoformat()],
+        )
+        resort = _make_resort("Stale Activity Peak")
+        _link_friends(owner, friend)
+        trip = _make_trip(
+            owner,
+            resort=resort,
+            start_date=shared_day,
+            end_date=shared_day,
+        )
+        db.session.add_all([
+            UserAvailability(
+                user_id=friend.id,
+                date=shared_day,
+                is_available=False,
+            ),
+            Activity(
+                actor_user_id=owner.id,
+                recipient_user_id=friend.id,
+                type=ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value,
+                object_type="availability",
+                object_id=friend.id,
+                extra_data={"trip_ids": [trip.id]},
+            ),
+        ])
+        db.session.commit()
+
+        emit_availability_overlap_activities_for_trip(trip)
+        db.session.flush()
+
+        assert Activity.query.filter_by(
+            recipient_user_id=friend.id,
+            type=ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value,
+        ).count() == 0
 
 
 def test_home_overlap_today_uses_effective_window_for_going_friend(client):

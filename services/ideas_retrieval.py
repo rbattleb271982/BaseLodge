@@ -20,10 +20,10 @@ from models import (
     SkiTrip,
     SkiTripParticipant,
     User,
-    UserAvailability,
     db,
 )
 from services.ideas_engine import _fmt_date_range_short, _fmt_social_names
+from services.open_dates import build_resolved_availability_select
 from services.visibility import reciprocal_friend_predicate
 from utils.formatting import format_name
 
@@ -85,7 +85,28 @@ class _safe_date(FunctionElement):
 @compiles(_safe_date, "sqlite")
 def _compile_safe_date_sqlite(element, compiler, **kw):
     value = compiler.process(list(element.clauses)[0], **kw)
-    return f"date(CASE WHEN {value} GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' THEN {value} END)"
+    text = f"CAST({value} AS TEXT)"
+    year = f"CAST(substr({text}, 1, 4) AS INTEGER)"
+    month = f"CAST(substr({text}, 6, 2) AS INTEGER)"
+    day = f"CAST(substr({text}, 9, 2) AS INTEGER)"
+    leap_year = (
+        f"(({year} % 400 = 0) OR "
+        f"({year} % 4 = 0 AND {year} % 100 <> 0))"
+    )
+    days_in_month = (
+        f"CASE WHEN {month} = 2 "
+        f"THEN CASE WHEN {leap_year} THEN 29 ELSE 28 END "
+        f"WHEN {month} IN (4, 6, 9, 11) THEN 30 ELSE 31 END"
+    )
+    return (
+        f"CASE WHEN length({text}) = 10 "
+        f"AND {text} GLOB "
+        f"'[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' "
+        f"AND {year} BETWEEN 1 AND 9999 "
+        f"AND {month} BETWEEN 1 AND 12 "
+        f"AND {day} BETWEEN 1 AND {days_in_month} "
+        f"THEN date({text}) END"
+    )
 
 
 @compiles(_safe_date, "postgresql")
@@ -205,8 +226,7 @@ def _json_elements(column, name):
 
 
 def _available_days(*, user_id, today):
-    """Return the normalized-first availability CTE for viewer and friends."""
-    availability = UserAvailability.__table__
+    """Return per-date resolved availability for viewer and friends."""
     user = User.__table__
     friendship = Friend.__table__
 
@@ -218,39 +238,28 @@ def _available_days(*, user_id, today):
         ),
     ).cte("ideas_relevant_users")
 
-    normalized = (
-        sa.select(
-            availability.c.user_id.label("user_id"),
-            availability.c.date.label("available_date"),
-        )
-        .where(
-            availability.c.user_id.in_(sa.select(relevant_users.c.user_id)),
-            availability.c.is_available.is_(True),
-            availability.c.date >= today,
-        )
-    )
-
     legacy_values = _json_elements(user.c.open_dates, "legacy_open_date")
-    has_normalized = sa.exists(
-        sa.select(sa.literal(1)).where(
-            availability.c.user_id == user.c.id,
-            availability.c.is_available.is_(True),
-        )
-    )
-    legacy = (
+    legacy_date = _safe_date(legacy_values.c.value)
+    legacy_candidates = (
         sa.select(
             user.c.id.label("user_id"),
-            _safe_date(legacy_values.c.value).label("available_date"),
+            legacy_date.label("available_date"),
         )
-        .select_from(user, relevant_users, legacy_values)
+        .select_from(user, legacy_values)
         .where(
-            relevant_users.c.user_id == user.c.id,
-            ~has_normalized,
-            sa.func.length(sa.cast(legacy_values.c.value, sa.String())) == 10,
-            _safe_date(legacy_values.c.value) >= today,
+            user.c.id.in_(sa.select(relevant_users.c.user_id)),
+            sa.func.length(
+                sa.cast(legacy_values.c.value, sa.String())
+            ) == 10,
+            legacy_date >= today,
         )
+        .cte("ideas_legacy_available_days")
     )
-    return sa.union(normalized, legacy).cte("ideas_available_days")
+    return build_resolved_availability_select(
+        relevant_user_ids=sa.select(relevant_users.c.user_id),
+        legacy_candidates=legacy_candidates,
+        today=today,
+    ).cte("ideas_available_days")
 
 
 def _wishlist_pairs(*, user_id):

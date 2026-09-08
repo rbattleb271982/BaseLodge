@@ -527,12 +527,15 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
 
     # FUTURE: /add_trip only supports single friend_id; multi-friend prefill TBD.
     """
-    from services.open_dates import get_available_dates_for_user as _get_avail
+    from services.open_dates import get_available_dates_for_users
 
     today = date.today()
     sixty_days_out = today + timedelta(days=60)
     user_pass = (user.pass_type or "").strip()
     friend_by_id = {f.id: f for f in all_friends}
+    friend_dates_by_id = (
+        get_available_dates_for_users(all_friends) if user_dates else {}
+    )
 
     cards = []
     for resort_data in wishlist_data:
@@ -555,10 +558,9 @@ def build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates):
             all_shared = set()
             for person in overlapping_people:
                 fid = person["id"]
-                friend_obj = friend_by_id.get(fid)
-                if not friend_obj:
+                if fid not in friend_by_id:
                     continue
-                friend_dates = _get_avail(friend_obj)
+                friend_dates = friend_dates_by_id.get(fid, set())
                 all_shared |= (user_dates & friend_dates)
             if all_shared:
                 shared_sorted = sorted(all_shared)
@@ -1230,7 +1232,11 @@ def build_ranked_idea_feed(user, all_friends):
         if fid not in friend_trip_statuses and _ft.trip_status == "going":
             friend_trip_statuses[fid] = "going"
 
-    matches = get_open_date_matches(user)
+    matches = get_open_date_matches(
+        user,
+        cached_my_dates=user_dates,
+        cached_friends=all_friends,
+    )
     windows = build_overlap_windows(
         matches, user.pass_type, friend_trip_statuses=friend_trip_statuses
     )
@@ -1239,7 +1245,11 @@ def build_ranked_idea_feed(user, all_friends):
     wishlist_data = build_wishlist_overlaps(user, all_friends)
     wishlist_cards = build_wishlist_overlap_cards(user, wishlist_data, all_friends, user_dates)
 
-    trip_cards = trip_overlap_skill(user, all_friends)
+    trip_cards = trip_overlap_skill(
+        user,
+        all_friends,
+        user_dates=user_dates,
+    )
 
     all_candidates = avail_cards + wishlist_cards + trip_cards
     return apply_diversity_selection(all_candidates, max_cards=5)

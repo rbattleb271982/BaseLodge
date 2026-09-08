@@ -30,7 +30,7 @@ def _normalize_pass_name(pt):
     return ""
 
 
-def trip_overlap_skill(user, all_friends):
+def trip_overlap_skill(user, all_friends, user_dates=None):
     """Return up to 3 IdeaCards for friends' upcoming trips that are relevant
     to the current user.
 
@@ -64,7 +64,8 @@ def trip_overlap_skill(user, all_friends):
     friend_ids = [f.id for f in all_friends]
     friend_by_id = {f.id: f for f in all_friends}
 
-    user_dates = get_available_dates_for_user(user)
+    if user_dates is None:
+        user_dates = get_available_dates_for_user(user)
     user_wishlist = set(user.wish_list_resorts or [])
     user_pass = (user.pass_type or "").lower()
 

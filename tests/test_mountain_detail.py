@@ -1103,7 +1103,7 @@ def test_mountain_availability_uses_table_rows_then_legacy_fallback_without_raw_
     assert start.isoformat() not in html
 
 
-def test_mountain_availability_table_rows_take_precedence_over_legacy_dates(client):
+def test_mountain_availability_uses_per_date_overlay_for_unrelated_legacy_date(client):
     with app.app_context():
         viewer = _make_user("table-priority-owner")
         friend = _friend("table-priority-friend", "Priority")
@@ -1119,8 +1119,35 @@ def test_mountain_availability_table_rows_take_precedence_over_legacy_dates(clie
     _login(client, viewer_id)
     html = _page(client, resort_slug).get_data(as_text=True)
 
-    assert "is free during your" not in html
-    assert "are free during your" not in html
+    assert "Priority</a> is free during your" in html
+
+
+def test_mountain_availability_inactive_row_tombstones_same_legacy_date(client):
+    with app.app_context():
+        viewer = _make_user("tombstone-owner")
+        friend = _friend("tombstone-friend", "Tombstone")
+        resort = _make_resort("Tombstone Peak")
+        start = date.today() + timedelta(days=10)
+        _make_trip(
+            viewer,
+            resort=resort,
+            start_date=start,
+            end_date=start + timedelta(days=1),
+        )
+        _connect(viewer, friend)
+        friend.open_dates = [start.isoformat()]
+        db.session.add(UserAvailability(
+            user_id=friend.id,
+            date=start,
+            is_available=False,
+        ))
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _page(client, resort_slug).get_data(as_text=True)
+
+    assert "Tombstone</a> is free during your" not in html
 
 
 def test_mountain_availability_is_direct_friend_only_and_keeps_rsvps_independent(client):

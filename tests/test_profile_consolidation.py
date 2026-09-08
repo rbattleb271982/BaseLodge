@@ -9,12 +9,12 @@ Profile/Account screen. Those refactor-guard tests are no longer valid.
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.pool import StaticPool
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from werkzeug.security import generate_password_hash
 
 from app import app, db
 from conftest import _login
-from models import EquipmentDiscipline, EquipmentSetup, User
+from models import EquipmentDiscipline, EquipmentSetup, User, UserAvailability
 
 
 # ── Engine-map helpers ────────────────────────────────────────────────────────
@@ -182,6 +182,39 @@ def _profile_html(client, user_id):
     response = client.get("/profile")
     assert response.status_code == 200
     return response.get_data(as_text=True)
+
+
+def test_pass_saved_availability_nudge_uses_resolved_dates(
+    client, logged_in_user
+):
+    shared_day = date.today() + timedelta(days=10)
+    with app.app_context():
+        user = db.session.get(User, logged_in_user.id)
+        user.open_dates = [shared_day.isoformat()]
+        row = UserAvailability(
+            user_id=user.id,
+            date=shared_day,
+            is_available=False,
+        )
+        db.session.add(row)
+        db.session.commit()
+        user_id = user.id
+
+    _login(client, user_id)
+    response = client.get("/profile?pass_saved=1")
+    assert response.status_code == 200
+    assert "Pass saved!" in response.get_data(as_text=True)
+
+    with app.app_context():
+        UserAvailability.query.filter_by(
+            user_id=user_id,
+            date=shared_day,
+        ).one().is_available = True
+        db.session.commit()
+
+    response = client.get("/profile?pass_saved=1")
+    assert response.status_code == 200
+    assert "Pass saved!" not in response.get_data(as_text=True)
 
 
 def _profile_setup(user, discipline, *, primary=False, created_at=None, **fields):

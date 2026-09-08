@@ -82,6 +82,20 @@ def test_statement_compiles_json_expansion_and_final_limit_for_both_dialects():
     assert "BETWEEN 1 AND 9999" in postgres_sql
     assert "IN (4, 6, 9, 11)" in postgres_sql
     assert "THEN CAST(" in postgres_sql
+    assert "ideas_legacy_available_days" in sqlite_sql
+    assert "ideas_legacy_available_days" in postgres_sql
+    assert (
+        "LEFT OUTER JOIN user_availability AS legacy_availability_decision"
+        in sqlite_sql
+    )
+    assert (
+        "LEFT OUTER JOIN user_availability AS legacy_availability_decision"
+        in postgres_sql
+    )
+    assert sqlite_sql.count(" AS legacy_open_date") == 1
+    assert postgres_sql.count(" AS legacy_open_date") == 1
+    assert "% 400 = 0" in sqlite_sql
+    assert "IN (4, 6, 9, 11)" in sqlite_sql
     assert "row_number() OVER" in sqlite_sql
     assert "dismissed_insight_card" in sqlite_sql
     assert sqlite_sql.upper().count(" LIMIT ") == 1
@@ -134,7 +148,7 @@ def test_dismissal_backfills_and_large_population_uses_one_bounded_query(client)
         assert " LIMIT " in selects[0].upper()
 
 
-def test_normalized_availability_overrides_legacy_and_merges_windows(client):
+def test_normalized_availability_overlays_legacy_per_date_and_merges_windows(client):
     with app.app_context():
         viewer = _make_user(
             "ideas-avail-viewer",
@@ -151,7 +165,7 @@ def test_normalized_availability_overrides_legacy_and_merges_windows(client):
             ],
         )
         _connect(viewer, friend)
-        # One normalized row suppresses each user's complete legacy list.
+        # An unrelated normalized row augments each user's legacy dates.
         normalized_day = TODAY + timedelta(days=4)
         db.session.add_all(
             [
@@ -171,11 +185,103 @@ def test_normalized_availability_overrides_legacy_and_merges_windows(client):
 
         rows = get_home_ideas(user_id=viewer.id, today=TODAY)
 
+        assert [
+            (row["idea_type"], row["start_date"], row["end_date"], row["resort"])
+            for row in rows
+        ] == [
+            (
+                "availability_overlap",
+                TODAY + timedelta(days=1),
+                TODAY + timedelta(days=2),
+                None,
+            ),
+            ("availability_overlap", normalized_day, normalized_day, None),
+        ]
+
+
+def test_inactive_normalized_day_tombstones_same_legacy_home_idea(client):
+    with app.app_context():
+        shared_day = TODAY + timedelta(days=3)
+        viewer = _make_user(
+            "ideas-tombstone-viewer",
+            open_dates=[shared_day.isoformat()],
+        )
+        friend = _make_user(
+            "ideas-tombstone-friend",
+            open_dates=[shared_day.isoformat()],
+        )
+        _connect(viewer, friend)
+        db.session.add(UserAvailability(
+            user_id=friend.id,
+            date=shared_day,
+            is_available=False,
+        ))
+        db.session.commit()
+
+        assert get_home_ideas(user_id=viewer.id, today=TODAY) == []
+
+
+@pytest.mark.parametrize(
+    ("is_available", "expected_start"),
+    [
+        (True, TODAY + timedelta(days=1)),
+        (False, TODAY + timedelta(days=2)),
+    ],
+)
+def test_same_date_normalized_decision_preserves_unrelated_legacy_home_date(
+    client, is_available, expected_start
+):
+    first_day = TODAY + timedelta(days=1)
+    second_day = TODAY + timedelta(days=2)
+    with app.app_context():
+        viewer = _make_user(
+            f"ideas-correlated-viewer-{is_available}",
+            open_dates=[first_day.isoformat(), second_day.isoformat()],
+        )
+        friend = _make_user(
+            f"ideas-correlated-friend-{is_available}",
+            open_dates=[first_day.isoformat(), second_day.isoformat()],
+        )
+        _connect(viewer, friend)
+        db.session.add_all([
+            UserAvailability(
+                user_id=viewer.id,
+                date=first_day,
+                is_available=is_available,
+            ),
+            UserAvailability(
+                user_id=friend.id,
+                date=first_day,
+                is_available=is_available,
+            ),
+        ])
+        db.session.commit()
+
+        rows = get_home_ideas(user_id=viewer.id, today=TODAY)
+
         assert len(rows) == 1
         assert rows[0]["idea_type"] == "availability_overlap"
-        assert rows[0]["start_date"] == normalized_day
-        assert rows[0]["end_date"] == normalized_day
-        assert rows[0]["resort"] is None
+        assert rows[0]["start_date"] == expected_start
+        assert rows[0]["end_date"] == second_day
+
+
+@pytest.mark.parametrize("invalid_value", ["2027-02-29", "2027-04-31"])
+def test_sqlite_home_ideas_rejects_calendar_invalid_legacy_dates(
+    client, invalid_value
+):
+    with app.app_context():
+        viewer = _make_user(
+            f"ideas-invalid-calendar-viewer-{invalid_value}",
+            open_dates=[invalid_value],
+        )
+        friend = _make_user(
+            f"ideas-invalid-calendar-friend-{invalid_value}",
+            open_dates=[invalid_value],
+        )
+        _connect(viewer, friend)
+        db.session.commit()
+
+        assert get_home_ideas(user_id=viewer.id, today=TODAY) == []
 
 
 def test_legacy_malformed_values_and_missing_wishlist_resorts_are_ignored(client):

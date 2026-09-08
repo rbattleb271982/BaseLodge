@@ -28,7 +28,7 @@ import httpx
 from datetime import datetime, date, timedelta, timezone
 from zoneinfo import ZoneInfo
 from sqlalchemy.orm import joinedload, selectinload
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from runtime_config import (
     RuntimeConfigurationError,
     application_database_engine_options,
@@ -129,9 +129,11 @@ from services.trip_attendance import (
 )
 from services.search_utils import normalize_for_search, build_name_search_clauses
 from services.open_dates import (
+    OpenDateValidationError,
     get_available_dates_for_user,
     get_available_dates_for_users,
     get_open_date_matches,
+    replace_current_availability,
 )
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.wishlist import (
@@ -1907,25 +1909,22 @@ def coalesce_date_ranges(date_ranges):
     return merged
 
 
-def compute_friend_trip_availability_overlaps(user):
+def compute_friend_trip_availability_overlaps(user, available_dates=None):
     """Compute overlaps between user's open availability and friends' trips.
     
     Returns a list of overlap groups, each containing:
     - overlap_start_date, overlap_end_date
     - list of (friend_id, trip_id, resort_id, resort_name, state, country)
     """
-    if not user.open_dates:
-        return []
-    
-    user_open_dates = set()
-    for d in user.open_dates:
-        try:
-            if isinstance(d, str):
-                user_open_dates.add(datetime.strptime(d, '%Y-%m-%d').date())
-            else:
-                user_open_dates.add(d)
-        except (ValueError, TypeError):
-            continue
+    resolved_dates = (
+        get_available_dates_for_user(user)
+        if available_dates is None
+        else available_dates
+    )
+    user_open_dates = {
+        date.fromisoformat(value)
+        for value in resolved_dates
+    }
     
     if not user_open_dates:
         return []
@@ -2047,7 +2046,7 @@ def delete_availability_overlap_activities_for_trip(trip_id):
     })
 
 
-def emit_availability_overlap_activities_for_user(user):
+def emit_availability_overlap_activities_for_user(user, available_dates=None):
     """Create or update FRIEND_TRIP_OVERLAPS_AVAILABILITY activities for a user.
     
     Called when:
@@ -2059,7 +2058,10 @@ def emit_availability_overlap_activities_for_user(user):
         Activity.type == ActivityType.FRIEND_TRIP_OVERLAPS_AVAILABILITY.value
     ).delete()
     
-    overlaps = compute_friend_trip_availability_overlaps(user)
+    overlaps = compute_friend_trip_availability_overlaps(
+        user,
+        available_dates=available_dates,
+    )
     
     for overlap in overlaps:
         friend_ids = list(set(f['friend_id'] for f in overlap['friends']))
@@ -2096,11 +2098,15 @@ def emit_availability_overlap_activities_for_user(user):
 def emit_availability_overlap_activities_for_trip(trip):
     """Recompute availability overlaps for all friends when a trip is created/edited."""
     friend_ids = get_friend_ids(trip.user_id)
-    
-    for friend_id in friend_ids:
-        friend = db.session.get(User, friend_id)
-        if friend and friend.open_dates:
-            emit_availability_overlap_activities_for_user(friend)
+    friends = User.query.filter(User.id.in_(friend_ids)).all() if friend_ids else []
+    availability_by_friend = get_available_dates_for_users(friends)
+
+    for friend in friends:
+        friend_dates = availability_by_friend.get(friend.id, set())
+        emit_availability_overlap_activities_for_user(
+            friend,
+            available_dates=friend_dates,
+        )
 
 
 # Database Configuration
@@ -3643,12 +3649,7 @@ def count_friends_open_on_same_dates(user):
         tuple: (friend_count, user_has_open_dates)
     """
     try:
-        today = date.today()
-        today_str = today.strftime('%Y-%m-%d')
-        
-        # Get user's future open dates
-        user_open_dates = set(user.open_dates or [])
-        user_open_dates = {d for d in user_open_dates if d >= today_str}
+        user_open_dates = get_available_dates_for_user(user)
         
         # If no open dates, return 0 count but indicate user has no dates
         if not user_open_dates:
@@ -3662,11 +3663,12 @@ def count_friends_open_on_same_dates(user):
         
         # Get friends' data
         friends = User.query.filter(User.id.in_(friend_ids)).all()
+        availability_by_friend = get_available_dates_for_users(friends)
         
         # Count unique friends with overlapping open dates
         matching_friends = set()
         for friend in friends:
-            friend_dates = set(friend.open_dates or [])
+            friend_dates = availability_by_friend.get(friend.id, set())
             # Check if there's any intersection
             if user_open_dates & friend_dates:
                 matching_friends.add(friend.id)
@@ -5321,7 +5323,7 @@ def edit_profile():
             # but has no open dates set — highest-intent moment to prompt them.
             _should_prompt_avail = (
                 _ph_is_real_pass(normalized_passes)
-                and not bool(current_user.open_dates)
+                and not bool(get_available_dates_for_user(current_user))
             )
             if _should_prompt_avail:
                 return redirect(url_for("profile", pass_saved="1"))
@@ -11362,7 +11364,6 @@ def check_trip_invite_eligibility(user_id, friend_id):
     3. The friendship has trip_invites_allowed = True
     """
     today = date.today()
-    today_str = today.strftime('%Y-%m-%d')
     if not is_reciprocal_friend(user_id, friend_id):
         return False
     
@@ -11396,8 +11397,9 @@ def check_trip_invite_eligibility(user_id, friend_id):
     user = db.session.get(User, user_id)
     friend = db.session.get(User, friend_id)
     if user and friend:
-        user_open_dates = set(d for d in (user.open_dates or []) if d >= today_str)
-        friend_open_dates = set(d for d in (friend.open_dates or []) if d >= today_str)
+        availability_by_user = get_available_dates_for_users([user, friend])
+        user_open_dates = availability_by_user.get(user.id, set())
+        friend_open_dates = availability_by_user.get(friend.id, set())
         if user_open_dates & friend_open_dates:
             return True
     
@@ -13032,6 +13034,11 @@ def profile():
     wish_list_count = len(wish_list_ids)
 
     upcoming_trips_count = get_upcoming_trip_count(current_user)
+    has_availability = (
+        bool(get_available_dates_for_user(current_user))
+        if request.args.get("pass_saved") == "1"
+        else False
+    )
 
     if app.debug:
         print(f"[ROUTE_PERF] route=profile total={time.perf_counter()-_rp_t0:.4f}s")
@@ -13044,6 +13051,7 @@ def profile():
                            wish_list_count=wish_list_count,
                            wish_list_resorts=wish_list_resorts,
                            upcoming_trips_count=upcoming_trips_count,
+                           has_availability=has_availability,
                            primary_equipment=primary_equipment,
                            profile_gear_disciplines=profile_gear_disciplines,
                            profile_gear_by_discipline=profile_gear_by_discipline,
@@ -13635,12 +13643,7 @@ def _build_mountain_availability_overlaps(
     visible_current_intent_ids,
     today,
 ):
-    """Return trip-scoped friend availability summaries for one resort.
-
-    Availability is intentionally batch-loaded here. UserAvailability rows are
-    authoritative for a friend when any active row exists; legacy open_dates is
-    used only for friends with no active table-backed rows.
-    """
+    """Return trip-scoped friend availability summaries for one resort."""
     own_trip_rows = (
         db.session.query(SkiTrip, SkiTripParticipant)
         .outerjoin(
@@ -13672,39 +13675,15 @@ def _build_mountain_availability_overlaps(
     if not effective_windows or not friend_ids:
         return []
 
-    availability_rows = (
-        UserAvailability.query
-        .filter(
-            UserAvailability.user_id.in_(friend_ids),
-            UserAvailability.is_available == True,
-        )
-        .all()
-    )
-    table_backed_friend_ids = {row.user_id for row in availability_rows}
     available_dates_by_friend = {
-        friend_id: set()
-        for friend_id in friend_ids
+        friend_id: {
+            date.fromisoformat(value)
+            for value in resolved_dates
+        }
+        for friend_id, resolved_dates in get_available_dates_for_users(
+            friends_by_id.values()
+        ).items()
     }
-    for row in availability_rows:
-        if row.date >= today:
-            available_dates_by_friend.setdefault(row.user_id, set()).add(row.date)
-
-    # Preserve the canonical table-first fallback semantics without issuing a
-    # query for each friend. The friend objects are already preloaded.
-    for friend_id, friend in friends_by_id.items():
-        if friend_id in table_backed_friend_ids:
-            continue
-        for date_value in friend.open_dates or []:
-            try:
-                parsed_date = (
-                    datetime.strptime(date_value, "%Y-%m-%d").date()
-                    if isinstance(date_value, str)
-                    else date_value
-                )
-            except (TypeError, ValueError):
-                continue
-            if parsed_date >= today:
-                available_dates_by_friend.setdefault(friend_id, set()).add(parsed_date)
 
     summaries = []
     for start_date, end_date in sorted(effective_windows):
@@ -14390,44 +14369,39 @@ def add_open_dates():
         validate_csrf_request()
         # Get selected dates from form (comma-separated YYYY-MM-DD strings)
         selected_dates = request.form.get("selected_dates", "")
-        
-        if selected_dates:
-            dates_list = [d.strip() for d in selected_dates.split(",") if d.strip()]
-            # Validate and filter dates
-            valid_dates = []
-            today_str = date.today().strftime('%Y-%m-%d')
-            for d in dates_list:
-                try:
-                    datetime.strptime(d, '%Y-%m-%d')
-                    if d >= today_str:
-                        valid_dates.append(d)
-                except ValueError:
-                    pass
-            
-            _prev_open_dates = list(current_user.open_dates or [])
-            current_user.open_dates = sorted(set(valid_dates))
-        else:
-            _prev_open_dates = list(current_user.open_dates or [])
-            current_user.open_dates = []
-        
-        db.session.commit()
-        if valid_dates:
+        dates_list = [d.strip() for d in selected_dates.split(",") if d.strip()]
+        previous_dates = get_available_dates_for_user(current_user)
+
+        try:
+            saved_dates = replace_current_availability(current_user, dates_list)
+            db.session.commit()
+        except OpenDateValidationError as exc:
+            db.session.rollback()
+            flash(str(exc), "error")
+            return redirect(url_for("add_open_dates"))
+        except SQLAlchemyError:
+            db.session.rollback()
+            app.logger.exception("Failed to replace owner availability")
+            flash("We couldn't save your availability. Please try again.", "error")
+            return redirect(url_for("add_open_dates"))
+
+        if saved_dates:
             ph_analytics.track(current_user.id, 'availability_added', {
-                'date_count':    len(valid_dates),
-                'is_first_time': not bool(_prev_open_dates),
+                'date_count':    len(saved_dates),
+                'is_first_time': not bool(previous_dates),
             })
-        
+
         # Recompute availability overlap activities for this user
         emit_availability_overlap_activities_for_user(current_user)
         db.session.commit()
-        
+
         return redirect(url_for("home"))
-    
-    # Pre-populate with existing dates
-    existing_dates = current_user.open_dates or []
 
     from services.open_dates import get_available_dates_for_user as _get_avail_od
     _avail_set = _get_avail_od(current_user)
+    # Pre-populate from the shared resolver so owner readback proves the
+    # normalized writer and compatibility overlay agree.
+    existing_dates = sorted(_avail_set)
     _avail_ranges, _avail_overflow = build_home_avail_ranges(_avail_set, cap=50)
 
     return render_template(
