@@ -302,7 +302,7 @@ def test_home_hides_empty_activity_sections_and_shows_combined_fallback(client):
     assert 'id="home-activity-fallback"' in html
     assert "hidden" not in _fallback_tag(html)
     assert "Add dates to unlock trip ideas" in html
-    assert ">Ideas<" not in html
+    assert 'id="pill-ideas"' not in html
 
 
 def test_home_shows_ideas_without_happening_when_only_ideas_has_content(client):
@@ -312,6 +312,7 @@ def test_home_shows_ideas_without_happening_when_only_ideas_has_content(client):
     html = _get_home(client, viewer_id, feed=[_feed_row(friend_id)])
 
     assert 'id="section-opportunities"' in html
+    assert 'id="pill-ideas"' in html
     assert 'id="section-happening"' not in html
     assert "hidden" in _fallback_tag(html)
 
@@ -328,6 +329,7 @@ def test_home_shows_happening_without_ideas_when_only_happening_has_content(clie
 
     assert 'id="section-happening"' in html
     assert 'id="section-opportunities"' not in html
+    assert 'id="pill-ideas"' not in html
     assert "hidden" in _fallback_tag(html)
     assert "Test Peak" in html
 
@@ -345,6 +347,7 @@ def test_home_shows_both_activity_sections_when_both_have_content(client):
 
     assert 'id="section-happening"' in html
     assert 'id="section-opportunities"' in html
+    assert 'id="pill-ideas"' in html
     assert "hidden" in _fallback_tag(html)
     assert html.index('id="friends-passes"') < html.index('id="section-happening"')
     assert html.index('id="section-happening"') < html.index('id="section-opportunities"')
@@ -554,5 +557,28 @@ def test_home_uses_scoped_compact_summary_treatment_without_changing_hierarchy()
 
 def test_home_keeps_availability_semantics_as_a_lighter_secondary_action():
     assert 'class="bl-pill bl-pill--availability"' in PILLS_TEMPLATE
-    assert 'onclick="openAvailSheet()"' in PILLS_TEMPLATE
+    assert 'onclick="openAvailSheet(this)"' in PILLS_TEMPLATE
+    assert 'id="availability-sheet-trigger"' in PILLS_TEMPLATE
+    assert 'aria-controls="availSheet"' in PILLS_TEMPLATE
+    assert 'aria-expanded="false"' in PILLS_TEMPLATE
     assert "bl-pill--availability" in HOME_TEMPLATE
+
+
+def test_home_focus_pills_are_conditioned_with_their_section_targets():
+    assert "{% if ideas_count > 0 %}" in PILLS_TEMPLATE
+    assert 'id="pill-ideas"' in PILLS_TEMPLATE
+    assert 'id="section-opportunities"' in OPPORTUNITIES_TEMPLATE
+    assert "{% if requests_count > 0 %}" in PILLS_TEMPLATE
+    assert 'id="pill-requests"' in PILLS_TEMPLATE
+    assert 'id="section-requests"' in REQUESTS_TEMPLATE
+
+
+def test_availability_sheet_starts_hidden_and_inert():
+    assert 'id="availSheetBackdrop"' in HOME_TEMPLATE
+    assert 'onclick="closeAvailSheet()" hidden' in HOME_TEMPLATE
+    assert 'aria-label="Your availability" aria-hidden="true" tabindex="-1"' in (
+        HOME_TEMPLATE
+    )
+    assert "hidden inert>" in HOME_TEMPLATE
+    assert "sheet.inert = false;" in HOME_TEMPLATE
+    assert "sheet.inert = true;" in HOME_TEMPLATE

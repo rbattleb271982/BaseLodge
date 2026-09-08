@@ -1480,10 +1480,14 @@
     ══════════════════════════════════════════════════════════════ -->
 
     {# ── Availability sheet (triggered by Edit availability pill) ── #}
-    <div class="avail-sheet-backdrop" id="availSheetBackdrop" onclick="closeAvailSheet()"></div>
-    <div class="avail-sheet" id="availSheet" role="dialog" aria-modal="true" aria-label="Your availability">
+    <div class="avail-sheet-backdrop" id="availSheetBackdrop"
+         onclick="closeAvailSheet()" hidden></div>
+    <div class="avail-sheet" id="availSheet" role="dialog" aria-modal="true"
+         aria-label="Your availability" aria-hidden="true" tabindex="-1"
+         hidden inert>
         <div class="avail-sheet-header">
-            <button class="avail-sheet-close" onclick="closeAvailSheet()" aria-label="Close">&times;</button>
+            <button class="avail-sheet-close" type="button"
+                    onclick="closeAvailSheet()" aria-label="Close">&times;</button>
             <p class="avail-sheet-title">Availability</p>
         </div>
         <div class="avail-sheet-body">
@@ -1555,13 +1559,103 @@
 {% block scripts %}
 
     <script>
-    function openAvailSheet() {
-        document.getElementById('availSheetBackdrop').classList.add('open');
-        document.getElementById('availSheet').classList.add('open');
+    var _availSheetTrigger = null;
+    var _availSheetHideTimer = null;
+    var _availSheetOpenFrame = null;
+
+    function getAvailSheetFocusableElements() {
+        var sheet = document.getElementById('availSheet');
+        if (!sheet) return [];
+        return Array.from(sheet.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), ' +
+            'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ));
     }
+
+    function handleAvailSheetKeydown(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeAvailSheet();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+
+        var focusable = getAvailSheetFocusableElements();
+        if (!focusable.length) {
+            event.preventDefault();
+            document.getElementById('availSheet').focus();
+            return;
+        }
+
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        } else if (!document.getElementById('availSheet').contains(document.activeElement)) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function openAvailSheet(trigger) {
+        var backdrop = document.getElementById('availSheetBackdrop');
+        var sheet = document.getElementById('availSheet');
+        if (!backdrop || !sheet) return;
+
+        if (_availSheetHideTimer) {
+            clearTimeout(_availSheetHideTimer);
+            _availSheetHideTimer = null;
+        }
+        if (_availSheetOpenFrame !== null) {
+            cancelAnimationFrame(_availSheetOpenFrame);
+        }
+        _availSheetTrigger = trigger || document.activeElement ||
+            document.getElementById('availability-sheet-trigger');
+        backdrop.hidden = false;
+        sheet.hidden = false;
+        sheet.inert = false;
+        sheet.setAttribute('aria-hidden', 'false');
+        if (_availSheetTrigger) {
+            _availSheetTrigger.setAttribute('aria-expanded', 'true');
+        }
+        _availSheetOpenFrame = requestAnimationFrame(function() {
+            _availSheetOpenFrame = null;
+            if (sheet.hidden || sheet.inert) return;
+            backdrop.classList.add('open');
+            sheet.classList.add('open');
+            var firstControl = getAvailSheetFocusableElements()[0];
+            (firstControl || sheet).focus();
+        });
+        document.addEventListener('keydown', handleAvailSheetKeydown);
+    }
+
     function closeAvailSheet() {
-        document.getElementById('availSheetBackdrop').classList.remove('open');
-        document.getElementById('availSheet').classList.remove('open');
+        var backdrop = document.getElementById('availSheetBackdrop');
+        var sheet = document.getElementById('availSheet');
+        if (!backdrop || !sheet) return;
+
+        if (_availSheetOpenFrame !== null) {
+            cancelAnimationFrame(_availSheetOpenFrame);
+            _availSheetOpenFrame = null;
+        }
+        backdrop.classList.remove('open');
+        sheet.classList.remove('open');
+        sheet.inert = true;
+        sheet.setAttribute('aria-hidden', 'true');
+        document.removeEventListener('keydown', handleAvailSheetKeydown);
+        if (_availSheetTrigger) {
+            _availSheetTrigger.setAttribute('aria-expanded', 'false');
+            _availSheetTrigger.focus();
+        }
+        _availSheetHideTimer = setTimeout(function() {
+            backdrop.hidden = true;
+            sheet.hidden = true;
+            _availSheetHideTimer = null;
+        }, 280);
     }
 
     function showAllInvites() {

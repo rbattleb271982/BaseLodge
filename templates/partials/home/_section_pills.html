@@ -12,10 +12,12 @@ Inputs:
 
 <div class="bl-pills" id="section-pills">
 
+    {% if ideas_count > 0 %}
     <button class="bl-pill" id="pill-ideas"
             onclick="blPillActivate('ideas')" type="button">
         Ideas{% if ideas_count > 0 %} <span class="bl-pill-count">{{ ideas_count }}</span>{% endif %}
     </button>
+    {% endif %}
 
     {% if requests_count > 0 %}
     <button class="bl-pill" id="pill-requests"
@@ -24,7 +26,9 @@ Inputs:
     </button>
     {% endif %}
 
-    <button class="bl-pill bl-pill--availability" type="button" onclick="openAvailSheet()">
+    <button class="bl-pill bl-pill--availability" id="availability-sheet-trigger"
+            type="button" aria-controls="availSheet" aria-expanded="false"
+            onclick="openAvailSheet(this)">
         {% if has_availability %}Edit availability{% else %}Add your availability{% endif %}
     </button>
 
