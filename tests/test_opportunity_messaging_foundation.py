@@ -468,7 +468,7 @@ def test_failed_staging_rolls_back_all_rows_and_evidence_is_bounded(
                 )
 
 
-def test_catalog_presence_cannot_authorize_or_reach_provider(
+def test_generic_emit_and_unstarted_row_cannot_reach_opportunity_provider(
     client, app_fixture
 ):
     with app_fixture.app_context():
@@ -490,13 +490,13 @@ def test_catalog_presence_cannot_authorize_or_reach_provider(
         assert row.provider == "onesignal"
         decision = message_outbox_safety_callback(row)
         assert not decision.allowed
-        assert decision.suppression_reason == SuppressionReason.NOT_IMPLEMENTED
+        assert decision.suppression_reason == SuppressionReason.PRIVACY_DENIED
 
         with patch("services.message_dispatch.send_onesignal_push") as provider:
             outcome = message_outbox_provider_callback(row)
         assert outcome == {
             "status": "dead_letter",
-            "error": "opportunity_authorization_not_implemented",
+            "error": "opportunity_provider_start_required",
         }
         provider.assert_not_called()
 

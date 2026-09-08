@@ -245,6 +245,9 @@ from services.message_dispatch import (
     message_outbox_safety_callback,
 )
 from services.message_outbox import enqueue_message, queue_health, sanitize_error
+from services.friend_trip_opportunities import (
+    stage_friend_trip_created_opportunity,
+)
 from services.messaging_cutover import (
     drain_status,
     guarded_transition_inline,
@@ -6741,6 +6744,13 @@ def create_trip():
     )
     db.session.add(trip)
     db.session.flush()  # Get trip.id before adding participants
+    stage_friend_trip_created_opportunity(
+        trip.id,
+        session=db.session,
+        source_route="create_trip",
+        producer_release_sha=RELEASE_IDENTITY.sha,
+        require_verified_release=is_production,
+    )
     
     # Auto-add owner as participant
     trip.add_owner_as_participant()
@@ -7144,9 +7154,18 @@ def update_trip_visibility(trip_id):
             "success": False,
             "error": "is_public must be a boolean.",
         }), 400
+    became_public = trip.is_public is not True and data["is_public"] is True
     trip.is_public = data["is_public"]
     trip.updated_at = datetime.utcnow()
     try:
+        if became_public:
+            stage_friend_trip_created_opportunity(
+                trip.id,
+                session=db.session,
+                source_route="update_trip_visibility",
+                producer_release_sha=RELEASE_IDENTITY.sha,
+                require_verified_release=is_production,
+            )
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -14583,6 +14602,13 @@ def add_trip():
                     _created.append(_trip)
                 db.session.flush()
                 for _trip in _created:
+                    stage_friend_trip_created_opportunity(
+                        _trip.id,
+                        session=db.session,
+                        source_route="add_trip_batch",
+                        producer_release_sha=RELEASE_IDENTITY.sha,
+                        require_verified_release=is_production,
+                    )
                     _trip.add_owner_as_participant()
                     emit_trip_created_activities(_trip, current_user.id)
                 db.session.commit()
@@ -14710,6 +14736,13 @@ def add_trip():
         try:
             db.session.add(trip)
             db.session.flush()
+            stage_friend_trip_created_opportunity(
+                trip.id,
+                session=db.session,
+                source_route="add_trip",
+                producer_release_sha=RELEASE_IDENTITY.sha,
+                require_verified_release=is_production,
+            )
             trip.add_owner_as_participant()
             if friend_id:
                 transition_rsvp(

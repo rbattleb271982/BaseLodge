@@ -48,6 +48,7 @@ def main(argv=None):
         from models import db
         from services.message_dispatch import (
             message_outbox_event_log_callback,
+            message_outbox_opportunity_start_callback,
             message_outbox_provider_callback,
             message_outbox_safety_callback,
         )
@@ -62,6 +63,9 @@ def main(argv=None):
                 safety_callback=message_outbox_safety_callback,
                 provider_callback=message_outbox_provider_callback,
                 event_log_callback=message_outbox_event_log_callback,
+                opportunity_start_callback=(
+                    message_outbox_opportunity_start_callback
+                ),
                 batch_size=args.batch_size,
                 max_batches=args.max_batches,
                 max_messages=args.max_messages,
