@@ -242,6 +242,16 @@ def test_countdown_states(days_until, expected):
 def test_night_and_friend_count_grammar():
     html = _render_next_trip(
         date(2027, 1, 10),
+        date(2027, 1, 10),
+        today=date(2027, 1, 1),
+        friends=0,
+    )
+    assert "Day trip" in html
+    assert "1 night" not in html
+    assert "0 friends going" in html
+
+    html = _render_next_trip(
+        date(2027, 1, 10),
         date(2027, 1, 11),
         today=date(2027, 1, 1),
         friends=1,
@@ -257,3 +267,33 @@ def test_night_and_friend_count_grammar():
     )
     assert "4 nights" in html
     assert "3 friends going" in html
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "expected_countdown"),
+    [
+        (None, date(2027, 1, 11), None),
+        (date(2027, 1, 10), None, "Trip in 9 days"),
+    ],
+)
+def test_incomplete_dates_render_neutral_copy_without_fabricated_duration(
+    start, end, expected_countdown
+):
+    html = _render_next_trip(
+        start,
+        end,
+        today=date(2027, 1, 1),
+        friends=2,
+    )
+
+    assert "Dates TBD" in html
+    assert "night" not in html
+    assert "Day trip" not in html
+    assert "2 friends going" in html
+    assert 'href="/trips/41"' in html
+    if expected_countdown:
+        assert expected_countdown in html
+    else:
+        assert "Trip today" not in html
+        assert "Trip tomorrow" not in html
+        assert "Trip in " not in html

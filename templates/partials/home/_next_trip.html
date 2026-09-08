@@ -13,10 +13,10 @@ Inputs:
 {% set _start = _trip.attendance_start_date or _trip.start_date %}
 {% set _end = _trip.attendance_end_date or _trip.end_date %}
 {% set _mountain = (_trip.resort | resort_display) if _trip.resort else _trip.mountain %}
-{% set _night_count = (_end - _start).days %}
-{% if _night_count < 1 %}{% set _night_count = 1 %}{% endif %}
+{% set _has_date_range = _start and _end %}
+{% if _has_date_range %}{% set _night_count = (_end - _start).days %}{% endif %}
 {% set _friend_count = _next.friends_going_count %}
-{% set _days_until = (_start - home_today).days %}
+{% if _start %}{% set _days_until = (_start - home_today).days %}{% endif %}
 {% set _actions = _next.actions | default([], true) %}
 
 <section id="your-next-trip" class="home-next-trip" aria-labelledby="your-next-trip-title">
@@ -28,12 +28,17 @@ Inputs:
     </div>
     <p class="home-next-trip__mountain">{{ _mountain }}</p>
     <p class="home-next-trip__meta">
+        {% if _has_date_range %}
         {{ format_trip_dates(_trip, _start, _end) }} ·
-        {{ _night_count }} {{ 'night' if _night_count == 1 else 'nights' }}
+        {% if _night_count == 0 %}Day trip{% else %}{{ _night_count }} {{ 'night' if _night_count == 1 else 'nights' }}{% endif %}
+        {% else %}
+        Dates TBD
+        {% endif %}
     </p>
     <p class="home-next-trip__meta">
-        {{ _friend_count }} {{ 'friend' if _friend_count == 1 else 'friends' }} going ·
+        {{ _friend_count }} {{ 'friend' if _friend_count == 1 else 'friends' }} going{% if _start %} ·
         {% if _days_until <= 0 %}Trip today{% elif _days_until == 1 %}Trip tomorrow{% else %}Trip in {{ _days_until }} days{% endif %}
+        {% endif %}
     </p>
     {% if _next.action_count | default(0, true) > 0 %}
     {% from 'macros/home_disclosure.html' import home_disclosure %}
