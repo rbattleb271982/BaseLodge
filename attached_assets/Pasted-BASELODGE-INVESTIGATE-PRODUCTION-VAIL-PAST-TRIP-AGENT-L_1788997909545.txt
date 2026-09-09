@@ -1,0 +1,209 @@
+BASELODGE — INVESTIGATE PRODUCTION VAIL PAST TRIP
+
+AGENT LEVEL: POWER
+MODE: PLAN
+READ-ONLY PRODUCTION INVESTIGATION
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 90%
+
+CONTEXT
+
+Production user:
+
+richardbattlebaxter@gmail.com
+
+currently sees this trip under My Trips → Past Trips:
+
+Vail
+May 20–23
+
+We just implemented and published a change intended to exclude trips with:
+
+lifecycle_state = "cancelled"
+
+from both Upcoming Trips and Past Trips.
+
+The Vail May 20–23 trip is still visible in Production.
+
+We now need to inspect the ACTUAL authoritative Production record and determine why.
+
+DO NOT FIX OR CHANGE ANYTHING.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- modify application code
+- modify tests
+- modify Production or Development data
+- run migrations
+- create/update/search/reconcile project tasks
+- create notes/docs/markdown report files
+- modify .replit
+- modify configuration or secrets
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish or deploy
+- delete/cancel/update any trip
+- inspect unrelated users
+- auto-fix anything discovered
+
+PRODUCTION SAFETY
+
+Use the existing authoritative Supabase Production connection and BaseLodge's existing Production-target safeguards.
+
+READ ONLY.
+
+Do not issue:
+- INSERT
+- UPDATE
+- DELETE
+- DDL
+- migration commands
+- any other mutation
+
+TARGET USER
+
+richardbattlebaxter@gmail.com
+
+TARGET TRIP
+
+Vail
+May 20–23
+
+INVESTIGATION
+
+1. Resolve the Production user record for the exact email:
+
+richardbattlebaxter@gmail.com
+
+Report only:
+- user ID
+- whether exactly one matching user exists
+
+Do not expose other account information.
+
+2. Find EVERY Production SkiTrip associated with or visible to this user whose resort/location/title contains "Vail".
+
+For each matching trip report:
+
+- SkiTrip ID
+- owner user ID
+- whether target user is owner or participant
+- start_date
+- end_date
+- lifecycle_state
+- whether terminal_at is NULL or populated
+- target user's participant status, if applicable
+- resort/location display value
+- whether it currently qualifies for My Trips History
+- exact reason it qualifies or does not qualify
+
+3. Identify specifically the Vail May 20–23 record visible in the supplied Production UI.
+
+Determine its exact lifecycle_state:
+
+- cancelled
+- completed
+- active
+- NULL
+- or another value
+
+THIS IS THE PRIMARY QUESTION.
+
+4. Inspect lifecycle history for ONLY that Vail May 20–23 trip.
+
+Report:
+
+- whether SkiTripLifecycleEvent records exist
+- relevant lifecycle transitions
+- whether a cancellation event exists
+- whether the trip appears ever to have gone through the organizer cancellation path
+
+Do not modify anything.
+
+5. Check for duplicate Vail records associated with this user.
+
+Determine whether:
+
+- more than one Vail SkiTrip exists
+- one Vail trip was cancelled while another remained active/legacy
+- duplicate records could explain the UI
+
+6. Compare the actual Vail row against the newly implemented My Trips History predicate:
+
+(lifecycle_state IS NULL OR lifecycle_state != "cancelled")
+AND
+(
+    end_date < today
+    OR lifecycle_state = "completed"
+)
+
+State exactly whether the row satisfies this predicate and why.
+
+7. Verify that the currently running Production application contains the new cancelled-trip exclusion behavior as far as existing safe Production tooling permits.
+
+Do NOT republish.
+
+Determine whether the Production application is actually running the code containing the new predicate.
+
+If deployment identity cannot be authoritatively established, say so rather than guessing.
+
+8. Determine whether another My Trips code path could render this trip without using:
+
+services/my_trips_paging.py:_candidate_query()
+
+Check:
+
+- initial /my-trips History rendering
+- /api/my-trips/page?section=history
+
+Do not redesign or modify anything.
+
+9. Determine the root cause using one of these categories:
+
+A. The Vail trip was never cancelled and simply aged into Past Trips
+B. The trip was cancelled but lifecycle_state was not persisted correctly
+C. A duplicate Vail trip exists
+D. Production is not running the newly published predicate
+E. The UI is displaying stale/cached data
+F. Another rendering/query path bypasses the shared History predicate
+G. Other, with concrete evidence
+
+10. Determine the smallest correct next action.
+
+IMPORTANT:
+
+Do NOT assume another code change is necessary.
+
+If the Production Vail row is active or NULL and has no cancellation evidence, explicitly state that the new filtering code is working as designed and this particular trip was simply never cancelled.
+
+If the row is cancelled but remains visible, identify the actual code/deployment defect.
+
+If data is inconsistent, report the inconsistency but DO NOT repair Production data.
+
+RETURN ONLY A CHAT REPORT:
+
+A. Production target verification
+B. Target user resolution
+C. Every matching Vail trip
+D. Exact May 20–23 Vail lifecycle state
+E. Lifecycle-event/cancellation evidence
+F. Duplicate-trip findings
+G. Evaluation against current History predicate
+H. Production code/deployment verification
+I. Whether another rendering path exists
+J. Root cause
+K. Smallest correct next action
+L. Whether any code change is actually required
+M. Whether any Production data mutation would be required
+
+Cite exact files/functions for any code-path conclusions.
+
+STOP AFTER THE REPORT.
+
+DO NOT IMPLEMENT.
+DO NOT MODIFY DATA.
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
+DO NOT CREATE OR UPDATE A TASK.
