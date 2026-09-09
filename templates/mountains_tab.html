@@ -597,7 +597,7 @@
         elResults.innerHTML = '';
         elEmpty.style.display = 'none';
 
-        fetch('/api/mountains-data')
+        fetch('/api/mountains-data', { cache: 'no-store' })
             .then(function (res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 return res.json();
@@ -624,11 +624,10 @@
             });
     }
 
-    /* ── Reset UI on all entries; reuse bfcache data when available ──────── */
+    /* ── Reset filters and refresh personalized data on every entry ─────── */
     window.addEventListener('pageshow', function (e) {
         if (e.persisted && _mdLoaded) {
             resetFilters();
-            return;
         }
         loadMountainsData();
     });
