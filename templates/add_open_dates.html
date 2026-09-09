@@ -417,6 +417,24 @@
             cursor: pointer;
             -webkit-tap-highlight-color: transparent;
         }
+        .od-share-availability {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 48px;
+            margin-top: 12px;
+            border: 1px solid #5C1219;
+            border-radius: 12px;
+            color: #5C1219;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color .18s ease, transform .12s ease;
+        }
+        .od-share-availability:hover { background: #F0DDD8; }
+        .od-share-availability:active { transform: scale(.98); }
+        .od-share-availability:focus-visible { outline: 3px solid #D89A72; outline-offset: 3px; }
 
     </style>
 {% endblock %}
@@ -517,6 +535,10 @@
             <button type="submit" class="bl-btn-primary" id="saveBtn" style="width: 100%; padding: 14px;" disabled>Save availability</button>
             <p id="save-confirm" style="display:none; text-align:center; color:#3A7D44; font-size:15px; font-weight:500; margin:12px 0 0;">Availability updated.</p>
         </form>
+
+        {% if has_availability %}
+        <a href="{{ url_for('open_to_ski') }}" class="od-share-availability">Share availability <span aria-hidden="true">→</span></a>
+        {% endif %}
 
         <a href="{{ url_for('home') }}?tab=open" style="display: block; text-align: center; text-decoration: none; color: #6B665A; margin-top: 16px; font-size: 14px;">
             Cancel
@@ -833,7 +855,7 @@
             const btn = document.getElementById('saveBtn');
             const conf = document.getElementById('save-confirm');
             btn.disabled = true;
-            btn.textContent = 'Saved ✓';
+            btn.textContent = 'Saved';
             conf.style.display = 'block';
 
             fetch(window.location.pathname, {

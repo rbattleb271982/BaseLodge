@@ -103,7 +103,7 @@ import sqlalchemy as sa
 import uuid
 from sqlalchemy import func
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, current_app, g, make_response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, abort, send_file, send_from_directory, current_app, g, make_response
 from flask_login import (
     LoginManager,
     confirm_login,
@@ -134,6 +134,11 @@ from services.open_dates import (
     get_available_dates_for_users,
     get_open_date_matches,
     replace_current_availability,
+)
+from services.open_to_ski import (
+    OpenToSkiSelectionError,
+    build_open_to_ski_page_model,
+    group_open_to_ski_dates,
 )
 from services.ideas_engine import build_overlap_windows, build_wishlist_overlaps
 from services.wishlist import (
@@ -342,6 +347,16 @@ RELEASE_IDENTITY = resolve_release_identity(
 )
 
 app = Flask(__name__)
+
+
+@app.route("/static/vendor/html2canvas.min.js")
+def html2canvas_vendor():
+    return send_from_directory(
+        os.path.join(app.root_path, "node_modules", "html2canvas", "dist"),
+        "html2canvas.min.js",
+        mimetype="application/javascript",
+        max_age=31536000,
+    )
 app.config["PREFERRED_URL_SCHEME"] = "https"
 app.config["BASELODGE_RUNTIME_ENV"] = database_configuration.runtime_env
 install_production_log_privacy(app)
@@ -14412,6 +14427,133 @@ def add_open_dates():
         user_avail_ranges=_avail_ranges,
         user_avail_overflow=_avail_overflow,
     )
+
+
+_OPEN_TO_SKI_REVIEW_SESSION_KEY = "open_to_ski_review_fingerprint"
+_OPEN_TO_SKI_ANALYTICS_PROPERTIES = {
+    "availability_share_opened": set(),
+    "availability_share_generated": {"format"},
+    "availability_share_started": {"format", "delivery"},
+    "availability_share_succeeded": {"format", "delivery"},
+    "availability_share_cancelled": {"format", "delivery"},
+    "availability_share_failed": {"format", "delivery", "error_code"},
+}
+_OPEN_TO_SKI_ANALYTICS_ERROR_CODES = {
+    "fonts_timeout",
+    "capture_unavailable",
+    "invalid_source",
+    "wrong_dimensions",
+    "null_blob",
+    "empty_blob",
+    "wrong_mime",
+    "capture_failed",
+    "share_failed",
+    "download_failed",
+}
+
+
+def _open_to_ski_review_fingerprint(values):
+    canonical = "\x1f".join(sorted(set(values)))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+@app.post("/api/open-to-ski/analytics")
+@login_required
+def open_to_ski_analytics():
+    """Accept only anonymous, privacy-safe Open to Ski delivery telemetry."""
+    validate_csrf_request()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        abort(400)
+    event = payload.get("event")
+    properties = payload.get("properties", {})
+    allowed_keys = _OPEN_TO_SKI_ANALYTICS_PROPERTIES.get(event)
+    if allowed_keys is None or not isinstance(properties, dict):
+        abort(400)
+    if set(properties) != allowed_keys:
+        abort(400)
+    if properties.get("format", "png") != "png":
+        abort(400)
+    if properties.get("delivery", "share") not in {"share", "download"}:
+        abort(400)
+    if (
+        "error_code" in properties
+        and properties["error_code"] not in _OPEN_TO_SKI_ANALYTICS_ERROR_CODES
+    ):
+        abort(400)
+    ph_analytics.track(None, event, properties)
+    return "", 204
+
+
+@app.route("/open-to-ski", methods=["GET", "POST"])
+@login_required
+def open_to_ski():
+    """Owner-only review and HTML preview of canonical ski availability."""
+    canonical_dates = sorted(get_available_dates_for_user(current_user))
+    canonical_fingerprint = _open_to_ski_review_fingerprint(canonical_dates)
+
+    if request.method == "GET":
+        session[_OPEN_TO_SKI_REVIEW_SESSION_KEY] = canonical_fingerprint
+        page_model = build_open_to_ski_page_model(
+            first_name=current_user.first_name,
+            eligible_values=canonical_dates,
+        )
+        return render_template("open_to_ski.html", share=page_model)
+
+    validate_csrf_request()
+    reviewed_fingerprint = session.get(_OPEN_TO_SKI_REVIEW_SESSION_KEY)
+    selected_dates = request.form.getlist("selected_dates")
+
+    if not isinstance(reviewed_fingerprint, str) or not secrets.compare_digest(
+        reviewed_fingerprint,
+        canonical_fingerprint,
+    ):
+        session[_OPEN_TO_SKI_REVIEW_SESSION_KEY] = canonical_fingerprint
+        page_model = build_open_to_ski_page_model(
+            first_name=current_user.first_name,
+            eligible_values=canonical_dates,
+            error=(
+                "Your availability changed. Review the current dates before "
+                "creating the preview."
+            ),
+            availability_changed=True,
+        )
+        return render_template("open_to_ski.html", share=page_model), 409
+
+    if not set(selected_dates).issubset(set(canonical_dates)):
+        session[_OPEN_TO_SKI_REVIEW_SESSION_KEY] = canonical_fingerprint
+        page_model = build_open_to_ski_page_model(
+            first_name=current_user.first_name,
+            eligible_values=canonical_dates,
+            error=(
+                "Your availability changed. Review the current dates before "
+                "creating the preview."
+            ),
+            availability_changed=True,
+        )
+        return render_template("open_to_ski.html", share=page_model), 409
+
+    try:
+        group_open_to_ski_dates(selected_dates)
+        page_model = build_open_to_ski_page_model(
+            first_name=current_user.first_name,
+            eligible_values=canonical_dates,
+            selected_values=selected_dates,
+            ready=True,
+        )
+    except OpenToSkiSelectionError as exc:
+        page_model = build_open_to_ski_page_model(
+            first_name=current_user.first_name,
+            eligible_values=canonical_dates,
+            selected_values=[
+                value for value in selected_dates if value in canonical_dates
+            ],
+            error=str(exc),
+        )
+        return render_template("open_to_ski.html", share=page_model), 400
+
+    return render_template("open_to_ski.html", share=page_model)
+
 
 @app.route("/add_trip", methods=["GET", "POST"])
 @login_required

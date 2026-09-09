@@ -1,0 +1,226 @@
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — Open to Ski{% endblock %}
+{% block analytics_head %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('add_open_dates') }}" class="bl-top-bar-back" aria-label="Back to availability">‹</a>{% endblock %}
+{% block topbar_title %}Open to Ski{% endblock %}
+{% block topbar_right %}<span aria-hidden="true"></span>{% endblock %}
+{% block flash %}{% endblock %}
+{% block bottom_nav %}{% endblock %}
+{% block head %}
+<style>
+    body { background: #eee7da; }
+    .ots-page { max-width: 620px; margin: 0 auto; padding: 24px 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
+    .ots-kicker { color: #9a4e3f; font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; margin: 0 0 10px; }
+    .ots-intro { margin: 0 0 8px; font: 400 clamp(28px, 8vw, 42px)/1.02 var(--bl-font-serif); letter-spacing: -.035em; color: #40161c; }
+    .ots-copy { color: #665e54; font-size: 15px; line-height: 1.55; margin: 0 0 24px; max-width: 48ch; }
+    .ots-notice { border-left: 3px solid #9a4e3f; background: #f7efe4; color: #5b4038; padding: 12px 14px; margin: 0 0 18px; font-size: 14px; line-height: 1.45; }
+    .ots-error { border-left-color: #7a1a24; background: #f4deda; color: #5c1219; }
+    .ots-review { background: #faf7ef; border: 1px solid #d9cdbd; border-radius: 18px; padding: 18px; box-shadow: 0 12px 28px rgba(64,22,28,.07); }
+    .ots-review-head { display:flex; justify-content:space-between; gap: 12px; align-items:baseline; border-bottom: 1px solid #e4dacb; padding-bottom: 13px; margin-bottom: 4px; }
+    .ots-review-title { color: #40161c; font: 400 22px/1.2 var(--bl-font-serif); margin: 0; }
+    .ots-count { color: #7a5147; font-size: 13px; font-weight: 700; white-space: nowrap; }
+    .ots-fieldset { border: 0; padding: 0; margin: 0; }
+    .ots-legend { font-size: 13px; color: #665e54; margin: 12px 0 2px; }
+    .ots-date { min-height: 52px; display:flex; align-items:center; gap: 12px; border-bottom: 1px solid #e8dfd2; padding: 5px 2px; cursor:pointer; transition: background-color .18s ease, padding .18s ease; }
+    .ots-date:hover { background: #f4ecdf; padding-left: 8px; padding-right: 8px; }
+    .ots-date input { position:absolute; opacity:0; width:1px; height:1px; }
+    .ots-check { width: 23px; height:23px; border: 1.5px solid #a99584; border-radius: 6px; display:grid; place-items:center; flex: 0 0 23px; color: #faf7ef; transition: background-color .18s ease, border-color .18s ease, transform .18s ease; }
+    .ots-check::after { content:""; width: 10px; height: 5px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg) translateY(-1px); opacity: 0; }
+    .ots-date input:checked + .ots-check { background:#7a1a24; border-color:#7a1a24; transform: scale(1.05); }
+    .ots-date input:checked + .ots-check::after { opacity:1; }
+    .ots-date input:focus-visible + .ots-check { outline: 3px solid #d89a72; outline-offset: 3px; }
+    .ots-date-text { display:flex; flex-direction:column; min-width:0; }
+    .ots-month { color:#9a4e3f; font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:800; }
+    .ots-date-label { color:#3d3732; font-size:15px; }
+    .ots-status { color:#665e54; font-size:13px; min-height: 22px; margin: 12px 0; }
+    .ots-submit { margin-top: 4px; }
+    .ots-empty { text-align:center; padding: 24px 8px 12px; }
+    .ots-empty p { color:#665e54; font-size:16px; line-height:1.5; margin:0 0 20px; }
+    .ots-card-wrap { margin-top: 8px; container-type:inline-size; }
+    .ots-card-label { color:#7a5147; font-size:11px; letter-spacing:.14em; font-weight:800; text-transform:uppercase; margin:0 0 10px; }
+    .ots-card { box-sizing:border-box; width:100%; height:125cqw; max-height:775px; aspect-ratio:4 / 5; min-height:0; overflow:hidden; background:#fbf7ee; border-radius:18px; box-shadow: 0 18px 38px rgba(64,22,28,.18); display:flex; flex-direction:column; border: 1px solid #dfd2c1; }
+    .ots-card-masthead { box-sizing:border-box; flex: 0 0 35%; min-height:0; background:#5c1219; color:#f8f0e3; padding: clamp(16px, 4.5vw, 32px) clamp(18px, 7vw, 54px) 15px; display:flex; flex-direction:column; }
+    .ots-brand { font: italic clamp(12px, 3.3vw, 16px)/1 var(--bl-font-serif); letter-spacing:.03em; }
+    .ots-masthead-title { min-height:0; margin:auto 0; }
+    .ots-recipient { color:#f8f0e3; font:400 clamp(14px, 3.4vw, 23px)/1.05 var(--bl-font-serif); margin:0 0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ots-headline { font:400 clamp(25px, 7vw, 47px)/.9 var(--bl-font-serif); letter-spacing:-.04em; margin:0; max-width:8ch; min-height:0; align-self:center; }
+    .ots-period { color:#efcfb5; font-size:clamp(9px, 2.1vw, 14px); letter-spacing:.14em; text-transform:uppercase; font-weight:700; }
+    .ots-card-body { flex:1 1 auto; min-height:0; padding: clamp(16px, 4.5vw, 36px) clamp(18px, 7vw, 54px) 0; display:flex; flex-direction:column; }
+    .ots-snapshot { color:#9a4e3f; font-size:clamp(10px, 2.4vw, 14px); font-weight:800; letter-spacing:.15em; text-transform:uppercase; margin:0 0 clamp(16px, 4vw, 30px); }
+    .ots-columns { flex:1 1 auto; min-height:0; display:grid; gap:clamp(12px, 3.4vw, 24px); grid-template-columns:repeat(var(--ots-columns), minmax(0,1fr)); }
+    .ots-card-col { min-width:0; }
+    .ots-month-group { margin:0 0 clamp(14px, 3.5vw, 28px); }
+    .ots-month-label { color:#7a1a24; font-size:clamp(11px, 2.5vw, 16px); letter-spacing:.1em; font-weight:800; margin:0 0 8px; }
+    .ots-range { display:block; color:#3d3732; font:400 clamp(19px, 5.2vw, 34px)/1.02 var(--bl-font-serif); letter-spacing:-.025em; margin:0 0 4px; }
+    .ots-card-footer { flex:0 0 clamp(46px, 14%, 70px); min-height:46px; border-top:1px solid #dacdbd; display:flex; align-items:center; justify-content:space-between; gap:10px; color:#806e61; font-size:clamp(9px, 2.2vw, 13px); letter-spacing:.08em; text-transform:uppercase; }
+    .ots-equivalent { color:#665e54; font-size:14px; line-height:1.55; padding: 16px 3px 0; }
+    .ots-equivalent strong { color:#40161c; }
+    .ots-export-note { color:#665e54; font-size:14px; line-height:1.5; margin:18px 0 12px; }
+    .ots-export-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .ots-export-btn { width:auto; min-width:150px; }
+    .ots-export-btn:focus-visible { outline:3px solid #d89a72; outline-offset:3px; }
+    .ots-export-btn[disabled] { cursor:wait; opacity:.65; }
+    .ots-export-status { color:#5b4038; font-size:14px; min-height:24px; margin:10px 0 0; }
+    [data-density="dense"] .ots-card-masthead { flex-basis:30%; padding:12px clamp(16px, 5vw, 34px) 11px; }
+    [data-density="dense"] .ots-brand { font-size:clamp(10px, 2.7vw, 13px); }
+    [data-density="dense"] .ots-recipient { font-size:clamp(12px, 3vw, 18px); }
+    [data-density="dense"] .ots-headline { font-size:clamp(21px, 5.8vw, 32px); }
+    [data-density="dense"] .ots-period { font-size:clamp(8px, 1.8vw, 11px); }
+    [data-density="dense"] .ots-card-body { padding:16px clamp(16px, 5vw, 34px) 0; }
+    [data-density="dense"] .ots-snapshot { margin-bottom:12px; }
+    [data-density="dense"] .ots-columns { gap:10px; }
+    [data-density="dense"] .ots-month-group { margin-bottom:8px; }
+    [data-density="dense"] .ots-month-label { font-size:clamp(9px, 2vw, 12px); margin-bottom:4px; }
+    [data-density="dense"] .ots-range { font-size:clamp(13px, 3.3vw, 21px); margin-bottom:2px; }
+    [data-density="compact"] .ots-card-masthead { flex-basis:32%; }
+    [data-density="compact"] .ots-range { font-size:clamp(16px, 4.1vw, 27px); }
+    [data-density="compact"] .ots-month-group { margin-bottom:12px; }
+    @container (max-width: 400px) {
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-card-masthead { flex-basis:28%; padding:9px 12px 8px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-brand { font-size:9px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-recipient { font-size:11px; margin-bottom:2px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-headline { font-size:18px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-period { font-size:7px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-card-body { padding:9px 12px 0; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-snapshot { font-size:8px; margin-bottom:6px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-month-group { margin-bottom:3px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-month-label { font-size:8px; margin-bottom:1px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-range { font-size:11px; line-height:1; margin-bottom:1px; }
+        :is([data-density="normal"], [data-density="compact"], [data-density="dense"]) .ots-card-footer { flex-basis:32px; min-height:32px; font-size:7px; }
+    }
+    @media (min-width: 640px) { .ots-page { padding-top: 38px; } .ots-review { padding: 24px; } }
+    @media (prefers-reduced-motion: reduce) { .ots-date, .ots-check { transition:none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="ots-page">
+    {% if not share.eligible_count %}
+    <section class="ots-empty" aria-labelledby="ots-empty-title">
+        <p class="ots-kicker">Open to Ski</p>
+        <h1 id="ots-empty-title" class="ots-intro">A little room for a mountain day.</h1>
+        {% if share.error %}<div class="ots-notice ots-error" role="alert">{{ share.error }}</div>{% endif %}
+        {% if share.availability_changed %}<div class="ots-notice" role="status">Your saved availability changed. Add or review your current dates before continuing.</div>{% endif %}
+        <p>{{ share.empty_message }}</p>
+        <a class="bl-btn-primary" href="{{ url_for('add_open_dates') }}">Add open dates</a>
+    </section>
+    {% elif share.card %}
+    <section class="ots-card-wrap" aria-labelledby="ots-preview-title">
+        <p class="ots-kicker">Your confirmed preview</p>
+        <h1 id="ots-preview-title" class="ots-intro">Ready when you are.</h1>
+        <p class="ots-copy">This is the quiet little card you can use when you want to say you might be up for a ski day.</p>
+        <div class="ots-card" data-export-width="{{ share.card.export_width }}" data-export-height="{{ share.card.export_height }}" data-aspect-ratio="{{ share.card.aspect_ratio }}" data-density="{{ share.card.density }}" role="img" aria-label="{{ share.card.first_name }} is open to ski during {{ share.card.period_label }}. {{ share.card.accessible_summary }}. {{ share.card.snapshot_label }}; {{ share.card.footer }}.">
+            <header class="ots-card-masthead">
+                <span class="ots-brand">{{ share.card.brand }}</span>
+                <div class="ots-masthead-title">
+                    <p class="ots-recipient">{{ share.card.first_name }},</p>
+                    <h2 class="ots-headline">{{ share.card.headline }}</h2>
+                </div>
+                <span class="ots-period">{{ share.card.period_label }}</span>
+            </header>
+            <div class="ots-card-body">
+                <p class="ots-snapshot">{{ share.card.snapshot_label }}</p>
+                <div class="ots-columns" style="--ots-columns: {{ share.card.column_count }};">
+                    {% for column in share.card.columns %}
+                    <div class="ots-card-col">
+                        {% for group in column %}
+                        <section class="ots-month-group" aria-label="{{ group.label }}">
+                            <h3 class="ots-month-label">{{ group.label }}</h3>
+                            {% for range in group.ranges %}<p class="ots-range" aria-label="{{ range.accessible_label }}">{{ range.label }}</p>{% endfor %}
+                        </section>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <footer class="ots-card-footer"><span>{{ share.card.selected_count }} days</span><span>{{ share.card.footer }}</span></footer>
+            </div>
+        </div>
+        <p class="ots-equivalent"><strong>Text equivalent:</strong> {{ share.card.first_name }} is open to ski during {{ share.card.period_label }}: {{ share.card.accessible_summary }}. This is an availability snapshot; {{ share.card.footer | lower }}.</p>
+        <p class="ots-export-note">This is a static image. Changes you make to your availability later will not update copies you have already shared.</p>
+        <div class="ots-export-actions" aria-label="Image delivery options">
+            <button class="bl-btn-primary ots-export-btn" id="ots-share-image" type="button">Share image</button>
+            <button class="bl-btn-secondary ots-export-btn" id="ots-download-image" type="button">Download image</button>
+        </div>
+        <p class="ots-export-status" id="ots-export-status" role="status" aria-live="polite"></p>
+    </section>
+    {% else %}
+    <section aria-labelledby="ots-review-title">
+        <p class="ots-kicker">Open to Ski</p>
+        <h1 id="ots-review-title" class="ots-intro">Make room for a mountain day.</h1>
+        <p class="ots-copy">Review the days you are open to skiing. Keep only the dates you want in this personal invitation, then confirm the preview.</p>
+        {% if share.error %}<div class="ots-notice ots-error" role="alert">{{ share.error }}</div>{% endif %}
+        {% if share.availability_changed %}<div class="ots-notice" role="status">Your saved availability changed. These are the current dates; review them before continuing.</div>{% endif %}
+        {% if share.eligible_count > share.max_selected_days %}<div class="ots-notice" role="note">You have {{ share.eligible_count }} eligible days. Select up to {{ share.max_selected_days }} for this preview; nothing will be removed from your saved availability.</div>{% endif %}
+        {% if share.selection_notice and not share.error %}<div class="ots-notice" role="note">{{ share.selection_notice }} Deselect dates to continue; nothing will be removed from your saved availability.</div>{% endif %}
+        <form class="ots-review" method="post" action="{{ url_for('open_to_ski') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="ots-review-head"><h2 class="ots-review-title">Your open days</h2><span class="ots-count" id="ots-count" aria-live="polite"></span></div>
+            <fieldset class="ots-fieldset">
+                <legend class="ots-legend">Selected by default. Deselect any day you want to leave off this preview.</legend>
+                {% for date in share.eligible_dates %}
+                <label class="ots-date">
+                    <input type="checkbox" name="selected_dates" value="{{ date.value }}" {% if date.value in share.selected_dates %}checked{% endif %}>
+                    <span class="ots-check" aria-hidden="true"></span>
+                    <span class="ots-date-text"><span class="ots-month">{{ date.month_label }}</span><span class="ots-date-label">{{ date.label }}</span></span>
+                </label>
+                {% endfor %}
+            </fieldset>
+            <p class="ots-status" id="ots-status" role="status"></p>
+            <button class="bl-btn-primary ots-submit" type="submit">Create preview</button>
+        </form>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block scripts %}
+{% if share.card %}
+<script src="{{ url_for('html2canvas_vendor') }}"></script>
+<script src="{{ url_for('static', filename='js/open-to-ski-export.js') }}"></script>
+{% endif %}
+{% if share.eligible_count and not share.card %}
+<script>
+(function () {
+    var form = document.querySelector('.ots-review');
+    var boxes = Array.prototype.slice.call(form.querySelectorAll('input[type="checkbox"]'));
+    var count = document.getElementById('ots-count');
+    var status = document.getElementById('ots-status');
+    var limit = {{ share.max_selected_days }};
+    var rangeLimit = {{ share.max_display_ranges }};
+    function dayNumber(value) {
+        var parts = value.split('-').map(Number);
+        return Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000;
+    }
+    function rangeCount(selectedBoxes) {
+        var values = selectedBoxes.map(function (box) { return box.value; }).sort();
+        var ranges = 0;
+        var previous = null;
+        values.forEach(function (value) {
+            var isContiguous = previous && dayNumber(value) - dayNumber(previous) === 1;
+            var sameMonth = previous && value.slice(0, 7) === previous.slice(0, 7);
+            if (!isContiguous || !sameMonth) ranges += 1;
+            previous = value;
+        });
+        return ranges;
+    }
+    function update() {
+        var selectedBoxes = boxes.filter(function (box) { return box.checked; });
+        var selected = selectedBoxes.length;
+        var ranges = rangeCount(selectedBoxes);
+        count.textContent = selected + ' of ' + boxes.length + ' selected';
+        if (selected > limit) status.textContent = 'Select ' + (selected - limit) + ' fewer day' + (selected - limit === 1 ? '' : 's') + ' to continue.';
+        else if (ranges > rangeLimit) status.textContent = 'Reduce your selection by ' + (ranges - rangeLimit) + ' displayed range' + (ranges - rangeLimit === 1 ? '' : 's') + ' to continue.';
+        else status.textContent = selected + ' day' + (selected === 1 ? '' : 's') + ' across ' + ranges + ' displayed range' + (ranges === 1 ? '' : 's') + ' will appear in your preview.';
+        status.setAttribute('aria-live', selected > limit || ranges > rangeLimit ? 'assertive' : 'polite');
+    }
+    boxes.forEach(function (box) { box.addEventListener('change', update); });
+    form.addEventListener('submit', function (event) {
+        if (!boxes.some(function (box) { return box.checked; })) { event.preventDefault(); status.textContent = 'Select at least one day to create the preview.'; status.setAttribute('aria-live', 'assertive'); }
+        else if (boxes.filter(function (box) { return box.checked; }).length > limit) { event.preventDefault(); status.textContent = 'Select no more than ' + limit + ' days to continue.'; status.setAttribute('aria-live', 'assertive'); }
+        else if (rangeCount(boxes.filter(function (box) { return box.checked; })) > rangeLimit) { event.preventDefault(); status.textContent = 'Select dates that create no more than ' + rangeLimit + ' displayed ranges.'; status.setAttribute('aria-live', 'assertive'); }
+    });
+    update();
+}());
+</script>
+{% endif %}
+{% endblock %}
