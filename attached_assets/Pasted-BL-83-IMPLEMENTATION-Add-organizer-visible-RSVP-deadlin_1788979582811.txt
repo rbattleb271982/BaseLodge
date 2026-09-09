@@ -1,0 +1,441 @@
+BL-83 — IMPLEMENTATION
+Add organizer-visible RSVP deadlines to trips
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+TASK PROGRESS TARGET: approximately 15% → 85%
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- create Replit tasks
+- create notes, markdown files, documentation files, or report files
+- save this prompt or your final report into the repository
+- modify unrelated code
+- perform unrelated refactors
+- stage files
+- commit
+- push
+- deploy
+- access or mutate Production
+- perform follow-on work after implementation and verification
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+android/baselodge-release-key.jks
+
+Known unrelated environmental noise:
+- .replit
+- attached_assets/Pasted-*
+
+Leave those paths completely alone.
+
+If unexpected legitimate BaseLodge work is present, STOP and report it before modifying anything.
+
+--------------------------------------------------
+APPROVED BL-83 PRODUCT CONTRACT
+--------------------------------------------------
+
+Implement an OPTIONAL organizer-visible RSVP deadline on SkiTrip.
+
+The deadline is passive/informational canonical trip data.
+
+Approved semantics:
+
+1. RSVP deadline is optional.
+2. Organizer can add it.
+3. Organizer can edit it.
+4. Organizer can remove it.
+5. Authorized Trip Detail viewers can see it.
+6. Any valid calendar date is allowed.
+7. Deadline MAY equal the trip start date.
+8. Deadline MAY occur after the trip starts.
+9. Deadline MAY already be in the past when created or edited.
+10. Do NOT compare the deadline against trip dates or today's date.
+11. Deadline does NOT enforce RSVP behavior.
+12. Participants may continue changing RSVP state after the deadline.
+13. Do NOT add RSVP deadline to trip creation in BL-83.
+14. Deadline management happens from Trip Detail only.
+
+Explicitly OUT OF SCOPE:
+
+- reminders
+- reminder scheduling
+- push notifications
+- email
+- SMS
+- lifecycle communications
+- organizer follow-up
+- Home actions
+- deadline-driven recommendations
+- Happening distribution
+- participant action tracking
+- RSVP enforcement
+- analytics changes
+- native iOS/Android work
+- changes to legacy GroupTrip/TripGuest
+- trip-creation deadline input
+
+--------------------------------------------------
+1. CANONICAL SCHEMA
+--------------------------------------------------
+
+Add to canonical SkiTrip in models.py:
+
+rsvp_deadline = db.Column(db.Date, nullable=True)
+
+Do not add the field to:
+- GroupTrip
+- TripGuest
+- SkiTripParticipant
+- notes
+- JSON/free-form metadata
+
+NULL means no RSVP deadline.
+
+Create ONE additive linear Alembic migration.
+
+Upgrade:
+- add nullable DATE column `rsvp_deadline` to `ski_trip`
+
+Downgrade:
+- drop only `rsvp_deadline`
+
+Requirements:
+- no server default
+- no backfill
+- existing rows remain NULL
+- follow repository batch-alter conventions where required
+- use the actual current migration head as down_revision
+- revision identifier must satisfy repository constraints
+
+Do not run anything against Production.
+
+--------------------------------------------------
+2. ORGANIZER UPDATE ENDPOINT
+--------------------------------------------------
+
+Add a focused endpoint following existing Trip Detail mutation conventions:
+
+POST /api/trip/<id>/update-rsvp-deadline
+
+Reuse existing patterns for:
+- @login_required
+- CSRF
+- mutable-trip loading/locking
+- terminal-trip mutation protection
+- organizer ownership
+- validation
+- commit
+- rollback
+- JSON responses
+
+Organizer authority is:
+
+trip.user_id == current_user.id
+
+Do NOT use created_by_user_id as authorization.
+
+If the repository's terminal-trip mutation guard uses an endpoint allowlist, add this endpoint to that existing boundary.
+
+Accepted JSON:
+
+Set/update:
+{"rsvp_deadline": "YYYY-MM-DD"}
+
+Remove:
+{"rsvp_deadline": null}
+
+If consistent with existing frontend/request conventions, blank string may normalize to NULL.
+
+Validation:
+
+- body must be a JSON object
+- field must be explicitly present
+- accept only a string or null
+- parse strings as strict ISO YYYY-MM-DD calendar dates
+- reject malformed dates
+- reject impossible dates
+- reject wrong JSON types
+- preserve existing authorization response conventions
+- preserve terminal-trip mutation behavior
+- repeated identical writes must be safe
+
+IMPORTANT:
+
+Do NOT validate deadline relative to:
+- today's date
+- trip start_date
+- trip end_date
+
+Any valid calendar date is allowed.
+
+Do NOT:
+- create RSVP transition records
+- create participant action records
+- change GuestStatus
+- change transition_rsvp()
+- change RSVP audit history
+- change participant attendance dates
+- block RSVP after the deadline
+
+--------------------------------------------------
+3. TRIP DETAIL DISPLAY
+--------------------------------------------------
+
+In templates/trip_detail.html:
+
+When rsvp_deadline is not NULL, render a small shared line immediately below the existing trip dates in the Trip Detail header.
+
+Copy should follow the existing date formatting conventions and read approximately:
+
+RSVP by Mar 15, 2027
+
+Requirements:
+
+- organizer sees it
+- Going participant sees it
+- Interested participant sees it
+- pending invitee who already has Trip Detail access sees it
+- unauthorized users gain no new access
+- render nothing when NULL
+- do not redesign the Trip Detail header
+- reuse existing typography/helper/notice styling where appropriate
+
+Deadline visibility must inherit the existing Trip Detail authorization boundary.
+
+Do not create a new public deadline API.
+
+--------------------------------------------------
+4. ORGANIZER MANAGEMENT UI
+--------------------------------------------------
+
+In the existing organizer-only Trip Detail edit controls:
+
+Add an:
+
+RSVP deadline
+
+row alongside the existing trip-property controls such as Visibility and Status.
+
+Display:
+- formatted current deadline when set
+- "Not set" when NULL
+
+Interaction:
+
+Use the existing Trip Detail bottom-sheet/date-edit pattern.
+
+The organizer should be able to:
+
+- open RSVP deadline editor
+- select a date with <input type="date">
+- Save
+- Remove deadline when one exists
+
+Requirements:
+
+- organizer only
+- unavailable/hidden when the existing terminal-trip editing rules prohibit mutation
+- use the focused update endpoint
+- update the displayed deadline after successful save/removal using the simplest existing page-update pattern
+- preserve existing Trip Detail interaction conventions
+- no new page
+- no generalized settings architecture
+
+Do not add RSVP deadline controls to:
+- /add_trip
+- POST /api/trip/create
+- legacy trip edit page
+- participant RSVP controls
+
+--------------------------------------------------
+5. PRIVACY / AUTHORIZATION
+--------------------------------------------------
+
+Preserve existing Trip Detail visibility.
+
+The deadline may only be visible to users who already have legitimate Trip Detail access under current capability rules.
+
+Do not broaden trip visibility.
+
+Mutation remains organizer-only.
+
+Test at minimum:
+
+- organizer can mutate
+- Going participant cannot mutate
+- Interested participant cannot mutate
+- pending invitee cannot mutate
+- nonmember cannot mutate
+- declined/removed/nonmember retain existing access behavior
+- terminal trip cannot mutate deadline
+
+--------------------------------------------------
+6. RSVP NON-REGRESSION
+--------------------------------------------------
+
+BL-83 must not alter RSVP semantics.
+
+Verify that after the deadline, including a deadline in the past:
+
+- Going still works
+- Interested still works
+- Declined still works where currently permitted
+- existing organizer RSVP operations behave identically
+- existing participant authorization behaves identically
+
+Do not introduce deadline enforcement anywhere.
+
+--------------------------------------------------
+7. TESTS
+--------------------------------------------------
+
+Add focused BL-83 coverage.
+
+Prefer:
+
+tests/test_trip_rsvp_deadline.py
+
+Add/extend other existing test files only when the behavior logically belongs there.
+
+Cover:
+
+A. MODEL / SCHEMA
+- nullable deadline
+- existing trips default to NULL
+
+B. ENDPOINT
+- organizer add
+- organizer edit
+- organizer remove
+- past deadline accepted
+- deadline equal to start date accepted
+- deadline after trip start accepted
+- malformed date rejected
+- impossible date rejected
+- wrong JSON type rejected
+- missing field rejected
+- repeated identical update safe
+- unauthorized mutation rejected
+- terminal-trip mutation rejected
+
+C. DISPLAY
+- organizer sees deadline
+- Going participant sees deadline
+- Interested participant sees deadline
+- pending invitee with legitimate Trip Detail access sees deadline
+- NULL renders no deadline copy
+- unauthorized users gain no access
+
+D. RSVP NON-REGRESSION
+- deadline does not alter RSVP transitions
+- past deadline does not block RSVP
+
+E. MIGRATION
+- nullable DATE added
+- existing rows remain NULL
+- downgrade removes only the new column
+- follow existing migration-test conventions
+- supported SQLite/PostgreSQL migration behavior remains compatible
+
+Run focused tests first.
+
+Then run appropriate adjacent trip/RSVP/authorization regression suites.
+
+Then run the full Python test suite.
+
+Run existing JavaScript tests if this repository's Trip Detail changes fall within their coverage or if the normal BaseLodge completion gate requires them.
+
+Also run:
+- Python compilation/syntax checks appropriate to changed files
+- git diff --check
+
+Do not weaken, delete, or skip existing tests to make BL-83 pass.
+
+--------------------------------------------------
+8. FILE SCOPE
+--------------------------------------------------
+
+Expected production files:
+
+- models.py
+- app.py
+- templates/trip_detail.html
+- ONE new Alembic migration
+
+Expected test files:
+- tests/test_trip_rsvp_deadline.py
+- possibly narrowly related existing test/migration files where required
+
+Do not modify:
+- services/rsvp_transitions.py unless repository evidence proves implementation is impossible without it; if so, STOP and report before changing it
+- services/connection_transitions.py
+- native iOS/Android files
+- deployment configuration
+- unrelated templates/routes/models
+
+If implementation requires materially broader scope, STOP and report before proceeding.
+
+--------------------------------------------------
+9. GIT BOUNDARY
+--------------------------------------------------
+
+Do not:
+- git add
+- git commit
+- git push
+- reset
+- amend
+- cherry-pick
+- rebase
+- deploy
+
+We will review the implementation first and perform Git operations manually afterward.
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return the report in Replit chat only.
+
+Include:
+
+1. Current HEAD
+2. origin/main HEAD
+3. ahead/behind status
+4. exact production files changed
+5. exact test files changed/created
+6. migration filename
+7. migration revision
+8. migration down_revision
+9. final SkiTrip field definition
+10. endpoint route/function
+11. authorization behavior
+12. validation behavior
+13. confirmation any valid calendar date is accepted
+14. confirmation deadline is informational only
+15. confirmation trip creation was NOT changed
+16. confirmation RSVP transition logic was NOT changed
+17. Trip Detail participant display behavior
+18. organizer management behavior
+19. removal behavior
+20. terminal-trip behavior
+21. privacy/access behavior
+22. focused test results
+23. adjacent regression results
+24. full Python suite results
+25. JavaScript test results if run
+26. syntax/compilation results
+27. git diff --check result
+28. concise diff summary
+29. any deviations from expected file scope and why
+30. any risks discovered
+31. confirmation no Production access/mutation
+32. confirmation no native files changed
+33. confirmation no Replit task/note/report file created
+34. confirmation no stage/commit/push/deploy
+35. final git status
+36. estimated BL-83 completion percentage
+
+STOP after the report.

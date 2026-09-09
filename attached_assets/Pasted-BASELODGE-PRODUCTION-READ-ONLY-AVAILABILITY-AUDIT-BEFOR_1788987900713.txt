@@ -1,0 +1,144 @@
+BASELODGE — PRODUCTION READ-ONLY AVAILABILITY AUDIT BEFORE PUBLISH
+
+AGENT LEVEL: POWER
+MODE: PLAN
+
+This is a READ-ONLY Production audit.
+
+CRITICAL AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not take initiative beyond the requested audit.
+
+Do NOT:
+- modify source code
+- modify Production data
+- modify Development data
+- create tasks
+- create project records
+- create notes
+- create documentation
+- create Markdown/report files
+- save this prompt or your report into the repository
+- modify .replit
+- add attached_assets/Pasted-* files to Git
+- stage files
+- commit
+- push
+- reset
+- rebase
+- amend
+- cherry-pick
+- deploy or publish
+- run migrations
+- perform backfills
+- change configuration
+- auto-fix anything
+- perform follow-on work
+- create backups, snapshots, checkpoints, or Git commits
+
+If you believe any mutation is necessary, STOP and report why instead.
+
+If Replit automatically creates a commit, task, record, note, attachment, or unrelated repository change during execution:
+STOP immediately and report:
+1. what was created
+2. exact paths or commit SHA
+3. whether legitimate BaseLodge work is mixed into it
+4. current HEAD
+5. current origin/main
+6. current git status
+
+Do not repair the unexpected action yourself.
+
+PURPOSE
+
+Before we publish the current BaseLodge main branch, verify that the existing Production ski-availability data is compatible with the canonical availability model implemented in Task #507.
+
+This is the pre-publish audit we intentionally deferred after Task #507.
+
+CURRENT EXPECTED GIT STATE
+
+The current approved main commit should be:
+
+aef22dad42d6cee275241f65f4f1ba30308d5058
+"Finish Friends paging UX"
+
+First report:
+- current HEAD
+- origin/main
+- ahead/behind
+- git status
+
+Do not change Git state.
+
+AUDIT
+
+Inspect the implementation of Task #507 / canonical ski availability sufficiently to determine the exact Production-data assumptions introduced by that change.
+
+Then, using READ-ONLY Production access only, audit the Production availability data for compatibility.
+
+At minimum verify:
+
+1. Production availability rows can be read successfully using existing supported Production access.
+
+2. Identify the relevant tables/models/fields involved in canonical ski availability.
+
+3. Count the Production records affected by the canonicalization contract.
+
+4. Determine whether any Production records violate the assumptions expected by the new canonical availability implementation.
+
+5. Specifically look for:
+   - malformed or unsupported availability values
+   - legacy representations that the current code no longer accepts
+   - duplicates that should collapse to one canonical representation
+   - conflicting rows representing the same user/date availability
+   - null/invalid dates where prohibited
+   - records that would be lost, misinterpreted, or rendered incorrectly after deployment
+
+6. If the implementation contains a canonicalization helper or migration/backfill logic, use its rules as the source of truth for the audit, but DO NOT execute any mutation/backfill.
+
+7. Quantify findings:
+   - total relevant Production records
+   - total clean/compatible
+   - total requiring remediation, if any
+   - categories/counts of any incompatibilities
+
+8. Determine one of these final outcomes:
+
+PASS
+Production data is already compatible and current main can be published without a Production data mutation.
+
+BLOCKED
+One or more Production records require remediation before publishing.
+
+If BLOCKED, report the exact incompatibility and propose the smallest remediation plan, but DO NOT perform it.
+
+SAFETY
+
+- SELECT/read-only operations only.
+- No INSERT.
+- No UPDATE.
+- No DELETE.
+- No DDL.
+- No migration commands.
+- No backfill.
+- No application deployment.
+- No environment/config mutation.
+- Do not expose private user data in the report. Use aggregate counts and non-identifying examples only if necessary.
+
+FINAL REPORT
+
+Return only a chat report containing:
+
+1. HEAD
+2. origin/main
+3. ahead/behind
+4. relevant implementation/data contract discovered
+5. Production tables/fields inspected
+6. aggregate Production counts
+7. incompatibilities found, with counts
+8. whether any Production mutation is required
+9. final verdict: PASS or BLOCKED
+10. whether it is safe to publish current main
+11. confirmation that no source files, Git state, configuration, Development data, or Production data were changed

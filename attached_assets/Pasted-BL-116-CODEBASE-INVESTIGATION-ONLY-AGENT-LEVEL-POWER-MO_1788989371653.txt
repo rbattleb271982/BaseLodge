@@ -1,0 +1,121 @@
+BL-116 — CODEBASE INVESTIGATION ONLY
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE TASK COMPLETION: 20%
+
+IMPORTANT: BL-116 IS AN EXISTING, APPROVED EXTERNAL TASK.
+
+Do NOT search for, validate, create, update, reconcile, or manage tasks.
+Do NOT inspect project-management systems, task lists, planning records, or prior task definitions.
+Do NOT decide whether BL-116 exists.
+Do NOT perform "planning task management."
+
+Your only job in this step is to inspect the CURRENT BASELODGE CODEBASE and report how analytics/PostHog actually works today.
+
+READ-ONLY INVESTIGATION.
+
+Do not modify any files.
+Do not create files.
+Do not modify .replit.
+Do not install dependencies.
+Do not modify configuration or secrets.
+Do not modify the database.
+Do not stage, commit, push, reset, or otherwise modify Git.
+Do not publish or deploy.
+Do not fix anything.
+Do not investigate unrelated systems.
+
+INVESTIGATE THESE QUESTIONS:
+
+1. Where is PostHog/analytics initialized client-side and server-side?
+
+2. What analytics wrappers/helpers currently exist?
+
+3. Inventory the analytics events currently emitted by BaseLodge and identify the files that emit them.
+
+4. How are anonymous users identified?
+   - Is a shared value such as "anonymous" ever used as distinct_id?
+   - Can unrelated anonymous users currently be grouped under one identity?
+   - Identify exact code paths.
+
+5. Trace analytics identity behavior through:
+   - anonymous visit
+   - signup
+   - email login
+   - Google login
+   - authenticated session
+   - logout
+   - subsequent login by a different account on the same browser
+
+6. Does logout call PostHog reset or equivalent?
+   Determine whether analytics identity can leak between user sessions.
+
+7. Compare Google and email authentication analytics behavior.
+   Identify any actual differences in identify/alias/reset behavior.
+
+8. Inspect server-side analytics delivery.
+   - Is client.flush() called during request handling?
+   - Are events batched?
+   - What happens when PostHog fails?
+   - Can analytics failure affect the user request?
+
+9. Determine whether an is_internal analytics property already exists.
+   If not, identify any EXISTING BaseLodge source of truth that could support it.
+   Do not invent one.
+
+10. Determine whether PostHog session replay is configured.
+    Report existing masking, text/input capture, exclusions, or privacy configuration.
+    Do not enable or modify replay.
+
+11. Inspect actual analytics payloads for private/sensitive data, including:
+    - email
+    - names
+    - user-generated/free text
+    - authentication/session information
+    - tokens/secrets
+    - exact location/address information
+    - private trip information
+    - social/friend information
+
+    Report only findings supported by code.
+
+12. Find existing analytics/PostHog tests.
+    Explain exactly what they currently protect and what important BL-116 contracts are not tested.
+
+13. Identify the exact existing files that would LIKELY require modification to implement BL-116.
+
+14. State whether the evidence indicates BL-116 would require any:
+    - database migration
+    - dependency change
+    - environment variable/secret change
+    - Replit/deployment configuration change
+    - native iOS build
+    - native Android build
+    - PostHog dashboard-side configuration
+
+Do not make any of those changes.
+
+RETURN ONLY A CHAT REPORT WITH:
+
+A. Current architecture
+B. Event inventory
+C. Anonymous identity
+D. Email/Google identity lifecycle
+E. Logout/account switching
+F. Server delivery and failure behavior
+G. is_internal
+H. Session replay/privacy
+I. Sensitive-data findings
+J. Existing tests and gaps
+K. Likely implementation files
+L. Migration/dependency/config/native impact
+M. Evidence-based recommendations for the subsequent PLAN
+
+For every important finding, give the exact file and function/template involved.
+
+STOP AFTER THE REPORT.
+
+DO NOT IMPLEMENT BL-116.
+DO NOT CREATE OR UPDATE A TASK.
+DO NOT WRITE A PLAN FOR IMPLEMENTATION YET.

@@ -1,0 +1,601 @@
+BL-174 — PLAN ONLY
+PERFORMANCE / UX — Add scalable Friends pagination with full-list search
+
+AGENT LEVEL: POWER
+MODE: PLAN
+
+TASK PROGRESS TARGET: 0% → approximately 20%
+
+IMPORTANT:
+This is a READ-ONLY planning task.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- modify application files
+- modify tests
+- modify dependencies
+- modify configuration
+- create tasks
+- create notes, markdown files, documentation files, or report files
+- save this prompt/report into the repository
+- stage files
+- commit
+- push
+- deploy
+- access or mutate Production
+- auto-fix unrelated issues
+- perform follow-on work
+
+Return the plan in Replit chat only.
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+android/baselodge-release-key.jks
+
+Known unrelated environmental noise may include:
+- .replit
+- attached_assets/Pasted-*
+
+Leave those paths alone.
+
+--------------------------------------------------
+GIT SAFETY
+--------------------------------------------------
+
+Expected GitHub main baseline:
+
+4d718c7ea4d13fa2a8433c63c2526cd80a69bae3
+
+At the beginning:
+
+1. Record HEAD.
+2. Record origin/main.
+3. Record ahead/behind.
+4. Record working-tree status.
+
+If HEAD is ahead of origin/main:
+- inspect commit metadata and changed paths only
+- DO NOT reset or repair anything
+- if every ahead commit contains only known environmental noise, report it and continue
+- if any ahead commit contains legitimate BaseLodge work, STOP and report it
+
+Do NOT intentionally:
+- reset
+- amend
+- rebase
+- cherry-pick
+- stage
+- commit
+- push
+
+If a new automatic commit appears after planning begins, STOP and report it.
+
+--------------------------------------------------
+PRODUCT DIRECTION TO VALIDATE
+--------------------------------------------------
+
+The intended BL-174 UX direction is:
+
+1. Friends should scale beyond the current all-at-once loading approach.
+2. Prefer infinite scroll / load-more-on-scroll rather than numbered pagination.
+3. Search must be server-side across the entire friend list, not only the subset already loaded in the browser.
+4. Ordering must be stable and deterministic so pagination does not create duplicates, omissions, or reshuffling.
+5. The visible Friends experience should remain visually consistent with the current UI except for minimal loading / end-of-list states.
+6. Do not broaden this into friend recommendations, ranking, suggestions, social intelligence, or unrelated Friends redesign.
+7. Preserve all existing privacy, authorization, friendship-state, blocking, and visibility rules.
+
+Do not assume the above implementation shape is automatically correct.
+
+Inspect the existing code and either:
+- confirm this is the safest architecture, or
+- recommend a materially better implementation with clear reasoning.
+
+Do not implement anything.
+
+--------------------------------------------------
+A. MAP THE CURRENT FRIENDS EXPERIENCE
+--------------------------------------------------
+
+Find the complete current Friends flow.
+
+Identify:
+
+- primary Friends page route
+- API endpoints used by Friends
+- server-side query functions/services
+- templates
+- JavaScript
+- search behavior
+- sorting behavior
+- filtering behavior
+- friend-count behavior
+- pending/requested/accepted friendship handling
+- any blocking or exclusion rules
+- any mobile/native-specific behavior
+
+For each relevant piece, report:
+
+- exact file
+- function/route name
+- approximate line
+- what it does
+
+--------------------------------------------------
+B. CURRENT QUERY SHAPE
+--------------------------------------------------
+
+Trace the database queries required to load Friends.
+
+Determine:
+
+- which models/tables are queried
+- whether the route loads all friends at once
+- whether results are materialized before rendering
+- whether joins or relationship loading are used
+- whether N+1 queries exist
+- whether mutual-friend or extra metadata is loaded
+- whether counts are computed separately
+- current default ordering
+- whether ordering is deterministic
+- whether query size grows linearly with friend count
+
+Report current query count where test instrumentation already permits it.
+
+Do NOT benchmark Production.
+
+--------------------------------------------------
+C. CURRENT SEARCH BEHAVIOR
+--------------------------------------------------
+
+Find exactly how Friends search works today.
+
+Determine whether search is:
+
+- client-side filtering
+- server-side filtering
+- hybrid
+- exact/prefix/substring
+- case-sensitive or insensitive
+
+Identify which fields are searchable, such as:
+
+- name
+- username
+- display name
+- email
+- other profile fields
+
+Do not expose or newly search private fields.
+
+Determine whether current search behavior depends on all friends already being loaded.
+
+--------------------------------------------------
+D. CURRENT SORT / ORDER CONTRACT
+--------------------------------------------------
+
+Identify the exact current order shown to users.
+
+Determine whether it is based on:
+
+- name
+- friendship creation
+- recent activity
+- ID
+- custom ranking
+- another field
+
+Determine whether ties are resolved deterministically.
+
+For pagination, propose a stable ordering with a unique tie-breaker.
+
+Do not introduce social ranking or recommendation logic.
+
+--------------------------------------------------
+E. PAGINATION ARCHITECTURE
+--------------------------------------------------
+
+Evaluate the safest pagination approach for the current stack.
+
+Compare:
+
+1. offset/limit pagination
+2. cursor/keyset pagination
+
+For each, explain:
+
+- implementation complexity
+- duplicate/omission risk
+- compatibility with current ordering
+- compatibility with search
+- behavior when friendships change while scrolling
+- scalability
+- testing burden
+
+Recommend one.
+
+Prefer the smallest safe implementation rather than infrastructure-heavy design.
+
+--------------------------------------------------
+F. INFINITE SCROLL / LOAD MORE
+--------------------------------------------------
+
+Inspect current frontend patterns for:
+
+- infinite scroll
+- IntersectionObserver
+- “Load more”
+- paginated APIs
+- loading indicators
+- empty states
+- error/retry states
+
+If BaseLodge already has a reusable pattern, identify it.
+
+Recommend whether Friends should use:
+
+- automatic infinite scroll
+- explicit “Load more”
+- IntersectionObserver plus fallback
+- another existing BaseLodge pattern
+
+Ensure accessibility and mobile WebView behavior are considered.
+
+Do not design a large visual overhaul.
+
+--------------------------------------------------
+G. SEARCH + PAGINATION CONTRACT
+--------------------------------------------------
+
+Define how search should interact with pagination.
+
+At minimum address:
+
+- entering a new search resets pagination
+- search runs server-side over the entire authorized friend set
+- search results use the same stable ordering contract
+- clearing search restores the normal list
+- stale in-flight responses cannot overwrite newer search results
+- duplicate requests do not duplicate rendered friends
+- loading state is clear
+- empty search result differs from “no friends”
+
+Recommend whether search should be:
+
+- on every keystroke with debounce
+- submit-driven
+- another existing BaseLodge pattern
+
+If debounce is recommended, specify an appropriate range, not an arbitrary exact number unless existing conventions support one.
+
+--------------------------------------------------
+H. API CONTRACT
+--------------------------------------------------
+
+Determine whether BL-174 should:
+
+- extend an existing Friends endpoint
+- create a dedicated paginated endpoint
+- change the HTML route
+- use partial HTML
+- return JSON
+- another current BaseLodge convention
+
+Propose the exact request contract.
+
+For example, if appropriate:
+
+- search term
+- cursor or offset
+- limit/page size
+
+Propose the exact response contract:
+
+- friends/items
+- next cursor / has_more
+- total count only if truly needed
+- error structure
+
+Do not add fields that expose unnecessary user data.
+
+--------------------------------------------------
+I. PAGE SIZE
+--------------------------------------------------
+
+Recommend a default page/chunk size based on:
+
+- current card density
+- mobile rendering
+- network payload
+- query cost
+- existing BaseLodge conventions
+
+Do not optimize prematurely.
+
+Explain whether the client should be allowed to request arbitrary page sizes or whether the server should enforce a cap.
+
+--------------------------------------------------
+J. AUTHORIZATION / PRIVACY
+--------------------------------------------------
+
+Trace how the current Friends page determines which users may appear.
+
+Preserve exactly:
+
+- direct-friend requirements
+- accepted friendship state
+- block/exclusion behavior
+- privacy rules
+- current profile visibility rules
+- internal-user handling if relevant
+
+Verify that search cannot be used to enumerate users outside the current authorized friend set.
+
+This is a hard requirement.
+
+--------------------------------------------------
+K. FRIEND COUNT / OTHER UI COUNTS
+--------------------------------------------------
+
+Determine whether the Friends UI currently shows:
+
+- total friend count
+- search result count
+- request count
+- other counts
+
+If pagination is introduced, determine how those counts should remain accurate without loading all friend rows.
+
+Avoid expensive repeated global counts unless the count already exists cheaply and is actually required by the UI.
+
+--------------------------------------------------
+L. MUTATION INTERACTION
+--------------------------------------------------
+
+Check how pagination/search would interact with:
+
+- accepting a friend request
+- removing a friend
+- blocking
+- unblocking
+- profile navigation
+- returning to Friends
+- browser back/forward
+- page refresh
+
+Determine whether loaded state should be preserved or simply reloaded.
+
+Prefer simple, predictable behavior.
+
+--------------------------------------------------
+M. EXISTING TEST COVERAGE
+--------------------------------------------------
+
+Find current tests for:
+
+- Friends page
+- Friends queries
+- search
+- friendship authorization
+- blocking
+- friend counts
+- ordering
+- query budgets
+- frontend Friends interactions
+
+Report exact test files and relevant tests.
+
+--------------------------------------------------
+N. TEST PLAN FOR BL-174
+--------------------------------------------------
+
+Define focused regression tests covering at minimum:
+
+1. First page returns the correct authorized friends.
+2. Next page returns the next unique set with no duplicates.
+3. Ordering is stable and deterministic.
+4. Search covers the full authorized friend set, including matches not present in the first chunk.
+5. Search cannot enumerate non-friends.
+6. Search reset clears pagination state.
+7. Clearing search restores the normal list.
+8. Empty friend list works.
+9. Empty search result works.
+10. Final page correctly reports no more data.
+11. Invalid/stale cursor or paging input fails safely.
+12. Friendship changes do not produce authorization leaks.
+13. Query count remains bounded per page.
+14. Existing Friends behavior remains intact.
+15. Frontend ignores stale responses from superseded searches.
+16. Duplicate load triggers do not duplicate cards.
+
+--------------------------------------------------
+O. PERFORMANCE CONTRACT
+--------------------------------------------------
+
+Define a measurable BL-174 performance contract.
+
+At minimum:
+
+- initial Friends request must not load every friend row
+- each incremental page has a bounded row/query cost
+- search is bounded and server-side
+- no client-side full-list preload is required
+- no N+1 regression
+- no repeated expensive count query per page unless justified
+- database ordering/index usage is reasonable for the chosen strategy
+
+Identify whether the chosen ordering/search fields already have suitable indexes.
+
+Do not propose a migration unless it is actually needed.
+
+--------------------------------------------------
+P. SCHEMA / INDEX REVIEW
+--------------------------------------------------
+
+Inspect relevant indexes and constraints.
+
+Determine whether pagination/search can safely ship with current schema.
+
+If an index is missing, report:
+
+- exact table
+- exact columns
+- why it is needed
+- whether the benefit is material enough to justify a migration
+
+Do not create a migration in PLAN mode.
+
+--------------------------------------------------
+Q. FRONTEND FAILURE STATES
+--------------------------------------------------
+
+Define minimal behavior for:
+
+- initial load failure
+- next-page load failure
+- search failure
+- retry
+- offline/temporary network failure
+- spinner/loading state
+- end-of-list state
+
+Preserve the current BaseLodge visual language.
+
+--------------------------------------------------
+R. INTERACTION WITH OTHER TASKS
+--------------------------------------------------
+
+Check interaction with:
+
+- BL-163 intent-based prefetching, complete
+- BL-164 startup diagnostics, complete/no-op
+- BL-116 PostHog hardening
+- BL-162 Mountain Detail progressive loading
+- BL-85 no-exclusion intelligence rule
+
+Do not implement any of them.
+
+Determine whether BL-174 can land independently.
+
+--------------------------------------------------
+S. EXACT IMPLEMENTATION SCOPE
+--------------------------------------------------
+
+List the exact production files likely to change.
+
+List the exact test files likely to change or be added.
+
+Determine whether BL-174 requires:
+
+- backend route changes
+- service/helper changes
+- template changes
+- JavaScript changes
+- dependency changes
+- schema migration
+- index migration
+- native changes
+- deployment config
+- environment variables
+- analytics changes
+- background worker
+- scheduler
+
+Prefer the smallest implementation.
+
+--------------------------------------------------
+T. IMPLEMENTATION SEQUENCE
+--------------------------------------------------
+
+Produce a step-by-step implementation sequence for a later BUILD pass.
+
+The plan should be specific enough that another Replit Agent can execute it without re-architecting the feature.
+
+For each step include:
+
+- file(s)
+- change
+- reason
+- test(s) validating it
+
+Do not execute the sequence.
+
+--------------------------------------------------
+STOP CONDITIONS
+--------------------------------------------------
+
+STOP and report rather than planning around the issue if:
+
+- current Friends behavior differs materially from the assumed product direction
+- authorization cannot be preserved cleanly with pagination
+- search currently exposes data outside direct friends
+- a schema migration appears mandatory
+- a native change is required
+- Production access is required
+- unexpected legitimate Git work exists
+- a new automatic Replit commit appears during the planning session
+
+--------------------------------------------------
+FINAL PLAN REPORT
+--------------------------------------------------
+
+Return a concise but complete report containing:
+
+1. Current HEAD
+2. origin/main
+3. ahead/behind
+4. relevant Git status
+5. current Friends route(s)
+6. current API endpoint(s)
+7. exact backend query source
+8. models/tables touched
+9. current query shape
+10. current query count if available
+11. current search implementation
+12. current searchable fields
+13. current sorting/order
+14. whether current order is deterministic
+15. current frontend rendering flow
+16. existing loading/pagination patterns elsewhere in BaseLodge
+17. recommended pagination strategy
+18. why offset or cursor/keyset is preferred
+19. recommended stable sort and tie-breaker
+20. recommended page size
+21. recommended search behavior
+22. recommended debounce/submit behavior
+23. recommended API request contract
+24. recommended API response contract
+25. authorization/privacy safeguards
+26. friend-count handling
+27. mutation/back-navigation behavior
+28. frontend loading/error/end states
+29. existing relevant tests
+30. focused BL-174 test plan
+31. measurable performance contract
+32. index/schema findings
+33. migration requirement
+34. exact production files likely to change
+35. exact tests likely to change/add
+36. dependency/package impact
+37. native impact
+38. deployment/config impact
+39. analytics impact
+40. interaction with BL-163
+41. interaction with BL-164
+42. interaction with BL-116
+43. interaction with BL-162
+44. interaction with BL-85
+45. smallest safe implementation architecture
+46. step-by-step BUILD sequence
+47. risks
+48. stop conditions triggered, if any
+49. confirmation no implementation/test/config changes
+50. confirmation no task/note/report file created
+51. confirmation no stage/commit/push/deploy
+52. whether any automatic Replit commit occurred
+53. final HEAD
+54. final origin/main
+55. final ahead/behind
+56. final Git status
+57. estimated BL-174 completion percentage
+
+Do not implement BL-174 after returning the plan.

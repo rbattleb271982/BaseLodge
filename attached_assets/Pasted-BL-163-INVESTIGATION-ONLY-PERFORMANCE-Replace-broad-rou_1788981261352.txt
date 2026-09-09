@@ -1,0 +1,389 @@
+BL-163 — INVESTIGATION ONLY
+PERFORMANCE — Replace broad route prefetching with intent-based prefetch
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+TASK PROGRESS TARGET: 0% → approximately 15%
+
+IMPORTANT:
+This is a READ-ONLY repository investigation.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- implement BL-163
+- modify application files
+- modify tests
+- modify dependencies
+- modify configuration
+- create a Replit task
+- create notes, markdown files, documentation files, or report files
+- save this prompt/report into the repository
+- stage files
+- commit
+- push
+- deploy
+- access or mutate Production
+- auto-fix unrelated issues
+- perform follow-on work
+
+Return the investigation report in Replit chat only.
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+android/baselodge-release-key.jks
+
+Known unrelated environmental noise may include:
+- .replit
+- attached_assets/Pasted-*
+
+Leave those paths alone.
+
+IMPORTANT GIT BEHAVIOR:
+
+Replit has repeatedly created automatic checkpoint commits despite explicit instructions not to commit.
+
+Therefore:
+
+1. Record HEAD and origin/main before investigation.
+2. Inspect ahead commits by metadata and changed paths only if needed.
+3. Do NOT reset, amend, cherry-pick, rebase, commit, push, or otherwise repair Git.
+4. If an automatic commit appears during this investigation, STOP and report it.
+5. If unexpected legitimate BaseLodge work exists, STOP and report it.
+
+--------------------------------------------------
+BL-163 GOAL
+--------------------------------------------------
+
+BaseLodge should stop broadly prefetching routes/resources simply because they might be visited.
+
+Replace that behavior later with bounded, intent-based prefetching where it provides a measurable navigation benefit.
+
+This investigation must determine the current architecture and recommend the smallest safe implementation.
+
+Do NOT implement the recommendation yet.
+
+--------------------------------------------------
+A. FIND ALL PREFETCHING
+--------------------------------------------------
+
+Search the repository for all mechanisms that may preload or prefetch application navigation/resources.
+
+Include searches for concepts such as:
+
+- prefetch
+- preload
+- modulepreload
+- prerender
+- fetch triggered before explicit navigation
+- route warming
+- speculative loading
+- link hover loading
+- touch/pointer intent loading
+- IntersectionObserver-based prefetch
+- service worker navigation/resource prefetch
+- JavaScript that automatically fetches likely routes
+- HTML <link rel="prefetch">
+- HTML <link rel="preload">
+- framework/library-specific prefetch behavior
+
+Do not assume the word "prefetch" captures everything.
+
+Report every relevant production implementation with:
+- exact file
+- approximate line/function
+- trigger
+- target resource/route
+- whether it is global or page-specific
+
+Separate:
+1. navigation/route prefetch
+2. static asset preload
+3. API/data prefetch
+4. browser/framework defaults
+
+BL-163 should not accidentally remove useful critical asset preload that is unrelated to route speculation.
+
+--------------------------------------------------
+B. CURRENT GLOBAL BEHAVIOR
+--------------------------------------------------
+
+Determine whether BaseLodge currently has a shared/global prefetch system.
+
+If yes, report:
+
+- initialization location
+- pages on which it runs
+- routes/links it targets
+- when requests fire
+- whether requests fire without user intent
+- whether it scans all links
+- whether it uses viewport visibility
+- whether it uses hover/focus/touch/pointer events
+- whether it deduplicates requests
+- whether it has a cache/set of already-prefetched destinations
+- whether it respects same-origin boundaries
+- whether it excludes mutation/logout/auth routes
+- whether it excludes downloads/external links
+- whether it behaves differently in mobile/touch environments
+
+--------------------------------------------------
+C. REQUEST / SERVER IMPACT
+--------------------------------------------------
+
+Trace what happens when a prefetched route reaches Flask.
+
+For representative prefetched destinations, determine whether prefetch causes:
+
+- authentication/session work
+- database queries
+- social graph queries
+- trip queries
+- mountain queries
+- template rendering
+- analytics
+- diagnostics
+- cache population
+- other server-side work
+
+Identify the most expensive or obviously wasteful speculative destinations.
+
+Do not benchmark Production.
+
+Use repository evidence and existing tests/profiling instrumentation where available.
+
+--------------------------------------------------
+D. BROWSER / MOBILE BEHAVIOR
+--------------------------------------------------
+
+Determine how the current behavior works across:
+
+- desktop mouse
+- keyboard focus/navigation
+- touch devices
+- mobile Safari
+- Capacitor/native webview if relevant
+
+Identify whether the current implementation can cause requests merely because links enter the viewport or because a page loads.
+
+Determine whether hover-based intent alone would exclude important mobile behavior.
+
+--------------------------------------------------
+E. SAFE INTENT SIGNALS
+--------------------------------------------------
+
+Based on existing BaseLodge frontend architecture, evaluate appropriate intent signals such as:
+
+- pointerenter / mouseenter
+- focus
+- touchstart / pointerdown
+- another existing application convention
+
+Recommend the smallest set that gives:
+
+- useful desktop prefetch
+- keyboard accessibility
+- useful mobile/touch behavior
+- minimal accidental network activity
+
+Do not invent a complicated predictive system.
+
+--------------------------------------------------
+F. SAFETY / ROUTE EXCLUSIONS
+--------------------------------------------------
+
+Determine what destinations must NEVER be speculatively requested.
+
+Inspect for:
+
+- logout
+- destructive GET routes
+- token/action URLs
+- invitation acceptance
+- account changes
+- authentication state changes
+- downloads
+- external links
+- mailto/tel
+- fragments
+- endpoints with side effects despite GET
+- sensitive/private actions
+
+Report whether the existing system already protects these.
+
+Recommend a clear allow/exclusion strategy for BL-163.
+
+Prefer a conservative implementation.
+
+--------------------------------------------------
+G. DUPLICATION / CANCELLATION / CACHE
+--------------------------------------------------
+
+Inspect whether prefetch requests:
+
+- are deduplicated
+- can fire repeatedly from repeated intent
+- can be aborted
+- use browser cache
+- specify fetch cache behavior
+- consume response bodies
+- create unnecessary retained data
+- interact with Flask cache headers
+
+Recommend whether BL-163 needs:
+- a simple Set of prefetched URLs
+- in-flight tracking
+- AbortController
+- no additional mechanism
+
+Prefer the smallest solution justified by evidence.
+
+--------------------------------------------------
+H. EXISTING TESTS
+--------------------------------------------------
+
+Find tests covering:
+
+- shared/global JavaScript
+- navigation
+- prefetch behavior
+- template script inclusion
+- safe-route exclusions
+- mobile/touch interaction if any
+
+Report exact files.
+
+Determine whether current JavaScript test infrastructure can directly test the new intent behavior.
+
+Recommend the minimum focused regression coverage.
+
+--------------------------------------------------
+I. PERFORMANCE CONTRACT
+--------------------------------------------------
+
+Define a measurable BL-163 completion contract.
+
+At minimum determine how we can verify:
+
+1. Page load alone no longer causes broad speculative route requests.
+2. Merely entering the viewport does not prefetch routes unless intentionally retained for a documented reason.
+3. A supported intent signal causes at most one prefetch for an eligible destination.
+4. Repeated intent does not create repeated prefetches.
+5. Unsafe/ineligible destinations are not prefetched.
+6. Normal navigation remains unchanged.
+7. Desktop, keyboard, and mobile/touch paths remain usable.
+8. Critical static-resource loading is not accidentally degraded.
+
+If existing query/request instrumentation allows a stronger measurable contract, report it.
+
+--------------------------------------------------
+J. FILE / DEPENDENCY SCOPE
+--------------------------------------------------
+
+Report the exact production files likely to change.
+
+Determine whether BL-163 requires:
+
+- dependency changes
+- package changes
+- Flask route changes
+- schema migration
+- native changes
+- service worker changes
+- deployment configuration
+- environment variables
+
+Expected answer is that this should be a bounded frontend performance change unless repository evidence shows otherwise.
+
+--------------------------------------------------
+K. INTERACTION WITH OTHER PLANNED WORK
+--------------------------------------------------
+
+Check for meaningful interaction with:
+
+- BL-164 startup diagnostics work
+- BL-174 Friends pagination
+- BL-162 Mountain Detail progressive loading
+
+Do not implement those tasks.
+
+Determine whether BL-163 can safely land independently before them.
+
+--------------------------------------------------
+L. SMALLEST SAFE IMPLEMENTATION PLAN
+--------------------------------------------------
+
+Recommend the smallest implementation that:
+
+- removes broad speculative route loading
+- uses actual user intent
+- supports desktop + keyboard + touch
+- deduplicates prefetch
+- conservatively excludes unsafe destinations
+- preserves ordinary navigation
+- does not create a new framework/abstraction unless necessary
+
+Prefer modifying the existing prefetch mechanism rather than creating a parallel system if the current architecture permits it.
+
+--------------------------------------------------
+STOP CONDITIONS
+--------------------------------------------------
+
+STOP and report rather than implementing if investigation discovers:
+
+- prefetching is tightly coupled to authentication or mutation behavior
+- removing it requires a broad navigation rewrite
+- service worker architecture must materially change
+- native code must change
+- dependency/framework migration is required
+- Production access is required
+- unexpected legitimate Git work exists
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return a concise but complete report in Replit chat with:
+
+1. Current HEAD
+2. origin/main HEAD
+3. ahead/behind status
+4. relevant working-tree status
+5. every production prefetch/preload implementation found
+6. current global route-prefetch architecture
+7. exact trigger(s) today
+8. whether page load alone creates speculative requests
+9. whether viewport visibility creates speculative requests
+10. current desktop behavior
+11. current keyboard behavior
+12. current mobile/touch behavior
+13. representative server-side work caused by prefetch
+14. highest-cost/wasteful speculative routes identified
+15. existing route exclusions
+16. missing safety exclusions
+17. recommended eligible-route strategy
+18. recommended intent signals
+19. recommended deduplication behavior
+20. whether abort/cancellation is needed
+21. interaction with browser caching
+22. exact production files likely to change
+23. exact tests likely to change/add
+24. recommended focused tests
+25. measurable performance completion contract
+26. dependency/package impact
+27. Flask/backend impact
+28. schema/migration impact
+29. native impact
+30. deployment/config impact
+31. interaction with BL-164
+32. interaction with BL-174
+33. interaction with BL-162
+34. smallest safe implementation plan
+35. risks/stop conditions
+36. confirmation NO implementation files/tests/config were changed
+37. confirmation NO task/note/report file was created
+38. confirmation NO stage/commit/push/deploy occurred
+39. final Git status
+40. estimated BL-163 completion percentage
+
+Do not implement BL-163 after the report.

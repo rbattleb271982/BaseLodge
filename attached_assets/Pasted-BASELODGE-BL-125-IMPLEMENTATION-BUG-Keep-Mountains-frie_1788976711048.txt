@@ -1,0 +1,320 @@
+BASELODGE — BL-125 IMPLEMENTATION
+BUG — Keep Mountains friend counts fresh after trip changes
+
+REPLIT AGENT
+POWER — BUILD
+
+TASK PROGRESS
+Starting: ~15%
+Expected after implementation + focused verification: ~85%
+
+CRITICAL EXECUTION RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not create Replit tasks.
+Do not create notes or documentation files.
+Do not create attachments.
+Do not modify `.replit`.
+Do not intentionally modify `attached_assets/Pasted-*`.
+Do not stage.
+Do not commit.
+Do not push.
+Do not deploy.
+Do not access Production.
+Do not access or mutate Production databases.
+Do not perform unrelated cleanup.
+
+Your final report belongs only in the Replit chat.
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+Never use:
+
+git add .
+git add -A
+
+
+==================================================
+PHASE 0 — REPOSITORY NORMALIZATION
+==================================================
+
+Approved baseline:
+
+9bef821cce66451aef1cc4e3e570796efa6d5a01
+Close suggested connection loop
+
+Before implementation report:
+
+1. branch
+2. local HEAD
+3. origin/main
+4. ahead/behind
+5. git status --short
+
+Known environmental noise may include:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+If Replit automatically created ahead commits containing ONLY those environmental-noise paths:
+
+- inspect file paths with Git metadata only;
+- confirm no legitimate source/test/schema/dependency/native files are included;
+- perform a safe MIXED reset to origin/main;
+- preserve those environmental files locally;
+- create no commit;
+- push nothing;
+- continue automatically.
+
+If any ahead commit contains legitimate BaseLodge work:
+
+STOP and report it.
+
+==================================================
+BL-125 OBJECTIVE
+==================================================
+
+Fix stale friend-derived counts in the authenticated Mountains experience without changing existing count semantics.
+
+The investigation established three stale layers:
+
+1. process-local `_mountains_cache` containing personalized `/api/mountains-data`
+2. browser reuse from `Cache-Control: private, max-age=300`
+3. frontend/bfcache reuse of retained `RESORTS` state
+
+The smallest safe fix is:
+
+- stop caching the complete personalized Mountains response;
+- preserve caching of stable resort reference data;
+- compute existing `friend_count` live on each API request using the existing bulk query;
+- make the personalized response non-storable;
+- stop relying on stale ETag/304 behavior;
+- fetch Mountains data fresh on every page load/pageshow, including bfcache restoration;
+- preserve all existing product semantics.
+
+==================================================
+DO NOT CHANGE COUNT SEMANTICS
+==================================================
+
+Mountains list `friend_count` must continue to mean:
+
+- reciprocal friends only
+- count distinct friend trip OWNERS
+- public trips only
+- active or legacy NULL lifecycle only
+- resort_id required
+- past/current/future all count
+- trip_status irrelevant
+- participant RSVP irrelevant
+- participant-specific dates irrelevant
+- one friend counts once per resort
+- completed/cancelled excluded
+
+Do NOT make list counts depend on:
+
+- Going
+- Interested
+- Pending
+- Declined
+- Removed
+- participant dates
+
+Mountain Detail semantics must remain unchanged.
+
+==================================================
+BACKEND CHANGE
+==================================================
+
+In `/api/mountains-data`:
+
+1. Remove or bypass personalized full-response reuse from `_mountains_cache`.
+2. Preserve any stable resort reference caching such as `get_all_active_resorts_map()`.
+3. Recompute reciprocal friend IDs and the existing grouped friend-count query on every actual request.
+4. Preserve the current one-bulk-query / no-N+1 pattern.
+5. Return a personalized response that is not reusable through a 300-second freshness window.
+
+Preferred cache policy:
+
+Cache-Control: private, no-store
+
+If existing project conventions require a slightly different non-storing header, use the closest secure equivalent.
+
+6. Remove or stop using ETag/304 behavior for this personalized response if it can cause stale reuse or no longer has value under no-store.
+
+Do not change unrelated API payload fields.
+
+Do not split the endpoint into a broader architecture rewrite.
+
+==================================================
+FRONTEND CHANGE
+==================================================
+
+In the Mountains frontend:
+
+1. Fetch `/api/mountains-data` using an explicit non-storing policy.
+
+Prefer:
+
+fetch('/api/mountains-data', { cache: 'no-store' })
+
+or the project-equivalent safe pattern.
+
+2. On every `pageshow`, including `event.persisted === true`, request fresh Mountains data.
+
+Do not preserve stale `RESORTS` merely because the page was restored from bfcache.
+
+3. Preserve filter state/reset behavior as much as possible.
+
+Do not introduce unnecessary flashes or regressions in empty/loading/error states.
+
+4. Do not add client-side local/session storage.
+
+==================================================
+MOUNTAIN DETAIL
+==================================================
+
+The investigation found Mountain Detail is fresh on a real request but can be stale on bfcache restoration.
+
+Do NOT broaden BL-125 into a Mountain Detail redesign unless a minimal same-pattern freshness fix is clearly required and safe.
+
+If you can add a tiny bfcache refresh for Mountain Detail without architectural spread, explain it first in the report.
+
+Otherwise leave Mountain Detail behavior unchanged and note it as a separate residual browser behavior.
+
+Do not create a new task automatically.
+
+==================================================
+TESTS — REGRESSION FIRST
+==================================================
+
+Add or update focused tests proving the stale behavior is fixed.
+
+At minimum cover:
+
+1. cached zero count becomes one after public friend trip creation
+2. cancellation removes the count immediately
+3. completion removes the count immediately
+4. resort reassignment decrements old and increments new
+5. public → private removes count
+6. private → public adds count
+7. friendship acceptance adds qualifying counts
+8. friendship removal removes former-friend counts immediately
+9. multiple qualifying trips still count one friend
+10. RSVP changes remain a no-op for list friend_count
+11. invite changes remain a no-op for list friend_count
+12. participant-specific dates remain a no-op for list friend_count
+13. trip_status remains a no-op for list friend_count
+14. response cache headers do not permit 300-second personalized reuse
+15. ETag/304 behavior cannot return stale personalized data
+16. Mountains bfcache/pageshow path triggers a fresh data request
+17. one-way friendship rows remain excluded
+18. query count remains bounded
+19. no N+1 regression
+
+Where existing tests currently manually clear `_mountains_cache`, update them so freshness is proven without that artificial clear when appropriate.
+
+Do not rewrite unrelated tests.
+
+Likely test files:
+
+- `tests/test_mountains_data.py`
+- optional focused frontend/source-contract test if needed
+
+==================================================
+PERFORMANCE REQUIREMENTS
+==================================================
+
+Preserve the existing bulk pattern:
+
+- reciprocal friend query
+- one grouped `COUNT(DISTINCT SkiTrip.user_id)` query
+- cached stable resort data
+
+Do not replace with per-resort queries.
+
+Do not add schema indexes or migrations.
+
+If removing personalized response caching causes a measurable test/query-budget problem that cannot be resolved without schema/index work:
+
+STOP and report it.
+
+Do not add a migration in this task.
+
+==================================================
+REGRESSION VERIFICATION
+==================================================
+
+After focused tests pass, run adjacent suites for:
+
+- Mountains data
+- Mountain Detail
+- friendship visibility
+- connection transitions
+- trip lifecycle
+- visibility/privacy
+- RSVP transitions
+- participant attendance propagation
+
+Then run broader/full tests if practical.
+
+Also run:
+
+- Python compilation for changed files
+- template/source validation as applicable
+- git diff --check
+
+Do not weaken or delete tests to achieve a pass.
+
+==================================================
+FINAL GIT HYGIENE
+==================================================
+
+Do not commit.
+
+At the end, legitimate BL-125 source/test changes must remain uncommitted for review.
+
+If Replit auto-creates commits containing ONLY:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+you may self-heal those environmental-only commits with a safe mixed reset preserving legitimate BL-125 work.
+
+If any automatic commit contains legitimate BL-125 source/test changes:
+
+STOP and report the exact commit and paths.
+Do not rewrite legitimate work.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return in Replit chat only:
+
+1. Git state before implementation
+2. Environmental-noise normalization, if any
+3. Implementation summary
+4. Exact production files changed
+5. Exact test files changed/added
+6. Backend freshness behavior
+7. Cache-Control / ETag behavior
+8. Frontend pageshow/bfcache behavior
+9. Confirmation count semantics unchanged
+10. Query/performance impact
+11. Focused test results
+12. Adjacent regression results
+13. Full-suite results, if run
+14. Compilation/template/diff checks
+15. Any failures/deviations
+16. Residual Mountain Detail bfcache behavior, if any
+17. Final local HEAD
+18. Final origin/main
+19. Final ahead/behind
+20. Final git status --short
+21. Confirmation no commit/push/deployment/Production/database action occurred
+22. Estimated BL-125 completion percentage
+
+STOP after the report.

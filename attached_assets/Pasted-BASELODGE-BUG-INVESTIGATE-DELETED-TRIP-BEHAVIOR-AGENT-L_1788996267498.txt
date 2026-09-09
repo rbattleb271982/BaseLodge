@@ -1,0 +1,167 @@
+BASELODGE BUG — INVESTIGATE DELETED TRIP BEHAVIOR
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 20%
+
+READ-ONLY INVESTIGATION ONLY.
+
+CONTEXT
+
+A trip dated May 20–23 is currently appearing under Past Trips.
+
+The user believes this trip may previously have been deleted.
+
+We need to determine whether:
+- the trip was never actually deleted,
+- the delete action only removed participation/association,
+- the delete operation soft-deletes or changes status rather than removing the trip,
+- deleted trips can still appear in My Trips/Past Trips,
+- or some other lifecycle behavior explains why the trip remains visible.
+
+DO NOT FIX ANYTHING YET.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not:
+- modify application code
+- modify tests
+- create files
+- create documentation/report files
+- modify .replit
+- create/update/search/reconcile project tasks
+- install/change dependencies
+- modify environment variables or secrets
+- modify database schema or data
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish or deploy
+- delete or alter any trip records
+- investigate unrelated trip functionality
+
+GOAL
+
+Determine exactly how BaseLodge handles trip deletion today and whether a truly deleted trip can still appear in Past Trips.
+
+INVESTIGATE:
+
+1. Identify every user-facing way a trip can currently be removed or deleted.
+
+For each:
+- exact route/API
+- exact function
+- exact UI control/template
+- who is authorized to use it
+- whether it means:
+  - delete entire trip
+  - leave trip
+  - remove participant
+  - cancel trip
+  - archive/soft-delete
+  - something else
+
+2. Trace the primary organizer "delete trip" path end-to-end.
+
+Determine:
+- what database rows are deleted or updated
+- whether SkiTrip itself is physically deleted
+- whether lifecycle/history tables remain
+- whether participant rows remain
+- whether notifications/invites remain
+- whether any status/deleted flag exists
+
+3. Inspect the My Trips/Past Trips query logic.
+
+Identify the exact criteria for a trip to appear in:
+- upcoming trips
+- past/history trips
+- Friends trips if relevant
+
+Determine whether the query excludes:
+- deleted trips
+- cancelled trips
+- trips the user left
+- removed participation
+- soft-deleted records
+
+4. Determine whether BaseLodge currently has any soft-delete semantics for SkiTrip.
+
+Search for fields/concepts such as:
+- deleted_at
+- is_deleted
+- archived
+- cancelled
+- status
+- lifecycle state
+- removed
+
+Do not assume a soft-delete system exists.
+
+5. Determine whether an organizer deleting a trip could leave the SkiTrip row in place.
+
+If yes:
+- identify the exact code path and why
+
+If no:
+- state clearly that a successfully deleted organizer-owned trip cannot later become a Past Trip through normal date passage.
+
+6. Determine whether "leave trip" or participant removal could make the user think the trip was deleted while leaving the trip record intact.
+
+Explain the distinction between:
+- organizer deleting a trip
+- participant leaving a trip
+- organizer removing a participant
+- deleting/cancelling an invite
+- deleting a planning post
+
+7. Inspect existing automated tests for trip deletion/removal.
+
+Identify:
+- what delete behavior is currently covered
+- whether tests prove deleted trips disappear from My Trips
+- whether tests prove deleted trips cannot later appear in Past Trips
+- whether organizer/participant cases are distinguished
+
+8. If feasible using existing Development data and read-only queries, inspect the currently visible May 20–23 Vail trip.
+
+Do NOT modify it.
+
+Report only non-sensitive structural facts needed to diagnose it, such as:
+- whether the SkiTrip row still exists
+- organizer vs participant relationship for the current user
+- participant status
+- lifecycle state if any
+- whether any deletion/cancellation marker exists
+
+Do not print private user data, emails, tokens, or unrelated trip details.
+
+9. Determine the most likely explanation for why this specific Vail trip appears under Past Trips.
+
+Rank explanations only by actual code/database evidence.
+
+10. Identify the smallest likely fix only if a real defect is found.
+
+Do not propose a fix if current behavior is correct and the trip simply was never deleted.
+
+RETURN ONLY A CHAT REPORT WITH:
+
+A. Current delete/remove architecture
+B. Organizer delete semantics
+C. Participant leave/remove semantics
+D. Past Trips inclusion logic
+E. Soft-delete/cancellation behavior
+F. Existing test coverage
+G. Vail trip evidence
+H. Most likely explanation
+I. Whether there is an actual bug
+J. Smallest likely fix if needed
+K. Exact files/functions involved
+
+For every important conclusion, cite exact files/functions/templates and actual evidence.
+
+STOP AFTER THE REPORT.
+
+DO NOT IMPLEMENT ANYTHING.
+DO NOT MODIFY DATA.
+DO NOT CREATE OR UPDATE A TASK.

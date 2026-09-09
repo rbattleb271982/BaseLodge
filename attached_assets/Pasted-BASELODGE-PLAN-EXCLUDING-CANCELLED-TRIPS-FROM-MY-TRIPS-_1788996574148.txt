@@ -1,0 +1,179 @@
+BASELODGE — PLAN EXCLUDING CANCELLED TRIPS FROM MY TRIPS HISTORY
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 40%
+
+CONTEXT
+
+A completed investigation established that BaseLodge organizer “delete” is actually a soft cancellation:
+
+- Organizer cancel/delete sets SkiTrip.lifecycle_state = "cancelled"
+- The SkiTrip row is intentionally retained
+- My Trips History currently includes trips when:
+  - end_date < today, OR
+  - lifecycle_state is completed or cancelled
+- Therefore cancelled trips appear under Past Trips
+- The existing cancellation copy says the trip will be removed from the user’s profile and friends’ activity
+- That copy conflicts with current History behavior
+
+PRODUCT DECISION
+
+Cancelled trips should NOT appear in My Trips Past Trips.
+
+Past Trips should represent trips that genuinely became historical through their dates/completion, not trips the user cancelled.
+
+Cancelled trips should remain fully retained in the database for lifecycle/history/integrity purposes.
+
+Do not physically delete cancelled SkiTrip rows.
+
+READ/PLAN ONLY.
+
+DO NOT IMPLEMENT YET.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not:
+- modify code
+- modify tests
+- create files
+- modify .replit
+- create/update/search project tasks
+- modify database schema or data
+- install dependencies
+- change configuration or secrets
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish or deploy
+- redesign trip lifecycle
+- physically delete cancelled trips
+- change participant leave/remove semantics
+- change Friends-trip behavior
+- change unrelated My Trips filtering
+
+GOAL
+
+Produce the smallest safe implementation plan so that cancelled trips are excluded from the organizer’s My Trips History/Past Trips view while preserving all existing lifecycle/history data.
+
+REQUIRED CONTRACT
+
+1. A SkiTrip with lifecycle_state = "cancelled" must NOT appear in:
+   - My Trips Upcoming
+   - My Trips Past/History
+
+2. A SkiTrip that is active and whose end_date < today should still appear in Past Trips.
+
+3. A SkiTrip with lifecycle_state = "completed" should still appear in Past Trips if that is current intended behavior.
+
+4. A participant trip should continue to follow the existing authorization rules:
+   - GOING / INTERESTED may qualify
+   - PENDING / DECLINED / REMOVED remain excluded
+
+5. Cancelled trips must remain:
+   - in the database
+   - in lifecycle history
+   - in RSVP/history records
+   - immutable as currently designed
+   - excluded from live Friends activity as they already are
+
+6. No migration should be required.
+
+7. Existing cancellation copy should remain accurate after the change.
+   If the current wording:
+   “This will remove the trip from your profile and friends' activity.”
+   becomes fully accurate once cancelled trips are excluded from My Trips, do not rewrite it unnecessarily.
+
+8. Do not remove the Past Trips section itself.
+
+INVESTIGATE ONLY AS NEEDED TO PLAN:
+
+A. MY TRIPS QUERY
+
+Inspect:
+- services/my_trips_paging.py
+- _candidate_query()
+- any helper predicates used for upcoming/history
+
+Determine the smallest predicate change needed so History excludes lifecycle_state = "cancelled" while preserving:
+- active date-lapsed trips
+- completed trips
+- existing participant/authorization rules
+- stable ordering/paging/cursor behavior
+
+B. OTHER MY TRIPS SURFACES
+
+Identify whether the same history eligibility logic is reused by:
+- initial /my-trips render
+- /api/my-trips/page
+- history pagination
+- any other My Trips endpoint
+
+Ensure one bounded change covers all intended My Trips History surfaces rather than duplicating logic.
+
+C. FRIENDS TRIPS
+
+Confirm cancelled trips are already excluded from Friends trip surfaces.
+
+Do not modify Friends behavior unless evidence shows it is necessary.
+
+D. TESTS
+
+Identify exact existing tests that currently assert cancelled organizer trips appear in History.
+
+Plan the minimal updates so tests instead prove:
+
+- cancelled owner trip is absent from Upcoming
+- cancelled owner trip is absent from History
+- active past-dated trip remains in History
+- completed trip remains in History
+- GOING/INTERESTED participant history behavior remains unchanged
+- DECLINED/REMOVED/PENDING remain excluded
+- paging/cursor behavior remains stable
+- cancellation still retains the underlying SkiTrip row and lifecycle history
+
+Prefer updating focused My Trips paging tests and adding one route-level regression only if needed.
+
+E. CANCELLATION COPY
+
+Inspect the organizer cancellation confirmation in templates/trip_detail.html.
+
+Determine whether the existing copy becomes truthful after this behavior change.
+
+If yes:
+- leave it unchanged
+
+If no:
+- propose the smallest wording adjustment
+
+Do not redesign the modal.
+
+F. IMPACT
+
+State whether this requires any:
+- database migration
+- dependency change
+- config change
+- native iOS build
+- native Android build
+- deployment config change
+
+RETURN ONLY:
+
+A. Proposed behavior contract
+B. Exact query/predicate change
+C. My Trips surfaces affected
+D. Friends behavior confirmation
+E. Exact tests to update/add
+F. Cancellation-copy decision
+G. Exact files likely modified
+H. Regression risks
+I. Migration/dependency/config/native impact
+J. Implementation sequence
+K. Any genuine decision still required before BUILD
+
+For every proposed change, cite the exact existing file/function/template involved.
+
+STOP AFTER THE PLAN.
+
+DO NOT IMPLEMENT ANYTHING.

@@ -1,0 +1,174 @@
+BASELODGE — COMPLETE TASK #507 PRODUCTION AUDIT AGAINST AUTHORITATIVE SUPABASE
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+ACTION
+
+Execute the authoritative Production availability audit now against BaseLodge Supabase Production.
+
+Do not create a plan. Do not create a task. Do not create documentation. Do not create a checkpoint intentionally. Do not create a Git commit intentionally.
+
+Use the existing BaseLodge Supabase Production connection/credentials already available to the application.
+
+READ OPERATIONS ONLY.
+
+Do not use the empty Replit-managed Production database again.
+
+APPROVED BASELODGE APPLICATION BASELINE
+
+The approved BaseLodge application commit is:
+
+aef22dad42d6cee275241f65f4f1ba30308d5058
+
+At the start, report:
+- current HEAD
+- origin/main
+- ahead/behind
+- git status
+
+KNOWN REPLIT ENVIRONMENTAL COMMIT BEHAVIOR
+
+Replit has repeatedly auto-created commits containing only:
+- `.replit`
+- `attached_assets/Pasted-*`
+
+These environmental-only commits are NON-BLOCKING for this audit.
+
+If Replit automatically creates a commit whose changed paths are ONLY:
+- `.replit`
+- `attached_assets/Pasted-*`
+
+then:
+
+DO NOT STOP.
+DO NOT REPAIR IT.
+DO NOT RESET IT.
+DO NOT COMMIT ANYTHING ELSE.
+
+Continue the Supabase audit.
+
+For purposes of application integrity, treat:
+
+aef22dad42d6cee275241f65f4f1ba30308d5058
+
+as the approved BaseLodge application baseline.
+
+STOP ONLY if an unexpected commit or working-tree change includes any legitimate BaseLodge file, including:
+- application source
+- templates
+- tests
+- migrations
+- dependencies
+- config other than `.replit`
+- scripts
+- database code
+- native files
+- deployment files
+
+If legitimate BaseLodge files change unexpectedly, stop and report exact paths and commit SHA.
+
+PRODUCTION SAFETY
+
+Allowed:
+- Supabase SELECT/read queries
+- aggregate counts
+- schema inspection
+- read-only validation
+
+Forbidden:
+- INSERT
+- UPDATE
+- DELETE
+- UPSERT
+- DDL
+- migrations
+- backfills
+- RPC/function calls that mutate data
+- code changes
+- config changes
+- deployment
+- publish
+- staging
+- pushing
+
+Do not create repository scripts or files for this audit. Use transient/read-only database access only.
+
+AUDIT CONTRACT
+
+Use the Task #507 canonical availability contract already established:
+
+- `user_availability` is the normalized canonical source
+- availability is resolved per user/date
+- normalized rows override legacy `user.open_dates` for the same date
+- `is_available = true` means available
+- `is_available = false` tombstones the same legacy date
+- legacy `user.open_dates` is fallback only where no normalized row exists
+- valid legacy values are exact `YYYY-MM-DD` dates
+- duplicate legacy values collapse
+- malformed legacy values are ignored
+- current availability includes today and future dates
+- compatibility writer mirrors the current/future normalized set into `user.open_dates`
+
+AUTHORITATIVE SUPABASE AUDIT
+
+Inspect:
+
+`public.user_availability`
+- id
+- user_id
+- date
+- is_available
+- note
+- created_at
+
+`public.user`
+- id
+- open_dates
+
+Return aggregate counts for:
+
+1. total Production users
+2. total normalized availability rows
+3. active normalized rows
+4. inactive/tombstone rows
+5. null or invalid normalized user/date/status values
+6. users with legacy `open_dates`
+7. total valid legacy date entries
+8. malformed legacy entries
+9. duplicate legacy dates
+10. duplicate/conflicting normalized rows for the same user/date
+11. legacy dates overridden by normalized rows
+12. legacy dates tombstoned by normalized false rows
+13. any records current Task #507 code would lose, misinterpret, duplicate, or render incorrectly
+
+Do not expose user identities or private values. Aggregate counts only.
+
+FINAL VERDICT
+
+Return exactly one:
+
+PASS
+Authoritative Supabase Production data is compatible with Task #507 and no mutation is required before publishing.
+
+or
+
+BLOCKED
+Specific authoritative Supabase Production records require remediation before publishing.
+
+FINAL REPORT
+
+Return:
+1. application baseline commit
+2. current HEAD
+3. origin/main
+4. ahead/behind
+5. any environmental-only Replit commit observed
+6. confirmation that Supabase was queried
+7. tables/fields inspected
+8. all aggregate counts
+9. incompatibilities by category
+10. whether any Production mutation is required
+11. PASS or BLOCKED
+12. whether current main is safe to publish
+13. confirmation that no data, code, legitimate Git history, configuration, or deployment was changed

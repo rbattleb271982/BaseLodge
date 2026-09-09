@@ -254,6 +254,57 @@ def test_attendance_lifecycle_and_authorization_membership(client):
         )
         terminal.lifecycle_state = "cancelled"
 
+        cancelled_guest = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today - timedelta(days=16),
+            end_date=today - timedelta(days=15),
+        )
+        cancelled_guest.lifecycle_state = "cancelled"
+        _add_participant(cancelled_guest, viewer, GuestStatus.GOING)
+
+        past_active_owner = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today - timedelta(days=14),
+            end_date=today - timedelta(days=13),
+        )
+        past_active_owner.lifecycle_state = "active"
+
+        past_legacy_owner = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today - timedelta(days=12),
+            end_date=today - timedelta(days=11),
+        )
+        past_legacy_owner.lifecycle_state = None
+
+        completed_owner = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today + timedelta(days=17),
+            end_date=today + timedelta(days=18),
+        )
+        completed_owner.lifecycle_state = "completed"
+
+        historical_going = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today - timedelta(days=10),
+            end_date=today - timedelta(days=9),
+        )
+        _add_participant(historical_going, viewer, GuestStatus.GOING)
+
+        historical_interested = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today - timedelta(days=8),
+            end_date=today - timedelta(days=7),
+        )
+        _add_participant(
+            historical_interested, viewer, GuestStatus.INTERESTED
+        )
+
         past_attendance_only = _make_trip(
             owner,
             resort=resort,
@@ -277,7 +328,14 @@ def test_attendance_lifecycle_and_authorization_membership(client):
         assert not (set(hidden.values()) & set(upcoming_by_id))
         assert unrelated_private.id not in upcoming_by_id
         assert terminal.id not in upcoming_by_id
-        assert terminal.id in history_ids
+        assert terminal.id not in history_ids
+        assert cancelled_guest.id not in history_ids
+        assert past_active_owner.id in history_ids
+        assert past_legacy_owner.id in history_ids
+        assert completed_owner.id in history_ids
+        assert historical_going.id in history_ids
+        assert historical_interested.id in history_ids
+        assert not (set(hidden.values()) & history_ids)
         assert past_attendance_only.id not in upcoming_by_id
         assert past_attendance_only.id not in history_ids
 
@@ -439,6 +497,45 @@ def test_initial_route_and_fragment_render_independent_pages(client):
     assert payload["next_cursor"] is None
     assert len(payload["trip_ids"]) == 1
     assert payload["html"].count('class="trip-row"') == 1
+
+
+def test_cancelled_trip_is_absent_from_initial_and_fragment_history(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("cancelled-history-route-viewer")
+        resort = _make_resort("Cancelled History Route Peak")
+        cancelled = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today - timedelta(days=2),
+            end_date=today - timedelta(days=1),
+        )
+        cancelled.lifecycle_state = "cancelled"
+        visible = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today - timedelta(days=4),
+            end_date=today - timedelta(days=3),
+        )
+        db.session.commit()
+        viewer_id = viewer.id
+        cancelled_id = cancelled.id
+        visible_id = visible.id
+
+    _login(client, viewer_id)
+    initial = client.get("/my-trips")
+    assert initial.status_code == 200
+    initial_history_ids = _trip_ids_from_html(
+        initial.get_data(as_text=True), "past-row"
+    )
+    assert cancelled_id not in initial_history_ids
+    assert visible_id in initial_history_ids
+
+    fragment = client.get("/api/my-trips/page?section=history")
+    assert fragment.status_code == 200
+    payload = fragment.get_json()
+    assert cancelled_id not in payload["trip_ids"]
+    assert visible_id in payload["trip_ids"]
 
 
 def test_pending_invites_remain_complete_when_viewer_feeds_are_bounded(client):

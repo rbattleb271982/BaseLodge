@@ -1,0 +1,522 @@
+BL-174 — BUILD
+#511 — Finish Friends Paging UX
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+TASK PROGRESS TARGET: approximately 20% → approximately 80%
+
+IMPORTANT:
+Implement ONLY the approved BL-174 scope below.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- create tasks
+- create planning records
+- create notes
+- create markdown/report files
+- save this prompt or your report into the repository
+- modify unrelated files
+- auto-fix unrelated issues
+- stage files
+- commit
+- push
+- deploy
+- access or mutate Production
+- modify native code
+- modify deployment configuration
+- add analytics
+- add dependencies
+- add migrations unless a concrete failing requirement makes one unavoidable, in which case STOP and report instead
+- perform follow-on work
+
+Return your report in Replit chat only.
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+
+android/baselodge-release-key.jks
+
+Known unrelated environmental noise may include:
+
+.replit
+attached_assets/Pasted-*
+
+Leave those paths alone.
+
+--------------------------------------------------
+GIT SAFETY
+--------------------------------------------------
+
+Expected baseline:
+
+4d718c7ea4d13fa2a8433c63c2526cd80a69bae3
+
+Before changing application code:
+
+1. Record HEAD.
+2. Record origin/main.
+3. Record ahead/behind.
+4. Record Git status.
+
+Expected state:
+- HEAD = origin/main
+- 0 ahead / 0 behind
+- .replit may be modified
+- attached_assets/Pasted-* may be untracked
+- no legitimate source changes
+- nothing staged
+
+If any legitimate BaseLodge work exists before implementation:
+STOP and report it.
+
+If a new automatic Replit commit appears at any point:
+STOP and report it immediately.
+
+Do not repair Git state yourself.
+
+--------------------------------------------------
+APPROVED PRODUCT CONTRACT
+--------------------------------------------------
+
+Complete BL-174 on top of the EXISTING bounded Friends paging system.
+
+The backend already provides:
+
+- GET /api/friends/page
+- server-side search across the full authorized reciprocal-friend set
+- signed viewer/filter-scoped keyset cursors
+- stable ordering
+- server-enforced page size of 20
+- partial-HTML JSON response
+- reciprocal-friend authorization boundary
+- bounded hydration
+- privacy-filtered trip counts
+- existing explicit Load more behavior
+
+Do NOT rewrite that architecture unless tests reveal a concrete correctness defect.
+
+Approved UX:
+
+1. Initial Friends page renders only the existing bounded first page.
+2. Automatically load the next page as the user approaches the bottom.
+3. Keep the visible Load more control as a keyboard/accessibility/WebView fallback.
+4. Search and filters remain server-side across the FULL authorized friend set.
+5. Search/filter changes reset paging state.
+6. Stale responses must never overwrite newer search/filter results.
+7. Repeated observer/button triggers must never duplicate requests or rendered cards.
+8. Loading, retry, empty-result, and final-page states must be clear.
+9. Preserve current stable ordering:
+   - case-insensitive first name ASC
+   - case-insensitive last name ASC
+   - Friend.id ASC unique tie-breaker
+10. Re-authorize every page request so friendship changes cannot leak revoked users.
+11. Keep per-page query/hydration cost bounded.
+12. Preserve current Friends visuals except for minimal progressive loading/status behavior.
+13. No friend ranking, recommendations, social intelligence, global discovery changes, analytics, blocking redesign, or speculative prefetching.
+
+--------------------------------------------------
+CRITICAL EXISTING CONTRACTS TO PRESERVE
+--------------------------------------------------
+
+Keep unchanged unless a focused test proves a defect:
+
+- signed keyset cursor
+- cursor scoped to viewer
+- cursor scoped to active search/filter state
+- server-enforced page size = 20
+- GET /api/friends/page
+- current partial-HTML JSON envelope
+- reciprocal-only Friend SQL boundary
+- public/live trip-count privacy rules
+- matching_count
+- authorized_count
+- friend_ids
+- safe 400 behavior for invalid/tampered/wrong-viewer/wrong-filter cursor
+- no email search/exposure
+- no global /api/users/search reuse
+- no client-provided arbitrary page size
+- no speculative API prefetch
+
+--------------------------------------------------
+PRIMARY IMPLEMENTATION GOAL
+--------------------------------------------------
+
+Add progressive automatic loading and harden frontend request state around the existing Friends paging implementation.
+
+Primary likely files:
+
+- templates/friends.html
+- templates/partials/friends_directory_region.html
+
+Backend files should remain unchanged unless tests reveal a real correctness gap:
+
+- services/friends_paging.py
+- app.py
+
+Tests likely to modify/add:
+
+- tests/test_friends_paging.py
+- tests/test_friends_page.py
+- potentially tests/js/test_friends_paging.js
+
+Also run relevant existing regressions:
+
+- tests/test_authenticated_page_query_budget.py
+- tests/test_connection_transitions.py
+- tests/test_bl173_friends_acceptance_presentation.py
+- tests/test_bl173_targeted_social_refresh.py
+
+--------------------------------------------------
+STEP 1 — LOCK BACKEND CONTRACT WITH TESTS
+--------------------------------------------------
+
+Before frontend changes, extend focused backend coverage where coverage is missing.
+
+Test at minimum:
+
+1. First page returns the correct first bounded set.
+2. Second page returns the next unique set.
+3. Final page returns correct rows and has_more=false.
+4. No duplicates across pages.
+5. Stable ordering when multiple friends share identical first/last names.
+6. Full-list search finds an authorized match that is not in the first 20 normal results.
+7. Search excludes:
+   - self
+   - one-way Friend rows
+   - non-friends
+8. Search/filter changes invalidate old cursors.
+9. Invalid/tampered cursor returns safe 400.
+10. Wrong-viewer cursor returns safe 400.
+11. Friendship revocation between page one and page two means the revoked user cannot appear later.
+12. Query cost remains bounded as total friend count grows.
+
+Do not duplicate tests already proving these exact contracts unnecessarily.
+
+Use existing fixtures/helpers when possible.
+
+--------------------------------------------------
+STEP 2 — HARDEN CLIENT REQUEST GENERATIONS
+--------------------------------------------------
+
+Inspect the existing Friends paging JavaScript in templates/friends.html.
+
+Implement an explicit request-generation mechanism in addition to AbortController.
+
+Requirements:
+
+- Every search/filter scope has a generation identifier or equivalent monotonic request-state guard.
+- Changing search/filter state:
+  - starts a new generation
+  - resets cursor
+  - resets rendered paging state
+  - resets end-of-list state
+- Only responses belonging to the CURRENT generation may mutate the Friends directory.
+- An old response completing after a newer request must be ignored.
+- AbortController may remain, but correctness must NOT rely on abort completing successfully.
+- Incremental requests for the same generation must have an in-flight guard.
+- Observer and button activation must share the same load-next-page path.
+- Only one incremental request may run at a time.
+- Duplicate triggers must not append duplicate Friends cards.
+- Preserve existing friend-ID deduplication as a second safety layer.
+
+Do not build a generalized networking framework.
+
+Keep this local to Friends paging.
+
+--------------------------------------------------
+STEP 3 — ADD PROGRESSIVE AUTOMATIC LOADING
+--------------------------------------------------
+
+Add an end-of-list sentinel or similarly minimal DOM target.
+
+Use IntersectionObserver when available.
+
+Behavior:
+
+- Observe a marker near the bottom of the loaded Friends directory.
+- When it approaches the viewport and:
+  - has_more is true
+  - a next cursor exists
+  - no incremental request is active
+  - current search/filter generation is valid
+  then trigger the SAME existing next-page request used by Load more.
+
+Use an appropriate rootMargin so loading begins shortly before the user reaches the end.
+
+Do not introduce aggressive speculative prefetch.
+
+This must be user-scroll-driven progressive loading.
+
+Fallback requirements:
+
+- If IntersectionObserver is unavailable, Friends remains fully usable with the visible Load more button.
+- Keep Load more keyboard accessible.
+- Keep it usable in mobile WebViews.
+- Do not remove the button merely because automatic loading exists.
+
+At the final page:
+
+- stop observing or otherwise prevent further loads
+- ensure no repeated network requests
+- hide/disable the Load more control appropriately
+- expose a minimal accessible completion/end state if consistent with current UI
+
+--------------------------------------------------
+STEP 4 — COMPLETE UI STATES
+--------------------------------------------------
+
+Implement or harden minimal states for:
+
+INITIAL LOAD:
+- loading state should be accessible
+- if initial API-driven reload fails, allow retry
+
+INCREMENTAL LOAD:
+- keep already loaded Friends visible
+- do not clear successful rows on next-page failure
+- expose retry through the existing control
+
+SEARCH/FILTER FAILURE:
+- preserve the entered query/filter state
+- allow retry
+- stale/superseded responses must not alter the UI
+
+EMPTY ACCOUNT:
+- preserve the existing no-friends/invite-oriented empty state
+
+EMPTY SEARCH/FILTER RESULT:
+- show the existing or minimal distinct no-match state
+- do not confuse this with having no Friends at all
+
+FINAL PAGE:
+- no additional requests
+- clear loading state
+- clear observer behavior
+- clear Load more availability appropriately
+
+ACCESSIBILITY:
+- preserve semantic button behavior
+- use current aria-busy/status patterns if available
+- do not shift keyboard focus unexpectedly when rows auto-append
+- status updates should not become noisy on every observer event
+
+Preserve BaseLodge’s existing visual language.
+
+No redesign.
+
+--------------------------------------------------
+STEP 5 — MUTATION AND NAVIGATION SAFETY
+--------------------------------------------------
+
+Verify existing Friends mutation flows.
+
+For accepted/removed friendships or equivalent existing targeted refresh behavior:
+
+- loaded paging state must not retain an invalid old cursor
+- refresh from page one under the current active search/filter scope
+- do not attempt complex cursor surgery
+
+Confirm:
+
+- removed/revoked friendship cannot later reappear from an old page request
+- normal refresh restarts at a bounded first page
+- browser back/forward behavior remains predictable
+- do not persist hundreds of loaded friend rows in local storage/session storage/URL
+
+Do not broaden into mutation redesign.
+
+--------------------------------------------------
+STEP 6 — DIRECT JAVASCRIPT REGRESSION COVERAGE
+--------------------------------------------------
+
+If there is no suitable direct Friends paging JS test file, add:
+
+tests/js/test_friends_paging.js
+
+Test important frontend behavior, preferably against the smallest testable extracted helpers or existing executable template behavior without introducing unnecessary architecture.
+
+Cover at minimum:
+
+1. New search/filter generation invalidates prior response.
+2. Stale response cannot replace current results.
+3. Two load triggers do not issue two simultaneous next-page loads.
+4. Observer and button use the same incremental load path.
+5. Duplicate friend IDs are not appended twice.
+6. Final page disables future automatic loads.
+7. Incremental failure preserves loaded rows.
+8. Retry can successfully continue.
+9. Search reset clears paging state.
+10. Clearing search restores normal first-page state.
+11. Missing IntersectionObserver leaves manual Load more usable.
+
+Do not introduce a large JS framework or dependency.
+
+--------------------------------------------------
+STEP 7 — PERFORMANCE CONTRACT
+--------------------------------------------------
+
+Preserve the measurable BL-174 contract:
+
+- initial Friends HTML includes at most 20 directory friends
+- each incremental page selects at most 21 candidates
+- each incremental page hydrates at most 20 Friends
+- endpoint SQL remains at or below the existing 4-statement regression budget
+- full /friends page remains within its existing authenticated query budget
+- no per-friend N+1
+- search remains fully server-side
+- browser never preloads the full Friends list
+- no speculative Friends API prefetch
+- no arbitrary page-size request
+- no new count/query added per rendered friend
+
+If a required frontend change unexpectedly increases backend query cost:
+STOP and report rather than silently changing the performance contract.
+
+--------------------------------------------------
+STEP 8 — PRIVACY / AUTHORIZATION
+--------------------------------------------------
+
+Verify after implementation that:
+
+- only reciprocal current Friends can appear
+- every page request re-runs current authorization
+- search cannot enumerate non-friends
+- email is neither searched nor returned
+- no private profile fields are added
+- current public/live trip-count visibility is preserved
+- no new blocking behavior is invented
+- global member discovery is untouched
+
+--------------------------------------------------
+STEP 9 — VERIFICATION
+--------------------------------------------------
+
+Run focused tests first.
+
+At minimum run:
+
+- tests/test_friends_paging.py
+- tests/test_friends_page.py
+- new/updated Friends JS tests
+- tests/test_authenticated_page_query_budget.py relevant Friends tests
+- tests/test_connection_transitions.py
+- tests/test_bl173_friends_acceptance_presentation.py
+- tests/test_bl173_targeted_social_refresh.py
+
+Then run:
+
+- full JavaScript suite
+- appropriate broader Python regression suite
+- Python syntax/compile checks for touched Python files, if any
+- node --check for touched/new JS
+- git diff --check
+
+If the full Python suite has an unrelated failure:
+- investigate enough to determine whether it is related to BL-174
+- do not fix unrelated issues
+- report the exact failure
+- if appropriate, rerun the isolated failure once to detect existing flakiness
+
+Do not deploy.
+
+--------------------------------------------------
+EXPECTED IMPLEMENTATION BOUNDARY
+--------------------------------------------------
+
+The preferred implementation should likely touch only:
+
+- templates/friends.html
+- templates/partials/friends_directory_region.html
+- tests/test_friends_paging.py
+- tests/test_friends_page.py
+- tests/js/test_friends_paging.js if needed
+
+Potential backend changes are allowed ONLY if a focused regression demonstrates an actual defect in the existing approved contract.
+
+Do not change:
+
+- dependencies
+- package manifests
+- migrations
+- schema
+- native files
+- deployment config
+- environment variables
+- background workers
+- schedulers
+- analytics
+
+--------------------------------------------------
+STOP CONDITIONS
+--------------------------------------------------
+
+STOP and report before proceeding further if:
+
+- the existing backend contract materially differs from the approved plan
+- reciprocal-only authorization cannot be preserved
+- a schema/index migration becomes necessary
+- native code is required
+- Production access is required
+- a dependency is required
+- a new automatic Replit commit appears
+- legitimate unrelated Git work appears
+- current paging implementation is broken enough that a substantial redesign would be required
+- search is discovered to expose data outside direct reciprocal Friends
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return a concise but complete report with:
+
+1. Initial HEAD
+2. Initial origin/main
+3. Initial ahead/behind
+4. Initial relevant Git status
+5. Files changed
+6. Backend changes, if any
+7. Frontend request-generation changes
+8. IntersectionObserver implementation
+9. Load more fallback behavior
+10. Search/filter reset behavior
+11. Stale-response protection
+12. Duplicate-trigger protection
+13. Friend-card deduplication behavior
+14. Loading states
+15. Retry behavior
+16. Empty account behavior
+17. Empty search behavior
+18. Final-page/end state
+19. Accessibility behavior
+20. Mutation refresh behavior
+21. Authorization/privacy verification
+22. Stable ordering verification
+23. Page-size verification
+24. Query-budget verification
+25. Focused backend test results
+26. Focused Friends page test results
+27. Frontend JS test results
+28. Connection-transition regression results
+29. BL-173 regression results
+30. Full JS suite result
+31. Broader/full Python result
+32. Syntax/compile result
+33. git diff --check result
+34. Dependency impact
+35. Schema/migration impact
+36. Native impact
+37. Deployment/config impact
+38. Analytics impact
+39. Production access confirmation
+40. Automatic Replit commit status
+41. Whether any task/note/report file was created
+42. Whether any staging/commit/push/deploy occurred
+43. Final HEAD
+44. Final origin/main
+45. Final ahead/behind
+46. Final Git status
+47. Exact changed-file list
+48. Estimated BL-174 completion percentage
+
+Do not stage, commit, push, or deploy after returning the report.

@@ -1,0 +1,474 @@
+BASELODGE — BL-125 ACTUAL CODE INVESTIGATION
+BUG — Keep Mountains friend counts fresh after trip changes
+
+REPLIT AGENT
+POWER — BUILD
+
+TASK PROGRESS
+BL-125: 0% → approximately 15%
+
+IMPORTANT
+
+DO NOT CREATE A REPLIT TASK.
+DO NOT CREATE A PLAN ARTIFACT.
+DO NOT CREATE A DRAFT.
+DO NOT CREATE TASK #511 OR ANY OTHER TASK.
+DO NOT UPDATE TASK #510.
+DO NOT USE REPLIT TASK MANAGEMENT.
+
+The previous run incorrectly created Replit Task #510 instead of performing the requested repository investigation.
+
+IGNORE TASK #510.
+
+This prompt requires ACTUAL READ-ONLY REPOSITORY INVESTIGATION.
+
+You must inspect the existing BaseLodge code and return your findings in chat.
+
+DO NOT IMPLEMENT ANY FIX.
+
+==================================================
+CRITICAL EXECUTION RULE
+==================================================
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Allowed:
+- read source files
+- read tests
+- inspect Git metadata
+- trace routes/services/models/templates
+- inspect existing query/cache/frontend logic
+- report findings in Replit chat
+
+Not allowed:
+- modify source code
+- modify tests
+- modify schema
+- create migrations
+- modify `.replit`
+- create documentation
+- create notes
+- create attachments
+- create tasks
+- stage files
+- commit
+- push
+- deploy
+- access Production
+- access or mutate Production database
+- perform unrelated cleanup
+
+Your final investigation report belongs ONLY in the Replit chat.
+
+DO NOT save the report to the repository.
+
+Never use:
+
+git add .
+git add -A
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+==================================================
+REPOSITORY STATE
+==================================================
+
+Approved BaseLodge HEAD after BL-109:
+
+9bef821cce66451aef1cc4e3e570796efa6d5a01
+Close suggested connection loop
+
+First report:
+
+1. branch
+2. local HEAD
+3. origin/main
+4. ahead/behind
+5. git status --short
+
+Known unrelated local environmental files may include:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+Do not stage, commit, modify, or delete them.
+
+If Replit has automatically created ahead commits containing ONLY:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+then:
+
+1. inspect commit file paths using Git metadata only;
+2. confirm no legitimate application/source/test/schema/dependency files are present;
+3. perform a safe MIXED reset to origin/main;
+4. preserve those environmental files locally;
+5. create no commit;
+6. push nothing;
+7. continue automatically.
+
+Do not stop merely because environmental-noise files exist.
+
+If any ahead commit contains legitimate BaseLodge work, STOP and report it.
+
+==================================================
+BL-125 OBJECTIVE
+==================================================
+
+ACTUALLY INVESTIGATE the bug:
+
+"Keep Mountains friend counts fresh after trip changes"
+
+The previous run suggested likely relevant areas:
+
+- app.py around Mountains data
+- templates/mountains_tab.html
+- services/visibility.py
+- models.py
+- tests/test_mountains_data.py
+
+Do not assume those locations are complete or correct.
+
+Trace the real implementation.
+
+==================================================
+A. IDENTIFY EVERY AFFECTED COUNT
+==================================================
+
+Trace the authenticated Mountains experience.
+
+Identify every friend-derived numeric count or social indicator on:
+
+- Mountains list/index
+- mountain cards
+- Mountain Detail
+- any Mountains API response
+- any related frontend state
+
+For each affected count, report:
+
+1. exact UI copy
+2. exact product meaning
+3. template/component
+4. frontend JS
+5. API/route
+6. service/helper/query
+7. underlying models/tables
+8. whether computed live or obtained from cache/derived state
+
+Do not infer semantics from variable names alone.
+
+==================================================
+B. TRACE THE COMPLETE DATA PATH
+==================================================
+
+For every affected count trace:
+
+database state
+→ backend query/helper
+→ server cache if any
+→ API response
+→ ETag/cache headers if any
+→ browser fetch/cache behavior
+→ frontend rendering
+
+Explicitly inspect:
+
+- process/server caches
+- cache TTLs
+- cache keys
+- ETag generation
+- Cache-Control headers
+- browser fetch options
+- client-side retained state
+- any invalidation logic
+
+Answer:
+
+Is the stale behavior caused by:
+
+A. backend/server cache
+B. HTTP/browser cache
+C. retained frontend state
+D. more than one layer
+E. something else
+
+==================================================
+C. TRACE ALL MUTATIONS THAT MAY CHANGE COUNTS
+==================================================
+
+Trace actual production paths for:
+
+- trip creation
+- trip deletion
+- trip cancellation/archive/terminal lifecycle
+- trip resort/mountain change
+- trip start/end date changes
+- public/private visibility changes
+- invite creation
+- invite acceptance
+- invite decline
+- Going RSVP
+- Interested RSVP
+- RSVP state changes/removal
+- participant removal
+- participant-specific attendance date changes
+- friendship creation
+- friendship removal
+
+For each operation determine:
+
+1. which Mountains count SHOULD change, if any;
+2. why;
+3. whether current backend calculation would reflect it immediately;
+4. whether server cache is invalidated;
+5. whether ETag changes;
+6. whether browser cache is invalidated/refetched;
+7. whether frontend retained state updates;
+8. whether stale data can remain visible.
+
+==================================================
+D. MUTATION/FRESHNESS MATRIX
+==================================================
+
+Return a concrete matrix with columns:
+
+MUTATION
+AFFECTED COUNT
+EXPECTED CHANGE
+BACKEND DERIVATION CORRECT?
+SERVER CACHE INVALIDATED?
+HTTP/ETAG FRESH?
+FRONTEND REFRESHED?
+STALE TODAY?
+ROOT CAUSE
+
+Do not omit a mutation simply because it currently has no invalidation logic.
+
+==================================================
+E. REPRODUCTION
+==================================================
+
+Give at least one exact user-action reproduction for each distinct stale-data mechanism.
+
+Example format:
+
+1. User opens Mountains.
+2. Mountain X shows N friends.
+3. Friend creates/changes/removes qualifying trip.
+4. User returns/refetches Mountains.
+5. Expected count = X.
+6. Actual count = Y.
+7. Stale layer = server cache/browser cache/frontend state.
+8. It remains stale for approximately ___ or until ___.
+
+Base this on actual code.
+
+==================================================
+F. PRODUCT SEMANTICS
+==================================================
+
+Document the EXISTING eligibility semantics without changing them.
+
+Inspect how counts treat:
+
+- reciprocal/direct friends
+- organizer
+- Going
+- Interested
+- Pending
+- Declined
+- removed attendance
+- participant-specific dates
+- past/current/future trips
+- public/private trips
+- missing resort
+- deleted/archived/terminal trips
+
+If different Mountains surfaces use conflicting semantics, report the conflict.
+
+Do not resolve it during BL-125 unless freshness requires it.
+
+==================================================
+G. CACHE INVALIDATION
+==================================================
+
+Determine whether there is an existing shared helper or invalidation boundary for Mountains data.
+
+Search for:
+
+- cache clear/invalidate functions
+- user-specific Mountains cache keys
+- trip mutation hooks
+- friendship mutation hooks
+- RSVP mutation hooks
+- resort/date mutation hooks
+
+Answer:
+
+1. Is there already one shared invalidation helper?
+2. Is it called consistently?
+3. Which mutation paths fail to call it?
+4. Could BL-125 be fixed by wiring existing invalidation into missing mutation paths?
+5. Or is the cache architecture itself flawed?
+
+Prefer the smallest correction.
+
+Do not propose a broad cache redesign unless absolutely necessary.
+
+==================================================
+H. PERFORMANCE
+==================================================
+
+Report:
+
+- current Mountains query count
+- whether friend counts are computed in bulk
+- N+1 risk
+- why the existing cache was likely introduced
+- whether proposed freshness fix changes query volume
+- whether invalidation is cheaper than reducing/removing caching
+- relevant existing indexes
+
+BL-162 and other performance tasks remain separate.
+
+Do not turn BL-125 into performance refactoring.
+
+==================================================
+I. TEST COVERAGE
+==================================================
+
+Identify existing tests for:
+
+- Mountains data endpoint
+- friend count semantics
+- trip changes
+- RSVP changes
+- participant changes
+- resort/date changes
+- visibility changes
+- friendship changes
+- cache behavior
+- ETag behavior
+- browser/frontend refresh if tested
+
+Report exact existing test files/functions.
+
+Then list the exact missing regression transitions needed for BL-125.
+
+Do not add tests in this run.
+
+==================================================
+J. ROOT CAUSE
+==================================================
+
+Give one clear root-cause statement.
+
+If there are multiple causes, rank them:
+
+PRIMARY
+SECONDARY
+TERTIARY
+
+Example only:
+
+PRIMARY:
+Five-minute user process cache is not invalidated by trip mutations.
+
+SECONDARY:
+Private browser caching allows old response reuse.
+
+Do not use this example unless the code proves it.
+
+==================================================
+K. SMALLEST SAFE FIX
+==================================================
+
+Recommend the minimum implementation required.
+
+Answer:
+
+1. Can we preserve current count semantics?
+2. Can we avoid schema changes?
+3. Can we avoid migrations?
+4. Can we avoid broad cache redesign?
+5. Is one shared invalidation helper sufficient?
+6. Which exact mutation paths need wiring?
+7. Does frontend behavior need a change too?
+8. Does ETag/cache-control behavior need a change?
+
+Do not implement it yet.
+
+==================================================
+L. FILES
+==================================================
+
+List exact likely production files to change.
+
+List exact test files to change/add.
+
+Separate:
+
+DEFINITELY
+LIKELY
+ONLY IF NEEDED
+
+==================================================
+STOP CONDITIONS
+==================================================
+
+If the correct fix requires any of these, STOP and flag it:
+
+- schema migration
+- data repair
+- Production database mutation
+- broad social-semantics redesign
+- broad Mountains architecture rewrite
+- native iOS/Android work
+- privacy/security model changes
+
+==================================================
+FINAL REPORT FORMAT
+==================================================
+
+Return exactly:
+
+1. Repository/Git verification
+2. Affected Mountains counts
+3. Current count semantics
+4. End-to-end data/cache path
+5. Mutation/freshness matrix
+6. Reproduction scenarios
+7. Root cause
+8. Backend vs browser vs frontend classification
+9. Existing invalidation architecture
+10. Existing test coverage
+11. Missing regression tests
+12. Performance implications
+13. Smallest safe fix
+14. Exact likely production files
+15. Exact likely test files
+16. Schema migration required? YES/NO
+17. Risks / STOP conditions
+18. Recommended implementation slices
+19. Recommended Replit Agent level + PLAN/BUILD for implementation
+20. Confirmation no files changed
+21. Confirmation no task was created
+22. Confirmation no commit/push/deployment occurred
+23. Final Git status
+24. Estimated BL-125 completion percentage
+
+STOP after returning the report.
+
+ABSOLUTE FINAL RULE:
+
+DO NOT CREATE ANOTHER REPLIT TASK.
+
+DO NOT CREATE A DRAFT.
+
+DO NOT SAVE THE REPORT AS A FILE.
+
+ACTUALLY INSPECT THE REPOSITORY AND RETURN THE RESULTS IN CHAT.

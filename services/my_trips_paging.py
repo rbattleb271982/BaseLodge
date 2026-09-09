@@ -229,9 +229,15 @@ def _candidate_query(viewer_id: int, section: str, today: date, cursor):
         )
     else:
         sort_date = SkiTrip.start_date.label("sort_date")
-        section_filter = sa.or_(
-            SkiTrip.end_date < today,
-            SkiTrip.lifecycle_state.in_(("completed", "cancelled")),
+        section_filter = sa.and_(
+            sa.or_(
+                SkiTrip.lifecycle_state.is_(None),
+                SkiTrip.lifecycle_state != "cancelled",
+            ),
+            sa.or_(
+                SkiTrip.end_date < today,
+                SkiTrip.lifecycle_state == "completed",
+            ),
         )
 
     null_rank = sa.case((sort_date.is_(None), 1), else_=0).label("null_rank")

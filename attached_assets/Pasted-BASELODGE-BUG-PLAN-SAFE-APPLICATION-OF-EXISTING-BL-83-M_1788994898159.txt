@@ -1,0 +1,160 @@
+BASELODGE BUG — PLAN SAFE APPLICATION OF EXISTING BL-83 MIGRATION
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE BUG COMPLETION AFTER THIS STEP: 50%
+
+The preceding read-only investigation established the root cause of the Trips-page 500:
+
+- models.py maps SkiTrip.rsvp_deadline
+- migrations/versions/bl83_rsvp_deadline.py already exists
+- the affected database is still at the migration's parent revision bl442_worker_heartbeat
+- ski_trip.rsvp_deadline is physically absent
+- full SkiTrip ORM hydration therefore raises psycopg2.errors.UndefinedColumn
+- no new application-code fix or new migration is currently indicated
+
+THIS STEP IS PLAN ONLY.
+
+DO NOT APPLY THE MIGRATION.
+DO NOT MODIFY ANY DATABASE.
+DO NOT MODIFY ANY FILE.
+DO NOT CREATE A NEW MIGRATION.
+DO NOT MODIFY APPLICATION CODE.
+DO NOT CREATE OR MODIFY TESTS.
+DO NOT CREATE DOCUMENTATION OR REPORT FILES.
+DO NOT MODIFY .replit.
+DO NOT CREATE/UPDATE/SEARCH PROJECT TASKS.
+DO NOT STAGE, COMMIT, PUSH, RESET, REBASE, AMEND, OR CHERRY-PICK GIT.
+DO NOT PUBLISH OR DEPLOY.
+DO NOT CHANGE DATABASE CONNECTIONS, CREDENTIALS, SECRETS, OR CONFIGURATION.
+
+IMPORTANT DATABASE RULE
+
+BaseLodge already has its database connections and credentials configured.
+
+Do not propose creating a new database connection.
+Do not propose creating read-only credentials.
+Do not treat a Replit Agent credential/tool restriction as evidence that BaseLodge is misconfigured.
+
+Your job is to PLAN how the EXISTING migration should be applied through the project's existing supported migration mechanism.
+
+GOAL
+
+Produce the smallest safe execution plan to bring the existing BaseLodge database schema into alignment with the already-deployed application model.
+
+1. EXISTING MIGRATION
+
+Inspect:
+
+migrations/versions/bl83_rsvp_deadline.py
+
+Confirm:
+- revision
+- parent revision
+- exact upgrade operation
+- exact downgrade operation
+- nullable behavior
+- whether any backfill is required
+- whether the migration is additive and backward-compatible
+
+Do not modify it.
+
+2. MIGRATION CHAIN
+
+Inspect the current Alembic migration graph.
+
+Confirm:
+- bl83_rsvp_deadline is part of the current expected migration chain
+- its parent is bl442_worker_heartbeat
+- whether any later revisions depend on it
+- what `alembic upgrade head` would attempt to apply from bl442_worker_heartbeat
+
+This is important: determine whether applying "head" would execute ONLY bl83_rsvp_deadline or whether other migrations would also execute.
+
+If other migrations would execute, list them and do not recommend blindly running upgrade head.
+
+3. EXISTING BASELODGE MIGRATION MECHANISM
+
+Identify the established project-supported mechanism for applying Alembic migrations to BaseLodge databases.
+
+Determine:
+- exact command normally used
+- safeguards already present
+- how database target/environment is selected
+- whether the mechanism distinguishes development and Production
+- whether there are existing preflight/backup requirements
+
+Do not invent a new migration mechanism.
+
+4. DATABASE TARGET SAFETY
+
+The previous investigation definitively established the development schema mismatch.
+
+For the BUILD step, specify how we can safely ensure the migration command targets the intended BaseLodge database using the existing configuration.
+
+Do not expose credentials.
+Do not print connection strings.
+Do not change credentials.
+
+For authoritative Production, account for the fact that BaseLodge uses its existing Supabase Production database and that Replit's unrelated empty managed database must not be mistaken for authoritative Production.
+
+Do not require Replit Agent to perform a credential operation it is prohibited from performing.
+
+5. EXECUTION ORDER
+
+Specify the exact safe order for:
+
+- development migration
+- development schema verification
+- development /my-trips verification
+- adjacent trip regression verification
+- authoritative Production migration, if required
+- Production verification
+
+The application code is already deployed, so account for that current state.
+
+6. VERIFICATION
+
+Specify exact post-migration checks for:
+
+- Alembic revision
+- physical ski_trip.rsvp_deadline column
+- nullable DATE type
+- /my-trips with upcoming trips
+- /my-trips history
+- user with no trips
+- pending invitations
+- Friends tab
+- trip creation
+- trip detail
+- trip editing
+- RSVP/attendance
+
+7. RELEASE-PROCESS GAP
+
+The investigation established that tests passed while a long-lived database remained behind the ORM model.
+
+Propose the SMALLEST future safeguard that would detect:
+
+"Application model expects a migration that the target database has not applied."
+
+Do not implement the safeguard in this bug fix.
+Do not redesign deployment.
+Do not create a broad migration framework.
+
+RETURN ONLY:
+
+A. Migration validation
+B. Migration-chain analysis
+C. Existing BaseLodge migration mechanism
+D. Database-target safeguards
+E. Exact execution sequence
+F. Exact verification sequence
+G. Rollback considerations
+H. Future minimal release safeguard
+I. Risks
+J. Whether any genuine decision is still required before BUILD
+
+STOP AFTER THE PLAN.
+
+DO NOT APPLY ANY MIGRATION OR MAKE ANY CHANGES.

@@ -1,0 +1,88 @@
+BASELODGE — REPAIR LOCAL GIT STATE BEFORE BL-109
+
+MODE
+FREE
+
+OBJECTIVE
+
+Restore the approved repository state by removing the accidental local `.replit` commit while preserving the `.replit` contents as an unstaged working-tree modification.
+
+CURRENT STATE REPORTED
+
+Branch:
+main
+
+Current local HEAD:
+aba7d78a92ed62d4786d7d4f22088e39cfc51033
+Update Replit configuration settings
+
+Direct parent / approved HEAD:
+160d03e0eeb4257c3c975680731590cd13033254
+Add Open to Ski sharing
+
+origin/main:
+160d03e0eeb4257c3c975680731590cd13033254
+
+The accidental commit contains only `.replit`.
+
+GOAL STATE
+
+After repair:
+
+- branch = main
+- local HEAD = 160d03e0eeb4257c3c975680731590cd13033254
+- origin/main = 160d03e0eeb4257c3c975680731590cd13033254
+- ahead = 0
+- behind = 0
+- `.replit` remains present as an unstaged tracked modification
+- no staged files
+- no feature files changed
+- no commits created
+- nothing pushed
+- nothing deployed
+
+IMPORTANT
+
+Do NOT discard `.replit`.
+
+Do NOT modify its contents.
+
+Do NOT stage `.replit`.
+
+Do NOT commit `.replit`.
+
+Do NOT use:
+git add .
+git add -A
+
+NEVER inspect, read, modify, copy, stage, or delete:
+android/baselodge-release-key.jks
+
+Do not touch the untracked BL-109 investigation attachment.
+
+Do not perform BL-109 analysis yet.
+
+Do not access Production or any database.
+
+PROCEDURE
+
+Use the safest Git operation that removes only the most recent accidental commit while leaving that commit's `.replit` change in the working tree as unstaged.
+
+Because the accidental commit's direct parent is the approved HEAD and the commit contains only `.replit`, the intended result is equivalent to moving HEAD back one commit without discarding the file change.
+
+After the operation, verify and report:
+
+1. git rev-parse --abbrev-ref HEAD
+2. git rev-parse HEAD
+3. git rev-parse origin/main
+4. git status --short
+5. git log --oneline -3
+6. ahead/behind counts versus origin/main
+7. confirmation that `.replit` is unstaged
+8. confirmation that no other tracked file changed
+9. confirmation that no staged files exist
+10. confirmation that nothing was pushed or deployed
+
+STOP after verification.
+
+Do not begin BL-109 in this prompt.

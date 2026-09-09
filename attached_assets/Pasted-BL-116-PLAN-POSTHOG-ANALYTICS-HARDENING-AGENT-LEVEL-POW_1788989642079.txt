@@ -1,0 +1,250 @@
+BL-116 — PLAN POSTHOG ANALYTICS HARDENING
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 45%
+
+This is the PLAN step following a completed read-only codebase investigation.
+
+DO NOT REPEAT THE BROAD INVESTIGATION.
+Use the current codebase and the findings from the immediately preceding BL-116 investigation as the evidence base.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not:
+- modify application code
+- modify tests
+- create files
+- create documentation/report files
+- modify .replit
+- create/update/search/reconcile project tasks
+- install/change dependencies
+- modify environment variables or secrets
+- modify database schema or data
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish/deploy
+- change PostHog dashboard settings
+- enable session replay
+- redesign BaseLodge's analytics taxonomy
+- add new analytics events unrelated to fixing the identified contracts
+- modify Umami behavior unless strictly required to preserve an existing shared wrapper
+- fix unrelated issues
+
+Return the implementation plan in Replit chat only.
+
+OBJECTIVE
+
+Produce a precise, minimal implementation plan for BL-116 based on the actual defects established by investigation.
+
+The plan should harden the existing PostHog implementation without expanding analytics scope.
+
+REQUIRED CONTRACTS
+
+1. SERVER ANONYMOUS IDENTITY
+
+Current defect:
+analytics.py uses the literal distinct_id "anonymous" whenever user_id is None.
+
+Plan a fix that guarantees unrelated anonymous server events are NEVER intentionally collapsed into one shared PostHog identity.
+
+Preferred identity when available:
+- Use the existing PostHog browser anonymous distinct ID from the request cookie when it can be safely and validly obtained.
+
+For calls where no browser anonymous ID is available:
+- Determine the smallest privacy-safe behavior consistent with the existing event's purpose.
+- Do NOT automatically invent a persistent BaseLodge anonymous identity system.
+- Do NOT add database storage for anonymous identities.
+- Do NOT introduce fingerprinting.
+- If an event does not require person-level anonymous identity, consider whether a non-persistent per-event identifier or equivalent non-linking behavior is preferable.
+- Explicitly explain the chosen fallback and its privacy/analytics tradeoff.
+
+Open-to-Ski telemetry must retain its existing privacy contract and must not collapse all users into a shared "anonymous" person.
+
+2. AUTH IDENTITY PARITY
+
+Plan one clear identity lifecycle for:
+- email signup
+- Google signup
+- email login
+- Google login
+- password-reset authenticated login
+
+Preserve the intended distinction:
+- signup may stitch the pre-signup anonymous browser identity to the newly created account
+- normal login should not incorrectly alias an unrelated anonymous identity into an existing account
+
+Google signup should receive equivalent legitimate signup stitching to email signup.
+
+Google/email login should have consistent identify behavior and consistent login_completed semantics where appropriate.
+
+Do not implement Apple auth. It is not currently implemented.
+
+3. is_internal
+
+Use the EXISTING analytics.py is_internal() implementation and its existing:
+- INTERNAL_EMAIL_DOMAINS
+- INTERNAL_USER_EMAILS
+
+Do not add a database field or a new source of truth.
+
+Plan consistent propagation for all authenticated identity paths.
+
+Determine whether the client should pass is_internal during posthog.identify() and whether it should be set or set_once, based on the existing semantics and the possibility that environment allowlists change.
+
+Explicitly explain that choice.
+
+4. LOGOUT / ACCOUNT ISOLATION
+
+Fix the analytics identity boundary so:
+- normal logout resets PostHog before subsequent anonymous capture
+- logout with return_to=/invite/... also resets before any unauthenticated analytics capture
+- a second account using the same browser cannot inherit the previous user's PostHog identity
+
+Do not rely exclusively on a reset flag that only /auth consumes.
+
+Plan the smallest reliable mechanism using the existing server/template/client architecture.
+
+5. SERVER DELIVERY PERFORMANCE
+
+Normal request-time analytics must not call client.flush() after every event/identify operation.
+
+Preserve:
+- analytics failures are non-blocking
+- no analytics failure may fail the user request
+
+Plan use of the PostHog client's existing batching behavior.
+
+Investigate only as much as necessary to specify a safe shutdown/flush strategy supported by the currently installed PostHog library.
+
+Do not add a new queue, worker, database table, dependency, or messaging system for analytics.
+
+Admin diagnostic/backfill behavior may retain explicit bounded flushing where appropriate.
+
+6. SESSION REPLAY PRIVACY
+
+Do NOT enable session replay as part of BL-116.
+
+The codebase currently has no explicit replay privacy contract.
+
+Plan an explicit safe code-level posture.
+
+Preferred default for this task:
+- explicitly disable session recording from the BaseLodge browser initialization unless there is concrete evidence that doing so is unsupported by the installed SDK.
+
+If the SDK supports an explicit disable_session_recording configuration, use that rather than inventing custom masking infrastructure.
+
+Any future decision to enable replay, sampling, masking, or exclusions should remain a separate product/privacy task.
+
+7. EVENT PRIVACY CONTRACT
+
+Do not redesign the event taxonomy.
+
+Preserve existing useful bounded categorical properties unless there is concrete privacy risk.
+
+Add regression protection that normal analytics payloads do not contain:
+- email addresses
+- full names
+- passwords
+- auth/session data
+- tokens
+- invite URLs/tokens
+- user-generated/free text
+- planning post bodies/URLs
+- exact residential addresses
+- private trip details not already explicitly approved
+
+Preserve the strong existing Open-to-Ski allowlist model.
+
+Where existing events have inconsistent schemas, only normalize them if required for the identity/privacy contract or clearly low-risk within BL-116.
+
+Do not turn BL-116 into a broad analytics taxonomy migration.
+
+8. EVENT NAMING / PROPERTY CONVENTION
+
+BL-116 requires a documented convention, but avoid creating unnecessary standalone documentation.
+
+Plan the smallest durable source-of-truth appropriate to the existing codebase, such as:
+- comments/contracts adjacent to the analytics wrapper, and/or
+- executable tests defining naming/property expectations.
+
+The convention should cover:
+- lowercase snake_case event names
+- bounded categorical/count/boolean properties
+- no raw private/user-generated data
+- stable method/source naming where events already use those fields
+
+Do not rename the existing event inventory unless a current name violates the convention or causes a concrete problem.
+
+9. TESTS
+
+The implementation plan must specify focused regression tests for at least:
+
+- no literal shared "anonymous" server distinct_id
+- browser anonymous cookie handling
+- malformed/missing anonymous cookie behavior
+- email signup alias/identify ordering
+- Google signup parity
+- email login identity behavior
+- Google login identity behavior
+- password-reset login identity behavior
+- is_internal propagation
+- normal logout reset
+- invite-return logout reset
+- account-switch isolation
+- analytics failures remain non-blocking
+- normal request tracking does not flush synchronously
+- admin explicit flush behavior remains appropriate
+- session recording explicitly disabled
+- sensitive/private fields excluded from analytics payloads
+- Open-to-Ski privacy contract remains intact
+- existing Umami analytics behavior remains intact
+
+Prefer focused unit/contract tests over broad brittle implementation-detail tests.
+
+10. SCOPE CONTROL
+
+Based on the investigation, the expected implementation area is approximately:
+
+- analytics.py
+- static/analytics.js
+- templates/components/analytics_head.html
+- bounded authentication/logout sections of app.py
+- analytics/auth/Open-to-Ski test files
+- potentially one focused new server analytics test module
+- potentially one focused JS analytics identity test module
+
+Any proposed file outside this area must be explicitly justified.
+
+No database migration is expected.
+No new dependency is expected.
+No native iOS/Android build is expected.
+No deployment configuration change is expected.
+No new environment variable is expected.
+
+If your plan concludes otherwise, identify the exact code evidence requiring it.
+
+RETURN THIS PLAN FORMAT
+
+A. Proposed behavioral contract
+B. Anonymous identity design, including missing-cookie fallback
+C. Authentication identity lifecycle by auth method
+D. is_internal propagation design
+E. Logout/account-switch isolation design
+F. Server batching/shutdown design
+G. Session replay privacy posture
+H. Event/privacy convention
+I. Exact implementation files and changes
+J. Exact tests to add/update
+K. Regression risks and mitigations
+L. Migration/dependency/config/native/deployment impact
+M. Implementation sequence
+N. Explicit non-goals
+O. Any genuine product decision still required before BUILD
+
+For each proposed change, cite the exact existing file/function/template it modifies and explain why.
+
+STOP AFTER THE PLAN.
+
+DO NOT IMPLEMENT ANYTHING.

@@ -1,0 +1,138 @@
+BASELODGE BUG — INVESTIGATE TRIPS PAGE LOAD FAILURE
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 20%
+
+READ-ONLY INVESTIGATION ONLY.
+
+The BaseLodge Trips page currently fails to load and shows an error.
+
+DO NOT FIX IT YET.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not:
+- modify application code
+- modify tests
+- create files
+- create documentation/report files
+- modify .replit
+- create/update/search/reconcile project tasks
+- install/change dependencies
+- modify environment variables or secrets
+- modify database schema or data
+- stage, commit, push, reset, rebase, amend, or cherry-pick Git
+- publish or deploy
+- change configuration
+- auto-fix unrelated issues
+- investigate BL-116/PostHog beyond anything directly necessary to understand this Trips-page failure
+
+GOAL
+
+Determine exactly why the BaseLodge Trips page fails to load.
+
+INVESTIGATE:
+
+1. Identify the route/controller used by the Trips page.
+   - Give the exact route.
+   - Give the exact function.
+   - Give the template(s) rendered.
+
+2. Reproduce the Trips page failure in the current development environment if possible.
+
+3. Capture the exact exception/error:
+   - exception type
+   - error message
+   - traceback location
+   - first BaseLodge application frame that is actually responsible
+
+4. Determine whether the failure occurs:
+   - for all authenticated users
+   - only users with trips
+   - only users without trips
+   - only certain trip states/data shapes
+   - only Production-like data
+   - only Preview/development
+
+5. Trace the full request path:
+   - route
+   - database queries
+   - service/helper calls
+   - template rendering
+   - JavaScript requests triggered by the page
+
+6. Determine whether this is:
+   - a Python/server exception
+   - template rendering error
+   - database/schema mismatch
+   - migration issue
+   - JavaScript/runtime error
+   - failed API request
+   - bad/legacy Production data
+   - authorization/privacy issue
+   - performance/timeout issue
+   - deployment/configuration issue
+   - something else
+
+7. Inspect recent changes affecting the Trips page or its dependencies.
+
+Focus on changes between the previously known working local baseline and current main, especially files such as:
+- app.py
+- templates/my_trips.html
+- trip-related services/helpers
+- models.py
+- relevant migrations
+- shared authenticated-page code
+
+Do NOT assume the newest change caused the bug. Establish evidence.
+
+8. Use Git history only for read-only diagnosis:
+   - identify recent commits touching the failing path
+   - identify the most likely introduction point if evidence supports one
+   - do not reset, revert, checkout, amend, or modify Git
+
+9. Determine whether current automated tests cover the failing behavior.
+   - Identify relevant tests.
+   - Explain why they did or did not catch this failure.
+
+10. Identify the smallest likely fix area.
+    - Exact file(s)
+    - Exact function/template/service
+    - Whether a migration/data repair is actually required
+
+11. State whether the bug poses risk to:
+    - trip creation
+    - trip editing
+    - trip detail
+    - invitations
+    - RSVP/attendance
+    - privacy/authorization
+    - Production data integrity
+
+REPORT FORMAT
+
+Return only a chat report with:
+
+A. Reproduction result
+B. Exact error and traceback
+C. Failing request path
+D. Root cause
+E. Who/what data is affected
+F. Recent-change analysis
+G. Why tests did not catch it
+H. Smallest likely fix
+I. Regression risks
+J. Migration/data/config/deployment impact
+K. Exact files likely involved
+L. Recommended next PLAN scope
+
+For every important conclusion, cite exact files/functions/templates and actual evidence.
+
+STOP AFTER THE REPORT.
+
+DO NOT IMPLEMENT THE FIX.
+DO NOT CREATE OR UPDATE A TASK.
+DO NOT WRITE A BUILD PLAN YET.

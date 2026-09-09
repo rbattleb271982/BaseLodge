@@ -1,0 +1,196 @@
+BASELODGE — BUILD EXCLUDING CANCELLED TRIPS FROM MY TRIPS HISTORY
+
+AGENT LEVEL: POWER
+MODE: BUILD
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 80%
+
+IMPLEMENT ONLY THE APPROVED PLAN BELOW.
+
+PRODUCT CONTRACT
+
+Cancelled trips should not appear anywhere in My Trips.
+
+Specifically:
+
+1. lifecycle_state = "cancelled" must appear in neither:
+   - Upcoming Trips
+   - Past Trips / History
+
+2. Active or legacy trips with end_date < today must continue to appear in Past Trips.
+
+3. lifecycle_state = "completed" must continue to appear in Past Trips.
+
+4. Existing participant authorization remains unchanged:
+   - GOING and INTERESTED may qualify
+   - PENDING, DECLINED, and REMOVED remain excluded
+
+5. Cancelled trips must remain fully retained in the database:
+   - SkiTrip row
+   - lifecycle history
+   - RSVP/history records
+   - participant history
+   - terminal immutability
+
+6. Friends-trip behavior must remain unchanged.
+
+7. Do NOT remove the Past Trips section.
+
+8. Keep the existing cancellation copy unchanged:
+   “This will remove the trip from your profile and friends' activity.”
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- create/update/search/reconcile project tasks
+- create notes/docs/markdown report files
+- modify .replit
+- modify unrelated files
+- install/change dependencies
+- modify environment variables or secrets
+- modify database schema or data
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish or deploy
+- change trip cancellation semantics
+- physically delete cancelled trips
+- change participant leave/remove behavior
+- change Friends behavior
+- change lifecycle services/models
+- redesign UI
+- change cancellation copy
+- auto-fix unrelated failures
+
+GIT PREFLIGHT
+
+Before editing, report:
+
+- git rev-parse HEAD
+- git rev-parse origin/main
+- git status --short
+- whether HEAD is ahead/behind origin/main
+
+If unexpected app/source/test/migration/config/dependency/native/deploy files are already modified, STOP and report them.
+
+Environmental-only Replit noise such as:
+- .replit
+- attached_assets/Pasted-*
+
+is non-blocking and must not be staged, modified, or cleaned.
+
+IMPLEMENTATION
+
+1. Update:
+
+services/my_trips_paging.py
+
+In the History branch of _candidate_query(), change eligibility so cancelled lifecycle rows are explicitly excluded.
+
+The resulting contract must be equivalent to:
+
+lifecycle_state is not cancelled
+AND (
+    end_date < today
+    OR lifecycle_state is completed
+)
+
+IMPORTANT:
+- Explicitly preserve legacy NULL lifecycle rows.
+- Preserve active past-dated trips.
+- Preserve completed trips.
+- Do not alter authorization predicates.
+- Do not alter selected columns.
+- Do not alter ordering.
+- Do not alter cursor construction/comparison.
+- Do not alter paging limits.
+
+Use SQLAlchemy logic that handles SQL NULL correctly.
+
+2. Update:
+
+tests/test_my_trips_paging.py
+
+Modify/add focused coverage proving:
+
+- cancelled owner trip absent from Upcoming
+- cancelled owner trip absent from History
+- cancelled participant trip absent from History
+- past-dated active owner trip remains in History
+- past-dated legacy NULL lifecycle trip remains in History
+- completed owner trip remains in History
+- historical GOING participant remains eligible
+- historical INTERESTED participant remains eligible
+- PENDING participant remains excluded
+- DECLINED participant remains excluded
+- REMOVED participant remains excluded
+
+Preserve existing ordering, deduplication, cursor, and paging assertions.
+
+3. Add one bounded route-level regression, preferably in the existing My Trips paging test file if that is the established location.
+
+Prove that a cancelled trip is absent from BOTH:
+
+- initial /my-trips History rendering
+- /api/my-trips/page?section=history
+
+Do not duplicate service logic in the test.
+
+4. DO NOT MODIFY unless absolutely required by a directly failing scoped regression:
+
+- app.py
+- templates/trip_detail.html
+- services/trip_lifecycle.py
+- services/friends_trips_paging.py
+- models.py
+- tests/test_trip_deletion.py
+- tests/test_friends_trips_paging.py
+
+If implementation appears to require changes to one of those production files, STOP and explain why before proceeding.
+
+VALIDATION
+
+Run focused tests covering:
+
+1. tests/test_my_trips_paging.py
+2. tests/test_trip_deletion.py
+3. tests/test_friends_trips_paging.py
+4. relevant RSVP/participant lifecycle regressions
+5. relevant trip-detail regressions
+
+Also run:
+
+- Python compile/syntax validation for modified Python files
+- git diff --check
+
+Do not run broad unrelated audits.
+
+If focused validation passes and runtime cost is reasonable, run the full Python suite.
+
+If a full-suite failure is clearly unrelated and pre-existing/flaky:
+- do not fix it
+- rerun only enough to establish isolation
+- report it separately
+
+FINAL REPORT
+
+Return ONLY a chat report containing:
+
+A. Exact behavior changed
+B. Exact files modified
+C. Exact query/predicate implementation
+D. Tests added/updated
+E. Focused test results
+F. Full-suite result if run
+G. Confirmation that cancelled trip data remains retained
+H. Confirmation Friends behavior was unchanged
+I. Confirmation no migration/dependency/config/native/deploy changes were made
+J. git diff --check result
+K. Current git status
+L. Any unexpected issue or deviation
+
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
+DO NOT CREATE OR UPDATE A TASK.
+
+STOP AFTER THE REPORT.

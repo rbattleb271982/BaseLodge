@@ -1,0 +1,372 @@
+BASELODGE — BL-125 REPAIR ACCIDENTAL MIXED COMMIT, THEN FINAL COMMIT + PUSH
+
+REPLIT AGENT
+POWER — BUILD
+
+TASK PROGRESS
+BL-125: ~95% → 100%
+
+PURPOSE
+
+Repair the accidental local commit:
+
+44e510085a75ea51bf412d4ac0e4c935fcd997a2
+Refactor mountain data handling and add asset documentation
+
+That commit incorrectly mixed:
+
+LEGITIMATE BL-125 WORK:
+- app.py
+- templates/mountains_tab.html
+- tests/test_mountains_data.py
+
+with ENVIRONMENTAL NOISE:
+- .replit
+- attached_assets/Pasted-*
+
+The accidental commit has NOT been pushed.
+
+We need to remove that local commit safely while preserving ALL of its file changes in the working tree, then create the correct BL-125 commit containing ONLY the three legitimate files.
+
+==================================================
+CRITICAL EXECUTION RULE
+==================================================
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not create tasks.
+Do not create notes.
+Do not create documentation.
+Do not create attachments.
+Do not modify application behavior.
+Do not modify tests.
+Do not perform additional implementation.
+Do not deploy.
+Do not access Production.
+Do not access or mutate Production databases.
+
+Reports belong only in Replit chat.
+
+Never use:
+
+git add .
+git add -A
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+==================================================
+PHASE 1 — VERIFY ACCIDENTAL COMMIT
+==================================================
+
+Report:
+
+git branch --show-current
+git rev-parse HEAD
+git rev-parse origin/main
+git rev-list --left-right --count origin/main...HEAD
+git status --short
+
+Expected:
+
+branch = main
+HEAD = 44e510085a75ea51bf412d4ac0e4c935fcd997a2
+origin/main = 9bef821cce66451aef1cc4e3e570796efa6d5a01
+ahead = 1
+behind = 0
+
+Then inspect ONLY commit metadata/file paths:
+
+git diff-tree --no-commit-id --name-only -r HEAD
+git show --stat --oneline --summary HEAD
+
+Confirm that every path in the accidental commit is EITHER:
+
+A. approved BL-125:
+- app.py
+- templates/mountains_tab.html
+- tests/test_mountains_data.py
+
+OR
+
+B. known environmental noise:
+- .replit
+- attached_assets/Pasted-*
+
+If ANY other path exists:
+
+STOP and report it.
+
+Do not reset.
+
+==================================================
+PHASE 2 — SAFE MIXED RESET
+==================================================
+
+If and only if Phase 1 confirms the accidental commit contains nothing outside the approved three BL-125 files plus environmental-noise paths:
+
+Perform a MIXED reset to the approved parent:
+
+git reset --mixed 9bef821cce66451aef1cc4e3e570796efa6d5a01
+
+This is specifically intended to:
+
+- remove the accidental local commit
+- preserve the BL-125 source/test changes in the working tree
+- preserve `.replit` changes locally
+- preserve `attached_assets/Pasted-*` files locally
+- stage nothing
+- push nothing
+
+After reset, report:
+
+git rev-parse HEAD
+git rev-parse origin/main
+git rev-list --left-right --count origin/main...HEAD
+git status --short
+
+Expected:
+
+HEAD = origin/main = 9bef821cce66451aef1cc4e3e570796efa6d5a01
+ahead = 0
+behind = 0
+
+Expected legitimate working-tree changes:
+
+ M app.py
+ M templates/mountains_tab.html
+ M tests/test_mountains_data.py
+
+Environmental noise may also remain:
+
+ M .replit
+?? attached_assets/Pasted-*
+
+That is acceptable.
+
+==================================================
+PHASE 3 — VERIFY LEGITIMATE BL-125 DIFF SURVIVED
+==================================================
+
+Inspect the complete unstaged diffs for ONLY:
+
+app.py
+templates/mountains_tab.html
+tests/test_mountains_data.py
+
+Confirm the implementation is still the already-approved BL-125 work:
+
+- personalized `_mountains_cache` response reuse removed
+- stable resort reference caching preserved
+- reciprocal friend IDs recomputed per request
+- grouped friend-count query recomputed per request
+- `Cache-Control: private, no-store`
+- ETag/304 reuse removed
+- frontend fetch uses `{ cache: 'no-store' }`
+- every `pageshow`, including bfcache restoration, refreshes Mountains data
+- filter-reset behavior preserved
+- friend_count semantics unchanged
+- focused regression tests present
+- no Mountain Detail implementation changes
+- no schema/migration/native/deployment changes
+
+Do NOT edit anything during this phase.
+
+If the legitimate diff differs materially from the already-tested implementation:
+
+STOP and report it.
+
+==================================================
+PHASE 4 — QUICK REVALIDATION
+==================================================
+
+Because the source content should be unchanged from the previously passing implementation, run only:
+
+pytest -q tests/test_mountains_data.py
+
+python -m py_compile app.py tests/test_mountains_data.py
+
+Validate that:
+
+templates/mountains_tab.html
+
+still parses as Jinja using the same method from the prior implementation run.
+
+Also run:
+
+git diff --check
+
+Expected focused result from prior run:
+
+23 passed
+
+If any validation fails:
+
+STOP and report it.
+
+==================================================
+PHASE 5 — STAGE EXACTLY THREE FILES
+==================================================
+
+Stage ONLY:
+
+git add app.py
+git add templates/mountains_tab.html
+git add tests/test_mountains_data.py
+
+Then report:
+
+git status --short
+git diff --cached --name-only
+
+The staged set MUST be exactly:
+
+app.py
+templates/mountains_tab.html
+tests/test_mountains_data.py
+
+Confirm:
+
+- `.replit` is NOT staged
+- no `attached_assets/Pasted-*` is staged
+- no other file is staged
+
+If anything else is staged:
+
+unstage ONLY the unintended path(s) and report the corrected state.
+
+==================================================
+PHASE 6 — CREATE CORRECT COMMIT
+==================================================
+
+Create exactly one commit with subject:
+
+Keep Mountains friend counts fresh
+
+Do not add a body unless Git requires one.
+
+Then report:
+
+git rev-parse HEAD
+git show --stat --oneline --summary HEAD
+git diff-tree --no-commit-id --name-only -r HEAD
+
+Verify the commit contains EXACTLY:
+
+app.py
+templates/mountains_tab.html
+tests/test_mountains_data.py
+
+If anything else is included:
+
+STOP.
+
+Do not amend automatically.
+
+==================================================
+PHASE 7 — PUSH MAIN
+==================================================
+
+Push `main` normally.
+
+NO force push.
+
+The remote parent must still be:
+
+9bef821cce66451aef1cc4e3e570796efa6d5a01
+
+If origin/main changed unexpectedly:
+
+STOP and report it before pushing.
+
+If the local HTTPS remote lacks credentials, use the existing authorized GitHub connection.
+
+If the GitHub API/connector must be used:
+
+- publish only the approved three-file BL-125 tree
+- use the approved remote parent
+- do not force-update main
+- do not create an unrelated second commit
+- verify the remote tree matches the approved local commit
+
+==================================================
+PHASE 8 — FINAL VERIFICATION
+==================================================
+
+After push, report:
+
+1. branch
+2. final commit hash
+3. final commit subject
+4. exact committed files
+5. local HEAD
+6. origin/main
+7. ahead/behind
+8. git status --short
+
+Expected:
+
+- branch = main
+- local HEAD = origin/main
+- ahead = 0
+- behind = 0
+- subject = Keep Mountains friend counts fresh
+- commit contains only:
+  - app.py
+  - templates/mountains_tab.html
+  - tests/test_mountains_data.py
+
+Known environmental working-tree noise may remain:
+
+M .replit
+?? attached_assets/Pasted-*
+
+That is acceptable and MUST remain outside the commit.
+
+==================================================
+PROHIBITED ACTIONS
+==================================================
+
+Do NOT:
+
+- deploy
+- access Production
+- access Production database
+- mutate any database
+- create schema changes
+- create migrations
+- touch native/iOS/Android files
+- touch signing assets
+- create Replit tasks
+- create docs/notes/attachments
+- commit `.replit`
+- commit `attached_assets/Pasted-*`
+- force push
+- perform unrelated cleanup
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return only in Replit chat:
+
+1. accidental commit verification
+2. confirmation mixed reset preserved legitimate BL-125 changes
+3. validation results
+4. final branch
+5. final commit hash
+6. final commit subject
+7. exact committed files
+8. local HEAD
+9. origin/main
+10. ahead/behind
+11. final git status --short
+12. confirmation `.replit` excluded
+13. confirmation all `attached_assets/Pasted-*` excluded
+14. confirmation no deployment occurred
+15. confirmation no Production/database action occurred
+16. confirmation no signing asset was accessed
+17. BL-125 completion = 100%
+
+STOP after the report.

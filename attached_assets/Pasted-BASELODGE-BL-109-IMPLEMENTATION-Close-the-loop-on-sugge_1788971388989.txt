@@ -1,0 +1,513 @@
+BASELODGE — BL-109 IMPLEMENTATION
+Close the loop on suggested connections
+
+REPLIT AGENT
+POWER — BUILD
+
+TASK PROGRESS
+Starting: ~15%
+Expected after this implementation + verification: ~90%
+
+CRITICAL EXECUTION RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not take initiative outside BL-109.
+Do not create documentation or investigation files.
+Do not create project/task records.
+Do not search Notion.
+Do not perform unrelated cleanup.
+Do not modify `.replit`.
+Do not intentionally modify `attached_assets/Pasted-*`.
+Do not push.
+Do not deploy.
+Do not access Production.
+Do not access or mutate Production databases.
+Do not commit yet.
+
+Your final report belongs in Replit chat only.
+Do not save it into the repository.
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+Never use:
+
+git add .
+git add -A
+
+
+==================================================
+PHASE 0 — SELF-HEAL REPLIT ENVIRONMENTAL NOISE
+==================================================
+
+Approved origin/main baseline:
+
+160d03e0eeb4257c3c975680731590cd13033254
+Add Open to Ski sharing
+
+Before implementation inspect:
+
+- branch
+- local HEAD
+- origin/main
+- ahead/behind
+- git status --short
+- file paths for every commit in origin/main..HEAD
+
+ALLOWED ENVIRONMENTAL NOISE:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+- clearly Replit-generated investigation/repair prompt documentation
+
+If EVERY ahead commit contains ONLY allowed environmental noise:
+
+DO NOT STOP.
+
+Perform a MIXED reset to origin/main.
+
+Preserve:
+- `.replit` as an unstaged working-tree modification
+- `attached_assets/Pasted-*` locally as untracked files
+
+Do not delete them.
+Do not stage them.
+Do not commit them.
+
+If ANY ahead commit contains legitimate BaseLodge application, test, schema, dependency, migration, or feature work:
+
+STOP and report it.
+
+Otherwise continue automatically.
+
+Do not ask for confirmation.
+
+
+==================================================
+BL-109 PRODUCT OBJECTIVE
+==================================================
+
+Implement:
+
+When User A previously suggested that User B and User C knew each other, and B and C subsequently become connected in BaseLodge, User A can see a lightweight confirmation in Happening:
+
+"[B first name] and [C first name] connected"
+
+"You suggested they knew each other."
+
+This is a derived Happening insight.
+
+Do NOT create:
+- a new social system
+- public introduction credit
+- scores
+- counts
+- badges
+- leaderboards
+- push/email delivery
+- new messaging types
+
+Do not claim A caused the connection.
+
+
+==================================================
+EXISTING ARCHITECTURE TO REUSE
+==================================================
+
+Reuse the existing architecture confirmed by the BL-109 investigation.
+
+FriendSuggestion:
+- `suggester_id`
+- `recipient_id`
+- `suggested_user_id`
+- `created_at`
+- `expires_at`
+- `dismissed_at`
+
+FriendConnectionEvent:
+- canonical `user_a_id < user_b_id`
+- `event_type`
+- `occurred_at`
+- connection lifecycle history
+- authoritative production formation event
+
+Friend:
+- reciprocal rows define current friendship
+
+DismissedInsightCard:
+- recipient-specific Happening dismissal
+- uniqueness on `(user_id, card_type, card_key)`
+
+Primary likely files:
+
+- `services/happening.py`
+- `app.py`
+- `templates/partials/home/_section_happening.html`
+- relevant existing tests
+
+Possibly add:
+
+- `tests/test_bl109_suggested_connection_confirmations.py`
+
+Do NOT modify models or migrations unless the investigated architecture proves unexpectedly insufficient.
+
+If you discover that a model/schema change is actually necessary, STOP and report why.
+
+Do not create a migration in this task.
+
+
+==================================================
+CONVERSION RULE
+==================================================
+
+Implement a deterministic, non-causal conversion rule.
+
+For a FriendSuggestion S:
+
+1. Canonicalize the suggested pair:
+
+   pair_a = min(S.recipient_id, S.suggested_user_id)
+   pair_b = max(S.recipient_id, S.suggested_user_id)
+
+2. The pair must NOT already have been connected when S was created.
+
+Use FriendConnectionEvent lifecycle history to determine the pair's state immediately before/at the suggestion.
+
+A suggestion created while the pair was already connected must not qualify.
+
+3. Find the earliest `formed` FriendConnectionEvent for the canonical pair occurring AFTER S.created_at.
+
+4. Attribute S only to that formation event.
+
+5. Collapse matches by:
+
+   - suggester_id
+   - canonical pair
+   - formation event ID
+
+Repeated suggestion rows from the same introducer for the same formation event must produce only one Happening card.
+
+6. Multiple independent suggesters may each receive their own card.
+
+7. Old suggestions must not produce new confirmation cards for later reconnection cycles.
+
+8. A NEW suggestion made after a removal, while the pair is disconnected, may qualify for the later reconnection.
+
+Be explicit and deterministic at timestamp boundaries.
+
+If existing project conventions establish timestamp tie-breaking behavior, follow them and cover the behavior with tests.
+
+
+==================================================
+CURRENT PRIVACY REQUIREMENTS
+==================================================
+
+At render/query time require:
+
+1. A remains reciprocally connected to B.
+2. A remains reciprocally connected to C.
+3. B and C remain reciprocally connected.
+4. All referenced users still exist.
+
+If any required reciprocal relationship no longer exists, suppress the card.
+
+The card may reveal ONLY:
+
+- B's first name
+- C's first name
+- that they connected
+- that A previously suggested they knew each other
+
+Do NOT expose:
+
+- who initiated the connection
+- who accepted
+- FriendConnectionEvent source
+- FriendConnectionEvent actor
+- messages
+- conversations
+- trips
+- private activity
+- other suggesters
+- relationship history
+- exact connection timestamp
+
+Historical FriendConnectionEvent rows must NEVER independently authorize visibility.
+
+
+==================================================
+HAPPENING INTEGRATION
+==================================================
+
+Extend the existing Happening architecture rather than creating a parallel feed.
+
+The new confirmation should participate in the existing Happening experience.
+
+Use existing:
+- recipient-scoped behavior
+- card rendering conventions
+- stable card keys
+- DismissedInsightCard dismissal
+- Home Happening cap/ranking architecture
+
+Recommended stable identity:
+
+happening:suggested-connection:<formation_event_id>
+
+Because DismissedInsightCard uniqueness also includes user_id, multiple suggesters may independently use the same event-derived card key.
+
+Use a distinct card_type appropriate to this BL-109 Happening insight if required by existing architecture.
+
+Do not overload an unrelated existing card type merely to avoid adding a bounded new type/string.
+
+The new card must be dismissible using the existing Happening mechanism.
+
+Once dismissed, it must not return for that recipient/event.
+
+
+==================================================
+HAPPENING COPY
+==================================================
+
+Use:
+
+"[B first name] and [C first name] connected"
+
+"You suggested they knew each other."
+
+Use first names only.
+
+Do NOT use language such as:
+
+"You introduced them."
+"You connected them."
+"Your introduction worked."
+"Thanks to you..."
+"You helped them connect."
+
+No causal attribution.
+
+
+==================================================
+SUGGESTION LIFECYCLE
+==================================================
+
+`dismissed_at` and `expires_at` currently control Suggested Connections presentation.
+
+Do NOT treat them as deletion of the historical suggestion event.
+
+A historically valid suggestion may qualify even if its Suggested Connections UI lifecycle later expired or was dismissed.
+
+Do not alter current Suggested Connections expiration/dismissal behavior.
+
+
+==================================================
+QUERY / PERFORMANCE REQUIREMENTS
+==================================================
+
+Happening already has bounded-query expectations.
+
+Do not introduce:
+- per-card queries
+- N+1 user lookups
+- unbounded full-history scans on Home
+- Python loops that load all FriendSuggestion or FriendConnectionEvent history
+
+Design a bounded query strategy appropriate to the existing Home Happening architecture.
+
+Preserve SQLite/PostgreSQL compatibility.
+
+If SQL/window-function behavior differs between supported test/runtime dialects, implement using existing cross-dialect project conventions.
+
+Do not optimize unrelated Happening behavior.
+
+
+==================================================
+ORDERING / CAP
+==================================================
+
+Integrate the new insight into existing Happening ranking/capping rather than rendering a separate unlimited section.
+
+Preserve the existing overall Happening maximum unless current architecture clearly requires otherwise.
+
+Use the connection formation time as the temporal signal for the confirmation candidate.
+
+Do not allow BL-109 cards to bypass the existing Home cap.
+
+
+==================================================
+ANALYTICS
+==================================================
+
+Do NOT add new analytics unless an existing Happening card impression/dismissal mechanism automatically applies.
+
+The product contract does not require a dedicated suggestion-conversion analytics event in this slice.
+
+Do not broaden analytics scope.
+
+
+==================================================
+TESTS
+==================================================
+
+Add focused coverage for the actual implementation.
+
+At minimum verify:
+
+1. one suggester + later B/C connection => one card
+2. multiple suggesters => each gets one card
+3. B/C vs C/B ordering matches correctly
+4. repeated suggestions by same suggester collapse
+5. duplicate connection acceptance does not duplicate card
+6. suggestion before connection qualifies
+7. suggestion created while pair already connected does NOT qualify
+8. unrelated pair connection does not qualify
+9. only qualifying suggester sees the card
+10. other suggester identities are not exposed
+11. connection actor/source is not exposed
+12. removing A/B suppresses card
+13. removing A/C suppresses card
+14. removing B/C suppresses card
+15. old suggestion does not create another card after later reconnection
+16. new suggestion after removal can qualify for later reconnection
+17. expired suggestion can still act as historical evidence
+18. dismissed suggestion can still act as historical evidence
+19. Happening dismissal is idempotent
+20. dismissed confirmation does not return
+21. card uses first names only
+22. approved non-causal copy is rendered
+23. Home Happening cap is preserved
+24. query behavior remains bounded
+25. SQLite/PostgreSQL-compatible behavior where applicable
+
+Extend existing suites where clean:
+
+- `tests/test_bl12_suggested_friends.py`
+- `tests/test_bl79_connection_events.py`
+- `tests/test_home_empty_states.py`
+
+A focused:
+
+`tests/test_bl109_suggested_connection_confirmations.py`
+
+is acceptable if it keeps the temporal matching matrix isolated and readable.
+
+Do not rewrite unrelated tests.
+
+
+==================================================
+REGRESSION VERIFICATION
+==================================================
+
+After focused BL-109 tests pass:
+
+Run the relevant adjacent suites for:
+
+- Suggested Connections
+- FriendConnectionEvent / connection lifecycle
+- Happening / Home
+- dismissal behavior
+- friendship privacy/visibility
+
+Then run the full test suite if practical within the environment.
+
+Also run:
+
+- Python compilation/checks appropriate to changed files
+- template validation if existing project tooling supports it
+- `git diff --check`
+
+Do not weaken, skip, or delete existing tests merely to obtain a pass.
+
+
+==================================================
+GIT RULES DURING IMPLEMENTATION
+==================================================
+
+Do not commit.
+
+Do not push.
+
+Do not deploy.
+
+Do not stage `.replit`.
+
+Do not stage `attached_assets/Pasted-*`.
+
+Do not use:
+
+git add .
+git add -A
+
+Leave legitimate BL-109 implementation changes uncommitted for review.
+
+
+==================================================
+FINAL GIT HYGIENE
+==================================================
+
+IMPORTANT:
+
+Because this task intentionally creates legitimate uncommitted BL-109 source/test changes, DO NOT reset legitimate implementation work.
+
+At the end:
+
+Inspect any commits in origin/main..HEAD.
+
+If Replit automatically created commits and a commit contains ONLY:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+- Replit-generated prompt/investigation documentation
+
+you may remove ONLY that environmental-noise commit with a safe mixed reset/reconstruction that preserves all legitimate uncommitted BL-109 work.
+
+DO NOT reset or remove any commit containing legitimate BL-109 source/test changes.
+
+If automatic checkpoint behavior has committed legitimate BL-109 implementation changes, STOP and report the exact commit and paths instead of rewriting history.
+
+The target before final reporting is:
+
+- no intentional BL-109 commit
+- legitimate BL-109 source/test changes present for review
+- `.replit` preserved separately
+- attachments preserved separately
+- nothing pushed
+
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return in Replit chat only:
+
+1. Git state before implementation
+2. Environmental-noise normalization performed, if any
+3. Implementation summary
+4. Exact production files changed
+5. Exact test files changed/added
+6. Conversion/matching behavior implemented
+7. Reconnection behavior implemented
+8. Multiple-suggester behavior
+9. Privacy enforcement
+10. Happening integration and ordering
+11. Dismissal/idempotency behavior
+12. Query/performance approach
+13. Analytics changes, if any
+14. Focused test results
+15. Adjacent regression results
+16. Full-suite results
+17. Compilation/template/diff checks
+18. Any failures or deviations
+19. Final local HEAD
+20. Final origin/main
+21. Final ahead/behind
+22. Final git status --short
+23. Confirmation no push/deployment/Production/database action occurred
+24. Estimated BL-109 completion percentage
+
+DO NOT COMMIT.
+
+STOP after the report.

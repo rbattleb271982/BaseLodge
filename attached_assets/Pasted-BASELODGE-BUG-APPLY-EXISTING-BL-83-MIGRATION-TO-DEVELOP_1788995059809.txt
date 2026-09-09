@@ -1,0 +1,129 @@
+BASELODGE BUG — APPLY EXISTING BL-83 MIGRATION TO DEVELOPMENT ONLY
+
+AGENT LEVEL: POWER
+MODE: BUILD
+APPROXIMATE BUG COMPLETION AFTER THIS STEP: 70%
+
+AUTHORIZED SCOPE
+
+Apply the EXISTING bl83_rsvp_deadline migration to the EXISTING authoritative BaseLodge Supabase Development database and verify the Development application afterward.
+
+THIS AUTHORIZATION IS FOR DEVELOPMENT ONLY.
+
+DO NOT ACCESS, MIGRATE, MODIFY, OR WRITE TO PRODUCTION.
+DO NOT CREATE OR CHANGE DATABASE CONNECTIONS OR CREDENTIALS.
+DO NOT USE REPLIT'S UNRELATED MANAGED DATABASE.
+DO NOT CREATE A NEW MIGRATION.
+DO NOT MODIFY APPLICATION CODE.
+DO NOT MODIFY TESTS.
+DO NOT MODIFY CONFIGURATION.
+DO NOT CREATE FILES OR REPORTS.
+DO NOT MODIFY .replit.
+DO NOT CREATE/UPDATE/SEARCH TASKS.
+DO NOT STAGE, COMMIT, PUSH, RESET, REBASE, AMEND, OR CHERRY-PICK GIT.
+DO NOT PUBLISH OR DEPLOY.
+DO NOT PERFORM UNRELATED WORK.
+
+KNOWN ROOT CAUSE
+
+Current application code maps:
+
+SkiTrip.rsvp_deadline
+
+The existing migration is:
+
+migrations/versions/bl83_rsvp_deadline.py
+
+Expected migration:
+
+bl442_worker_heartbeat -> bl83_rsvp_deadline
+
+It adds only:
+
+rsvp_deadline DATE NULL
+
+No backfill is required.
+
+EXECUTION
+
+1. Confirm the source Alembic graph still has exactly one head:
+   bl83_rsvp_deadline
+
+2. Using BaseLodge's EXISTING guarded migration configuration, verify the intended target is:
+   supabase-development
+
+Do not expose connection strings, secrets, or credential values.
+
+3. Perform the existing read-only Development revision check.
+
+Proceed ONLY if the authoritative Supabase Development database reports exactly:
+
+bl442_worker_heartbeat
+
+If it reports anything else, STOP and report the state. Do not reconcile automatically.
+
+4. Verify read-only that public.ski_trip currently does not contain rsvp_deadline.
+
+5. Apply ONLY the existing migration through BaseLodge's guarded Alembic mechanism:
+
+BASELODGE_RUNTIME_ENV=development \
+BASELODGE_MIGRATION_MODE=1 \
+BASELODGE_MIGRATION_TARGET=supabase-development \
+alembic -c migrations/alembic.ini upgrade head
+
+Because the verified starting revision must be bl442_worker_heartbeat and the source must have exactly one head, this should apply only bl83_rsvp_deadline.
+
+6. After migration, verify read-only:
+
+Alembic revision:
+bl83_rsvp_deadline
+
+Physical column:
+public.ski_trip.rsvp_deadline
+
+Type:
+DATE
+
+Nullable:
+YES
+
+7. Restart the Development Flask workflow once if necessary.
+
+8. Verify Development behavior for the existing Trips functionality, using existing Development data where possible:
+
+- /my-trips with upcoming trips returns 200
+- History loads
+- no-trip state loads
+- pending invitations are not silently lost because of the prior UndefinedColumn
+- Friends tab loads
+- trip detail loads
+- trip edit loads
+- existing RSVP state can be read
+
+Do not create unnecessary test data.
+
+9. Run the existing focused automated regressions relevant to:
+- RSVP deadline
+- My Trips paging
+- trip creation
+- trip detail/edit
+- invitations
+- RSVP/attendance
+
+Do not modify tests.
+
+10. Report:
+- Development target verification result
+- starting Alembic revision
+- migration applied
+- ending Alembic revision
+- physical column verification
+- Development Trips verification
+- focused test results
+- any remaining errors
+
+STOP AFTER DEVELOPMENT VERIFICATION.
+
+DO NOT TOUCH PRODUCTION.
+DO NOT PUBLISH.
+DO NOT COMMIT OR PUSH.

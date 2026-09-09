@@ -1,0 +1,490 @@
+BL-164 — INVESTIGATION ONLY
+PERFORMANCE — Move startup diagnostics off first user request
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+TASK PROGRESS TARGET: 0% → approximately 15%
+
+IMPORTANT:
+This is a READ-ONLY repository investigation.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- implement BL-164
+- modify application files
+- modify tests
+- modify dependencies
+- modify configuration
+- create tasks
+- create notes, markdown files, documentation files, or report files
+- save this prompt/report into the repository
+- stage files
+- commit
+- push
+- deploy
+- access or mutate Production
+- auto-fix unrelated issues
+- perform follow-on work
+
+Return the investigation report in Replit chat only.
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+android/baselodge-release-key.jks
+
+Known unrelated environmental noise may include:
+- .replit
+- attached_assets/Pasted-*
+
+Leave those paths alone.
+
+--------------------------------------------------
+GIT SAFETY
+--------------------------------------------------
+
+Expected GitHub main baseline:
+
+4d718c7ea4d13fa2a8433c63c2526cd80a69bae3
+
+At the beginning:
+
+1. Record HEAD.
+2. Record origin/main.
+3. Record ahead/behind.
+4. Inspect working-tree status.
+
+Replit has repeatedly created environmental automatic commits containing:
+- .replit
+- attached_assets/Pasted-*
+
+If HEAD is ahead of origin/main:
+- inspect commit metadata and changed paths only
+- DO NOT reset or repair anything
+- if every ahead commit contains only known environmental noise, report it and continue investigation
+- if any ahead commit contains legitimate BaseLodge work, STOP and report it
+
+Do NOT intentionally:
+- reset
+- amend
+- rebase
+- cherry-pick
+- stage
+- commit
+- push
+
+If a new automatic commit appears after investigation begins, STOP and report it.
+
+--------------------------------------------------
+BL-164 GOAL
+--------------------------------------------------
+
+The current BaseLodge request lifecycle appears to perform diagnostic/database work during the first real user request after process startup.
+
+BL-164 should remove expensive startup-only diagnostics from user request handling while preserving useful operational visibility.
+
+We need to determine exactly what currently happens, why it happens, how expensive it is, and the smallest safe architecture for moving it elsewhere.
+
+Do NOT implement the recommendation yet.
+
+--------------------------------------------------
+A. TRACE REQUEST STARTUP LIFECYCLE
+--------------------------------------------------
+
+Inspect the complete Flask request startup path.
+
+Find all:
+
+- @app.before_request handlers
+- before_app_request handlers
+- request middleware
+- first-request guards
+- module/global startup flags
+- lazy initialization
+- readiness checks
+- database diagnostics
+- startup diagnostics
+- application initialization that can occur inside a request
+- request-time environment/config checks
+- request-time schema/migration checks
+- request-time cache initialization
+- request-time logging intended primarily for startup visibility
+
+Report exact:
+
+- file
+- function
+- approximate line
+- trigger
+- frequency
+- whether it runs every request, once per process, once per worker, once per session, etc.
+
+--------------------------------------------------
+B. IDENTIFY BL-164 TARGET WORK
+--------------------------------------------------
+
+Specifically locate the diagnostics previously identified as involving:
+
+- global user counts
+- friend counts
+- trip counts
+- internal-user/email searches
+- related database-wide startup visibility
+
+Determine exactly:
+
+- which queries run
+- what tables/models they touch
+- whether they use COUNT, scans, joins, filters, LIKE/ILIKE, etc.
+- whether they execute on every request or only the first request
+- what condition/flag prevents subsequent execution
+- whether multiple workers each execute them independently
+- whether failure changes application behavior or merely logging
+
+Report the exact source.
+
+--------------------------------------------------
+C. FIRST USER REQUEST COST
+--------------------------------------------------
+
+Trace a representative authenticated first request after a fresh worker/process starts.
+
+Separate:
+
+1. normal request work required to serve the page
+2. BL-164 startup diagnostic work
+3. other unrelated middleware work
+
+Determine how many additional database queries BL-164 adds.
+
+Where repository instrumentation allows, identify:
+
+- query count
+- query shape
+- likely scan characteristics
+- synchronous logging work
+- whether work occurs before route execution
+- whether the response waits for completion
+
+Do NOT benchmark Production.
+
+Do not invent timing numbers if no local measurement exists.
+
+--------------------------------------------------
+D. FAILURE SEMANTICS
+--------------------------------------------------
+
+Determine what happens if startup diagnostics fail.
+
+Does failure:
+
+- abort the user request?
+- return 500?
+- log and continue?
+- rollback a session?
+- poison database state?
+- prevent readiness?
+- retry on the next request?
+- mark a global flag anyway?
+
+This is important because moving diagnostics must not accidentally convert optional observability into a startup dependency.
+
+--------------------------------------------------
+E. WHAT VISIBILITY THE DIAGNOSTICS PROVIDE
+--------------------------------------------------
+
+Explain why each diagnostic exists.
+
+Identify what information is currently logged or checked, including:
+
+- user totals
+- friendship totals
+- trip totals
+- internal/test/admin accounts
+- database connectivity
+- schema state
+- migration state
+- runtime/environment state
+- anything else discovered
+
+Classify each item:
+
+A. necessary for application correctness/readiness
+B. useful operational visibility but not required for serving traffic
+C. obsolete/noisy/redundant
+
+Do not remove anything yet.
+
+--------------------------------------------------
+F. EXISTING STARTUP / HEALTH ARCHITECTURE
+--------------------------------------------------
+
+Inspect existing mechanisms that could host equivalent visibility outside a user request.
+
+Include:
+
+- app creation/startup
+- module initialization
+- gunicorn/server hooks if present
+- Replit deployment startup
+- worker startup
+- health endpoints
+- readiness endpoints
+- admin diagnostics
+- structured startup logging
+- deployment verification scripts
+- CLI/admin commands
+- existing background jobs
+
+Determine which mechanism is safest for each diagnostic.
+
+Important:
+Do not simply move database queries into module import time if that would create unsafe startup coupling.
+
+--------------------------------------------------
+G. HEALTH CHECK CONTRACT
+--------------------------------------------------
+
+Inspect current health/readiness endpoints.
+
+Report:
+
+- exact routes
+- what they currently test
+- whether they query the database
+- whether they are lightweight
+- whether deployment infrastructure uses them
+- whether they expose private data
+- whether they perform writes
+- expected status-code behavior
+
+Recommend what health checks should and should NOT do after BL-164.
+
+The desired direction is lightweight readiness, not database-wide diagnostic scans on health requests.
+
+--------------------------------------------------
+H. INTERNAL EMAIL / USER SEARCH
+--------------------------------------------------
+
+Pay special attention to any startup logic searching for:
+
+- internal emails
+- developer/admin accounts
+- test accounts
+- email domains
+- specific named users
+
+Determine:
+
+- exact purpose
+- query pattern
+- whether it is required for correctness
+- whether another canonical internal-user mechanism already exists
+- whether it should remain startup visibility, move to admin diagnostics, or be removed as redundant
+
+Do not alter internal-user semantics.
+
+--------------------------------------------------
+I. MULTI-WORKER BEHAVIOR
+--------------------------------------------------
+
+Determine how current startup diagnostics behave under:
+
+- Replit Autoscale
+- multiple Flask/Gunicorn workers if applicable
+- worker restarts
+- scale-out
+
+If a process-local flag is used, determine whether every new worker repeats the diagnostic queries.
+
+Recommend whether equivalent diagnostics should be:
+
+- once per worker
+- once per application startup
+- explicit admin/on-demand
+- deployment verification only
+- another existing mechanism
+
+Avoid adding distributed locking or new infrastructure unless absolutely necessary.
+
+--------------------------------------------------
+J. LOGGING / PRIVACY
+--------------------------------------------------
+
+Inspect diagnostic log output for:
+
+- email addresses
+- user IDs
+- counts
+- names
+- raw database values
+- other user information
+
+Confirm whether existing log sanitization/privacy conventions apply.
+
+Recommend the minimum information needed for useful startup visibility.
+
+BL-164 must not increase sensitive information in logs.
+
+--------------------------------------------------
+K. TEST COVERAGE
+--------------------------------------------------
+
+Find tests covering:
+
+- before_request behavior
+- startup diagnostics
+- health/readiness
+- request query budgets
+- runtime config
+- deployment health
+- logging
+- internal-user detection
+
+Report exact test files and relevant tests.
+
+Determine the minimum regression coverage needed for implementation.
+
+--------------------------------------------------
+L. PERFORMANCE COMPLETION CONTRACT
+--------------------------------------------------
+
+Define a measurable completion contract.
+
+At minimum determine how to verify:
+
+1. A normal first authenticated user request no longer performs global diagnostic count/search queries.
+2. Subsequent requests behave identically to current application behavior.
+3. Required correctness/readiness checks remain intact.
+4. Optional diagnostic failure cannot break a user request.
+5. Health/readiness remains lightweight.
+6. Equivalent useful operational visibility remains available somewhere appropriate.
+7. No private user data is newly exposed.
+8. No schema/native/deployment behavior is unintentionally changed.
+
+Where existing query-budget instrumentation permits, recommend a concrete query-count assertion.
+
+--------------------------------------------------
+M. EXACT IMPLEMENTATION SCOPE
+--------------------------------------------------
+
+Report exact production files likely to change.
+
+Determine whether BL-164 requires:
+
+- app.py changes
+- service/helper changes
+- tests
+- dependency changes
+- schema/migration
+- native changes
+- deployment config
+- environment variables
+- new background worker
+- scheduler
+- new infrastructure
+
+Prefer the smallest architecture.
+
+--------------------------------------------------
+N. INTERACTION WITH NEARBY TASKS
+--------------------------------------------------
+
+Check interaction with:
+
+- BL-163 intent-based prefetching, now complete
+- BL-174 Friends pagination
+- BL-116 PostHog hardening
+- BL-162 Mountain Detail progressive loading
+
+Do not implement any of them.
+
+Determine whether BL-164 can land independently.
+
+--------------------------------------------------
+O. SMALLEST SAFE IMPLEMENTATION PLAN
+--------------------------------------------------
+
+Recommend the smallest implementation that:
+
+- removes startup diagnostic database scans/searches from user request handling
+- preserves actual readiness/correctness checks
+- preserves useful observability appropriately
+- keeps health checks lightweight
+- avoids introducing a background system solely for this task
+- avoids schema/dependency/native/deployment changes if possible
+- does not broaden scope into general request optimization
+
+Prefer deletion or relocation of unnecessary request-time work over creating a complicated abstraction.
+
+--------------------------------------------------
+STOP CONDITIONS
+--------------------------------------------------
+
+STOP and report rather than implementing if:
+
+- diagnostics are required for application correctness
+- moving them requires a deployment architecture change
+- a schema migration is required
+- a new background worker is required
+- Production access is required
+- native changes are required
+- unexpected legitimate Git work exists
+- a new automatic commit appears during investigation
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return a concise but complete report containing:
+
+1. Current HEAD
+2. origin/main
+3. ahead/behind
+4. relevant Git status
+5. all request-startup hooks found
+6. exact BL-164 target function(s)
+7. exact trigger/frequency today
+8. global/process-local flags involved
+9. exact diagnostic queries
+10. models/tables touched
+11. additional first-request query count
+12. whether user response waits for diagnostics
+13. failure behavior
+14. retry behavior after failure
+15. multi-worker behavior
+16. diagnostic information currently produced
+17. classification of each diagnostic as correctness / observability / obsolete
+18. existing startup architecture
+19. existing health/readiness routes
+20. current health/readiness behavior
+21. recommended health/readiness contract
+22. internal-email/user-search findings
+23. privacy/logging findings
+24. exact tests covering current behavior
+25. recommended focused tests
+26. measurable performance completion contract
+27. exact production files likely to change
+28. dependency/package impact
+29. schema/migration impact
+30. native impact
+31. deployment/config impact
+32. background worker/scheduler impact
+33. interaction with BL-163
+34. interaction with BL-174
+35. interaction with BL-116
+36. interaction with BL-162
+37. smallest safe implementation plan
+38. risks
+39. stop conditions triggered, if any
+40. confirmation no implementation/test/config changes
+41. confirmation no task/note/report file created
+42. confirmation no stage/commit/push/deploy
+43. whether any automatic Replit commit occurred
+44. final HEAD
+45. final origin/main
+46. final ahead/behind
+47. final Git status
+48. estimated BL-164 completion percentage
+
+Do not implement BL-164 after the report.

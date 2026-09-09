@@ -1,0 +1,511 @@
+BL-163 — IMPLEMENTATION
+PERFORMANCE — Replace broad route prefetching with intent-based prefetch
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+TASK PROGRESS TARGET: approximately 15% → approximately 85%
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- expand scope beyond BL-163
+- create Replit tasks
+- create notes, markdown files, documentation files, or report files
+- save this prompt/report into the repository
+- modify dependencies
+- modify Flask/backend behavior
+- modify database schema
+- create migrations
+- modify native iOS/Android/Capacitor code
+- modify deployment configuration
+- access or mutate Production
+- stage files
+- commit
+- push
+- deploy
+- auto-fix unrelated issues
+- perform follow-on work
+
+Return the implementation report in Replit chat only.
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+android/baselodge-release-key.jks
+
+Known unrelated environmental noise:
+- .replit
+- attached_assets/Pasted-*
+
+Leave those paths alone.
+
+IMPORTANT GIT BEHAVIOR:
+
+Replit has repeatedly created automatic checkpoint commits despite explicit instructions.
+
+1. Record HEAD and origin/main before implementation.
+2. Do NOT intentionally stage, commit, push, reset, amend, rebase, cherry-pick, or repair Git.
+3. If Replit automatically creates a commit during this task, STOP implementation and report:
+   - new HEAD
+   - origin/main
+   - ahead/behind
+   - commit subject
+   - exact changed paths
+4. Do not attempt to repair it.
+5. If unexpected legitimate BaseLodge work exists before implementation, STOP and report it.
+
+Expected starting Git baseline:
+
+HEAD:
+2194c3fc741541812fe0fcde25d9d93dafb68975
+
+origin/main:
+2194c3fc741541812fe0fcde25d9d93dafb68975
+
+Expected unrelated working-tree noise:
+- modified .replit
+- untracked attached_assets/Pasted-*
+
+--------------------------------------------------
+APPROVED BL-163 PRODUCT / TECHNICAL CONTRACT
+--------------------------------------------------
+
+Replace broad page-load route speculation with conservative user-intent prefetching.
+
+BaseLodge must NOT broadly prefetch routes or APIs merely because an authenticated page loaded.
+
+Approved prefetch destinations for this task are ONLY:
+
+- /home
+- /my-trips
+- /friends
+- /mountains
+- /profile
+
+Do not broaden this allowlist.
+
+Explicitly DO NOT prefetch:
+
+- /api/mountains-data
+- any /api/* route
+- Trip Detail
+- Mountain Detail
+- friend/user detail pages
+- /edit-profile
+- /settings/equipment
+- auth routes
+- logout
+- invite/token/action URLs
+- account-state routes
+- admin/diagnostic/health routes
+- downloads
+- external origins
+- mailto:
+- tel:
+- sms:
+- fragments
+- target="_blank" links
+- JavaScript-only controls
+- any destination not explicitly in the five-path allowlist
+
+Normal navigation must remain unchanged.
+
+--------------------------------------------------
+1. REMOVE CURRENT BROAD PREFETCH HINTS
+--------------------------------------------------
+
+Remove the twenty route/API <link rel="prefetch"> hints identified during investigation from:
+
+- templates/home.html
+- templates/friends.html
+- templates/my_trips.html
+- templates/mountains_tab.html
+- templates/profile.html
+- templates/trip_ideas.html
+
+Remove only the broad navigation/API prefetch hints.
+
+DO NOT remove or alter:
+
+- Google Fonts preconnect/preload behavior in templates/auth.html
+- Cormorant Garamond stylesheet preload
+- native startup fetchpriority behavior
+- lazy-loaded QR behavior
+- normal Mountains data loading after actual navigation
+
+In particular:
+
+templates/mountains_tab.html
+
+must retain its normal:
+
+fetch('/api/mountains-data', { cache: 'no-store' })
+
+pageshow/data-loading behavior.
+
+The goal is to eliminate speculative API loading, not actual page functionality.
+
+--------------------------------------------------
+2. ADD ONE SHARED INTENT PREFETCH MODULE
+--------------------------------------------------
+
+Create:
+
+static/js/bl-intent-prefetch.js
+
+Include it once through:
+
+templates/base_app.html
+
+Do not duplicate the implementation across templates.
+
+Keep the module small and self-contained.
+
+Do not introduce a new frontend framework or dependency.
+
+--------------------------------------------------
+3. INTENT SIGNALS
+--------------------------------------------------
+
+Use delegated document-level handling for:
+
+- pointerenter
+- focusin
+- pointerdown
+
+Purpose:
+
+pointerenter:
+desktop mouse/stylus intent
+
+focusin:
+keyboard accessibility
+
+pointerdown:
+touch/mobile intent and direct pointer commitment
+
+Do NOT use:
+
+- IntersectionObserver
+- viewport-based prefetch
+- page-load prefetch
+- timers
+- predictive scoring
+- route popularity
+- mouse movement prediction
+- background route warming
+
+Initialization itself must create ZERO prefetch hints.
+
+--------------------------------------------------
+4. ELIGIBLE LINK RESOLUTION
+--------------------------------------------------
+
+For an intent event:
+
+1. Find the relevant nearest anchor for the event target.
+2. Ignore the event if there is no eligible anchor.
+3. Resolve the anchor URL safely against the current document.
+4. Require same-origin.
+5. Require pathname to be EXACTLY one of:
+
+   /home
+   /my-trips
+   /friends
+   /mountains
+   /profile
+
+6. Ignore the current page destination.
+7. Reject links with unsafe/ineligible attributes or schemes.
+8. Preserve ordinary query strings only if the underlying destination remains safely equivalent.
+
+Be conservative.
+
+If query/hash handling introduces ambiguity, reject the prefetch rather than broadening eligibility.
+
+Do not allow prefix matching such as:
+
+/friends/*
+/profile/*
+/mountains/*
+
+Eligibility is exact-path only.
+
+--------------------------------------------------
+5. LINK SAFETY
+--------------------------------------------------
+
+The intent system must reject at minimum:
+
+- cross-origin URLs
+- non-http(s) schemes
+- fragments / hash-only navigation
+- mailto:
+- tel:
+- sms:
+- download links
+- target="_blank"
+- links outside the five approved paths
+
+Do not create a generic blacklist of BaseLodge routes.
+
+The exact allowlist is the primary safety boundary.
+
+--------------------------------------------------
+6. DEDUPLICATION
+--------------------------------------------------
+
+Maintain one document-lifetime Set of normalized eligible destinations.
+
+A destination must be added to the Set before its prefetch hint is appended.
+
+Multiple events for the same normalized destination must create at most ONE prefetch hint.
+
+Examples:
+
+pointerenter → focusin
+pointerenter → pointerdown
+repeated pointerenter
+
+must not create duplicate hints.
+
+Do not create persistent storage, session storage, local storage, or cross-page state for this.
+
+--------------------------------------------------
+7. PREFETCH MECHANISM
+--------------------------------------------------
+
+For an eligible destination after actual user intent:
+
+create one:
+
+<link rel="prefetch">
+
+for the normalized destination.
+
+Use the browser's native low-priority prefetch behavior.
+
+Do NOT replace this with:
+
+fetch()
+
+Do NOT:
+- consume response bodies
+- implement a custom response cache
+- add AbortController
+- intercept click
+- call preventDefault()
+- delay navigation
+- turn navigation into SPA behavior
+
+Ordinary anchor navigation remains the fallback and source of truth.
+
+--------------------------------------------------
+8. TESTS
+--------------------------------------------------
+
+Add focused JavaScript regression coverage, preferably:
+
+tests/js/test_bl_intent_prefetch.js
+
+Use the existing Node test infrastructure and project conventions.
+
+Tests must cover at minimum:
+
+A. Initialization
+- loading the script creates zero prefetch hints
+- no viewport observer is registered
+
+B. Desktop intent
+- pointerenter on an eligible same-origin destination creates exactly one prefetch hint
+
+C. Keyboard intent
+- focusin on an eligible destination creates exactly one prefetch hint
+
+D. Touch/pointer intent
+- pointerdown on an eligible destination creates exactly one prefetch hint
+
+E. Deduplication
+- repeated pointerenter creates one hint
+- mixed pointerenter/focusin/pointerdown creates one hint for the same normalized destination
+
+F. Safety
+No hint for:
+- external origin
+- fragment
+- mailto
+- tel
+- sms
+- target=_blank
+- download
+- /api/mountains-data
+- another /api/* path
+- auth path
+- detail route
+- edit-profile
+- settings/equipment
+- any unapproved route
+
+G. Current page
+- no hint when destination resolves to the current page
+
+H. Navigation
+- the implementation does not prevent default navigation
+- it does not replace or intercept the normal anchor navigation path
+
+I. Template regression
+Verify the broad static route/API prefetch declarations are absent from:
+
+- templates/home.html
+- templates/friends.html
+- templates/my_trips.html
+- templates/mountains_tab.html
+- templates/profile.html
+- templates/trip_ideas.html
+
+J. Shared inclusion
+- base_app.html includes bl-intent-prefetch.js exactly once
+
+K. Preserved functionality
+- templates/auth.html retains its critical font preload/preconnect behavior
+- Mountains retains its normal /api/mountains-data fetch after actual page navigation
+
+--------------------------------------------------
+9. REGRESSION VERIFICATION
+--------------------------------------------------
+
+Run:
+
+1. Focused BL-163 JavaScript tests.
+2. Full JavaScript suite.
+3. Relevant authenticated/template/query-budget tests if applicable.
+4. Full Python suite if practical within the environment.
+5. Syntax/compile checks appropriate to changed files.
+6. git diff --check.
+
+Do not weaken or delete existing tests to obtain a pass.
+
+If an existing unrelated failure occurs, report it precisely.
+
+--------------------------------------------------
+10. PERFORMANCE COMPLETION CONTRACT
+--------------------------------------------------
+
+Implementation should satisfy:
+
+- authenticated page initialization produces zero broad route/API prefetch hints
+- script initialization itself produces zero dynamic hints
+- viewport presence produces zero route prefetch
+- actual supported user intent can prefetch an approved route
+- each destination is prefetched at most once per document
+- unsafe/unapproved routes are never prefetched
+- /api/mountains-data is never speculatively prefetched
+- normal Mountains navigation still loads /api/mountains-data normally
+- normal anchor navigation is untouched
+- desktop pointer behavior works
+- keyboard focus behavior works
+- touch/pointer behavior works
+- critical auth static-resource preload remains unchanged
+
+--------------------------------------------------
+11. STRICT FILE SCOPE
+--------------------------------------------------
+
+Expected production changes:
+
+- templates/home.html
+- templates/friends.html
+- templates/my_trips.html
+- templates/mountains_tab.html
+- templates/profile.html
+- templates/trip_ideas.html
+- templates/base_app.html
+- static/js/bl-intent-prefetch.js
+
+Expected test change/addition:
+
+- tests/js/test_bl_intent_prefetch.js
+
+Do not modify additional production files unless required by direct evidence.
+
+If another production file is genuinely required:
+STOP and report why before changing it.
+
+Existing test infrastructure files may only be changed if technically necessary to register/run the new focused test. Prefer no test-runner changes.
+
+--------------------------------------------------
+12. OUT OF SCOPE
+--------------------------------------------------
+
+Do not implement:
+
+- BL-164
+- BL-174
+- BL-162
+- backend optimization
+- Flask route changes
+- query optimization
+- service workers
+- offline caching
+- SPA navigation
+- speculative APIs
+- predictive preloading
+- analytics changes
+- schema changes
+- migrations
+- native changes
+- deployment changes
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return in Replit chat:
+
+1. Starting HEAD
+2. Starting origin/main
+3. Starting ahead/behind
+4. Files changed
+5. Static prefetch hints removed, by template
+6. Shared script path
+7. Where shared script is included
+8. Exact allowlist
+9. Intent events implemented
+10. URL normalization behavior
+11. Same-origin enforcement
+12. Query/hash behavior
+13. Unsafe-link rejection behavior
+14. Deduplication behavior
+15. Exact prefetch mechanism
+16. Confirmation initialization causes zero hints
+17. Confirmation no viewport prefetch exists
+18. Confirmation normal navigation is not intercepted
+19. Confirmation /api/mountains-data speculative hint is gone
+20. Confirmation normal Mountains data fetch remains
+21. Confirmation auth critical preload remains
+22. Focused tests added
+23. Focused test result
+24. Full JavaScript result
+25. Relevant Python/template regression result
+26. Full Python result
+27. Syntax/compile result
+28. git diff --check result
+29. Dependency/package changes
+30. Flask/backend changes
+31. schema/migration changes
+32. native changes
+33. deployment/config changes
+34. scope deviations
+35. blockers
+36. confirmation no Production access/mutation
+37. confirmation no task/note/report file created
+38. confirmation no intentional stage/commit/push/deploy
+39. whether any automatic Replit commit occurred
+40. final HEAD
+41. final origin/main
+42. final ahead/behind
+43. final git status
+44. estimated BL-163 completion percentage
+
+STOP after the report.
+
+Do not commit or push.

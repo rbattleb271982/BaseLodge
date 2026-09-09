@@ -1,0 +1,153 @@
+BASELODGE — COMPLETE TASK #507 PRODUCTION AUDIT AGAINST AUTHORITATIVE SUPABASE
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+ACTION
+
+Complete the Production availability audit now against the ACTUAL authoritative BaseLodge Production datastore: Supabase.
+
+The prior audit established that Replit’s managed Production database is an empty, non-authoritative database.
+
+DO NOT query that empty Replit-managed database again.
+
+Use the existing BaseLodge Supabase Production connection/credentials already available to the application.
+
+Although the Supabase credential may technically have write capability, this task authorizes READ OPERATIONS ONLY.
+
+You are explicitly authorized to use that existing Supabase connection to perform SELECT/read operations.
+
+DO NOT perform any write operation.
+
+APPROVED GIT STATE
+
+HEAD and origin/main should both remain:
+
+aef22dad42d6cee275241f65f4f1ba30308d5058
+
+At the start, report:
+- HEAD
+- origin/main
+- ahead/behind
+- git status
+
+KNOWN ENVIRONMENTAL NOISE
+
+Ignore as non-blocking:
+- modified .replit
+- untracked attached_assets/Pasted-*
+
+Do not stage, modify, delete, commit, or repair those files.
+
+GIT DRIFT
+
+Do not:
+- stage
+- commit
+- push
+- reset
+- amend
+- rebase
+- cherry-pick
+- create checkpoints
+
+If HEAD changes or any legitimate BaseLodge source/test/migration/config file changes, STOP and report it.
+
+Environmental-only .replit / attached_assets noise is not a reason to stop.
+
+PRODUCTION SAFETY
+
+Allowed:
+- Supabase SELECT/read queries
+- aggregate counts
+- schema inspection
+- read-only validation of user_availability and user.open_dates
+
+Forbidden:
+- INSERT
+- UPDATE
+- DELETE
+- UPSERT
+- DDL
+- RPC/function calls that mutate data
+- migrations
+- backfills
+- code changes
+- configuration changes
+- deployment
+- publish
+
+Do not create scripts or repository files unless absolutely required to execute the read. Prefer existing application/database access and transient commands.
+
+AUDIT CONTRACT
+
+Use the Task #507 contract already identified:
+
+- user_availability is the canonical normalized source
+- availability is per user/date
+- normalized row overrides legacy open_dates for the same date
+- is_available=true means available
+- is_available=false tombstones legacy availability for that date
+- user.open_dates is legacy fallback only where no normalized row exists
+- valid legacy values are exact YYYY-MM-DD dates
+- duplicate legacy values collapse
+- malformed legacy values are ignored
+- current reads include today/future
+- compatibility writer mirrors current/future normalized availability into open_dates
+
+AUDIT THE AUTHORITATIVE SUPABASE DATA
+
+Inspect:
+
+public.user_availability
+- id
+- user_id
+- date
+- is_available
+- note
+- created_at
+
+public.user
+- id
+- open_dates
+
+Return aggregate counts for:
+
+1. total Production users
+2. total normalized availability rows
+3. active normalized rows
+4. inactive/tombstone rows
+5. null/invalid normalized user/date/status values
+6. users with legacy open_dates data
+7. total valid legacy date entries
+8. malformed legacy entries
+9. duplicate legacy dates
+10. same user/date conflicts or duplicates
+11. legacy dates overridden by normalized rows
+12. legacy dates tombstoned by normalized false rows
+13. any records that the current Task #507 code would lose, misinterpret, duplicate, or render incorrectly
+
+Do not expose user identities or private values. Aggregate counts only.
+
+FINAL VERDICT
+
+Return one:
+
+PASS
+Authoritative Supabase Production data is compatible with Task #507 and no mutation is required before publishing.
+
+BLOCKED
+Specific authoritative Supabase Production records require remediation before publishing.
+
+FINAL REPORT
+
+Return:
+1. HEAD / origin/main / ahead-behind
+2. confirmation that Supabase was the datastore queried
+3. tables/fields inspected
+4. all aggregate counts
+5. incompatibilities by category
+6. whether any Production mutation is required
+7. PASS or BLOCKED
+8. whether current main is safe to publish
+9. confirmation that no data, code, Git history, configuration, or deployment was changed

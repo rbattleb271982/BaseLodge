@@ -1,0 +1,373 @@
+BL-83 — INVESTIGATION ONLY
+Add organizer-visible RSVP deadlines to trips
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+TASK PROGRESS TARGET: 0% → approximately 15%
+
+IMPORTANT:
+This is a READ-ONLY repository investigation.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- implement BL-83
+- modify application files
+- modify tests
+- create or modify a database migration
+- create a Replit task
+- create notes, markdown files, documentation files, or pasted-report files
+- stage files
+- commit
+- push
+- deploy
+- touch Production
+- change any database
+- perform follow-on work
+- auto-fix unrelated issues
+- save this investigation report anywhere in the repository
+
+Return the investigation report in Replit chat only.
+
+Do not inspect, read, modify, move, hash, or otherwise interact with:
+android/baselodge-release-key.jks
+
+Known unrelated local environmental noise may include:
+- .replit
+- attached_assets/Pasted-*
+
+Do not modify or clean up those paths.
+
+If local HEAD is ahead of origin/main because of Replit-created commits:
+- inspect commit metadata and changed file paths only
+- report what you find
+- DO NOT reset, amend, cherry-pick, commit, push, or otherwise repair Git during this investigation
+
+If any unexpected legitimate BaseLodge work is present, STOP and report it.
+
+--------------------------------------------------
+BL-83 PRODUCT CONTRACT
+--------------------------------------------------
+
+Goal:
+
+Allow a trip organizer to optionally set an RSVP deadline for a trip.
+
+This task is intentionally narrow.
+
+Required behavior:
+
+1. RSVP deadline is OPTIONAL.
+2. The trip organizer can add an RSVP deadline.
+3. The organizer can edit an existing RSVP deadline.
+4. The organizer can remove an RSVP deadline.
+5. Relevant trip participants can see the deadline.
+6. The deadline must be persisted as canonical trip data.
+7. Deadline writes must use appropriate trip-organizer authorization.
+8. Deadline input must be safely validated.
+9. Existing trips without a deadline must continue working normally.
+10. Existing RSVP behavior must remain unchanged.
+
+EXPLICITLY OUT OF SCOPE:
+
+- automated reminders
+- reminder scheduling
+- push notifications
+- email
+- SMS
+- lifecycle messaging
+- organizer follow-up workflows
+- participant action tracking beyond existing RSVP behavior
+- Home actions
+- deadline-driven recommendations
+- Happening distribution
+- analytics changes unless absolutely required by an existing mandatory convention
+- native iOS/Android-specific work
+
+The deadline should establish canonical state that future reminder/lifecycle features could consume, but BL-83 must NOT implement those future behaviors.
+
+--------------------------------------------------
+INVESTIGATION
+--------------------------------------------------
+
+A. CURRENT TRIP DATA MODEL
+
+Find the canonical trip model/table and report:
+
+- exact model/class name
+- exact source file
+- current trip date fields and their types
+- relevant organizer/owner field
+- existing status/lifecycle fields
+- whether any deadline-like field already exists
+- whether there is any generic metadata/JSON field currently used for comparable trip properties
+
+Determine whether BL-83 requires a new database column.
+
+If yes, recommend:
+- exact field name
+- data type
+- nullable/default behavior
+- whether timezone information is necessary
+- migration requirements
+- whether existing rows require any backfill
+
+Do NOT create the migration.
+
+B. DATE/TIME SEMANTICS
+
+Inspect how BaseLodge currently handles:
+
+- trip start/end dates
+- date-only values
+- timestamps
+- timezone-aware values
+- user-local date display
+- HTML date inputs or date pickers
+
+Recommend whether RSVP deadline should be:
+
+1. date-only
+2. date + time
+3. another existing BaseLodge pattern
+
+Prefer the simplest behavior consistent with the existing product.
+
+Explicitly determine:
+- whether a deadline should be allowed on the trip start date
+- whether it should be allowed after the trip starts
+- whether it should be allowed in the past when initially created or edited
+- what validation is appropriate without inventing unnecessary product rules
+
+If the repository does not establish these answers, flag them as product decisions instead of guessing.
+
+C. TRIP CREATE FLOW
+
+Trace the complete trip creation flow.
+
+Report:
+
+- route/API endpoint
+- request payload structure
+- validation
+- authorization
+- persistence
+- templates/components/forms involved
+- tests covering trip creation
+
+Determine the smallest safe place to add an optional RSVP deadline during trip creation.
+
+Also determine whether adding it during creation is necessary for the smallest BL-83 slice or whether it would be safer to introduce management on Trip Detail first.
+
+D. TRIP EDIT FLOW
+
+Trace how an organizer currently edits trip information.
+
+Report:
+
+- route/API endpoint
+- authorization mechanism
+- editable fields
+- validation pattern
+- persistence behavior
+- frontend/template involved
+- tests
+
+Determine the safest existing pattern for:
+- adding deadline
+- editing deadline
+- removing deadline
+
+Do not invent a separate management system if the existing trip-edit architecture is suitable.
+
+E. RSVP ARCHITECTURE
+
+Trace current RSVP behavior.
+
+Report:
+
+- participant/invite models involved
+- RSVP state fields
+- RSVP routes/endpoints
+- organizer vs participant authorization
+- where RSVP status appears in Trip Detail
+- any existing RSVP-related helper/service code
+- relevant tests
+
+Confirm BL-83 can add a deadline WITHOUT changing RSVP state transitions or participant action logic.
+
+F. TRIP DETAIL UI
+
+Inspect the current Trip Detail experience for:
+
+1. organizer viewing their own trip
+2. invited/participating user viewing the trip
+3. any other user who can legitimately view the trip
+
+Report the best existing UI location for displaying:
+
+“RSVP by [date]”
+
+Do not redesign Trip Detail.
+
+Identify the smallest UI treatment that fits the existing design system.
+
+Also identify where the organizer should manage the deadline using existing edit patterns.
+
+G. AUTHORIZATION + PRIVACY
+
+Determine:
+
+- exact rule that identifies the organizer
+- who can modify trip properties today
+- who can see RSVP-related trip information
+- whether deadline visibility can safely inherit existing trip visibility
+- whether any API response could expose the deadline to a user who cannot otherwise view the trip
+
+Recommend the minimum authorization/privacy tests required.
+
+H. VALIDATION + SECURITY
+
+Inspect existing trip field validation conventions.
+
+Recommend validation for the deadline, including:
+
+- accepted format
+- malformed input
+- null/missing input
+- explicit removal
+- unauthorized mutation
+- invalid dates
+- duplicate/replayed requests if relevant
+
+Do not introduce arbitrary new validation architecture if existing patterns are adequate.
+
+I. EXISTING TEST INFRASTRUCTURE
+
+Identify exact existing test files covering:
+
+- trip creation
+- trip editing
+- Trip Detail
+- RSVP behavior
+- authorization
+- migrations/model changes
+
+Recommend where BL-83 tests should live.
+
+J. DATABASE / MIGRATION IMPACT
+
+If a schema change is required, report:
+
+- exact proposed schema change
+- expected Alembic migration
+- whether it is additive/nullable
+- SQLite/test compatibility considerations
+- PostgreSQL/Production considerations
+- whether any data backfill is required
+- rollback implications
+
+Do NOT create or run a migration.
+
+K. NATIVE / DEPLOYMENT IMPACT
+
+Determine whether this feature requires:
+
+- new iOS build
+- new Android build
+- Capacitor changes
+- native plugin changes
+- environment variables
+- external services
+- deployment configuration changes
+
+The expected answer should be “no” unless repository evidence shows otherwise.
+
+L. FUTURE LIFECYCLE COMPATIBILITY
+
+Without implementing lifecycle behavior, confirm that the proposed canonical deadline state could later be consumed by:
+
+- reminders
+- Home actions
+- lifecycle communications
+
+Do not design those systems now.
+
+We only want to avoid storing the deadline in a way that would make future use unnecessarily difficult.
+
+M. SMALLEST SAFE IMPLEMENTATION PLAN
+
+Based on repository evidence, propose the smallest implementation plan.
+
+Prefer:
+- one canonical nullable deadline field
+- reuse of existing trip create/edit architecture
+- reuse of existing authorization
+- minimal Trip Detail UI
+- focused tests
+- no new service abstraction unless genuinely necessary
+
+Separate the plan into logical implementation slices if needed.
+
+--------------------------------------------------
+STOP CONDITIONS
+--------------------------------------------------
+
+STOP and report before implementation if investigation shows BL-83 would require:
+
+- broad RSVP architecture redesign
+- friendship/visibility redesign
+- external scheduling service
+- reminder infrastructure
+- lifecycle implementation
+- native iOS/Android changes
+- Production data repair
+- destructive schema migration
+- substantial unrelated refactoring
+- unexpected legitimate uncommitted/ahead BaseLodge work
+
+--------------------------------------------------
+FINAL REPORT
+--------------------------------------------------
+
+Return a concise but complete report in Replit chat with:
+
+1. Current Git HEAD
+2. origin/main HEAD
+3. ahead/behind status
+4. relevant Git working-tree status
+5. canonical Trip model/file
+6. current trip date representation
+7. organizer/owner representation
+8. whether a deadline-like field already exists
+9. whether a schema change is required
+10. recommended deadline field name/type/nullability
+11. migration/backfill implications
+12. recommended date-only vs datetime semantics
+13. unresolved product decisions, if any
+14. trip creation route/files
+15. trip editing route/files
+16. existing organizer authorization mechanism
+17. RSVP models/routes/files
+18. confirmation existing RSVP state logic can remain unchanged
+19. Trip Detail template/component
+20. recommended participant deadline placement
+21. recommended organizer management placement
+22. deadline visibility/privacy rule
+23. validation recommendation
+24. exact files likely to change during implementation
+25. exact test files likely to change/add
+26. expected test scope
+27. native-build impact
+28. deployment/config impact
+29. future lifecycle compatibility
+30. recommended implementation slices
+31. risks or stop conditions discovered
+32. confirmation NO application/test/schema files were changed
+33. confirmation NO Replit task/document/report file was created
+34. confirmation NO commit/push/deploy occurred
+35. final git status
+36. estimated BL-83 completion percentage after investigation
+
+Do not perform implementation after the report.

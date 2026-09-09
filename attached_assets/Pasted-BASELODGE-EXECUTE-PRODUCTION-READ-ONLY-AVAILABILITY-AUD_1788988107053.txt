@@ -1,0 +1,149 @@
+BASELODGE — EXECUTE PRODUCTION READ-ONLY AVAILABILITY AUDIT
+
+AGENT LEVEL: POWER
+MODE: BUILD
+
+ACTION
+
+Execute the Production availability audit now.
+
+Do not create a plan. Do not create a task. Do not create documentation. Do not create a checkpoint. Do not create a Git commit.
+
+Use the existing BaseLodge Production access and run only the read-only queries required to determine whether the current Production ski-availability data is compatible with the canonical availability implementation from Task #507.
+
+CURRENT APPROVED GIT STATE
+
+Approved main commit:
+
+aef22dad42d6cee275241f65f4f1ba30308d5058
+
+At the start, report:
+- HEAD
+- origin/main
+- ahead/behind
+- git status
+
+KNOWN ENVIRONMENTAL NOISE
+
+The following are known Replit environmental noise and are not by themselves a reason to stop the audit:
+
+- modified `.replit`
+- untracked `attached_assets/Pasted-*`
+- Replit-generated prompt attachment files
+
+Do not stage, commit, modify, delete, or repair those files.
+
+GIT DRIFT RULE
+
+Do not allow legitimate BaseLodge source or Git history to drift from the approved commit.
+
+STOP only if one of the following occurs:
+
+- HEAD changes from the approved commit
+- a new local Git commit appears
+- origin/main changes unexpectedly
+- any application source, test, migration, config, dependency, or production code is modified
+- any legitimate BaseLodge file becomes staged
+- Replit creates a checkpoint or commit that contains anything beyond `.replit` or `attached_assets/Pasted-*`
+
+If a new Replit-generated commit contains ONLY `.replit` and/or `attached_assets/Pasted-*`, report it in the final audit report but DO NOT let that environmental-only noise prevent completion of the Production read-only audit.
+
+Do not attempt to repair Git state during the audit.
+
+PRODUCTION SAFETY
+
+READ-ONLY ONLY.
+
+Allowed:
+- SELECT queries
+- read-only inspection of Production schema/data
+- aggregate counts
+- non-identifying validation queries
+
+Forbidden:
+- INSERT
+- UPDATE
+- DELETE
+- DDL
+- migrations
+- backfills
+- Production mutations
+- Development mutations
+- source changes
+- config changes
+- deployment/publish
+- staging
+- committing
+- pushing
+
+AUDIT PURPOSE
+
+Determine whether existing Production availability data is compatible with Task #507 canonical ski availability before we publish current main.
+
+Inspect the implementation of Task #507 enough to establish the exact canonical data contract.
+
+Then audit Production for that contract.
+
+Verify at minimum:
+
+1. Relevant Production availability data can be read successfully.
+
+2. Identify the exact relevant tables/models/fields.
+
+3. Count total relevant Production availability records.
+
+4. Identify records incompatible with the canonical representation.
+
+Check for:
+- malformed or unsupported availability values
+- legacy representations no longer accepted
+- duplicate records that should collapse into one canonical representation
+- conflicting rows for the same user/date
+- null or invalid dates where prohibited
+- data that would be lost, misread, duplicated, or rendered incorrectly after publishing current main
+
+5. If Task #507 includes canonicalization helper logic, migration logic, or backfill rules, use those rules as the source of truth for the audit.
+
+Do NOT execute any canonicalization or backfill.
+
+6. Quantify:
+- total relevant records
+- compatible records
+- incompatible records
+- count by incompatibility category
+
+FINAL VERDICT
+
+Return exactly one:
+
+PASS
+Production data is already compatible. No Production mutation is required before publishing current main.
+
+or
+
+BLOCKED
+One or more Production records require remediation before publishing current main.
+
+If BLOCKED:
+- explain the incompatibility
+- give aggregate counts
+- propose the smallest remediation
+- DO NOT perform it
+
+FINAL REPORT
+
+Return a chat report containing:
+
+1. HEAD
+2. origin/main
+3. ahead/behind
+4. Git status
+5. Task #507 canonical availability contract discovered
+6. Production tables/fields inspected
+7. aggregate Production counts
+8. incompatibilities found and counts
+9. whether any Production mutation is required
+10. final verdict: PASS or BLOCKED
+11. whether current main is safe to publish
+12. confirmation that no Production data, Development data, source files, Git history, configuration, or deployment was intentionally changed
+13. any environmental-only Replit Git/checkpoint noise observed

@@ -1,0 +1,147 @@
+BASELODGE BUG — VERIFY AND APPLY EXISTING BL-83 MIGRATION TO PRODUCTION
+
+AGENT LEVEL: POWER
+MODE: BUILD
+APPROXIMATE BUG COMPLETION AFTER THIS STEP: 95%
+
+AUTHORIZED SCOPE
+
+Verify the EXISTING authoritative BaseLodge Supabase Production database revision and, ONLY if it is exactly one revision behind at bl442_worker_heartbeat, apply the EXISTING bl83_rsvp_deadline migration and verify Production afterward.
+
+DO NOT:
+- create or change database connections
+- create or change credentials
+- use Replit's unrelated managed database
+- create a new migration
+- modify application code
+- modify tests
+- modify configuration
+- create files or reports
+- modify .replit
+- create/update/search project tasks
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish or redeploy
+- perform unrelated work
+
+IMPORTANT
+
+BaseLodge Production already uses its existing authoritative Supabase Production database and credentials.
+
+Do not treat any Replit Agent credential limitation as evidence that BaseLodge is misconfigured.
+
+If Replit Agent cannot safely perform the existing Production database verification/migration using the established project mechanism, STOP and report that tooling limitation.
+
+Do not substitute another database.
+Do not ask to create new credentials.
+Do not improvise a different connection.
+
+KNOWN STATE
+
+Development has already been successfully migrated:
+
+bl442_worker_heartbeat -> bl83_rsvp_deadline
+
+Development verification passed:
+- physical rsvp_deadline column exists
+- nullable date
+- /my-trips works
+- adjacent trip reads work
+- 187 focused tests passed
+
+No application code change is required.
+
+PRODUCTION EXECUTION
+
+1. Confirm source Alembic graph still has exactly one head:
+
+bl83_rsvp_deadline
+
+2. Using BaseLodge's EXISTING guarded Production migration mechanism, verify the intended target is:
+
+supabase-production
+
+Do not expose connection strings or credentials.
+
+3. Perform the authorized read-only revision check against the authoritative Supabase Production database.
+
+Proceed ONLY if the revision is exactly:
+
+bl442_worker_heartbeat
+
+If Production is already at:
+
+bl83_rsvp_deadline
+
+then DO NOT migrate. Proceed directly to verification.
+
+If Production reports:
+- any earlier revision
+- no revision
+- multiple revisions
+- an unexpected revision
+
+STOP and report the exact state. Do not reconcile automatically.
+
+4. If Production is exactly at bl442_worker_heartbeat, verify read-only that:
+
+public.ski_trip.rsvp_deadline
+
+is absent.
+
+5. Apply ONLY the existing migration through BaseLodge's guarded Production Alembic mechanism:
+
+PYTHONPATH=. \
+BASELODGE_RUNTIME_ENV=production \
+BASELODGE_MIGRATION_MODE=1 \
+BASELODGE_MIGRATION_TARGET=supabase-production \
+BASELODGE_CONFIRM_PRODUCTION_MIGRATION=1 \
+alembic -c migrations/alembic.ini upgrade head
+
+Because the verified starting revision must be bl442_worker_heartbeat and the source must have exactly one head, this should apply only:
+
+bl442_worker_heartbeat -> bl83_rsvp_deadline
+
+6. After migration, verify read-only:
+
+Alembic revision:
+bl83_rsvp_deadline
+
+Physical column:
+public.ski_trip.rsvp_deadline
+
+Type:
+date
+
+Nullable:
+YES
+
+7. Verify Production behavior using existing authorized data only:
+
+- /health is healthy
+- /my-trips loads for an existing user with trips
+- History loads
+- Friends tab loads
+- trip detail loads
+- no new ProgrammingError
+- no new UndefinedColumn
+- no new /my-trips 500s
+
+Do not create disposable Production data.
+Do not perform unnecessary Production mutations.
+
+8. Report:
+
+- authoritative Production target verification
+- starting revision
+- whether migration was required
+- ending revision
+- physical column verification
+- Production Trips verification
+- relevant Production error-log verification
+- any remaining issue
+
+STOP AFTER VERIFICATION.
+
+DO NOT PUBLISH.
+DO NOT COMMIT OR PUSH.
+DO NOT MODIFY ANY FILES.

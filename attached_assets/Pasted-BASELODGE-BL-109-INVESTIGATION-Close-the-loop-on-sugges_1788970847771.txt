@@ -1,0 +1,417 @@
+BASELODGE — BL-109 INVESTIGATION
+Close the loop on suggested connections
+
+MODE
+POWER — PLAN
+
+TASK PROGRESS
+Starting: 0%
+Expected after this investigation: ~15%
+
+CRITICAL EXECUTION RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY INSTRUCTS.
+
+Do not take initiative beyond the stated investigation.
+Do not create notes or documentation files.
+Do not create attachments.
+Do not create commits.
+Do not stage anything.
+Do not modify configuration.
+Do not auto-fix unrelated issues.
+Do not perform follow-on work.
+Do not start implementation.
+Do not mutate repository state.
+
+Your report belongs only in the Replit chat.
+Do NOT save the report into the repository.
+
+If anything unexpected is found, STOP and report it.
+
+CURRENT APPROVED REPOSITORY STATE
+
+Expected:
+
+Branch:
+main
+
+Local HEAD:
+160d03e0eeb4257c3c975680731590cd13033254
+
+origin/main:
+160d03e0eeb4257c3c975680731590cd13033254
+
+Known unrelated working-tree state:
+
+- `.replit` is intentionally modified and unstaged.
+- several user-provided investigation/repair attachments are untracked.
+
+Preserve all of those exactly as found.
+
+Do NOT:
+- modify them;
+- stage them;
+- commit them;
+- delete them;
+- clean them up.
+
+Never use:
+
+git add .
+git add -A
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+Before analysis, verify and report:
+
+1. current branch
+2. current local HEAD
+3. current origin/main HEAD
+4. ahead count
+5. behind count
+6. git status --short
+
+If local HEAD or origin/main differs materially from the approved state, STOP before BL-109 analysis.
+
+OBJECTIVE
+
+Investigate the existing BaseLodge architecture needed for BL-109:
+
+When User A suggests that User B and User C know each other, and B and C later become connected in BaseLodge, User A should receive a lightweight confirmation such as:
+
+"John and Sarah connected"
+"You suggested they knew each other."
+
+This must extend the existing Suggested Connections, friendship, and Happening systems.
+
+Do not design a parallel social system.
+
+THIS IS INVESTIGATION ONLY.
+
+Do not modify:
+- application code
+- tests
+- schema
+- migrations
+- dependencies
+- configuration
+- database contents
+- Production
+- native/iOS/Android code
+
+Do not commit.
+Do not push.
+Do not deploy.
+
+BL-109 PRODUCT CONTRACT
+
+Required eventual behavior:
+
+1. User A suggests User B knows User C.
+2. BaseLodge retains enough data to identify:
+   - suggester/introducer
+   - suggested user B
+   - suggested user C
+   - suggestion timestamp
+3. If B and C later become connected in BaseLodge, BaseLodge can match that connection to the earlier suggestion.
+4. User A receives a lightweight confirmation, preferably through Happening.
+5. No action is required from B or C.
+6. Multiple qualifying suggesters may each receive confirmation.
+7. Do not assign exclusive credit.
+8. User-facing language must say the user "suggested they knew each other."
+9. Do not claim the suggester caused the connection.
+10. Do not expose private messages, conversations, activity, or relationship details.
+11. Do not create public scores, counts, badges, rankings, leaderboards, or gamification.
+12. Preserve useful suggestion/conversion data for future network intelligence.
+
+A. EXISTING SUGGESTED CONNECTIONS
+
+Trace the full existing Suggested Connections implementation.
+
+Identify:
+
+- UI surfaces
+- templates
+- frontend JavaScript
+- routes/endpoints
+- services/helpers
+- models/tables
+- migrations
+- notification/event logic
+- Happening integration
+- analytics events, if any
+- tests
+
+Answer exactly:
+
+1. What happens today when User A suggests User B knows User C?
+2. What data is persisted?
+3. Is the suggester identity stored durably?
+4. Are both suggested-user identities stored durably?
+5. Is suggestion timestamp stored?
+6. Is the B/C pair treated as ordered or unordered?
+7. Are duplicate suggestions possible?
+8. Is there existing lifecycle/status data?
+9. Is suggestion data retained or treated as disposable notification/event data?
+
+Cite exact file paths, functions/classes, models, and fields.
+
+B. FRIEND CONNECTION ARCHITECTURE
+
+Trace every authoritative production path by which two users become connected/friends.
+
+Identify:
+
+- friendship model/table
+- whether relationships are directed or symmetric
+- statuses
+- pending/accepted semantics
+- every path that creates an accepted connection
+- friend request acceptance paths
+- direct-connect paths
+- invitation/connect paths if applicable
+- services/helpers
+- whether one centralized integration point exists
+- whether any code path bypasses that integration point
+
+Answer:
+
+1. What exactly marks B and C as connected?
+2. What are ALL code paths that can cause that transition?
+3. Is there a safest single hook for BL-109 conversion detection?
+4. If not, what is the smallest reliable alternative?
+
+Cite exact code locations.
+
+C. HAPPENING ARCHITECTURE
+
+Trace how Happening currently works.
+
+Determine:
+
+- whether entries are persisted, dynamically derived, or both
+- models/tables
+- services/helpers
+- event types
+- recipient targeting
+- visibility rules
+- deduplication/idempotency
+- history behavior
+- rendering/templates
+- comparable existing social milestone events
+
+Answer:
+
+1. What existing pattern should BL-109 reuse?
+2. Would a new Happening event type be required?
+3. How can the confirmation be shown only to the qualifying suggester?
+
+Cite exact code locations.
+
+D. CURRENT CONNECTION NOTIFICATIONS / EVENTS
+
+Inspect what currently happens when:
+
+- a friend request is accepted
+- two users become connected
+- a connection suggestion is sent
+- a suggested connection is acted upon, if anything exists today
+- similar social milestones occur
+
+Determine whether BL-109 can reuse an existing connection-event mechanism.
+
+E. DATA MODEL GAP
+
+Determine whether the current persisted data is already enough to support BL-109.
+
+Evaluate whether BaseLodge can reliably retain:
+
+- introducer
+- unordered suggested pair
+- suggestion timestamp
+- conversion status
+- connection/conversion timestamp
+
+Do NOT assume a schema migration is needed.
+
+First determine what already exists.
+
+If a schema change appears necessary, explain exactly why existing data cannot satisfy the requirement.
+
+Do not create a migration.
+
+F. MATCHING / ATTRIBUTION RULE
+
+Recommend the smallest deterministic conversion rule.
+
+Evaluate:
+
+- suggestion must predate accepted connection
+- B/C and C/B equivalence
+- multiple suggesters
+- repeated suggestions by the same suggester
+- duplicate friendship acceptance
+- suggestion made after users are already connected
+- old suggestions
+- friendship removal then later reconnection
+- blocking/privacy changes
+- idempotency
+
+Do not infer causation.
+
+User-facing language should remain:
+
+"You suggested they knew each other."
+
+Not:
+
+"You introduced them"
+"You connected them"
+"You caused this connection"
+
+G. MULTIPLE SUGGESTERS
+
+Determine the cleanest way for:
+
+- User A to suggest B/C
+- User D to independently suggest B/C
+- B/C later connect
+- A and D each receive one qualifying confirmation
+- neither receives exclusive credit
+- neither receives duplicate confirmations
+
+H. PRIVACY / BLOCKING
+
+Identify existing privacy, blocking, or visibility behavior that BL-109 must preserve.
+
+The introducer should learn only:
+
+- that the pair connected
+- that they previously suggested the pair knew each other
+
+Do not expose:
+
+- messages
+- conversations
+- private activity
+- relationship details
+- who initiated the connection
+- private trip data
+- unrelated social activity
+
+Identify any blocking edge cases already represented in the current system.
+
+I. IDEMPOTENCY / CONVERSION STATE
+
+Determine whether BL-109 needs:
+
+- converted flag/status
+- converted_at timestamp
+- emitted/notified flag
+- unique constraint
+- event deduplication key
+- pair canonicalization
+
+Recommend the smallest reliable design consistent with existing architecture.
+
+J. TEST STRATEGY
+
+Identify focused tests required for implementation.
+
+At minimum:
+
+- one suggester, pair connects
+- multiple suggesters
+- reversed B/C order
+- duplicate suggestion
+- repeated suggestion by same suggester
+- duplicate friendship acceptance
+- suggestion predates connection
+- suggestion after pair already connected
+- unrelated pair connects
+- Happening visible only to qualifying suggester
+- no private data leakage
+- blocking/privacy case if applicable
+- friendship removal/reconnection if relevant
+- idempotent confirmation generation
+
+Also identify existing regression test files that should be extended rather than creating unnecessary new suites.
+
+K. IMPLEMENTATION PLAN
+
+Recommend the smallest safe implementation sequence.
+
+Prefer the fewest slices possible.
+
+Possible structure, only if supported by current architecture:
+
+1. persistence/matching foundation
+2. connection conversion hook
+3. Happening confirmation
+4. analytics if appropriate
+5. regression/acceptance verification
+
+If existing architecture allows fewer slices, recommend fewer.
+
+OUT OF SCOPE
+
+Do not implement or redesign:
+
+- friend recommendation algorithms
+- recommendation scoring
+- public introduction counts
+- badges
+- leaderboards
+- introducer rankings
+- messaging
+- Groups
+- non-member participants
+- native/iOS/Android
+- unrelated friendship refactors
+- analytics infrastructure
+- Production
+- database backfills
+- cleanup
+- performance work
+- DR work
+- unrelated backlog items
+
+FINAL REPORT
+
+Return exactly these sections:
+
+1. Repository/Git verification
+2. Existing Suggested Connections architecture
+3. Existing friendship/connection architecture
+4. Existing Happening architecture
+5. Exact persistence currently available
+6. Gaps found
+7. Recommended conversion/matching rule
+8. Multiple-suggester handling
+9. Idempotency recommendation
+10. Privacy/blocking considerations
+11. Recommended implementation slices
+12. Focused test plan
+13. Exact files likely to change
+14. Database migration required? YES / NO / UNCERTAIN, with evidence
+15. Overall implementation risk
+16. Recommended Replit Agent level + PLAN/BUILD mode for the first implementation slice
+17. Estimated BL-109 completion percentage after this investigation
+
+Do not make any changes.
+
+STOP after the report.
+
+ABSOLUTE FINAL RULE
+
+Your report must remain in the Replit chat only.
+
+Do not create a summary file.
+Do not create investigation notes.
+Do not create documentation.
+Do not create an attachment.
+Do not create a commit.
+Do not modify `.replit`.
+Do not start implementation.

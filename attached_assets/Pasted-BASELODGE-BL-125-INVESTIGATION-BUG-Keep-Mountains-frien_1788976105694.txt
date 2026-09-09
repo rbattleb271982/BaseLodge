@@ -1,0 +1,394 @@
+BASELODGE — BL-125 INVESTIGATION
+BUG — Keep Mountains friend counts fresh after trip changes
+
+REPLIT AGENT
+FREE — PLAN
+
+TASK PROGRESS
+BL-125: 0% → approximately 15%
+
+MODE
+INVESTIGATION ONLY.
+
+DO NOT implement the fix.
+DO NOT modify application code.
+DO NOT modify tests.
+DO NOT modify schema or migrations.
+DO NOT create a commit.
+DO NOT push.
+DO NOT deploy.
+
+==================================================
+CRITICAL EXECUTION RULE
+==================================================
+
+ONLY DO EXACTLY WHAT THIS PROMPT AUTHORIZES.
+
+Do not create documentation, notes, attachments, checkpoints, commits, or other repository artifacts unless explicitly authorized below.
+
+Do not automatically commit environmental files.
+
+Known unrelated local state may include:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+These are NOT part of BL-125.
+
+Preserve them exactly as they are.
+Do not stage them.
+Do not commit them.
+Do not delete them.
+Do not use them as a reason to mutate Git history.
+
+Never use:
+
+git add .
+git add -A
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+No Production access.
+No Production database access.
+No database mutation.
+No migration execution.
+No native/iOS/Android work.
+
+==================================================
+REPOSITORY GATE
+==================================================
+
+Before investigating, report:
+
+1. current branch
+2. local HEAD
+3. origin/main HEAD
+4. ahead/behind
+5. git status --short
+
+Expected approved HEAD after BL-109:
+
+9bef821cce66451aef1cc4e3e570796efa6d5a01
+
+Expected:
+
+- branch = main
+- local HEAD = approved HEAD
+- origin/main = approved HEAD
+- ahead = 0
+- behind = 0
+
+Known unrelated `.replit` and `attached_assets/Pasted-*` files may exist.
+
+IMPORTANT:
+
+If Replit itself has automatically created local commits containing ONLY:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+do NOT begin an endless stop/repair cycle.
+
+Instead:
+
+1. inspect those unexpected commits using Git metadata only;
+2. confirm they contain ONLY those known environmental-noise paths;
+3. if and only if they contain no application/source/test/schema/dependency/native/secret/signing files, restore local main to origin/main using a safe mixed reset that preserves the files in the working tree;
+4. create NO commit;
+5. push NOTHING;
+6. confirm local HEAD again equals origin/main;
+7. continue the investigation.
+
+If ANY unexpected commit contains anything outside `.replit` or `attached_assets/Pasted-*`:
+
+STOP immediately and report it.
+
+Do not reset it.
+
+==================================================
+BL-125 OBJECTIVE
+==================================================
+
+Investigate the existing bug:
+
+"Keep Mountains friend counts fresh after trip changes"
+
+We need to understand why friend-related counts displayed in the Mountains experience can become stale after trip data changes.
+
+Do not assume the Notion task title fully describes the implementation problem.
+
+Trace the actual current architecture and determine:
+
+- what counts exist;
+- what each count means;
+- where they are calculated;
+- whether they are live-derived, cached, denormalized, session-derived, or persisted;
+- which trip mutations should affect them;
+- which mutations currently fail to make them fresh;
+- the smallest safe correction.
+
+==================================================
+INVESTIGATE THE MOUNTAINS EXPERIENCE
+==================================================
+
+Trace all relevant Mountains surfaces, including as applicable:
+
+- Mountains list/index
+- Mountain cards
+- Mountain Detail
+- friend/social counts
+- "friends going"
+- "friends interested"
+- friend trip counts
+- upcoming/future friend presence
+- any other numeric friend indicator shown for a mountain
+
+Identify the exact UI copy and semantics for every affected count.
+
+For each count, identify:
+
+1. template/component
+2. route/API supplying it
+3. service/helper/query supplying it
+4. underlying tables/models
+5. whether it is recomputed per request or obtained from cached/derived state
+
+Do not infer semantics from variable names alone.
+Trace actual usage.
+
+==================================================
+TRACE TRIP MUTATIONS
+==================================================
+
+Identify ALL existing trip operations that can legitimately change a mountain friend count.
+
+At minimum investigate:
+
+- trip creation
+- trip deletion
+- trip cancellation/archive if applicable
+- mountain/resort change
+- trip date change
+- organizer changes if supported
+- invite creation
+- invite acceptance
+- invite decline
+- RSVP Going
+- RSVP Interested
+- RSVP removal/change
+- participant removal
+- participant-specific attendance date changes
+- friend relationship changes if they affect eligibility
+- privacy/public/private trip changes if they affect visibility
+
+Do not assume every operation should affect every count.
+
+Build a matrix:
+
+TRIP/RELATIONSHIP MUTATION
+→ WHICH MOUNTAIN COUNT SHOULD CHANGE?
+→ WHY?
+→ DOES CURRENT CODE MAKE IT FRESH?
+→ IF NOT, WHERE DOES STALENESS ENTER?
+
+==================================================
+CHECK EXISTING SEMANTICS
+==================================================
+
+Preserve existing BaseLodge product semantics.
+
+Specifically inspect how the counts currently treat:
+
+- direct friends
+- organizers
+- Going participants
+- Interested participants
+- Pending participants
+- Declined participants
+- removed participants
+- legacy accepted attendance if applicable
+- participant-specific attendance windows
+- past trips
+- current trips
+- future trips
+- public trips
+- private trips
+- trips without a mountain
+- deleted/archived trips
+
+Do not redefine these rules during BL-125.
+
+The purpose is freshness, not changing who qualifies.
+
+If current code has conflicting semantics across Mountains surfaces, REPORT that separately rather than silently choosing a new rule.
+
+==================================================
+CACHE / DERIVED STATE INVESTIGATION
+==================================================
+
+Search specifically for anything that could make these counts stale:
+
+- cached query results
+- Flask/session values
+- application-level caches
+- request-scoped cached values
+- denormalized columns
+- persisted aggregates
+- materialized data
+- precomputed dictionaries/maps
+- memoization
+- browser/local storage
+- frontend state retained after mutation
+- API response caching
+- invalidation hooks
+- mutation-specific refresh logic
+
+Determine whether the problem is:
+
+A. backend count is stale,
+B. backend is correct but frontend does not refresh,
+C. both,
+D. something else.
+
+==================================================
+TEST COVERAGE
+==================================================
+
+Find existing tests covering:
+
+- Mountains friend counts
+- Mountain Detail social intelligence
+- trip creation/update/delete effects
+- RSVP effects
+- participant changes
+- mountain changes
+- trip date changes
+- friendship visibility
+- privacy behavior
+
+Identify exactly which freshness transitions are currently untested.
+
+Do NOT add tests yet.
+
+==================================================
+PERFORMANCE
+==================================================
+
+BL-125 must not solve freshness by creating an obvious performance regression.
+
+Report:
+
+- current query count/pattern
+- whether counts are computed in bulk or per mountain
+- any N+1 risk
+- whether the smallest proposed fix changes request-time query behavior
+- whether existing indexes support the proposed approach
+
+Do not perform a broad performance refactor.
+
+BL-162 and other performance tasks are separate work.
+
+==================================================
+QUESTIONS THE REPORT MUST ANSWER
+==================================================
+
+Return explicit answers to these questions:
+
+1. What exact Mountains friend counts can become stale?
+
+2. What is the current product meaning of each affected count?
+
+3. Where is each affected count calculated?
+
+4. Is the stale value backend-derived, frontend-retained, cached, persisted, or something else?
+
+5. What exact sequence of user actions reproduces the bug?
+
+6. Which trip/RSVP/participant/friendship mutations should cause each count to change?
+
+7. Which of those mutations currently fail to produce a fresh count?
+
+8. What is the root cause?
+
+9. Is there one shared integration point that can fix the problem, or are multiple bounded changes required?
+
+10. Can this be fixed without a schema migration?
+
+11. Can this be fixed without changing existing count semantics?
+
+12. What exact production files would likely need to change?
+
+13. What exact test files would likely need to change or be added?
+
+14. What regression risks exist?
+
+15. What is the smallest safe implementation plan?
+
+==================================================
+IMPLEMENTATION PLAN FORMAT
+==================================================
+
+Propose the smallest implementation in bounded slices.
+
+Prefer something like:
+
+Slice 1
+- regression tests proving current stale behavior
+
+Slice 2
+- smallest freshness correction
+
+Slice 3
+- focused regression verification
+
+But base the actual slices on what the repository shows.
+
+Do NOT implement them during this run.
+
+==================================================
+STOP CONDITIONS
+==================================================
+
+STOP and report instead of proceeding if investigation shows that BL-125 requires:
+
+- schema migration
+- Production data repair
+- destructive data changes
+- broad redesign of trip semantics
+- broad redesign of Mountains social intelligence
+- native/iOS/Android changes
+- security/privacy model changes
+- touching prohibited signing assets
+- unrelated architecture refactor
+
+A schema migration is not automatically forbidden for the eventual task, but it requires separate approval.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return a concise but complete investigation report containing:
+
+1. Repository/Git verification
+2. Current Mountains count architecture
+3. Exact affected count(s)
+4. Current product semantics
+5. Reproduction path(s)
+6. Mutation/freshness matrix
+7. Root cause
+8. Backend vs frontend determination
+9. Existing test coverage
+10. Missing regression coverage
+11. Performance implications
+12. Exact likely files to change
+13. Whether schema/migration is required
+14. Proposed smallest implementation slices
+15. Risks and STOP conditions
+16. Confirmation that no files were modified
+17. Confirmation that no commit/push/deployment occurred
+18. Final git status
+19. Estimated BL-125 completion percentage after investigation
+
+STOP after the investigation report.

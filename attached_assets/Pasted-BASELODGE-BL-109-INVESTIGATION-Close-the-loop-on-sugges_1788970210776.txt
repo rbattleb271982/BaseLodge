@@ -1,0 +1,306 @@
+BASELODGE — BL-109 INVESTIGATION
+Close the loop on suggested connections
+
+MODE
+POWER — PLAN ONLY
+
+TASK PROGRESS
+Starting: 0%
+Expected after this investigation: ~15%
+
+OBJECTIVE
+
+Investigate the existing BaseLodge implementation needed for BL-109:
+
+When User A suggests that User B and User C know each other, and B and C later become connected in BaseLodge, User A should eventually receive a lightweight confirmation such as:
+
+"John and Sarah connected"
+"You suggested they knew each other."
+
+This task must extend the existing Suggested Connections + friendship + Happening architecture. Do not design or implement a parallel social system.
+
+THIS IS INVESTIGATION ONLY.
+
+Do not modify application code.
+Do not modify schema.
+Do not create migrations.
+Do not commit.
+Do not push.
+Do not deploy.
+Do not mutate any database.
+Do not modify Notion.
+
+CURRENT APPROVED REPOSITORY STATE
+
+Expected approved GitHub/local HEAD:
+
+160d03e0eeb4257c3c975680731590cd13033254
+Add Open to Ski sharing
+
+Parent:
+
+296bb9e1253a22d954e52711340db785de33759e
+Canonicalize ski availability
+
+Before investigating, verify and report:
+
+1. current branch;
+2. current HEAD;
+3. origin/main HEAD if safely available;
+4. git status --short.
+
+IMPORTANT DIRTY-FILE RULE
+
+There is one known intentionally unrelated dirty file:
+
+.replit
+
+It contains unrelated port-5050 configuration.
+
+DO NOT:
+- modify it;
+- discard it;
+- stage it;
+- commit it;
+- normalize it;
+- include it in any feature work.
+
+Preserve all unrelated dirty files exactly as found.
+
+NEVER use:
+
+git add -A
+git add .
+
+NEVER inspect, read, modify, copy, stage, or delete:
+
+android/baselodge-release-key.jks
+
+If repository state differs materially from the expected state, STOP before any feature analysis that could become unreliable and report the discrepancy.
+
+BL-109 PRODUCT CONTRACT
+
+Objective:
+Close the loop for users who suggest that two people know each other by letting the suggester know when those people later connect in BaseLodge.
+
+Required eventual behavior:
+
+1. User A suggests User B ↔ User C.
+2. BaseLodge retains:
+   - suggester/introducer;
+   - suggested user B;
+   - suggested user C;
+   - suggestion timestamp.
+3. If B and C later become connected in BaseLodge, BaseLodge can match that connection to the earlier suggestion.
+4. User A receives a lightweight confirmation, preferably through the existing Happening system.
+5. No manual confirmation is required from B or C.
+6. If multiple people suggested the same pair, each qualifying suggester may receive confirmation.
+7. Do not assign exclusive credit.
+8. User-facing language must say the user "suggested they knew each other," not that the user caused the connection.
+9. Do not expose messages, conversations, private activity, or additional relationship information.
+10. Do not create public introduction scores, counts, badges, leaderboards, or similar gamification.
+11. Preserve suggestion/conversion information for potential future network intelligence.
+
+INVESTIGATION QUESTIONS
+
+A. EXISTING SUGGESTED CONNECTIONS
+
+Find the complete current Suggested Connections implementation.
+
+Report:
+
+- routes/endpoints involved;
+- services/helpers involved;
+- models/tables involved;
+- templates/frontend surfaces involved;
+- existing notification/Happening behavior;
+- analytics events, if any;
+- what happens when a user makes a suggestion;
+- exactly what data is persisted today;
+- whether the suggester identity is persisted;
+- whether both suggested-user identities are persisted;
+- whether a suggestion timestamp is persisted;
+- whether suggestions are deduplicated;
+- whether suggestions have statuses/lifecycle/history;
+- whether any suggestion records are deleted or treated as disposable.
+
+Cite exact file paths, functions/classes, model fields, and relevant code locations.
+
+B. FRIEND CONNECTION CREATION
+
+Trace every authoritative path by which two users become connected/friends.
+
+Determine:
+
+- what model/table represents the relationship;
+- whether friendship is directed or symmetric;
+- what statuses exist;
+- exactly when the relationship becomes an accepted/active connection;
+- every production path capable of creating that accepted connection;
+- whether there is already a centralized service/helper/event boundary we can safely hook into;
+- whether any paths bypass such a boundary.
+
+Do not assume there is only one connection path.
+
+Cite exact code locations.
+
+C. HAPPENING ARCHITECTURE
+
+Trace how Happening currently works.
+
+Determine:
+
+- whether Happening entries are persisted events, derived dynamically, or a combination;
+- relevant models/tables;
+- relevant services/helpers;
+- how recipient visibility is determined;
+- how duplicate Happening entries are prevented;
+- how historical Happening entries behave;
+- whether there is already an event type structurally suitable for:
+  "[B] and [C] connected — You suggested they knew each other."
+- whether introducing a new event type would be required.
+
+Cite exact code locations.
+
+D. EXISTING CONNECTION NOTIFICATIONS / EVENTS
+
+Search for what currently happens when:
+
+- a friend request is accepted;
+- two users become connected;
+- a suggested connection is acted upon;
+- similar social milestones occur.
+
+Determine whether BL-109 can reuse an existing event-generation mechanism rather than adding another one.
+
+E. DATA MODEL GAP
+
+Based strictly on current code, determine the smallest data-model change, if any, required to reliably retain:
+
+- introducer;
+- unordered suggested pair;
+- suggestion timestamp;
+- eventual conversion status;
+- eventual connection timestamp.
+
+Important:
+Do not propose a migration merely because the Notion task mentions retaining this data.
+
+First determine whether existing persisted structures already contain enough information.
+
+If a schema change appears necessary, explain exactly why existing data cannot support the product contract.
+
+Do not implement the schema change in this investigation.
+
+F. MATCHING / ATTRIBUTION RULE
+
+Recommend the smallest deterministic rule for deciding when a later connection counts as a converted suggestion.
+
+Evaluate at minimum:
+
+- suggestion must predate the accepted connection;
+- unordered pair matching (B/C equivalent to C/B);
+- multiple suggesters;
+- repeated suggestions by the same suggester;
+- suggestions made after the pair was already connected;
+- old suggestions;
+- friendship removal and later reconnection;
+- duplicate friend-acceptance execution / idempotency.
+
+Do not make stronger causal claims than BaseLodge can prove.
+
+G. PRIVACY
+
+Identify exactly what data BL-109 would expose to the introducer.
+
+Confirm that the intended implementation can restrict the confirmation to:
+
+- the identities already appropriate to surface under current friendship/suggestion visibility rules;
+- the fact that the pair connected;
+- the fact that the recipient previously suggested they knew each other.
+
+Identify any privacy or blocking edge cases already represented in the repository.
+
+Do not weaken existing privacy/blocking rules.
+
+H. TEST STRATEGY
+
+Identify the focused tests required before implementation.
+
+At minimum consider:
+
+- one suggester → pair connects;
+- multiple suggesters;
+- reversed pair ordering;
+- duplicate suggestion;
+- duplicate friendship acceptance;
+- suggestion after users are already connected;
+- suggestion predating connection;
+- nonmatching pair;
+- blocked/privacy-restricted cases if applicable;
+- Happening visibility only to qualifying suggester(s);
+- no private conversation/activity leakage;
+- historical behavior;
+- friendship removal/reconnection if relevant to current lifecycle.
+
+I. IMPLEMENTATION SLICES
+
+Recommend the smallest safe implementation sequence.
+
+Prefer bounded slices such as:
+
+1. persistence/matching foundation, only if actually required;
+2. connection-event hook and conversion recording;
+3. Happening presentation;
+4. analytics if appropriate;
+5. regression/acceptance.
+
+But change that sequence if the existing architecture supports something simpler.
+
+We want the fewest moving parts possible.
+
+OUT OF SCOPE
+
+Do not implement:
+
+- public introduction counts;
+- badges;
+- leaderboards;
+- introducer rankings;
+- recommendation scoring changes;
+- friend suggestion algorithm changes;
+- messaging changes;
+- unrelated friendship refactors;
+- Groups;
+- non-member roster work;
+- native/iOS/Android work;
+- Production deployment;
+- Production database work;
+- broad cleanup;
+- performance audits;
+- DR work;
+- unrelated backlog tasks.
+
+FINAL REPORT FORMAT
+
+Return:
+
+1. Repository/Git verification
+2. Existing Suggested Connections architecture
+3. Existing friendship/connection architecture
+4. Existing Happening architecture
+5. Exact current persistence available for BL-109
+6. Gaps found
+7. Recommended attribution/matching rule
+8. Privacy/blocking considerations
+9. Recommended implementation slices
+10. Focused test plan
+11. Files likely to change
+12. Database migration required? YES/NO/UNCERTAIN, with evidence
+13. Risk level
+14. Recommended Replit mode for the first implementation slice
+15. Estimated BL-109 completion percentage after this investigation
+
+Do not make changes.
+
+Stop after the investigation report.

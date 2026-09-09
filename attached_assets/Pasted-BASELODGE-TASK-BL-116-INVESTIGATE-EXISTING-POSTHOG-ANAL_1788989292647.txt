@@ -1,0 +1,135 @@
+BASELODGE TASK: BL-116 — INVESTIGATE EXISTING POSTHOG / ANALYTICS IMPLEMENTATION
+
+AGENT LEVEL: POWER
+MODE: PLAN
+SCOPE: Investigation only. Do not modify code, config, tests, dependencies, database schema, deployment settings, or Git state.
+APPROXIMATE TASK COMPLETION AFTER THIS STEP: 20%
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- create or modify application code
+- create or modify tests
+- create markdown/report files in the repo
+- modify .replit
+- create tasks or project records
+- install or change dependencies
+- change environment variables or secrets
+- change PostHog configuration
+- change database schema or migrations
+- stage, commit, push, reset, rebase, amend, or cherry-pick Git
+- deploy or publish
+- auto-fix unrelated issues
+- create backups/checkpoints
+- investigate unrelated BaseLodge work
+
+If anything necessary would require mutation, STOP and report that limitation instead.
+
+GOAL
+
+Investigate the current BaseLodge analytics/PostHog implementation so we can plan BL-116 safely and only change what is actually needed.
+
+BL-116 concerns:
+
+1. Anonymous identity
+   - Determine how anonymous server-side and client-side events are identified today.
+   - Specifically determine whether unrelated anonymous users can share a literal or otherwise common distinct_id such as "anonymous".
+   - Identify every code path that can emit anonymous analytics events.
+
+2. Authentication identity stitching
+   - Determine how PostHog identity is established for:
+     - email/password authentication
+     - Google authentication
+     - any other currently supported login method
+   - Trace identify/alias/reset behavior across:
+     - anonymous browsing
+     - signup
+     - login
+     - authenticated navigation
+     - logout
+     - account switching
+   - Identify any inconsistency between Google and email auth.
+
+3. Logout and session isolation
+   - Determine whether client analytics identity is reset on logout.
+   - Determine whether one user's analytics identity could persist into another user's session on the same browser/device.
+   - Identify exact code paths involved.
+
+4. Server-side analytics behavior
+   - Locate the server-side PostHog client/wrapper.
+   - Determine whether request-time tracking calls client.flush() or otherwise force synchronous delivery.
+   - Determine whether analytics failures are already non-blocking.
+   - Identify initialization, shutdown, batching, and flush behavior.
+
+5. Event naming and properties
+   - Inventory current BaseLodge analytics events and wrappers.
+   - Identify existing naming/property conventions, if any.
+   - Determine whether there is already an analytics contract or test coverage.
+   - Identify obvious inconsistencies only. Do not redesign the event taxonomy yet.
+
+6. is_internal
+   - Determine whether analytics currently supports an is_internal user/event property.
+   - Identify whether BaseLodge currently has any existing source of truth for internal/test/admin users that could safely support this.
+   - Do not invent a new internal-user model.
+
+7. Session replay and privacy
+   - Determine whether PostHog session replay is enabled/configured anywhere.
+   - Identify current masking, input capture, text capture, exclusion, or privacy settings.
+   - Identify what BaseLodge pages/components could expose private or sensitive user information if replay were insufficiently masked.
+   - Do not enable or change replay.
+
+8. Private data protection
+   - Inspect current analytics event payloads for potentially private or sensitive information.
+   - Pay particular attention to:
+     - email addresses
+     - full names
+     - free-text/user-generated content
+     - exact location/address data
+     - trip privacy data
+     - friend/social graph identifiers
+     - authentication/session data
+     - tokens/secrets
+   - Report actual findings from code. Do not speculate beyond evidence.
+
+9. Existing tests
+   - Find all analytics/PostHog-related tests.
+   - Summarize what they currently enforce.
+   - Identify the most important missing contract tests for BL-116.
+
+10. Scope / dependencies
+    - List exact files likely to need changes for BL-116.
+    - State whether any of the following appear necessary:
+      - database migration
+      - new dependency
+      - native iOS/Android build
+      - deployment/config change
+      - environment variable change
+      - PostHog dashboard-side setting change
+    - Do not make any of those changes.
+
+REPORT FORMAT
+
+Return the investigation in Replit chat only, using these sections:
+
+A. Executive summary
+B. Current client-side analytics architecture
+C. Current server-side analytics architecture
+D. Anonymous identity findings
+E. Login / signup / Google / email identity stitching
+F. Logout and account-switch isolation
+G. Server batching / flush / failure behavior
+H. Event naming and current analytics contract
+I. is_internal findings
+J. Session replay and privacy configuration
+K. Private-data findings
+L. Existing analytics tests
+M. Exact files likely involved
+N. Dependencies / migrations / deployment impact
+O. Recommended BL-116 implementation scope
+P. Open questions that genuinely require a product decision
+
+For every material finding, cite the exact file and relevant function/template/module.
+
+Do not write any files. Do not change anything.
