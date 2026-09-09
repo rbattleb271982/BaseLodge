@@ -81,6 +81,38 @@ def test_filters_counts_and_template_properties(client):
         assert page.alpha_groups[0]["letter"] == "A"
 
 
+def test_search_covers_full_authorized_set_without_enumerating_others(client):
+    with app.app_context():
+        viewer = _make_user("full-search-viewer")
+        for index in range(FRIENDS_PAGE_SIZE):
+            friend = _make_user(f"full-search-leading-{index:02d}")
+            friend.first_name = f"Alpha{index:02d}"
+            _connect(viewer, friend)
+        match = _make_user("full-search-match")
+        match.first_name = "Zulu"
+        match.last_name = "Authorized"
+        _connect(viewer, match)
+        one_way = _make_user("full-search-one-way")
+        one_way.first_name = "Zulu"
+        one_way.last_name = "Unauthorized"
+        _connect(viewer, one_way, reciprocal=False)
+        stranger = _make_user("full-search-stranger")
+        stranger.first_name = "Zulu"
+        stranger.last_name = "Stranger"
+        viewer.first_name = "Zulu"
+        viewer.last_name = "Self"
+        db.session.commit()
+
+        normal_page = load_friends_page(viewer.id)
+        search_page = load_friends_page(viewer.id, q="zulu")
+
+        assert match.id not in {row.id for row in normal_page.rows}
+        assert [row.id for row in search_page.rows] == [match.id]
+        assert viewer.id not in {row.id for row in search_page.rows}
+        assert one_way.id not in {row.id for row in search_page.rows}
+        assert stranger.id not in {row.id for row in search_page.rows}
+
+
 def test_cursor_is_strict_versioned_typed_and_filter_scoped(client):
     with app.app_context():
         viewer = _make_user("cursor-viewer")

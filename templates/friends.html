@@ -999,6 +999,32 @@
     // ── Server-backed reciprocal-friend search/filter paging ─────────────
     var _frDirectoryTimer = null;
     var _frDirectoryController = null;
+    var _frDirectoryGeneration = 0;
+    var _frDirectoryInFlight = false;
+    var _frDirectoryObserver = null;
+    var _frDirectoryAutoPaused = false;
+
+    function _frDirectoryStatus(message) {
+        var status = document.getElementById('fr-directory-status');
+        if (!status) return;
+        status.textContent = message || '';
+        status.style.display = message ? '' : 'none';
+    }
+
+    function _frStartDirectoryGeneration(preserveCursor) {
+        _frDirectoryGeneration += 1;
+        _frDirectoryInFlight = false;
+        _frDirectoryAutoPaused = false;
+        if (_frDirectoryController) _frDirectoryController.abort();
+        _frDirectoryController = null;
+        var button = document.getElementById('fr-load-more');
+        if (button && !preserveCursor) {
+            button.setAttribute('data-cursor', '');
+            button.removeAttribute('data-retry-reset');
+        }
+        _frDirectoryStatus('');
+        return _frDirectoryGeneration;
+    }
 
     function _frDirectoryParams(cursor) {
         var input = document.getElementById('fr-search');
@@ -1048,26 +1074,38 @@
         return firstAdded;
     }
 
-    async function _frFetchDirectory(reset) {
-        if (_frSearchQuery) return;
+    async function _frFetchDirectory(reset, source, requestedGeneration) {
+        if (_frSearchQuery) return false;
+        var generation = requestedGeneration;
+        if (reset && generation == null) {
+            generation = _frStartDirectoryGeneration();
+        }
+        if (generation == null) generation = _frDirectoryGeneration;
+        if (generation !== _frDirectoryGeneration || _frDirectoryInFlight) {
+            return false;
+        }
         var button = document.getElementById('fr-load-more');
         var cursor = reset ? null : (button ? button.getAttribute('data-cursor') : null);
-        if (!reset && !cursor) return;
+        if (!reset && !cursor) return false;
         if (_frDirectoryController) _frDirectoryController.abort();
         _frDirectoryController = new AbortController();
-        var originalText = button ? button.textContent : 'Load more';
+        _frDirectoryInFlight = true;
+        if (source === 'manual') _frDirectoryAutoPaused = false;
         if (button) {
             button.disabled = true;
             button.setAttribute('aria-busy', 'true');
             button.textContent = 'Loading…';
         }
+        _frDirectoryStatus(reset ? 'Loading friends…' : 'Loading more friends…');
         try {
             var response = await fetch('/api/friends/page?' + _frDirectoryParams(cursor), {
                 headers: {'Accept': 'application/json'},
                 signal: _frDirectoryController.signal
             });
+            if (generation !== _frDirectoryGeneration) return false;
             if (!response.ok) throw new Error('Unable to load friends');
             var payload = await response.json();
+            if (generation !== _frDirectoryGeneration) return false;
             var firstAdded = _frMergeDirectoryHtml(payload.html, reset);
             var input = document.getElementById('fr-search');
             var q = (input ? input.value : '').trim().toLowerCase();
@@ -1090,30 +1128,63 @@
             var queryText = document.getElementById('fr-query-text');
             if (queryText) queryText.textContent = input ? input.value.trim() : '';
             if (button) {
+                button.removeAttribute('data-retry-reset');
                 if (payload.has_more && payload.next_cursor) {
                     button.setAttribute('data-cursor', payload.next_cursor);
                     button.style.display = '';
                     button.disabled = false;
                     button.removeAttribute('aria-busy');
-                    button.textContent = originalText;
+                    button.textContent = 'Load more';
                 } else {
                     button.setAttribute('data-cursor', '');
                     button.style.display = 'none';
                 }
             }
-            if (!reset && firstAdded) {
+            if (!reset && firstAdded && source === 'manual') {
                 firstAdded.setAttribute('tabindex', '-1');
                 firstAdded.focus({preventScroll: true});
             }
+            _frDirectoryStatus(
+                payload.has_more ? '' : (reset ? '' : 'All friends loaded.')
+            );
+            return true;
         } catch (error) {
-            if (error.name === 'AbortError') return;
+            if (generation !== _frDirectoryGeneration) return false;
+            if (error.name === 'AbortError') return false;
+            _frDirectoryAutoPaused = true;
             if (button) {
                 button.disabled = false;
                 button.removeAttribute('aria-busy');
                 button.style.display = '';
                 button.textContent = 'Try again';
+                if (reset) button.setAttribute('data-retry-reset', 'true');
+            }
+            _frDirectoryStatus('Friends could not be loaded. Try again.');
+            return false;
+        } finally {
+            if (generation === _frDirectoryGeneration) {
+                _frDirectoryInFlight = false;
             }
         }
+    }
+
+    function _frLoadNext(source) {
+        if (_frDirectoryAutoPaused && source !== 'manual') return false;
+        return _frFetchDirectory(false, source || 'manual');
+    }
+
+    function _frSetupDirectoryObserver() {
+        if (_frDirectoryObserver) {
+            _frDirectoryObserver.disconnect();
+            _frDirectoryObserver = null;
+        }
+        var sentinel = document.getElementById('fr-directory-sentinel');
+        if (!sentinel || !('IntersectionObserver' in window)) return;
+        _frDirectoryObserver = new IntersectionObserver(function(entries) {
+            if (!entries.some(function(entry) { return entry.isIntersecting; })) return;
+            _frLoadNext('automatic');
+        }, {rootMargin: '0px 0px 320px 0px'});
+        _frDirectoryObserver.observe(sentinel);
     }
 
     function searchFriends(query) {
@@ -1134,15 +1205,22 @@
         }
         if (_frSearchQuery) return;
         clearTimeout(_frDirectoryTimer);
+        var generation = _frStartDirectoryGeneration();
         _frDirectoryTimer = setTimeout(function() {
-            _frFetchDirectory(true);
+            _frFetchDirectory(true, 'search', generation);
         }, 180);
     }
 
     document.addEventListener('click', function(event) {
-        if (!event.target.closest('#fr-load-more')) return;
-        _frFetchDirectory(false);
+        var button = event.target.closest('#fr-load-more');
+        if (!button) return;
+        if (button.getAttribute('data-retry-reset') === 'true') {
+            _frFetchDirectory(true, 'manual');
+            return;
+        }
+        _frLoadNext('manual');
     });
+    _frSetupDirectoryObserver();
 
     // ── Global member search ───────────────────────────────────────────────
     var _frSearchQuery = '';
@@ -1165,6 +1243,7 @@
         if (hint) hint.style.display = 'none';
 
         _frSearchQuery = q;
+        _frStartDirectoryGeneration();
         var gen = ++_frSearchGen;
 
         var alphaList = document.getElementById('fr-alpha-list');
@@ -1361,6 +1440,8 @@
                 _frSuggestionsPending = false;
             }
             var input = document.getElementById('fr-search');
+            _frStartDirectoryGeneration(true);
+            _frSetupDirectoryObserver();
             if (input) input.value = state.searchValue || '';
             _frUpdateChips();
             _frUpdateFilterBtn();
@@ -1550,6 +1631,8 @@
         var directory = document.querySelector('[data-fr-region="directory"]');
         if (!directory) throw new Error('Friends directory is unavailable');
         directory.innerHTML = presentation.directory_html || '';
+        _frStartDirectoryGeneration(true);
+        _frSetupDirectoryObserver();
         _frSetSuggestionCount(presentation.suggested_count);
 
         var suggestedRow = document.getElementById(
