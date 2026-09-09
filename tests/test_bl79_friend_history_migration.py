@@ -62,7 +62,7 @@ def test_revision_reparents_bl70_and_is_the_sole_head():
     bl87 = script.get_revision("bl87_wishlist_history")
     assert bl87.down_revision == bl80.revision
     assert bl70.down_revision == bl87.revision
-    assert script.get_heads() == ["bl442_worker_heartbeat"]
+    assert script.get_heads() == ["bl83_rsvp_deadline"]
 
 
 def test_upgrade_creates_exact_history_schema_checks_foreign_keys_and_index():

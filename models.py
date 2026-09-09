@@ -742,6 +742,7 @@ class SkiTrip(db.Model):
     mountain = db.Column(db.String(100))  # Kept for backward compatibility
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
+    rsvp_deadline = db.Column(db.Date, nullable=True)
     pass_type = db.Column(db.String(50), default="No Pass")
     is_public = db.Column(db.Boolean, default=True)
     trip_status = db.Column(db.String(10), nullable=True)  # 'planning' or 'going'; NULL treated as 'planning'

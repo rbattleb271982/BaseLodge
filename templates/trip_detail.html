@@ -1851,6 +1851,9 @@
                 <p class="td-header-dates">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</p>
             </div>
             {% endif %}
+            {% if trip.rsvp_deadline %}
+            <p class="td-header-notice" id="td-rsvp-deadline-text">RSVP by {{ trip.rsvp_deadline.strftime('%b') }} {{ trip.rsvp_deadline.day }}, {{ trip.rsvp_deadline.year }}</p>
+            {% endif %}
             {% if can_complete %}
             <form method="POST" action="{{ url_for('complete_trip_form', trip_id=trip.id) }}" style="margin-top:12px;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -1898,6 +1901,15 @@
                     </div>
                     <span class="td-edit-field-row-caret">›</span>
                 </button>
+                {% if not is_terminal %}
+                <button type="button" class="td-edit-field-row" onclick="openRsvpDeadlineSheet()" aria-label="Edit RSVP deadline">
+                    <div>
+                        <p class="td-edit-field-row-label">RSVP deadline</p>
+                        <p class="td-edit-field-row-value" id="td-edit-rsvp-deadline-value">{% if trip.rsvp_deadline %}{{ trip.rsvp_deadline.strftime('%b') }} {{ trip.rsvp_deadline.day }}, {{ trip.rsvp_deadline.year }}{% else %}Not set{% endif %}</p>
+                    </div>
+                    <span class="td-edit-field-row-caret">›</span>
+                </button>
+                {% endif %}
                 <div class="td-private-note-wrap">
                     <p class="td-edit-field-label">Private note</p>
                     <p class="td-private-note-hint">Only you can see this.</p>
@@ -2440,6 +2452,25 @@
             <button type="button" class="td-date-sheet-cancel" onclick="closeDateSheet()">Cancel</button>
         </div>
     </div>
+
+    {% if not is_terminal %}
+    <div class="td-date-sheet-overlay" id="td-rsvp-deadline-sheet" onclick="if(event.target===this)closeRsvpDeadlineSheet()">
+        <div class="td-date-sheet">
+            <div class="td-date-sheet-handle"></div>
+            <p class="td-date-sheet-title">RSVP deadline</p>
+            <div class="td-date-sheet-field">
+                <label class="td-date-sheet-label" for="td-rsvp-deadline-date">Deadline</label>
+                <input type="date" id="td-rsvp-deadline-date" class="td-date-sheet-input">
+            </div>
+            <p class="td-date-sheet-error" id="td-rsvp-deadline-error"></p>
+            <button type="button" class="td-date-sheet-save" id="td-rsvp-deadline-save" onclick="saveRsvpDeadline()">Save</button>
+            {% if trip.rsvp_deadline %}
+            <button type="button" class="td-date-sheet-cancel" id="td-rsvp-deadline-remove" onclick="removeRsvpDeadline()">Remove deadline</button>
+            {% endif %}
+            <button type="button" class="td-date-sheet-cancel" onclick="closeRsvpDeadlineSheet()">Cancel</button>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Resort edit bottom sheet (owner only) -->
     <div class="td-resort-sheet-overlay" id="td-resort-sheet" onclick="if(event.target===this)closeResortSheet()">
@@ -3783,7 +3814,95 @@
             const _tdTripId = {{ trip.id }};
             let _tdStartISO = "{{ trip.start_date.isoformat() if trip.start_date else '' }}";
             let _tdEndISO   = "{{ trip.end_date.isoformat() if trip.end_date else '' }}";
+            let _tdRsvpDeadlineISO = "{{ trip.rsvp_deadline.isoformat() if trip.rsvp_deadline else '' }}";
             const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+            function _formatDeadline(value) {
+                const parsed = new Date(value + 'T12:00:00');
+                return _months[parsed.getMonth()] + ' ' + parsed.getDate() + ', ' + parsed.getFullYear();
+            }
+
+            function _syncDeadlineDisplay(value) {
+                const editValue = document.getElementById('td-edit-rsvp-deadline-value');
+                if (editValue) editValue.textContent = value ? _formatDeadline(value) : 'Not set';
+                let shared = document.getElementById('td-rsvp-deadline-text');
+                if (value) {
+                    if (!shared) {
+                        shared = document.createElement('p');
+                        shared.id = 'td-rsvp-deadline-text';
+                        shared.className = 'td-header-notice';
+                        const dates = document.getElementById('td-dates-text');
+                        const datesContainer = dates ? dates.closest('button, div') : null;
+                        if (datesContainer) datesContainer.insertAdjacentElement('afterend', shared);
+                    }
+                    if (shared) shared.textContent = 'RSVP by ' + _formatDeadline(value);
+                } else if (shared) {
+                    shared.remove();
+                }
+            }
+
+            async function _saveRsvpDeadline(value) {
+                const error = document.getElementById('td-rsvp-deadline-error');
+                const save = document.getElementById('td-rsvp-deadline-save');
+                if (error) error.classList.remove('visible');
+                if (save) save.disabled = true;
+                try {
+                    const response = await fetch(`/api/trip/${_tdTripId}/update-rsvp-deadline`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': _tdCanonicalCsrfToken
+                        },
+                        body: JSON.stringify({ rsvp_deadline: value })
+                    });
+                    const data = await response.json();
+                    if (!response.ok || !data.success) {
+                        throw new Error(data.error || 'Something went wrong.');
+                    }
+                    _tdRsvpDeadlineISO = data.rsvp_deadline || '';
+                    _syncDeadlineDisplay(_tdRsvpDeadlineISO);
+                    closeRsvpDeadlineSheet();
+                    window.location.reload();
+                } catch (exception) {
+                    if (error) {
+                        error.textContent = exception.message || 'Network error. Please try again.';
+                        error.classList.add('visible');
+                    }
+                } finally {
+                    if (save) save.disabled = false;
+                }
+            }
+
+            window.openRsvpDeadlineSheet = function() {
+                const input = document.getElementById('td-rsvp-deadline-date');
+                const error = document.getElementById('td-rsvp-deadline-error');
+                if (input) input.value = _tdRsvpDeadlineISO;
+                if (error) {
+                    error.textContent = '';
+                    error.classList.remove('visible');
+                }
+                document.getElementById('td-rsvp-deadline-sheet')?.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            };
+            window.closeRsvpDeadlineSheet = function() {
+                document.getElementById('td-rsvp-deadline-sheet')?.classList.remove('active');
+                document.body.style.overflow = '';
+            };
+            window.saveRsvpDeadline = function() {
+                const value = document.getElementById('td-rsvp-deadline-date')?.value;
+                if (!value) {
+                    const error = document.getElementById('td-rsvp-deadline-error');
+                    if (error) {
+                        error.textContent = 'Select a deadline or use Remove deadline.';
+                        error.classList.add('visible');
+                    }
+                    return;
+                }
+                return _saveRsvpDeadline(value);
+            };
+            window.removeRsvpDeadline = function() {
+                return _saveRsvpDeadline(null);
+            };
 
             window.openDateSheet = function() {
                 document.getElementById('td-start-date').value = _tdStartISO;

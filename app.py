@@ -619,6 +619,7 @@ def redirect_to_canonical_domain():
 
 _SKI_TRIP_MUTATION_ENDPOINTS = frozenset({
     "update_trip_dates",
+    "update_trip_rsvp_deadline",
     "update_participant_dates",
     "update_trip_resort",
     "update_trip_pass",
@@ -6893,6 +6894,75 @@ def update_trip_dates(trip_id):
     _finish_route_messaging_events(_dates_uses_outbox, *_dates_intents)
     nights = (end_date - start_date).days
     return jsonify({"success": True, "start_date": start_date.isoformat(), "end_date": end_date.isoformat(), "nights": nights})
+
+
+@app.route(
+    "/api/trip/<int:trip_id>/update-rsvp-deadline",
+    methods=["POST"],
+)
+@login_required
+def update_trip_rsvp_deadline(trip_id):
+    validate_csrf_request()
+    trip = SkiTrip.query.filter_by(id=trip_id).with_for_update().first_or_404()
+    if is_terminal_trip(trip):
+        return _terminal_trip_json()
+    if trip.user_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({
+            "success": False,
+            "error": "A JSON object is required.",
+        }), 400
+    if "rsvp_deadline" not in data:
+        return jsonify({
+            "success": False,
+            "error": "RSVP deadline is required.",
+        }), 400
+
+    value = data["rsvp_deadline"]
+    if value == "":
+        value = None
+    if value is not None and not isinstance(value, str):
+        return jsonify({
+            "success": False,
+            "error": "RSVP deadline must be an ISO date or null.",
+        }), 400
+
+    deadline = None
+    if value is not None:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+            return jsonify({
+                "success": False,
+                "error": "Invalid date format. Use YYYY-MM-DD.",
+            }), 400
+        try:
+            deadline = date.fromisoformat(value)
+        except ValueError:
+            return jsonify({
+                "success": False,
+                "error": "Invalid calendar date.",
+            }), 400
+
+    trip.rsvp_deadline = deadline
+    trip.updated_at = datetime.utcnow()
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        app.logger.error("[update_trip_rsvp_deadline] error: %s", exc)
+        return jsonify({
+            "success": False,
+            "error": "Failed to save RSVP deadline.",
+        }), 500
+
+    return jsonify({
+        "success": True,
+        "rsvp_deadline": (
+            trip.rsvp_deadline.isoformat() if trip.rsvp_deadline else None
+        ),
+    })
 
 
 @app.route("/api/trips/<int:trip_id>/participant/dates", methods=["POST"])

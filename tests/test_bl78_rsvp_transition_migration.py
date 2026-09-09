@@ -77,7 +77,7 @@ def test_revision_precedes_deferred_bl70_in_single_linear_graph():
     bl87 = script.get_revision("bl87_wishlist_history")
     assert bl87.down_revision == "bl80_trip_lifecycle"
     assert deferred_bl70.down_revision == bl87.revision
-    assert script.get_heads() == ["bl442_worker_heartbeat"]
+    assert script.get_heads() == ["bl83_rsvp_deadline"]
 
 
 def test_upgrade_creates_only_history_schema_with_constraints_indexes_and_fks():
