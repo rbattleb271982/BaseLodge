@@ -7,12 +7,16 @@ import sqlalchemy as sa
 
 from models import (
     DismissedInsightCard,
+    FriendConnectionEvent,
+    FriendSuggestion,
     GuestStatus,
     Resort,
     SkiTrip,
     SkiTripParticipant,
+    User,
     db,
 )
+from services.visibility import reciprocal_friend_predicate
 
 
 HOME_HAPPENING_RENDER_CAP = 5
@@ -37,6 +41,25 @@ class HappeningCandidate:
     @property
     def card_key(self):
         return f"happening:{self.trip_id}"
+
+
+@dataclass(frozen=True)
+class SuggestedConnectionCandidate:
+    suggestion_id: int
+    formation_event_id: int
+    recipient_user_id: int
+    suggested_user_id: int
+    recipient_first_name: str | None
+    suggested_first_name: str | None
+    formed_at: object
+
+    @property
+    def activity_timestamp(self):
+        return self.formed_at
+
+    @property
+    def card_key(self):
+        return f"happening:suggested-connection:{self.formation_event_id}"
 
 
 def _build_happening_candidates_statement(
@@ -219,3 +242,192 @@ def get_happening_candidates(
     )
     rows = db.session.execute(statement).mappings().all()
     return [HappeningCandidate(**row) for row in rows]
+
+
+def _build_suggested_connection_candidates_statement(
+    *,
+    user_id,
+    limit=HOME_HAPPENING_RENDER_CAP,
+):
+    """Build the bounded, privacy-scoped BL-109 conversion query."""
+    suggestion = FriendSuggestion.__table__
+    formation = FriendConnectionEvent.__table__.alias(
+        "suggested_connection_formation"
+    )
+    prior_event = FriendConnectionEvent.__table__.alias(
+        "suggested_connection_prior_event"
+    )
+    intervening_removal = FriendConnectionEvent.__table__.alias(
+        "suggested_connection_intervening_removal"
+    )
+    recipient = User.__table__.alias("suggested_connection_recipient")
+    suggested = User.__table__.alias("suggested_connection_suggested")
+
+    pair_a = sa.case(
+        (
+            suggestion.c.recipient_id < suggestion.c.suggested_user_id,
+            suggestion.c.recipient_id,
+        ),
+        else_=suggestion.c.suggested_user_id,
+    )
+    pair_b = sa.case(
+        (
+            suggestion.c.recipient_id < suggestion.c.suggested_user_id,
+            suggestion.c.suggested_user_id,
+        ),
+        else_=suggestion.c.recipient_id,
+    )
+
+    # Event timestamps can tie. Event ID is the deterministic lifecycle
+    # tie-breaker everywhere this query needs "latest" or "earliest".
+    state_at_suggestion = (
+        sa.select(prior_event.c.event_type)
+        .where(
+            prior_event.c.user_a_id == pair_a,
+            prior_event.c.user_b_id == pair_b,
+            prior_event.c.occurred_at <= suggestion.c.created_at,
+        )
+        .order_by(
+            prior_event.c.occurred_at.desc(),
+            prior_event.c.id.desc(),
+        )
+        .limit(1)
+        .correlate(suggestion)
+        .scalar_subquery()
+    )
+    removal_before_formation = sa.exists(
+        sa.select(sa.literal(1)).where(
+            intervening_removal.c.user_a_id == pair_a,
+            intervening_removal.c.user_b_id == pair_b,
+            intervening_removal.c.event_type == "removed",
+            intervening_removal.c.occurred_at > suggestion.c.created_at,
+            sa.or_(
+                intervening_removal.c.occurred_at < formation.c.occurred_at,
+                sa.and_(
+                    intervening_removal.c.occurred_at
+                    == formation.c.occurred_at,
+                    intervening_removal.c.id < formation.c.id,
+                ),
+            ),
+        )
+    )
+
+    possible_matches = (
+        sa.select(
+            suggestion.c.id.label("suggestion_id"),
+            suggestion.c.created_at.label("suggestion_created_at"),
+            suggestion.c.recipient_id,
+            suggestion.c.suggested_user_id,
+            recipient.c.first_name.label("recipient_first_name"),
+            suggested.c.first_name.label("suggested_first_name"),
+            formation.c.id.label("formation_event_id"),
+            formation.c.occurred_at.label("formed_at"),
+            sa.func.row_number().over(
+                partition_by=suggestion.c.id,
+                order_by=(
+                    formation.c.occurred_at.asc(),
+                    formation.c.id.asc(),
+                ),
+            ).label("formation_rank"),
+        )
+        .select_from(
+            suggestion.join(
+                formation,
+                sa.and_(
+                    formation.c.user_a_id == pair_a,
+                    formation.c.user_b_id == pair_b,
+                    formation.c.event_type == "formed",
+                    formation.c.occurred_at > suggestion.c.created_at,
+                ),
+            )
+            .join(recipient, recipient.c.id == suggestion.c.recipient_id)
+            .join(suggested, suggested.c.id == suggestion.c.suggested_user_id)
+        )
+        .where(
+            suggestion.c.suggester_id == user_id,
+            sa.func.coalesce(state_at_suggestion, "") != "formed",
+            ~removal_before_formation,
+            reciprocal_friend_predicate(
+                user_id,
+                suggestion.c.recipient_id,
+            ),
+            reciprocal_friend_predicate(
+                user_id,
+                suggestion.c.suggested_user_id,
+            ),
+            reciprocal_friend_predicate(
+                suggestion.c.recipient_id,
+                suggestion.c.suggested_user_id,
+            ),
+        )
+        .subquery("possible_suggested_connection_matches")
+    )
+
+    earliest_matches = (
+        sa.select(*possible_matches.c)
+        .where(possible_matches.c.formation_rank == 1)
+        .subquery("earliest_suggested_connection_matches")
+    )
+    collapsed_matches = (
+        sa.select(
+            *earliest_matches.c,
+            sa.func.row_number().over(
+                partition_by=earliest_matches.c.formation_event_id,
+                order_by=(
+                    earliest_matches.c.suggestion_created_at.asc(),
+                    earliest_matches.c.suggestion_id.asc(),
+                ),
+            ).label("event_rank"),
+        )
+        .subquery("collapsed_suggested_connection_matches")
+    )
+
+    dismissed = DismissedInsightCard.__table__
+    card_key = (
+        sa.literal("happening:suggested-connection:")
+        + sa.cast(collapsed_matches.c.formation_event_id, sa.String())
+    )
+    is_dismissed = sa.exists(
+        sa.select(sa.literal(1)).where(
+            dismissed.c.user_id == user_id,
+            dismissed.c.card_type == "happening",
+            dismissed.c.card_key == card_key,
+        )
+    )
+
+    return (
+        sa.select(
+            collapsed_matches.c.suggestion_id,
+            collapsed_matches.c.formation_event_id,
+            collapsed_matches.c.recipient_id.label("recipient_user_id"),
+            collapsed_matches.c.suggested_user_id,
+            collapsed_matches.c.recipient_first_name,
+            collapsed_matches.c.suggested_first_name,
+            collapsed_matches.c.formed_at,
+        )
+        .where(
+            collapsed_matches.c.event_rank == 1,
+            ~is_dismissed,
+        )
+        .order_by(
+            collapsed_matches.c.formed_at.desc().nulls_last(),
+            collapsed_matches.c.formation_event_id.desc(),
+        )
+        .limit(limit)
+    )
+
+
+def get_suggested_connection_candidates(
+    *,
+    user_id,
+    limit=HOME_HAPPENING_RENDER_CAP,
+):
+    """Return bounded BL-109 Happening confirmations for one introducer."""
+    if not user_id or limit <= 0:
+        return []
+    statement = _build_suggested_connection_candidates_statement(
+        user_id=user_id,
+        limit=limit,
+    )
+    rows = db.session.execute(statement).mappings().all()
+    return [SuggestedConnectionCandidate(**row) for row in rows]

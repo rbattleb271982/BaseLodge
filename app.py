@@ -12349,6 +12349,7 @@ def home():
     from services.happening import (
         HOME_HAPPENING_RENDER_CAP,
         get_happening_candidates,
+        get_suggested_connection_candidates,
     )
     happening_signals = []
     if friend_ids:
@@ -12360,6 +12361,16 @@ def home():
                 today=today,
                 limit=HOME_HAPPENING_RENDER_CAP,
             )
+            try:
+                _suggested_connection_candidates = (
+                    get_suggested_connection_candidates(
+                        user_id=user.id,
+                        limit=HOME_HAPPENING_RENDER_CAP,
+                    )
+                )
+            except Exception:
+                db.session.rollback()
+                _suggested_connection_candidates = []
             if app.debug:
                 print(
                     f"[HOME_PERF] happening_query={time.perf_counter() - _hp_t0:.4f}s"
@@ -12416,6 +12427,7 @@ def home():
                 else:
                     _action_verb = None
                 happening_signals.append({
+                    'kind': 'trip',
                     'person': person,
                     'action_line': action_line,
                     'action_verb': _action_verb,   # "Planning" / "Going to" / "Heading to" / None
@@ -12424,7 +12436,38 @@ def home():
                     'recency_label': recency_label,
                     'trip_id': ft.trip_id,
                     '_card_key': ft.card_key,
+                    '_activity_timestamp': ft.activity_timestamp,
                 })
+            for connection in _suggested_connection_candidates:
+                recipient_name = connection.recipient_first_name or 'Someone'
+                suggested_name = connection.suggested_first_name or 'Someone'
+                happening_signals.append({
+                    'kind': 'suggested_connection',
+                    'headline': (
+                        f"{recipient_name} and {suggested_name} connected"
+                    ),
+                    'detail': "You suggested they knew each other.",
+                    '_card_key': connection.card_key,
+                    '_activity_timestamp': connection.activity_timestamp,
+                })
+            def _happening_sort_key(signal):
+                timestamp = signal.get('_activity_timestamp')
+                if timestamp is None:
+                    return (float('-inf'), 0)
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+                stable_id = signal.get('trip_id', 0)
+                if signal.get('kind') == 'suggested_connection':
+                    stable_id = int(signal['_card_key'].rsplit(':', 1)[-1])
+                return (timestamp.timestamp(), stable_id)
+
+            happening_signals.sort(
+                key=_happening_sort_key,
+                reverse=True,
+            )
+            happening_signals = happening_signals[
+                :HOME_HAPPENING_RENDER_CAP
+            ]
             _diag_hap_candidates = len(happening_signals)
         except Exception:
             db.session.rollback()

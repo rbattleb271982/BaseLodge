@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import re
 from types import SimpleNamespace
@@ -63,10 +63,20 @@ def _happening_trip(friend_id):
     )
 
 
-def _get_home(client, user_id, *, feed=None, friend_trips=None, availability=None):
+def _get_home(
+    client,
+    user_id,
+    *,
+    feed=None,
+    friend_trips=None,
+    suggested_connections=None,
+    suggested_connections_error=False,
+    availability=None,
+):
     _login(client, user_id)
     feed = feed or []
     friend_trips = friend_trips or []
+    suggested_connections = suggested_connections or []
 
     def mocked_home_ideas(**_kwargs):
         dismissed = {
@@ -94,6 +104,11 @@ def _get_home(client, user_id, *, feed=None, friend_trips=None, availability=Non
                 result.append(candidate)
         return result[:5]
 
+    def mocked_suggested_connections(**_kwargs):
+        if suggested_connections_error:
+            raise RuntimeError("forced BL-109 query failure")
+        return suggested_connections
+
     with patch(
         "services.open_dates.get_available_dates_for_user",
         return_value=availability or [],
@@ -103,6 +118,9 @@ def _get_home(client, user_id, *, feed=None, friend_trips=None, availability=Non
     ), patch(
         "services.happening.get_happening_candidates",
         return_value=friend_trips,
+    ), patch(
+        "services.happening.get_suggested_connection_candidates",
+        side_effect=mocked_suggested_connections,
     ), patch(
         "app.get_all_active_resorts_map",
         return_value={},
@@ -127,6 +145,9 @@ def _get_home_context(client, user_id):
         return_value=[],
     ), patch(
         "services.happening.get_happening_candidates",
+        return_value=[],
+    ), patch(
+        "services.happening.get_suggested_connection_candidates",
         return_value=[],
     ), patch(
         "app.get_all_active_resorts_map",
@@ -437,6 +458,59 @@ def test_home_dismissal_is_idempotent_for_happening_and_opportunity(client):
                 card_type=card_type,
                 card_key=card_key,
             ).count() == 1
+
+
+def test_suggested_connections_share_the_existing_happening_cap(client):
+    with app.app_context():
+        viewer_id, friend_id = _setup_viewer_and_friend()
+
+    baseline = datetime(2026, 9, 1, 12, 0, 0)
+    friend_trips = []
+    for index in range(3):
+        row = _happening_trip(friend_id)
+        row.trip_id = index + 1
+        row.created_at = baseline + timedelta(minutes=index)
+        row.updated_at = None
+        row.activity_timestamp = row.created_at
+        row.card_key = f"happening:{row.trip_id}"
+        friend_trips.append(row)
+    suggested_connections = [
+        SimpleNamespace(
+            recipient_first_name=f"Recipient{index}",
+            suggested_first_name=f"Suggested{index}",
+            formed_at=baseline + timedelta(minutes=index + 3),
+            activity_timestamp=baseline + timedelta(minutes=index + 3),
+            card_key=f"happening:suggested-connection:{index + 10}",
+        )
+        for index in range(3)
+    ]
+
+    html = _get_home(
+        client,
+        viewer_id,
+        friend_trips=friend_trips,
+        suggested_connections=suggested_connections,
+    )
+
+    assert html.count('class="bl-happening-card"') == 5
+    assert "Recipient2 and Suggested2 connected" in html
+    assert "Recipient0 and Suggested0 connected" in html
+    assert "happening:1" not in html
+
+
+def test_suggested_connection_query_failure_preserves_trip_happening(client):
+    with app.app_context():
+        viewer_id, friend_id = _setup_viewer_and_friend()
+
+    html = _get_home(
+        client,
+        viewer_id,
+        friend_trips=[_happening_trip(friend_id)],
+        suggested_connections_error=True,
+    )
+
+    assert 'id="section-happening"' in html
+    assert "Test Peak" in html
 
 
 def test_home_header_variants_use_about_you_and_activity_disclosures():
