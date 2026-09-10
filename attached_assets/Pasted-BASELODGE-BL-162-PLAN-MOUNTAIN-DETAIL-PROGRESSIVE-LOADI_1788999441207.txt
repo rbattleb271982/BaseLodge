@@ -1,0 +1,409 @@
+BASELODGE — BL-162 PLAN: MOUNTAIN DETAIL PROGRESSIVE LOADING
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE BL-162 COMPLETION AFTER THIS STEP: 40%
+
+PLAN ONLY.
+
+DO NOT IMPLEMENT.
+
+CONTEXT
+
+The completed BL-162 investigation established:
+
+- GET /mountain/<slug> currently performs the entire Mountain Detail social query graph before returning initial HTML.
+- The route is authenticated.
+- Core mountain content does NOT require reciprocal friends, friend trips, participant rows, friend records, contextual insights, friend wishlist/visit summaries, or availability overlaps.
+- Existing social queries are already bulk-loaded and query-bounded.
+- The performance opportunity is moving that entire social graph off the critical initial-render path, NOT redesigning or optimizing the social queries themselves.
+- Existing privacy/visibility rules are correct and must remain unchanged.
+- No migration, dependency, configuration, native, or privacy-contract change is required.
+
+PRODUCT / UX DECISION
+
+Deferred social loading should begin IMMEDIATELY after the core Mountain Detail DOM renders.
+
+Do NOT use IntersectionObserver or viewport-triggered loading.
+
+The intended experience is:
+
+1. Core mountain content renders first.
+2. A compact neutral social loading region is present below it.
+3. The browser immediately requests the social fragment.
+4. Social content appears when ready.
+5. Empty social content hides the region.
+6. Failed social loading leaves the core page fully usable and provides a bounded Retry action.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- modify code
+- modify tests
+- create files
+- create/update/search/reconcile project tasks
+- create notes/docs/report files
+- modify .replit
+- modify attached_assets
+- install/change dependencies
+- modify database schema or data
+- modify secrets/configuration
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish/deploy
+- redesign Mountain Detail
+- change privacy/social eligibility
+- add shared-pass social semantics
+- add weather/media/recommendation features
+- optimize unrelated queries
+- change BL-116 analytics work
+- change cancelled-trip work
+- auto-fix unrelated issues
+
+GIT PREFLIGHT
+
+Report:
+
+- HEAD
+- origin/main
+- git status --short
+
+Replit environmental commits/noise are not themselves a reason to expand this task.
+
+Do not clean or repair Git during PLAN.
+
+GOAL
+
+Produce the exact bounded implementation plan for moving Mountain Detail social/intelligence work behind one immediately loaded authenticated server-rendered fragment.
+
+APPROVED ARCHITECTURE
+
+Plan around:
+
+1. Existing GET /mountain/<slug> becomes CORE-ONLY.
+
+2. One new authenticated endpoint:
+
+GET /api/mountain/<slug>/social
+
+3. One shared server-side social builder containing the EXISTING Mountain Detail social aggregation and privacy logic.
+
+4. One server-rendered Jinja social partial.
+
+5. One small dedicated Mountain Detail JavaScript loader.
+
+6. Immediate deferred request after core DOM render.
+
+Do not propose multiple social endpoints unless concrete implementation evidence proves one endpoint cannot preserve the existing behavior.
+
+PLAN THE FOLLOWING
+
+A. CORE ROUTE
+
+Define exactly what GET /mountain/<slug> continues to calculate synchronously.
+
+It should retain only what is required for:
+
+- active resort lookup
+- mountain name/location
+- resort/pass mappings
+- viewer pass coverage
+- viewer recorded-visit state
+- viewer wishlist state
+- Plan Trip CTA
+- Wishlist CTA
+- shared app shell
+- existing independent page-view tracking
+
+Identify exact current lines/functions that move out versus remain.
+
+The initial route must NOT execute the social query graph.
+
+B. SHARED SOCIAL BUILDER
+
+Plan extraction of the existing social aggregation into ONE shared server-side function/helper.
+
+It must preserve EXACTLY the current rules for:
+
+- reciprocal direct friends
+- public resort trips
+- active/legacy trip lifecycle
+- Going/Interested participation
+- Going precedence
+- duplicate suppression
+- recorded visits
+- friend wishlist
+- contextual friend insights
+- availability overlaps
+- attendance overrides
+- current/future season windows
+- private trip exclusion
+- pending/declined/removed exclusion
+- terminal trip exclusion
+- friend-of-friend exclusion
+
+Do not rewrite these semantics.
+
+Prefer moving existing logic intact rather than reimplementing it.
+
+Specify:
+- helper name/location
+- inputs
+- returned context
+- how query-bounded bulk loading is preserved
+
+C. SOCIAL ENDPOINT
+
+Plan:
+
+GET /api/mountain/<slug>/social
+
+Requirements:
+
+- @login_required
+- same active-resort lookup semantics as canonical Mountain Detail
+- invoke the shared social builder
+- render one Jinja partial
+- return a bounded response suitable for immediate client insertion
+- no mutation
+- no analytics/page-view side effects
+- no wishlist side effects
+
+Determine whether the response should be:
+- raw rendered HTML, OR
+- JSON containing rendered HTML
+
+Prefer the simplest established BaseLodge pattern unless there is a concrete reason otherwise.
+
+Define behavior for:
+- valid resort + social results
+- valid resort + no social results
+- missing/inactive resort
+- unauthenticated request
+- server failure
+
+D. TEMPLATE EXTRACTION
+
+Plan extraction of the current social section from:
+
+templates/mountain_detail.html
+
+into:
+
+templates/components/mountain_social.html
+
+or another clearly justified bounded partial.
+
+Preserve existing:
+- markup
+- macros
+- wording
+- friend names
+- date formatting
+- pluralization
+- links
+- suppression rules
+- visual hierarchy
+
+Do not redesign.
+
+Define how the partial communicates whether it contains meaningful social content so the client can hide the region on a successful empty response.
+
+E. INITIAL LOADING REGION
+
+Plan the smallest initial placeholder in mountain_detail.html.
+
+Requirements:
+
+- below the existing core content
+- no names/counts/inferred social state before response
+- compact enough to limit layout shift
+- accessible loading semantics
+- core page remains fully interactive
+
+Do not create a skeleton that imitates private/social content.
+
+F. CLIENT LOADER
+
+Plan one dedicated file:
+
+static/js/mountain-detail.js
+
+or justify a different existing file.
+
+It must:
+
+- start social fetch immediately after DOM/core render
+- use same-origin credentials
+- insert only the server-rendered fragment
+- distinguish success-empty from failure
+- hide region after successful empty response
+- show generic bounded failure state on failure
+- provide Retry
+- prevent stale/older requests from overwriting newer retry results
+- prevent duplicate simultaneous requests
+- reject login/auth redirect HTML
+- not re-run page-view tracking
+- not interfere with wishlist behavior
+- fail safely if expected DOM elements are absent
+
+No framework/hydration architecture.
+
+G. FAILURE UX
+
+Use the approved contract:
+
+Loading:
+“Loading mountain community…”
+
+Failure:
+“Social details couldn’t load. Try again.”
+
+Retry should re-request the same social fragment.
+
+Successful empty:
+hide the social region completely.
+
+Do not expose whether hidden/private social data exists.
+
+H. QUERY BUDGET
+
+Plan testable guarantees that:
+
+1. Initial GET /mountain/<slug> no longer performs:
+   - reciprocal friendship queries
+   - friend-trip query
+   - participant query
+   - friend User preload
+   - friend availability queries
+
+2. Core route retains only its necessary mountain/personal-state/pass queries.
+
+3. Social endpoint remains bounded as friend/trip scale increases.
+
+4. Combined initial + social work does not introduce N+1 behavior.
+
+Do NOT require total combined query count to be lower than today if moving work off the critical path necessarily adds a small endpoint/resort lookup overhead.
+
+The goal is FIRST-RESPONSE latency/perceived performance and bounded deferred work.
+
+I. PRIVACY TESTS
+
+Plan explicit regressions proving the new endpoint preserves existing exclusions:
+
+- one-way/nonfriends
+- pending friends
+- removed friends
+- friends-of-friends
+- private trips
+- terminal trips
+- PENDING participant
+- DECLINED participant
+- REMOVED participant
+- availability notes/private detail
+- duplicate friend suppression
+- Going-over-Interested precedence
+
+Prefer adapting/reusing existing fixtures and assertions rather than rebuilding a second privacy test universe.
+
+J. CLIENT TESTS
+
+Plan focused JS tests for:
+
+- immediate request after initialization
+- successful HTML insertion
+- successful empty response hides region
+- failed request shows generic failure
+- Retry works
+- retry success replaces failure
+- stale response cannot overwrite newer result
+- duplicate simultaneous request prevented
+- auth redirect/login HTML rejected
+- wishlist behavior remains independent
+- page-view tracking is not duplicated
+
+K. EXISTING TEST MIGRATION
+
+Identify which current tests in:
+
+tests/test_mountain_detail.py
+
+must change because social content will no longer be in the initial GET response.
+
+For each category determine whether it should:
+- move to endpoint assertions
+- continue testing the core route
+- call the shared social builder directly
+- remain unchanged
+
+Do not simply delete existing social/privacy coverage.
+
+L. FILE SCOPE
+
+Specify exact expected files to:
+
+MODIFY
+CREATE
+REFERENCE ONLY
+
+Keep scope bounded.
+
+Likely production scope:
+
+MODIFY:
+- app.py
+- templates/mountain_detail.html
+
+CREATE:
+- templates/components/mountain_social.html
+- static/js/mountain-detail.js
+
+TESTS:
+- tests/test_mountain_detail.py
+- tests/test_authenticated_page_query_budget.py
+- likely tests/js/test_mountain_detail.js
+
+Only add other files if directly justified.
+
+M. RELEASE IMPACT
+
+Confirm expected:
+- migration: none
+- dependency: none
+- config/secrets: none
+- native build: none
+- deployment config: none
+- privacy-contract change: none
+
+N. IMPLEMENTATION ORDER
+
+Provide the safest bounded BUILD sequence.
+
+RETURN ONLY:
+
+A. Final core-route contract
+B. Shared social-builder design
+C. Social-endpoint contract
+D. Partial/template design
+E. Loading-region design
+F. Client-loader design
+G. Failure/empty-state behavior
+H. Query-budget contract
+I. Privacy-regression plan
+J. Client-test plan
+K. Existing-test migration plan
+L. Exact file scope
+M. Release/infrastructure impact
+N. Implementation sequence
+O. Any genuine decision still required before BUILD
+
+Cite exact current files/functions/sections supporting the plan.
+
+STOP AFTER THE PLAN.
+
+DO NOT IMPLEMENT.
+DO NOT CREATE OR UPDATE A TASK.
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
