@@ -1,0 +1,690 @@
+BASELODGE SCREEN-CAPTURE PROJECT — PHASE 3: BUILD ISOLATED MOBILE CAPTURE HARNESS
+
+AGENT LEVEL: POWER
+MODE: BUILD
+APPROXIMATE COMPLETION AFTER THIS PHASE: 70% OF SCREEN-CAPTURE PROJECT
+
+PURPOSE
+
+Implement the isolated deterministic mobile screen-capture harness designed in Phases 1 and 2.
+
+IMPORTANT:
+
+DO NOT generate the complete screenshot library in this phase.
+
+This phase builds and validates the infrastructure, synthetic personas, deterministic state controls, and capture manifest so that the full screenshot run can happen in Phase 4.
+
+The goal is to prove that we can safely and reproducibly render BaseLodge's actual mobile product using deterministic synthetic data without touching Development or Production.
+
+==================================================
+STRICT AUTONOMY RULE
+==================================================
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not take initiative beyond the requested task.
+
+Do not:
+
+- create Notion/project tasks
+- create unrelated documentation
+- create markdown report files
+- save this prompt
+- modify unrelated application behavior
+- modify native projects
+- modify deployment configuration
+- publish
+- deploy
+- stage
+- commit
+- push
+- reset
+- rebase
+- amend
+- cherry-pick
+- modify Production
+- modify the normal Development database
+- use real user data
+- call real external messaging providers
+
+Do not fix unrelated bugs discovered during this work.
+
+Report them only.
+
+==================================================
+REPOSITORY PREFLIGHT
+==================================================
+
+Before mutation, report:
+
+- HEAD
+- origin/main
+- ahead/behind
+- git status
+
+Environmental-only Replit changes such as:
+
+- `.replit`
+- `attached_assets/Pasted-*`
+
+are non-blocking and must not be included in implementation.
+
+If unexpected legitimate BaseLodge application/source/test/migration/config/dependency/native/deployment files are modified before implementation begins, STOP and report them.
+
+Do not auto-repair Git state.
+
+==================================================
+APPROVED PRODUCT SCOPE
+==================================================
+
+This capture harness is for the CURRENT BASELODGE MOBILE WEB PRODUCT.
+
+Do not support desktop captures.
+
+Canonical viewport:
+
+390 × 844
+
+Selective narrow stress viewport:
+
+360 × 800
+
+Exclude:
+
+- Admin
+- Legacy Group Trip
+- Planning Window
+- Overlap Detail
+- `/location-setup`
+- redirect-only aliases
+- native-only UI
+- backend/API-only visual states
+- dead/unsupported screens
+- external provider UI
+
+INCLUDE Season Snapshot as a standalone populated capture.
+
+INCLUDE the current buddy-pass Profile modal.
+
+INCLUDE Friend read-only Wishlist and Friend read-only Visited Mountains.
+
+For these three progressive surfaces, Loading and Error/Retry must be separate capture states:
+
+- Mountain Detail social
+- Friends Suggestions
+- My Trips progressive loading
+
+Do not combine Loading and Error/Retry into one screenshot.
+
+For deterministic 500/error transport states, prefer managed-browser response interception.
+
+DO NOT add a capture-only 500 application route merely to generate a screenshot.
+
+==================================================
+CAPTURE RUNTIME
+==================================================
+
+Implement a dedicated isolated capture runtime.
+
+Required identity:
+
+BASELODGE_RUNTIME_ENV=test
+BASELODGE_CAPTURE_MODE=1
+
+The capture workflow MUST fail closed unless both conditions are true.
+
+It must never use the normal Development or Production database.
+
+Use a disposable SQLite database under `/tmp` unless the existing architecture strongly requires the already-approved in-memory test strategy.
+
+The capture database must:
+
+- be created fresh
+- exist only for the capture workflow
+- contain synthetic data only
+- be disposable
+- never connect to Supabase
+- never connect to Production
+- never connect to Development
+- be deleted during cleanup
+
+Add explicit guards that refuse capture startup if the resolved database identity is not safe.
+
+Do not modify normal runtime database behavior.
+
+==================================================
+FROZEN CAPTURE CLOCK
+==================================================
+
+Use the approved frozen time:
+
+2027-01-15T12:00:00 America/Denver
+
+Implement the narrowest safe capture-only clock mechanism necessary so capture-sensitive application logic behaves as though this is the current time.
+
+It must control relevant:
+
+- fixture dates
+- trip lifecycle
+- invitations
+- availability
+- Open to Ski
+- relative time labels
+- seasonal logic
+- browser Date behavior where necessary
+
+Do not globally monkey-patch normal Production application behavior.
+
+The clock override must be impossible when capture mode is disabled.
+
+==================================================
+SIX SYNTHETIC PERSONAS
+==================================================
+
+Implement deterministic:
+
+EMPTY
+LIGHT
+TYPICAL
+HEAVY
+EXTREME
+EDGE
+
+Use the Phase 2 specifications as the contract.
+
+Do not use real users.
+
+Use stable logical IDs rather than relying on database numeric IDs in the capture manifest.
+
+==================================================
+HEAVY PERSONA
+==================================================
+
+This is critical.
+
+HEAVY must contain exactly:
+
+25 reciprocal friends
+15 viewer-associated trips
+
+Implement the approved HF01–HF25 social graph and HT01–HT15 trip structure from Phase 2.
+
+The Heavy fixture must intentionally produce visible:
+
+- Friends density
+- Friends pagination/progressive loading
+- Ideas
+- Happening
+- pass clusters
+- mountain overlap
+- Wishlist overlap
+- availability overlap
+- trip overlap
+- Mountain Detail social intelligence
+- capped previews
+- +N summaries
+- dense notifications
+- maximum 15-item Wishlist
+- populated visited mountains
+- populated equipment
+- multiple availability ranges across months
+
+Do not simply create 25 generic friends.
+
+Use deterministic clusters corresponding to the Phase 2 design:
+
+HF01–HF05 Aspen Core
+HF06–HF10 Vail Weekend
+HF11–HF15 Mammoth Dates
+HF16–HF20 Big Sky Collective
+HF21–HF23 Indy Mix
+HF24–HF25 Social-only
+
+Preserve BaseLodge authorization and privacy rules.
+
+Do not use hidden/private data to manufacture intelligence that the viewer should not see.
+
+==================================================
+HEAVY TRIPS
+==================================================
+
+Implement the approved 15-trip structure HT01–HT15.
+
+Collectively cover:
+
+- current
+- future
+- recent past
+- older history
+- completed
+- cancelled
+- organizer
+- Going participant
+- Interested participant
+- pending invitee
+- public
+- private
+- sparse roster
+- dense roster
+- stay information
+- planning information
+- Friends' Trips overlap
+
+Use deterministic dates derived from the frozen capture date.
+
+Ensure ordering and pagination are deterministic.
+
+==================================================
+FIXTURE ASSERTIONS
+==================================================
+
+The harness must validate the synthetic data before browser capture.
+
+At minimum assert:
+
+HEAVY:
+- exactly 25 reciprocal friends
+- exactly 15 viewer-associated trips
+- exactly 15 Wishlist mountains
+- expected visited mountain count
+- expected notification count
+- expected availability ranges
+- expected pass families
+- at least the required valid Ideas
+- at least the required valid Happening candidates
+- expected Mountain Detail overlap counts
+- expected +N conditions
+- expected My Trips Upcoming/History distribution
+- expected Friends pagination behavior
+- at least one organizer trip
+- at least one Going participant trip
+- at least one Interested participant trip
+- at least one pending invitation
+- public/private coverage
+- current/future/past coverage
+- completed/cancelled coverage
+
+Abort the capture run if fixture invariants fail.
+
+Do not silently continue with an incorrect synthetic account.
+
+==================================================
+AUTHENTICATION
+==================================================
+
+Do not use Google, Apple, OAuth, or real passwords.
+
+Implement the narrowest capture-only authentication/session bootstrap.
+
+It must:
+
+- exist only in capture mode
+- accept a stable logical persona identity
+- establish the normal authenticated BaseLodge application session
+- preserve real route behavior
+- be unavailable outside capture mode
+- not allow arbitrary Production/Development user IDs
+
+Prefer a signed isolated session or narrowly guarded capture bootstrap.
+
+==================================================
+EXTERNAL SIDE-EFFECT BLOCKING
+==================================================
+
+Capture mode must prevent real external side effects.
+
+Block or safely no-op:
+
+- SendGrid
+- OneSignal
+- APNs
+- FCM
+- PostHog network delivery
+- outbox workers
+- scheduled/background workers
+- OAuth network calls
+- administrative broadcasts
+- other external messaging/network side effects discovered during implementation
+
+Unexpected outbound requests should fail capture validation where practical.
+
+Do not alter normal Production behavior.
+
+==================================================
+DETERMINISTIC UI STATES
+==================================================
+
+Implement safe deterministic support for the capture states in the approved matrix.
+
+Successful screens should use real BaseLodge server rendering and real application data.
+
+For transient states such as:
+
+- loading
+- request failure
+- Retry
+- 403
+- 404
+- 500
+- concurrency 409
+- export rejection
+
+use narrowly scoped capture controls and/or managed-browser response interception.
+
+Do not create fake standalone HTML versions of real components.
+
+Do not replace real UI with screenshot-specific mock markup.
+
+For progressive loading:
+
+Mountain Detail:
+- deterministic Loading state
+- deterministic Error/Retry state
+- deterministic Success state
+- deterministic Empty/hidden state
+
+Friends Suggestions:
+- deterministic Loading
+- deterministic Error/Retry
+- deterministic Success
+
+My Trips:
+- deterministic progressive Loading
+- deterministic Error/Retry
+- deterministic Success continuation
+
+==================================================
+CAPTURE MANIFEST
+==================================================
+
+Implement a machine-readable manifest based on the approved Phase 2 matrix.
+
+Update the matrix for these product-owner decisions:
+
+1. Add one populated Season Snapshot capture.
+2. Add buddy-pass Profile modal capture.
+3. Add Friend read-only Wishlist capture.
+4. Add Friend read-only Visited Mountains capture.
+5. Split Mountain Detail Loading and Error/Retry.
+6. Split Friends Suggestions Loading and Error/Retry.
+7. Split My Trips progressive Loading and Error/Retry.
+
+Do not reduce the approved baseline simply to lower the screenshot count.
+
+Expected final matrix should therefore be approximately 104–106 captures.
+
+The exact count may differ slightly if implementation inspection proves that one of these requested states is not visually distinct or not currently reachable.
+
+If so, report the reason.
+
+Each manifest entry must include:
+
+- Capture ID
+- product area
+- screen
+- route template
+- persona
+- state
+- viewport
+- segment
+- logical route bindings
+- preconditions
+- interaction
+- deterministic wait condition
+- interception/state control if needed
+- output path
+- rationale
+
+Validate:
+
+- unique IDs
+- valid personas
+- valid viewport
+- no desktop entries
+- no forbidden routes
+- resolvable logical IDs
+- deterministic ordering
+
+==================================================
+SCREENSHOT NAMING
+==================================================
+
+Use:
+
+screen__persona__state__viewport__segment.png
+
+Examples:
+
+home__heavy__dense__mobile__ideas-happening.png
+
+trip-detail__heavy__dense-roster__narrow__people.png
+
+mountain-detail__edge__social-loading__mobile__community.png
+
+mountain-detail__edge__social-error__mobile__community.png
+
+==================================================
+OUTPUT LOCATION
+==================================================
+
+Capture artifacts must NOT become normal application assets.
+
+Use a clearly isolated output location such as:
+
+capture-output/
+
+with:
+
+capture-output/
+  manifest.json
+  run-metadata.json
+  screenshots/
+    auth/
+    onboarding/
+    home/
+    trips/
+    friends/
+    mountains/
+    availability/
+    profile/
+    notifications/
+    system/
+
+IMPORTANT:
+
+Determine whether these generated artifacts should be gitignored.
+
+They must not accidentally become part of the application deployment.
+
+Do not generate the full screenshot set yet.
+
+==================================================
+LONG PAGE SEGMENTS
+==================================================
+
+Implement deterministic anchor/segment definitions for long pages.
+
+At minimum:
+
+HOME
+- top
+- Ideas/Happening
+- lower intelligence/profile/availability area
+
+MY TRIPS
+- top/upcoming
+- continuation
+- history
+- Friends' Trips
+- Season Snapshot
+
+TRIP DETAIL
+- hero
+- people
+- stay/transport
+- planning
+- organizer actions
+- important overlays
+
+FRIENDS
+- top
+- continuation
+- suggestions
+- filters/search
+
+MOUNTAINS
+- results
+- relevant filter state
+
+MOUNTAIN DETAIL
+- hero
+- community/social sections
+
+PROFILE
+- top
+- relevant overlays/settings
+
+Do not scale entire long pages down into unreadable screenshots.
+
+==================================================
+BROWSER AUTOMATION HARNESS
+==================================================
+
+Implement the automation necessary for a future Phase 4 run.
+
+For each manifest row it should be capable of:
+
+1. Selecting/resetting the correct isolated persona state.
+2. Establishing the persona session.
+3. Setting 390×844 or approved 360×800.
+4. Navigating to the real BaseLodge route.
+5. Waiting for document readiness.
+6. Waiting for fonts.
+7. Applying required deterministic state interception.
+8. Performing the specified interaction.
+9. Scrolling the specified segment into position.
+10. Waiting for a state-specific DOM predicate.
+11. Disabling animation/caret blinking only for capture stability.
+12. Capturing the viewport.
+13. Recording browser console errors and failed requests.
+14. Verifying expected state markers.
+
+Avoid arbitrary sleeps as the primary synchronization mechanism.
+
+==================================================
+PHASE 3 VALIDATION RUN
+==================================================
+
+DO NOT run the complete 104+ screenshot library.
+
+Instead, validate the harness with a SMALL REPRESENTATIVE SAMPLE.
+
+Capture enough temporary validation screenshots to prove:
+
+1. EMPTY Home at 390×844
+2. HEAVY Home at 390×844
+3. HEAVY Friends at 390×844
+4. HEAVY Trip Detail dense roster at 360×800
+5. HEAVY Mountain Detail dense social at 390×844
+6. EDGE Mountain Detail Loading
+7. EDGE Mountain Detail Error/Retry
+8. one modal or sheet
+9. one 404/error page
+
+These are validation artifacts only.
+
+They should prove:
+
+- personas load
+- data is correct
+- responsive dimensions are correct
+- social overlap is real
+- long-page segmenting works
+- error/loading interception works
+- overlays capture correctly
+- screenshots export correctly
+
+Do not expand beyond this sample.
+
+==================================================
+TESTING
+==================================================
+
+Add focused automated tests for capture-mode safety and determinism.
+
+At minimum test:
+
+- capture mode refuses unsafe runtime identity
+- capture mode refuses Development DB
+- capture mode refuses Production DB
+- capture auth unavailable outside capture mode
+- fixture counts
+- Heavy friend graph invariants
+- Heavy trip invariants
+- frozen date behavior
+- external side effects disabled
+- manifest IDs unique
+- manifest contains no desktop viewport
+- manifest contains no excluded routes
+- logical route IDs resolve
+- cleanup removes temporary database
+- normal non-capture application behavior remains unchanged
+
+Run focused relevant tests.
+
+Run adjacent regressions where practical.
+
+Do not spend time on unrelated full-suite failures.
+
+If a broad suite cannot complete because of the known environment time limit, report it rather than changing unrelated code.
+
+==================================================
+GIT / DEPLOYMENT
+==================================================
+
+DO NOT:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+At completion, report the exact modified and created paths.
+
+Do not modify `.replit` unless technically unavoidable.
+
+Do not include `attached_assets/Pasted-*`.
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return:
+
+1. Repository state before implementation
+2. Exact files created/modified
+3. Capture runtime architecture
+4. Database isolation and safety guards
+5. Frozen-date implementation
+6. Persona implementation
+7. Heavy 25-friend graph verification
+8. Heavy 15-trip verification
+9. Authentication approach
+10. External side-effect protections
+11. Deterministic loading/error mechanism
+12. Final manifest screenshot count
+13. Count by product area
+14. Count by persona
+15. Count by 390×844 / 360×800
+16. Phase 3 validation screenshots generated
+17. Validation results
+18. Automated test results
+19. Any discovered issues
+20. Confirmation that Development and Production were untouched
+21. Confirmation that nothing was staged, committed, pushed, published, or deployed
+22. Recommendation for Phase 4 full capture run
+
+STOP after this report.
+
+Do not proceed to the full screenshot run.

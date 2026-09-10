@@ -94,5 +94,14 @@
     }
 
     window.BLLoadMountainSocial = loadSocial;
+    var captureControl = window.__BASELODGE_CAPTURE_MOUNTAIN_SOCIAL__;
+    if (captureControl === 'loading') {
+        showLoading();
+        return;
+    }
+    if (captureControl === 'error') {
+        showFailure();
+        return;
+    }
     loadSocial();
 })(window, document);

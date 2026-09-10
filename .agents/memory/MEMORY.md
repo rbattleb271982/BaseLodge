@@ -33,3 +33,4 @@
 - [Remember-cookie age enforcement](remember-cookie-age-enforcement.md) — Flask-Login 0.6.3 browser expiry is not server max-age; copied untimed values remain replayable until identity changes.
 - [CSRF mutation contract](csrf-mutation-contract.md) — global unsafe-method protection is sound; cookie-backed WebViews stay protected; safe-method persistence must be corrected or explicitly bounded.
 - [Privacy-isolated presentation](privacy-isolated-presentation.md) — allowlisted preview/export pages must suppress inherited identity, analytics, social-state, and flash channels.
+- [Capture transient UI controls](capture-transient-ui-controls.md) — drive transient states through browser-injected controls consumed by real components when managed request routing is unreliable.
