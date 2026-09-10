@@ -1,0 +1,321 @@
+BASELODGE SCREEN-CAPTURE PROJECT — PHASE 1: COMPLETE UI/STATE INVENTORY
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE COMPLETION: 20% OF THIS SCREEN-CAPTURE PROJECT
+
+PURPOSE
+
+We are preparing to export a comprehensive current-state visual reference of BaseLodge so the product can be redesigned externally.
+
+This is NOT a redesign task.
+This is NOT a bug-fixing task.
+This is NOT yet a screenshot-generation task.
+This is NOT authorization to create test data or modify the database.
+
+Your job is to inspect the current BaseLodge application and produce a comprehensive inventory of the screens, meaningful UI states, data-density states, and permutations that should be represented in a later screenshot capture matrix.
+
+We specifically need to support synthetic high-density scenarios such as:
+- 25 friends
+- 15 trips
+- substantial friend overlap
+- substantial mountain overlap
+- substantial pass overlap
+- substantial availability overlap
+- dense social-intelligence sections
+- long names/content where relevant
+- combinations of past, upcoming, organizing, attending, interested, invited, and other existing trip states where the current product supports them
+
+IMPORTANT:
+Do not assume those are the only density cases.
+Inspect the actual application and identify where data volume or combinations materially change the UI.
+
+STRICT READ-ONLY SCOPE
+
+Do not modify code.
+Do not modify databases.
+Do not create users.
+Do not create trips.
+Do not create fixture data.
+Do not create screenshots yet.
+Do not create repository files.
+Do not stage, commit, push, publish, deploy, or change configuration.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not take initiative beyond the requested task.
+Do not create tasks, project records, notes, docs, markdown report files, saved prompts, unrelated assets, or checkpoints.
+
+If something cannot be determined read-only, identify the gap instead of changing anything.
+
+STARTING REPOSITORY CHECK
+
+Report:
+- current HEAD
+- origin/main
+- ahead/behind
+- git status
+
+Environmental-only Replit changes such as `.replit` or `attached_assets/Pasted-*` are non-blocking and should simply be reported.
+
+If unexpected BaseLodge application/source/test/migration/config/dependency/native/deployment files are modified before this investigation begins, STOP and report them.
+
+PART 1 — COMPLETE SCREEN INVENTORY
+
+Inspect the active BaseLodge product and identify every meaningful user-facing screen/route/view.
+
+Include, where applicable:
+
+- Authentication
+- Signup
+- Login
+- Password/account recovery
+- Onboarding
+- Home
+- Trips
+- Trip creation
+- Trip detail
+- Trip editing
+- Trip participation/invite flows
+- Friends
+- Friend discovery/search
+- Friend/profile views
+- Mountains
+- Mountain discovery/search
+- Mountain Detail
+- Wishlist
+- Pass-related UI
+- Availability / Open to Ski
+- Profile
+- Profile editing
+- Settings
+- Notifications
+- Invites
+- Sharing
+- QR-related experiences
+- any current web-based wallet/connect surfaces
+- error pages
+- confirmation states
+- modals
+- drawers
+- overlays
+- menus
+- meaningful intermediate states
+- any other active user-facing product surface discovered in the code
+
+Do not include dead, abandoned, unreachable, or purely experimental screens without clearly identifying them as such.
+
+PART 2 — STATE INVENTORY FOR EACH SCREEN
+
+For every active screen, identify the meaningful states that can materially alter its visual design.
+
+Consider:
+
+- empty
+- sparse
+- normal
+- highly populated
+- extreme/stress
+- loading
+- success
+- validation failure
+- recoverable error
+- permission/access failure
+- no results
+- search results
+- pagination/progressive-loading states
+- pending
+- accepted
+- declined
+- removed
+- organizer
+- participant
+- viewer/non-owner
+- private/public where applicable
+- past/current/future
+- cancelled/completed where applicable
+- notification/read states
+- invite states
+- relationship states
+- wishlist states
+- pass states
+- availability states
+- social overlap states
+
+Only include states that actually exist or are logically supported by the current implementation.
+
+PART 3 — DATA-DENSITY ANALYSIS
+
+Identify every screen/component whose layout or information hierarchy can materially change as data volume increases.
+
+For each one, explain:
+
+1. What data drives density.
+2. What a sparse case looks like.
+3. What a normal case looks like.
+4. What a high-density case should contain.
+5. What an extreme stress case should contain.
+6. Whether 25 friends and/or 15 trips is relevant.
+7. Other useful stress dimensions.
+
+Examples of possible dimensions to inspect:
+
+- friend count
+- trip count
+- participant count
+- friend overlap
+- mountain overlap
+- pass overlap
+- availability overlap
+- wishlist size
+- notification count
+- search-result count
+- long names
+- long trip titles
+- long mountain/resort names
+- date ranges
+- multiple months
+- organizer vs participant content
+- social-intelligence clusters
+
+Do not invent application behavior. Base this on the current implementation.
+
+PART 4 — CROSS-STATE PERMUTATIONS
+
+Identify combinations where testing only one dimension at a time would miss an important design case.
+
+For example, if supported by the product:
+
+- many friends + many upcoming trips
+- many friends + high mountain overlap
+- many friends + high availability overlap
+- many participants + long names
+- many trips + mixed organizer/participant roles
+- dense data + mobile viewport
+- dense data + empty subsection
+- dense data + progressive loading
+- high social overlap + multiple passes
+
+Find the combinations that actually matter in BaseLodge.
+
+Do NOT generate a combinatorial explosion.
+
+Recommend the smallest set of representative permutations that gives strong design coverage.
+
+PART 5 — RESPONSIVE COVERAGE
+
+For every screen, determine whether we need:
+
+- mobile capture
+- desktop capture
+- both
+
+BaseLodge redesign is mobile-first, so mobile should receive the most comprehensive state coverage.
+
+Identify screens where desktop behavior materially differs enough to warrant additional captures.
+
+PART 6 — ERROR AND SYSTEM STATES
+
+Inventory the user-facing error/failure experiences that should eventually be captured for design purposes.
+
+This is NOT the comprehensive bug audit.
+
+We only need to know what visual states exist and should be included in the design reference.
+
+Include existing:
+
+- 400
+- 401
+- 403
+- 404
+- 500
+- invalid/missing resource
+- inline form errors
+- load failures
+- retry states
+- no-results states
+- expired/invalid invite or token states
+- other user-visible failure states
+
+PART 7 — DETERMINE SAFE SYNTHETIC-DATA OPTIONS
+
+READ-ONLY INVESTIGATION ONLY.
+
+Inspect the architecture and explain the safest ways we could later render deterministic synthetic personas without contaminating normal Development or Production data.
+
+We want the eventual capture system to support personas approximately like:
+
+EMPTY
+Brand-new account.
+
+LIGHT
+3–5 friends, 1–2 trips, limited overlap.
+
+TYPICAL
+Approximately 10 friends, several trips, normal overlap.
+
+HEAVY
+25 friends, 15 trips, substantial overlaps and populated sections.
+
+EXTREME
+Purpose-built stress conditions for layout testing.
+
+EDGE
+Specific conditional/error/partial-data states.
+
+Determine how this could safely be achieved using the current BaseLodge architecture.
+
+Prefer approaches that:
+- reuse actual BaseLodge templates/components
+- reuse actual responsive CSS
+- reuse actual frontend behavior where possible
+- are deterministic/repeatable
+- cannot affect Production
+- do not contaminate the normal Development database
+- can later be removed cleanly
+- allow the same state to be recaptured after redesign
+
+DO NOT IMPLEMENT ANY OPTION.
+
+PART 8 — EVENTUAL EXPORT APPROACH
+
+Investigate how Replit's managed browser/App Testing capabilities could later capture the approved matrix.
+
+Recommend an export structure that would make it easy to provide the entire current-state product reference to an external design workflow such as Claude.
+
+Consider deterministic naming such as:
+
+screen__persona__state__viewport.png
+
+Example only:
+home__heavy__default__mobile.png
+
+Also recommend:
+- folder organization
+- manifest/index format
+- how captures should map back to route/state/persona
+- how to distinguish mobile and desktop
+- whether any state needs multiple scroll-position captures
+- how long pages should be represented
+
+Do NOT generate screenshots or files yet.
+
+FINAL RESPONSE FORMAT
+
+Return the investigation in these sections:
+
+1. Repository state
+2. Active screen/route inventory
+3. Screen-by-screen meaningful states
+4. Data-density-sensitive surfaces
+5. Recommended cross-state permutations
+6. Mobile vs desktop capture requirements
+7. Error/system-state inventory
+8. Safe synthetic-persona options
+9. Recommended eventual export method
+10. Unknowns/gaps
+11. Proposed next step
+
+For the screen/state inventory, use a compact table where useful.
+
+The goal is to give us enough information to build the capture matrix ourselves before authorizing any implementation.
