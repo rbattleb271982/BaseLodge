@@ -1,0 +1,641 @@
+BASELODGE — BL-85 INVESTIGATION: NO-EXCLUSION INTELLIGENCE RULE
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE BL-85 COMPLETION AFTER THIS STEP: 25%
+
+READ-ONLY INVESTIGATION ONLY.
+
+DO NOT IMPLEMENT ANYTHING.
+
+==================================================
+PURPOSE
+==================================================
+
+BL-85 is a cross-product privacy/intelligence investigation.
+
+BaseLodge should not proactively aggregate, infer, rank, recommend, summarize, or notify based on private activity that the viewer is not authorized to see in a way that reveals or emphasizes that the viewer may have been excluded.
+
+Example:
+
+If several of a user's friends are participating in a PRIVATE Aspen trip that the viewer cannot see, BaseLodge must not use that hidden trip to generate intelligence such as:
+
+- “Your friends are heading to Aspen.”
+- “Aspen is popular with your friends.”
+- “A lot of your friends are skiing this weekend.”
+- a recommendation whose ranking is boosted because of that hidden trip
+- a notification derived from that hidden activity
+
+This does NOT mean BaseLodge must hide information the viewer is already authorized to see.
+
+Public/authorized friend activity, authorized trip participation, shared availability, visible Wishlist information, visible pass information, and other existing authorized social signals may continue to contribute where the current product permits them.
+
+The key question is:
+
+CAN INFORMATION THAT IS NOT VISIBLE/AUTHORIZED FOR THE VIEWER STILL INFLUENCE INTELLIGENCE SHOWN TO THAT VIEWER?
+
+This is an INVESTIGATION.
+
+Do not assume a violation exists.
+
+==================================================
+HARD AUTONOMY RULE
+==================================================
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+
+- modify application code
+- modify tests
+- create files
+- create documentation/report files
+- create/update/search/reconcile project tasks
+- modify .replit
+- intentionally modify attached_assets
+- install/change dependencies
+- modify database schema or data
+- modify secrets/environment variables
+- modify native files
+- modify deployment configuration
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish/deploy
+- change privacy rules
+- change visibility rules
+- change recommendation logic
+- change ranking logic
+- change notifications
+- auto-fix anything
+
+Return findings only in Replit chat.
+
+==================================================
+GIT PREFLIGHT
+==================================================
+
+Before investigating, report:
+
+- git rev-parse HEAD
+- git rev-parse origin/main
+- git status --short
+
+IMPORTANT:
+
+BL-162 Mountain Detail progressive-loading work may currently exist as legitimate uncommitted application/test changes.
+
+Do NOT treat the known BL-162 files as a reason to stop.
+
+Expected BL-162 working-tree files may include:
+
+- app.py
+- templates/mountain_detail.html
+- tests/test_mountain_detail.py
+- tests/test_authenticated_page_query_budget.py
+- templates/components/mountain_social.html
+- static/js/mountain-detail.js
+- tests/js/test_mountain_detail.js
+
+Replit environmental noise such as:
+
+- .replit
+- attached_assets/Pasted-*
+
+is also non-blocking.
+
+Do not modify, clean, stage, commit, reset, or otherwise repair any Git state.
+
+If OTHER unexpected legitimate application/source/test/migration/config/dependency/native/deploy files are modified, report them before continuing.
+
+==================================================
+CORE RULE TO AUDIT
+==================================================
+
+For each intelligence surface, distinguish between:
+
+A. SOURCE VISIBILITY
+
+Would the viewer be authorized to see the underlying activity/data?
+
+and:
+
+B. DERIVED INFLUENCE
+
+Can that underlying activity/data affect:
+
+- whether something appears
+- ranking
+- score
+- ordering
+- recommendation eligibility
+- recommendation strength
+- counts
+- summaries
+- labels
+- copy
+- notifications
+- email
+- push
+- badges
+- contextual insights
+- “friends are…” language
+- mountain suggestions
+- trip suggestions
+- date suggestions
+
+A surface can violate BL-85 even if it never directly renders the hidden trip.
+
+Example:
+
+A private trip is correctly absent from the UI, but still boosts Aspen from #5 to #1 in a recommendation list.
+
+That is still hidden-data influence and must be reported.
+
+==================================================
+1. MAP INTELLIGENCE SURFACES
+==================================================
+
+Search the current BaseLodge codebase for every meaningful feature that derives user-facing intelligence from social/activity data.
+
+At minimum investigate:
+
+- Home
+- Happening / activity feed
+- Ideas
+- Mountain Detail social/intelligence
+- Mountains browsing/ranking if social signals affect it
+- Friends surfaces where derived social context appears
+- My Trips recommendations/intelligence if any
+- notifications
+- push notifications
+- email
+- lifecycle messaging
+- recommendation services
+- ranking/scoring helpers
+- contextual insight helpers
+- availability-based suggestions
+- Wishlist-based suggestions
+- pass-based suggestions
+- trip-based suggestions
+- friend-based suggestions
+- any background/worker-generated user-facing intelligence
+- any AI/LLM-generated user-facing summaries or recommendations if currently present
+
+Do not assume these features exist.
+
+Report only actual code paths.
+
+For each actual surface identify:
+
+- route/job/function
+- service/helper
+- template/client destination
+- data sources used
+- whether it generates derived intelligence or merely renders authorized records
+
+==================================================
+2. TRACE INPUT SIGNALS
+==================================================
+
+For every actual intelligence-producing surface, identify all input signals.
+
+Examples may include:
+
+- SkiTrip
+- SkiTripParticipant
+- Friend
+- invitations
+- RSVP status/history
+- UserAvailability
+- Wishlist
+- passes
+- mountain visits
+- trip lifecycle
+- trip visibility
+- friend relationships
+- activity/events
+- planning posts
+- resort popularity
+- aggregate counts
+
+For every input determine:
+
+- viewer-specific or global
+- personal or social
+- public/private capable
+- authorization rule
+- whether authorization is enforced BEFORE the signal reaches intelligence logic
+- whether unauthorized records are filtered only AFTER scoring/aggregation
+
+That last distinction is critical.
+
+==================================================
+3. PRIVATE TRIP INFLUENCE
+==================================================
+
+Trace all places where SkiTrip or SkiTripParticipant affects derived user-facing output.
+
+Specifically determine whether a private trip that the viewer cannot see can affect:
+
+- recommendation eligibility
+- mountain ranking
+- friend counts
+- trip counts
+- “popular with friends”
+- friend-intent summaries
+- date suggestions
+- Ideas
+- Happening
+- Mountain Detail
+- notifications
+- emails
+- any scores or ordering
+
+Check both:
+
+- organizer-owned private trips
+- private trips where the viewer's friend is only a participant
+
+Do not limit the audit to direct rendering.
+
+==================================================
+4. FRIENDSHIP AUTHORIZATION
+==================================================
+
+Determine whether social intelligence consistently requires the intended friendship state.
+
+Check for influence from:
+
+- reciprocal/direct friends
+- one-way relationships
+- pending invitations
+- removed friendships
+- declined relationships if represented
+- friends-of-friends
+- nonfriends
+
+Identify the canonical friendship authorization helper(s).
+
+Determine whether intelligence surfaces reuse those helpers or implement independent approximations.
+
+==================================================
+5. PARTICIPATION / RSVP AUTHORIZATION
+==================================================
+
+Determine whether inactive participation states can influence intelligence.
+
+Audit:
+
+- GOING
+- INTERESTED
+- PENDING
+- DECLINED
+- REMOVED
+- legacy/accepted statuses if applicable
+
+Check whether excluded statuses are filtered BEFORE aggregation/ranking.
+
+==================================================
+6. TRIP LIFECYCLE
+==================================================
+
+Determine whether terminal or otherwise ineligible trips influence derived intelligence.
+
+Audit actual lifecycle semantics for:
+
+- active
+- legacy NULL
+- completed
+- cancelled
+- past trips where relevant
+
+Do not invent a universal rule that all past trips are invalid.
+
+Determine the intended behavior per feature.
+
+==================================================
+7. AVAILABILITY
+==================================================
+
+Trace availability-driven intelligence.
+
+Determine:
+
+- what availability data can contribute
+- whether reciprocal friendship is required
+- whether private availability notes/details are exposed
+- whether hidden friend trip participation changes availability suggestions
+- whether trip dates are ever improperly treated as availability
+- whether canonical normalized availability rules are used
+- whether unavailable/private data can alter ranking without being rendered
+
+Distinguish:
+
+- authorized date overlap
+from
+- inference based on hidden trip activity
+
+==================================================
+8. WISHLIST / PASS / VISIT SIGNALS
+==================================================
+
+Audit intelligence based on:
+
+- Wishlist mountains
+- ski passes
+- mountain visits
+
+For each determine:
+
+- whether the signal is intended to be socially visible
+- required friendship state
+- whether hidden/nonfriend data contributes to aggregation
+- whether counts/rankings can reveal otherwise-hidden behavior
+
+Do not change the existing product contract.
+
+Report what it currently is.
+
+==================================================
+9. HOME / HAPPENING
+==================================================
+
+Trace Home and Happening separately if they are distinct.
+
+For each:
+
+- identify candidate-selection logic
+- identify authorization filters
+- identify aggregation/ranking
+- identify rendered output
+- determine whether unauthorized/private records can affect candidate existence, ranking, counts, or copy
+
+Pay particular attention to queries that load broad activity sets and filter them later.
+
+==================================================
+10. IDEAS
+==================================================
+
+Audit the Ideas generation pipeline end-to-end.
+
+Map:
+
+INPUT SIGNAL
+→ ELIGIBILITY
+→ AUTHORIZATION
+→ GROUPING
+→ SCORING/RANKING
+→ OUTPUT
+
+Determine whether hidden activity can affect any stage.
+
+Specifically inspect:
+
+- friend trips
+- shared availability
+- Wishlist overlap
+- passes
+- friend group size
+- date overlaps
+- mountain selection
+- organizer/participant trip signals
+
+Determine whether private trips are excluded before they influence generated Ideas.
+
+==================================================
+11. MOUNTAIN INTELLIGENCE
+==================================================
+
+Audit Mountain Detail and any other mountain-level social intelligence.
+
+BL-162 may have recently moved existing Mountain Detail social logic into a shared builder and deferred endpoint.
+
+Treat BL-162 as a rendering/performance refactor, not a privacy redesign.
+
+Determine whether the underlying Mountain social builder:
+
+- starts from authorized reciprocal friends
+- excludes private trips before aggregation
+- excludes invalid participant states
+- prevents hidden trips from influencing contextual insights
+- prevents hidden trips from influencing availability overlap
+- prevents hidden activity from influencing counts/previews
+
+Report whether BL-162 preserved or changed any relevant privacy boundary.
+
+==================================================
+12. NOTIFICATIONS / EMAIL / PUSH
+==================================================
+
+Search for user-facing outbound messaging derived from social activity.
+
+For each actual system:
+
+- trigger
+- recipient selection
+- source data
+- visibility/authorization filtering
+- message content
+
+Determine whether private or otherwise unauthorized activity can:
+
+- trigger a message
+- affect recipient eligibility
+- affect message copy
+- affect counts or summaries
+
+A message does not need to name the private trip to create a BL-85 concern.
+
+==================================================
+13. BACKGROUND / ASYNC INTELLIGENCE
+==================================================
+
+Inspect actual:
+
+- workers
+- scheduled jobs
+- queues
+- cached intelligence
+- denormalized recommendation data
+- materialized summaries
+
+if present.
+
+Determine whether authorization is evaluated:
+
+- when intelligence is generated
+- when stored
+- when delivered
+- both
+
+Flag any stored aggregate that mixes authorized and unauthorized source data before viewer-specific filtering.
+
+==================================================
+14. AI / LLM OUTPUT
+==================================================
+
+Determine whether BaseLodge currently sends social/trip/activity context into any AI/LLM-generated user-facing output.
+
+If none exists, say so.
+
+If it exists:
+
+- identify context assembly
+- identify visibility filtering
+- determine whether unauthorized/private context can enter the model prompt even if the final UI attempts to suppress it
+
+Do not speculate about future AI architecture.
+
+==================================================
+15. DIRECT DISPLAY VS DERIVED INFLUENCE
+==================================================
+
+Create a concise matrix for every actual intelligence surface with:
+
+SURFACE
+SOURCE DATA
+AUTHORIZATION BEFORE DERIVATION?
+PRIVATE/HIDDEN DATA CAN DIRECTLY DISPLAY?
+PRIVATE/HIDDEN DATA CAN INDIRECTLY INFLUENCE?
+CURRENT BL-85 STATUS
+
+Use statuses:
+
+- COMPLIANT
+- POSSIBLE GAP
+- CONFIRMED GAP
+- NOT APPLICABLE
+
+Do not mark a gap without concrete code evidence.
+
+==================================================
+16. TEST COVERAGE
+==================================================
+
+Identify tests that currently prove exclusion behavior.
+
+For each important surface report whether tests explicitly cover:
+
+- private trip exclusion
+- one-way/nonfriend exclusion
+- pending/removed friendship exclusion
+- inactive RSVP exclusion
+- terminal trip exclusion where applicable
+- hidden-data ranking influence, not merely hidden rendering
+
+This distinction matters:
+
+A test proving “private trip name isn't rendered” does NOT prove the private trip did not influence ranking.
+
+Identify missing tests separately from confirmed product defects.
+
+Missing test coverage alone is NOT a BL-85 violation.
+
+==================================================
+17. CROSS-PRODUCT CONSISTENCY
+==================================================
+
+Determine whether BaseLodge currently has:
+
+A. one shared visibility/intelligence eligibility layer
+
+or
+
+B. multiple independent feature-specific implementations.
+
+Identify the canonical helpers that already exist, such as visibility/friendship helpers.
+
+Report where duplicated authorization logic creates realistic drift risk.
+
+Do not recommend a broad refactor unless concrete evidence warrants it.
+
+==================================================
+18. CLASSIFY FINDINGS
+==================================================
+
+Classify every finding into one of:
+
+A. CONFIRMED BL-85 VIOLATION
+Concrete evidence unauthorized/private source data affects user-facing intelligence.
+
+B. POSSIBLE BL-85 RISK
+Code structure creates plausible influence but evidence is incomplete.
+
+C. TEST COVERAGE GAP
+Behavior appears correct but is not explicitly regression-tested.
+
+D. COMPLIANT
+Authorization occurs before derived intelligence and evidence supports it.
+
+E. OUT OF SCOPE / NOT APPLICABLE
+
+Do not collapse test gaps into product defects.
+
+==================================================
+19. DETERMINE WHETHER BL-85 NEEDS CODE
+==================================================
+
+At the end answer:
+
+Does BL-85 require an engineering change right now?
+
+Choose exactly one:
+
+1. NO CODE CHANGE REQUIRED
+Current implementation complies; optionally add bounded regression coverage if genuinely valuable.
+
+2. TEST-ONLY HARDENING
+Current implementation appears compliant, but important hidden-influence behavior lacks regression protection.
+
+3. BOUNDED CODE FIX
+One or more concrete violations exist and can be corrected locally.
+
+4. BROADER FOLLOW-UP REQUIRED
+Concrete violations span multiple systems and should be broken into separate bounded tasks.
+
+Do not default to creating work.
+
+==================================================
+RETURN ONLY A CHAT REPORT
+==================================================
+
+Return:
+
+A. Executive conclusion
+B. Git preflight
+C. Intelligence surfaces found
+D. Input-signal map
+E. Private-trip influence findings
+F. Friendship authorization findings
+G. RSVP/participation findings
+H. Lifecycle findings
+I. Availability findings
+J. Wishlist/pass/visit findings
+K. Home/Happening findings
+L. Ideas findings
+M. Mountain intelligence findings
+N. Notification/email/push findings
+O. Background/async findings
+P. AI/LLM findings
+Q. Direct-display vs derived-influence matrix
+R. Existing test coverage
+S. Missing regression coverage
+T. Cross-product consistency findings
+U. Confirmed violations, if any
+V. Possible risks, if any
+W. Recommended BL-85 disposition:
+   - NO CODE CHANGE REQUIRED
+   - TEST-ONLY HARDENING
+   - BOUNDED CODE FIX
+   - BROADER FOLLOW-UP REQUIRED
+X. If code is recommended, exact smallest likely scope
+Y. Any genuine product decision required before PLAN
+
+For every important conclusion, cite exact files/functions/routes/tests.
+
+DO NOT IMPLEMENT.
+DO NOT CREATE OR UPDATE A TASK.
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
+
+STOP AFTER THE REPORT.
