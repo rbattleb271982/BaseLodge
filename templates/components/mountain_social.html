@@ -1,0 +1,144 @@
+{% macro social_trip_row(row, status, secondary=false) %}
+    {%- set s = row.start_date -%}
+    {%- set e = row.end_date -%}
+    {%- if s == e -%}
+        {%- set date_str = s.strftime('%b %-d') -%}
+    {%- elif s.month == e.month and s.year == e.year -%}
+        {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%-d') -%}
+    {%- elif s.year == e.year -%}
+        {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d') -%}
+    {%- else -%}
+        {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d, %Y') -%}
+    {%- endif -%}
+    <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-row{% if secondary %} md-row--interested{% endif %}">
+        <div class="md-row-left">
+            <div class="md-row-line1">
+                <span class="md-row-date">{{ date_str }}</span>
+                <span class="md-row-sep">&nbsp;—&nbsp;</span>
+                <span class="md-row-name">{{ row.full_name }}</span>
+            </div>
+            <p class="md-row-line2">{{ row.identity_line }}</p>
+        </div>
+        <span class="md-row-status{% if status == 'Going' %} md-row-status--going{% endif %}">{{ status }}</span>
+    </a>
+{% endmacro %}
+
+{% macro social_summary(summary, kind) %}
+    <div class="md-social-summary">
+        <p class="md-social-summary-copy">
+            {% if kind == 'visited' %}
+                {{ summary.count }} {{ 'friend has' if summary.count == 1 else 'friends have' }} recorded this mountain as visited
+            {% else %}
+                Want to go · {{ summary.count }} {{ 'friend' if summary.count == 1 else 'friends' }}
+            {% endif %}
+        </p>
+        {% if summary.preview or summary.remaining_count %}
+        <p class="md-social-summary-names">
+            {% for friend in summary.preview %}
+                <a class="md-social-summary-link" href="{% if kind == 'visited' %}{{ url_for('friend_mountains_visited', user_id=friend.id) }}{% else %}{{ url_for('friend_profile', friend_id=friend.id) }}{% endif %}">{{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {% if summary.remaining_count %}
+                {% if summary.preview %} {% endif %}<span class="md-social-more">+{{ summary.remaining_count }} more</span>
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+{% macro availability_summary(summary) %}
+    <div class="md-social-summary md-social-summary--availability">
+        <p class="md-social-summary-copy">
+            {% if summary.count == 1 and summary.preview|length == 1 and not summary.remaining_count %}
+                <a class="md-social-summary-link" href="{{ url_for('friend_profile', friend_id=summary.preview[0].id) }}">{{ summary.preview[0].first_name }}</a> is free during your
+            {% else %}
+                {{ summary.count }} friend{{ 's' if summary.count != 1 else '' }} {{ 'are' if summary.count != 1 else 'is' }} free during your
+            {% endif %}
+            {% set s = summary.start_date %}
+            {% set e = summary.end_date %}
+            {% if s == e %}
+                {{ s.strftime('%b %-d') }}
+            {% elif s.month == e.month and s.year == e.year %}
+                {{ s.strftime('%b %-d') }}–{{ e.strftime('%-d') }}
+            {% elif s.year == e.year %}
+                {{ s.strftime('%b %-d') }}–{{ e.strftime('%b %-d') }}
+            {% else %}
+                {{ s.strftime('%b %-d, %Y') }}–{{ e.strftime('%b %-d, %Y') }}
+            {% endif %} trip
+        </p>
+        {% if not (summary.count == 1 and summary.preview|length == 1 and not summary.remaining_count) and (summary.preview or summary.remaining_count) %}
+        <p class="md-social-summary-names">
+            {% for friend in summary.preview %}
+                <a class="md-social-summary-link" href="{{ url_for('friend_profile', friend_id=friend.id) }}">{{ friend.first_name }}{% if friend.last_name %} {{ friend.last_name }}{% endif %}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+            {% if summary.remaining_count %}
+                {% if summary.preview %} {% endif %}<span class="md-social-more">+{{ summary.remaining_count }} more</span>
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+<section class="md-social-section" aria-label="Friends at this mountain">
+    {% if going_friends %}
+    <div class="md-social-group">
+        <p class="md-social-group-label md-social-group-label--going">Going This Winter · {{ going_friends|length }} {{ 'friend' if going_friends|length == 1 else 'friends' }}</p>
+        {% for row in going_friends[:3] %}
+            {{ social_trip_row(row, 'Going') }}
+        {% endfor %}
+        {% if going_friends|length > 3 %}
+        <p class="md-social-summary-names md-social-more">+{{ going_friends|length - 3 }} more</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if interested_friends %}
+    <div class="md-social-group">
+        <p class="md-social-group-label md-social-group-label--interested">Friends Interested · {{ interested_friends|length }} {{ 'friend' if interested_friends|length == 1 else 'friends' }}</p>
+        {% for row in interested_friends[:3] %}
+            {{ social_trip_row(row, 'Interested', true) }}
+        {% endfor %}
+        {% if interested_friends|length > 3 %}
+        <p class="md-social-summary-names md-social-more">+{{ interested_friends|length - 3 }} more</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if contextual_friend_insights %}
+    <div class="md-social-group" aria-labelledby="md-context-insights-label">
+        <p id="md-context-insights-label" class="md-social-group-label md-social-group-label--going">Friend insight</p>
+        {% for insight in contextual_friend_insights %}
+        <article class="md-context-insight">
+            <p class="md-context-insight-copy">
+                <a class="md-social-summary-link" href="{{ url_for('friend_profile', friend_id=insight.traveler.user_id) }}">{{ insight.traveler.full_name }}</a>
+                is heading to {{ resort.name }} and doesn't have a previous visit recorded.
+            </p>
+            <details>
+                <summary aria-label="See friends who may be able to help {{ insight.traveler.full_name }}">See who can help</summary>
+                <p class="md-context-insight-helpers">
+                    {% for helper in insight.helpers %}{% if not loop.first %}{% if loop.last %}{{ ', and ' if insight.helpers|length > 2 else ' and ' }}{% else %}, {% endif %}{% endif %}<a class="md-social-summary-link" href="{{ url_for('friend_mountains_visited', user_id=helper.id) }}">{{ helper.first_name }}{% if helper.last_name %} {{ helper.last_name }}{% endif %}</a>{% endfor %}
+                    {{ 'has' if insight.helpers|length == 1 else 'have' }} been before.
+                </p>
+            </details>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% for summary in availability_overlaps %}
+    <div class="md-social-group">
+        {{ availability_summary(summary) }}
+    </div>
+    {% endfor %}
+
+    {% if recorded_visit_friends.count %}
+    <div class="md-social-group">
+        {{ social_summary(recorded_visit_friends, 'visited') }}
+    </div>
+    {% endif %}
+
+    {% if wishlist_friends.count %}
+    <div class="md-social-group">
+        {{ social_summary(wishlist_friends, 'wishlist') }}
+    </div>
+    {% endif %}
+</section>

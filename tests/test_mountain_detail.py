@@ -32,6 +32,20 @@ def _friend(label, first_name=None):
 
 
 def _page(client, resort_slug):
+    core_response = client.get(f"/mountain/{resort_slug}")
+    if core_response.status_code != 200:
+        return core_response
+    social_response = client.get(f"/api/mountain/{resort_slug}/social")
+    assert social_response.status_code == 200
+    payload = social_response.get_json()
+    assert isinstance(payload["has_content"], bool)
+    core_response.set_data(
+        core_response.get_data(as_text=True) + payload["html"]
+    )
+    return core_response
+
+
+def _core_page(client, resort_slug):
     return client.get(f"/mountain/{resort_slug}")
 
 
@@ -50,6 +64,81 @@ def _add_availability(user, *dates, note=None):
             date=available_date,
             note=note,
         ))
+
+
+def test_mountain_core_page_defers_social_content(client):
+    with app.app_context():
+        viewer = _make_user("deferred-core-viewer")
+        friend = _friend("deferred-core-friend", "Deferred")
+        resort = _make_resort("Deferred Core Peak")
+        _connect(viewer, friend)
+        trip = _make_trip(friend, resort=resort, is_public=True)
+        _set_rsvp(trip, friend, GuestStatus.GOING)
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    html = _core_page(client, resort_slug).get_data(as_text=True)
+
+    assert "Deferred Core Peak" in html
+    assert "Loading mountain community…" in html
+    assert f"/api/mountain/{resort_slug}/social" in html
+    assert "Deferred Friend" not in html
+    assert "Going This Winter" not in html
+
+
+def test_mountain_social_endpoint_requires_authentication(client):
+    with app.app_context():
+        resort = _make_resort("Authenticated Social Peak")
+        db.session.commit()
+        resort_slug = resort.slug
+
+    response = client.get(f"/api/mountain/{resort_slug}/social")
+
+    assert response.status_code == 302
+    assert "/auth" in response.headers["Location"]
+
+
+def test_mountain_core_route_requires_authentication(client):
+    with app.app_context():
+        resort = _make_resort("Authenticated Core Peak")
+        db.session.commit()
+        resort_slug = resort.slug
+
+    response = client.get(f"/mountain/{resort_slug}")
+
+    assert response.status_code == 302
+    assert "/auth" in response.headers["Location"]
+
+
+def test_mountain_core_and_social_routes_share_active_resort_404(client):
+    with app.app_context():
+        viewer = _make_user("inactive-mountain-viewer")
+        resort = _make_resort("Inactive Mountain Peak")
+        resort.is_active = False
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+
+    assert client.get(f"/mountain/{resort_slug}").status_code == 404
+    assert (
+        client.get(f"/api/mountain/{resort_slug}/social").status_code == 404
+    )
+
+
+def test_mountain_social_endpoint_returns_explicit_empty_result(client):
+    with app.app_context():
+        viewer = _make_user("empty-social-viewer")
+        resort = _make_resort("Empty Social Peak")
+        db.session.commit()
+        viewer_id, resort_slug = viewer.id, resort.slug
+
+    _login(client, viewer_id)
+    response = client.get(f"/api/mountain/{resort_slug}/social")
+
+    assert response.status_code == 200
+    assert response.get_json() == {"html": "", "has_content": False}
 
 
 def test_mountain_page_shows_been_here_only_for_canonical_visit_id(client):

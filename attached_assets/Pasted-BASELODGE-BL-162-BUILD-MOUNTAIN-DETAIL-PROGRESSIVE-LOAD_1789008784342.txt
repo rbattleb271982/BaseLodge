@@ -1,0 +1,587 @@
+BASELODGE — BL-162 BUILD: MOUNTAIN DETAIL PROGRESSIVE LOADING
+
+AGENT LEVEL: POWER
+MODE: BUILD
+APPROXIMATE BL-162 COMPLETION AFTER SUCCESSFUL BUILD: 90%
+
+IMPLEMENT BL-162 EXACTLY AS APPROVED BELOW.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- create/update/search/reconcile project tasks
+- create planning/report/documentation files
+- modify .replit
+- intentionally modify attached_assets
+- install/change dependencies
+- modify database schema or data
+- modify secrets/environment variables
+- modify native iOS/Android files
+- modify deployment configuration
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish/deploy
+- change privacy/social eligibility rules
+- add shared-pass social semantics
+- redesign Mountain Detail
+- optimize unrelated queries
+- modify BL-116 analytics behavior
+- modify cancelled-trip behavior
+- auto-fix unrelated issues
+
+GIT PREFLIGHT
+
+Before editing, report:
+
+- git rev-parse HEAD
+- git rev-parse origin/main
+- git status --short
+
+Replit environmental commits/noise alone are not a reason to stop.
+
+Do not clean or repair Git.
+
+If unexpected legitimate application/source/test/migration/config/dependency/native/deploy files are modified before this BUILD begins, STOP and report them.
+
+GOAL
+
+Make authenticated Mountain Detail progressively render:
+
+1. Core mountain content returns first.
+2. Social/intelligence work does NOT block initial HTML.
+3. Browser immediately requests one authenticated deferred social fragment.
+4. Existing social presentation and privacy semantics remain unchanged.
+5. Empty social result hides the region.
+6. Failure leaves the core page usable and provides Retry.
+
+==================================================
+1. EXTRACT SHARED SOCIAL BUILDER
+==================================================
+
+In app.py, extract the EXISTING Mountain Detail social aggregation currently performed before render into a helper adjacent to the existing Mountain Detail helpers.
+
+Use a bounded helper such as:
+
+def _build_mountain_social_context(user, resort, *, today=None):
+
+It must return:
+
+- going_friends
+- interested_friends
+- contextual_friend_insights
+- recorded_visit_friends
+- wishlist_friends
+- availability_overlaps
+- has_social_content
+
+Move the existing logic rather than reimplementing it.
+
+PRESERVE EXACTLY:
+
+- reciprocal direct-friend requirement
+- canonical resort matching
+- public-trip requirement
+- active/legacy lifecycle rules
+- season/current-future filtering
+- active participant filtering
+- Going semantics
+- Interested semantics
+- Going precedence
+- duplicate suppression
+- effective attendance dates
+- recorded-visit summaries
+- normalized friend wishlist handling
+- contextual friend insights
+- availability overlap
+- attendance overrides
+- preview suppression
+- preview limits
+- deterministic ordering
+
+Continue using the existing authoritative:
+
+_build_mountain_availability_overlaps()
+
+Do not duplicate privacy predicates.
+
+Preserve current bulk-query behavior.
+
+No template rendering loop may introduce database queries.
+
+==================================================
+2. ADD SOCIAL ENDPOINT
+==================================================
+
+Add:
+
+GET /api/mountain/<slug>/social
+
+Requirements:
+
+- @login_required
+- same active Resort slug + is_active=True lookup semantics as GET /mountain/<slug>
+- call _build_mountain_social_context(current_user, resort)
+- render templates/components/mountain_social.html
+- no mutation
+- no analytics
+- no page-view tracking
+- no wishlist mutation
+
+Return JSON.
+
+WITH CONTENT:
+
+{
+  "html": "<rendered fragment>",
+  "has_content": true
+}
+
+WITHOUT QUALIFYING VISIBLE CONTENT:
+
+{
+  "html": "",
+  "has_content": false
+}
+
+Do not return an empty-success response for operational/server failures.
+
+Missing/inactive resort must preserve canonical 404 behavior.
+
+Normal login-required behavior remains authoritative for unauthenticated requests.
+
+==================================================
+3. EXTRACT SOCIAL PARTIAL
+==================================================
+
+Create:
+
+templates/components/mountain_social.html
+
+Move the existing Mountain Detail social presentation into this partial, including the existing relevant macros and conditional section.
+
+Preserve existing:
+
+- HTML hierarchy
+- CSS classes
+- ARIA labels
+- wording
+- names
+- date formatting
+- pluralization
+- profile links
+- Mountains Visited links
+- preview limits
+- +N more behavior
+- current-intent suppression
+- Going/Interested ordering
+- conditional rendering
+
+DO NOT REDESIGN IT.
+
+The partial receives the resort and social context from the builder.
+
+If has_social_content is false, the endpoint should return html="" rather than returning an empty wrapper.
+
+==================================================
+4. REDUCE CORE MOUNTAIN ROUTE
+==================================================
+
+Modify:
+
+GET /mountain/<slug>
+
+so the initial request retains ONLY the work required for:
+
+- active resort lookup
+- mountain name/location
+- resort/pass mappings
+- viewer pass coverage
+- viewer recorded-visit state
+- viewer wishlist state
+- Plan Trip CTA
+- Wishlist CTA
+- shared application shell
+- existing independent page-view tracking
+
+The initial route MUST NOT perform:
+
+- ski-season calculation solely needed for social work
+- reciprocal_friend_ids()
+- friend resort-trip query
+- participant query
+- friend User preload
+- Going/Interested aggregation
+- friend visit summaries
+- friend wishlist summaries
+- contextual friend insights
+- _build_mountain_availability_overlaps()
+- friend availability queries
+
+Do not alter core product behavior.
+
+==================================================
+5. ADD INITIAL SOCIAL LOADING REGION
+==================================================
+
+In templates/mountain_detail.html, replace synchronous social rendering with one compact region below the existing core content/actions.
+
+Use an implementation equivalent to:
+
+<div
+  id="md-social-region"
+  data-social-url="{{ url_for(...) }}"
+  aria-live="polite"
+  aria-busy="true"
+>
+  <p>Loading mountain community…</p>
+</div>
+
+Use the actual endpoint name generated by Flask.
+
+Requirements:
+
+- no friend names
+- no counts
+- no avatar/social skeletons
+- no inferred empty state
+- compact layout
+- accessible loading semantics
+- does not disable Plan Trip
+- does not disable Wishlist
+
+Approved loading text:
+
+Loading mountain community…
+
+==================================================
+6. ADD DEDICATED CLIENT LOADER
+==================================================
+
+Create:
+
+static/js/mountain-detail.js
+
+Load it only on Mountain Detail.
+
+Start the social request immediately after the core DOM is available.
+
+DO NOT use IntersectionObserver.
+
+Requirements:
+
+- find #md-social-region
+- safely no-op if region/URL missing
+- GET request
+- credentials: "same-origin"
+- cache: "no-store"
+- validate response.ok
+- validate JSON content type
+- reject redirected responses
+- reject login/auth HTML
+- validate response structure
+- prevent duplicate simultaneous requests
+- protect against stale responses
+- Retry starts a newer request generation
+- older response cannot overwrite newer result
+
+VALID CONTENT SUCCESS:
+
+- insert server-rendered HTML into the region
+- clear aria-busy
+- remove loading/failure state
+
+VALID EMPTY SUCCESS:
+
+- clear aria-busy
+- hide/remove the entire region
+- show no empty-state copy
+
+FAILURE:
+
+show:
+
+Social details couldn’t load. Try again.
+
+“Try again” must be an accessible button.
+
+Failure must:
+
+- clear aria-busy
+- leave hero/actions functional
+- not expose underlying module/error/privacy details
+- not pretend there is no social activity
+
+RETRY:
+
+- restore loading state
+- set aria-busy=true
+- request same endpoint
+- preserve generation/stale-response protection
+
+The loader MUST NOT:
+
+- call /api/mountain/track-view
+- invoke page-view tracking
+- alter Wishlist state
+- invoke the Wishlist handler
+- replace hero/action markup
+- trigger full-page refresh
+- execute scripts from returned fragment
+
+==================================================
+7. PRESERVE EXISTING INDEPENDENT BEHAVIOR
+==================================================
+
+Existing Mountain page-view tracking must continue exactly once through its existing independent mechanism.
+
+Existing Wishlist behavior must remain independent.
+
+Do not fold either behavior into mountain-detail.js unless mechanically necessary to load the file, and do not change their product semantics.
+
+==================================================
+8. MIGRATE EXISTING SERVER TESTS
+==================================================
+
+Modify:
+
+tests/test_mountain_detail.py
+
+Do NOT delete existing privacy/social coverage.
+
+Keep core-route assertions on GET /mountain/<slug> for:
+
+- authentication
+- active resort / 404
+- mountain name/location
+- viewer pass state
+- viewer recorded-visit state
+- viewer wishlist state
+- Plan Trip CTA
+- Wishlist CTA
+- social loading region
+- deferred endpoint URL
+- independent page-view behavior
+
+Move rendered social assertions to:
+
+GET /api/mountain/<slug>/social
+
+Preserve regression coverage for:
+
+- reciprocal friends
+- one-way/nonfriends
+- pending relationships
+- removed relationships
+- friends-of-friends
+- private trips
+- terminal trips
+- PENDING participants
+- DECLINED participants
+- REMOVED participants
+- Going
+- Interested
+- Going precedence
+- duplicate suppression
+- contextual insights
+- recorded visits
+- friend wishlist
+- availability overlaps
+- attendance overrides
+- preview suppression
+- availability privacy
+
+Do not weaken assertions merely to make the refactor pass.
+
+==================================================
+9. QUERY-BUDGET TESTS
+==================================================
+
+Modify:
+
+tests/test_authenticated_page_query_budget.py
+
+Add/adjust tests proving:
+
+CORE ROUTE:
+
+GET /mountain/<slug> no longer performs the Mountain social graph work.
+
+Specifically ensure the initial request does not perform social queries for:
+
+- reciprocal friends
+- friend resort trips
+- participant rows
+- friend User preload
+- UserAvailability
+
+Avoid an unnecessarily brittle exact-total assertion if query shapes are a stronger contract.
+
+SOCIAL ENDPOINT:
+
+Adapt the existing social-rich scale fixture to:
+
+GET /api/mountain/<slug>/social
+
+Verify:
+
+- bounded SQL statement count
+- friend User records remain bulk loaded
+- participants remain bulk loaded
+- contextual insights do not add scale-dependent queries
+- no per-friend/per-trip N+1 growth
+
+It is acceptable for the combined core + endpoint execution to contain a small expected extra Resort lookup.
+
+Do NOT require total combined query count to be lower than the old synchronous route.
+
+The primary performance contract is:
+
+SOCIAL WORK IS OFF THE INITIAL RESPONSE PATH.
+
+==================================================
+10. CLIENT TESTS
+==================================================
+
+Create:
+
+tests/js/test_mountain_detail.js
+
+Use the existing BaseLodge Node test conventions.
+
+Cover at minimum:
+
+1. initialization immediately starts one social request
+2. GET method
+3. same-origin credentials
+4. no-store cache
+5. valid nonempty success inserts returned HTML
+6. valid empty success hides region
+7. failed HTTP response shows generic failure
+8. invalid JSON/response shape shows failure
+9. redirected/login HTML is rejected
+10. Retry sends a new request
+11. Retry success replaces failure
+12. stale older response cannot overwrite newer response
+13. duplicate activation while pending does not duplicate fetch
+14. missing region/URL safely no-ops
+15. social loader never calls page-view endpoint
+16. social loader does not modify/invoke Wishlist behavior
+17. aria-busy transitions correctly
+
+Do not test server privacy rules in JavaScript.
+
+==================================================
+11. FILE SCOPE
+==================================================
+
+EXPECTED MODIFY:
+
+- app.py
+- templates/mountain_detail.html
+- tests/test_mountain_detail.py
+- tests/test_authenticated_page_query_budget.py
+
+EXPECTED CREATE:
+
+- templates/components/mountain_social.html
+- static/js/mountain-detail.js
+- tests/js/test_mountain_detail.js
+
+REFERENCE ONLY unless an unavoidable direct requirement is discovered:
+
+- templates/base_app.html
+- static/js/bl-targeted-refresh.js
+- services/visibility.py
+- services/wishlist.py
+- tests/test_bl173_targeted_social_refresh.py
+
+DO NOT MODIFY:
+
+- BL-116 analytics files/behavior except where current working tree already contains that completed work
+- services/my_trips_paging.py
+- tests/test_my_trips_paging.py
+- models/migrations
+- dependency manifests
+- native files
+- deployment configuration
+- .replit
+
+If implementation genuinely requires a file outside approved scope, STOP and explain why before modifying it.
+
+==================================================
+12. VERIFICATION
+==================================================
+
+Before editing, run focused existing Mountain Detail/query-budget tests to establish baseline where practical.
+
+After implementation run:
+
+A. Focused Mountain Detail Python tests
+
+B. Focused authenticated query-budget tests relevant to Mountain Detail
+
+C. Adjacent privacy/visibility tests affected by the extraction
+
+D. Existing page-view tracking tests
+
+E. Existing Wishlist tests relevant to Mountain Detail
+
+F. New Mountain Detail JavaScript tests
+
+G. COMPLETE existing JavaScript test suite
+
+H. Python compilation for modified Python files
+
+I. git diff --check
+
+Do not invent a mandatory full-suite gate if the environment cannot complete it within its normal execution limits.
+
+If a broader existing suite can run normally, report its result.
+
+Restart the managed Flask workflow once after implementation.
+
+Verify in managed preview:
+
+- core Mountain Detail renders
+- loading state appears
+- deferred social request succeeds
+- social content appears when applicable
+- successful empty state disappears
+- Plan Trip remains usable
+- Wishlist remains usable
+- no new browser console errors
+
+DO NOT PUBLISH.
+
+==================================================
+13. FINAL REPORT
+==================================================
+
+Return a CHAT REPORT ONLY containing:
+
+1. Git preflight
+2. Exact files modified/created
+3. Core-route behavior after change
+4. Social endpoint behavior
+5. Shared-builder behavior
+6. Client loading/retry behavior
+7. Privacy semantics preserved
+8. Query-budget results
+9. Python test results
+10. JavaScript test results
+11. Compilation/diff-check results
+12. Managed-preview verification
+13. Migration/dependency/config/native/deploy impact
+14. Final git status
+15. Any deviations from approved plan and why
+
+DO NOT create a report file.
+
+DO NOT CREATE OR UPDATE A TASK.
+DO NOT STAGE.
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
+
+STOP AFTER THE REPORT.

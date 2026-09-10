@@ -13830,21 +13830,13 @@ def _build_mountain_availability_overlaps(
     return summaries
 
 
-@app.route("/mountain/<slug>")
-@login_required
-def mountain_detail(slug):
-    """
-    Focused detail page for a single resort:
-    - Hero: state, name, primary pass pill
-    - Body: upcoming trips grouped by date window, showing current user + friends
-    """
-    _rp_t0 = time.perf_counter()
-    resort = Resort.query.filter_by(slug=slug, is_active=True).first_or_404()
-    today = date.today()
+def _build_mountain_social_context(user, resort, *, today=None):
+    """Build the existing privacy-filtered Mountain Detail social presentation."""
+    today = today or date.today()
     season_start, season_end = get_ski_season_window(today)
 
     # Current user's friend IDs (bidirectional friendship model: Friend row = user_id → friend_id)
-    friend_ids = reciprocal_friend_ids(current_user.id)
+    friend_ids = reciprocal_friend_ids(user.id)
     # Upcoming + in-progress trips for this resort only (resort_id canonical; no string fallback)
     # is_public=True: private trips must not appear in friend social proof rows.
     raw_trips = (
@@ -13864,12 +13856,11 @@ def mountain_detail(slug):
     # Bulk-load all active RSVP participants for the candidate public trips.
     # The canonical BL-34 predicate ensures Pending, Declined, and Removed never
     # enter the social aggregation.
-    _t = time.perf_counter()
-    _raw_trip_ids = [t.id for t in raw_trips]
-    _active_participant_rows = []
-    if _raw_trip_ids:
-        _active_participant_rows = SkiTripParticipant.query.filter(
-            SkiTripParticipant.trip_id.in_(_raw_trip_ids),
+    raw_trip_ids = [trip.id for trip in raw_trips]
+    active_participant_rows = []
+    if raw_trip_ids:
+        active_participant_rows = SkiTripParticipant.query.filter(
+            SkiTripParticipant.trip_id.in_(raw_trip_ids),
             SkiTripParticipant.active_status_filter(),
         ).all()
 
@@ -13878,35 +13869,40 @@ def mountain_detail(slug):
     friends_by_id = {}
     if friend_ids:
         friends_by_id = {
-            u.id: u
-            for u in User.query.filter(User.id.in_(friend_ids)).all()
+            friend.id: friend
+            for friend in User.query.filter(User.id.in_(friend_ids)).all()
         }
 
     # Build one representative upcoming public trip for every friend and RSVP
     # status. A participant's own Going/Interested RSVP is authoritative here;
     # SkiTrip.trip_status is deliberately not used as a personal RSVP.
-    _trips_by_id = {trip.id: trip for trip in raw_trips}
-    _intent_candidates = {
+    trips_by_id = {trip.id: trip for trip in raw_trips}
+    intent_candidates = {
         GuestStatus.GOING.value: {},
         GuestStatus.INTERESTED.value: {},
     }
-    for participant in _active_participant_rows:
+    for participant in active_participant_rows:
         if participant.user_id not in friend_ids:
             continue
 
-        trip = _trips_by_id.get(participant.trip_id)
-        if not trip or get_trip_status(trip, today=today) == 'past':
+        trip = trips_by_id.get(participant.trip_id)
+        if not trip or get_trip_status(trip, today=today) == "past":
             continue
 
         status_value = (
             participant.status.value
-            if hasattr(participant.status, 'value')
+            if hasattr(participant.status, "value")
             else str(participant.status)
         )
-        if status_value not in _intent_candidates:
+        if status_value not in intent_candidates:
             continue
-        attendance_start, attendance_end = effective_attendance_dates(trip, participant)
-        if status_value == GuestStatus.GOING.value and attendance_end < today:
+        attendance_start, attendance_end = effective_attendance_dates(
+            trip, participant
+        )
+        if (
+            status_value == GuestStatus.GOING.value
+            and attendance_end < today
+        ):
             continue
 
         friend = friends_by_id.get(participant.user_id)
@@ -13914,51 +13910,64 @@ def mountain_detail(slug):
             continue
 
         candidate = {
-            'user_id': friend.id,
-            'full_name': f"{(friend.first_name or '').strip()} {(friend.last_name or '').strip()}".strip(),
-            'identity_line': _mountain_row_identity(
+            "user_id": friend.id,
+            "full_name": (
+                f"{(friend.first_name or '').strip()} "
+                f"{(friend.last_name or '').strip()}"
+            ).strip(),
+            "identity_line": _mountain_row_identity(
                 friend.display_rider_type,
                 friend.skill_level,
                 friend.pass_type,
             ),
-            'start_date': attendance_start,
-            'end_date': attendance_end,
-            'status_label': 'Going' if status_value == GuestStatus.GOING.value else 'Interested',
-            'trip_id': trip.id,
+            "start_date": attendance_start,
+            "end_date": attendance_end,
+            "status_label": (
+                "Going"
+                if status_value == GuestStatus.GOING.value
+                else "Interested"
+            ),
+            "trip_id": trip.id,
         }
-        candidate_sort_key = (candidate['start_date'], candidate['end_date'], trip.id)
-        existing = _intent_candidates[status_value].get(friend.id)
+        candidate_sort_key = (
+            candidate["start_date"],
+            candidate["end_date"],
+            trip.id,
+        )
+        existing = intent_candidates[status_value].get(friend.id)
         if not existing or candidate_sort_key < (
-            existing['start_date'],
-            existing['end_date'],
-            existing['trip_id'],
+            existing["start_date"],
+            existing["end_date"],
+            existing["trip_id"],
         ):
-            _intent_candidates[status_value][friend.id] = candidate
+            intent_candidates[status_value][friend.id] = candidate
 
     # Going is the stronger current-intent signal. A friend with both upcoming
     # statuses appears only once, in Going, so social proof never double-counts.
-    _going_by_user = _intent_candidates[GuestStatus.GOING.value]
-    _interested_by_user = {
+    going_by_user = intent_candidates[GuestStatus.GOING.value]
+    interested_by_user = {
         uid: row
-        for uid, row in _intent_candidates[GuestStatus.INTERESTED.value].items()
-        if uid not in _going_by_user
+        for uid, row in intent_candidates[GuestStatus.INTERESTED.value].items()
+        if uid not in going_by_user
     }
 
-    def _sort_mountain_friend_rows(rows):
+    def sort_mountain_friend_rows(rows):
         return sorted(
             rows,
             key=lambda row: (
-                row['start_date'],
-                row['end_date'],
-                (row['full_name'] or '').lower(),
-                row['user_id'],
+                row["start_date"],
+                row["end_date"],
+                (row["full_name"] or "").lower(),
+                row["user_id"],
             ),
         )
 
-    going_friends = _sort_mountain_friend_rows(_going_by_user.values())
-    interested_friends = _sort_mountain_friend_rows(_interested_by_user.values())
+    going_friends = sort_mountain_friend_rows(going_by_user.values())
+    interested_friends = sort_mountain_friend_rows(
+        interested_by_user.values()
+    )
 
-    has_recorded_visit = resort.id in (current_user.visited_resort_ids or [])
+    has_recorded_visit = resort.id in (user.visited_resort_ids or [])
     experienced_friends = sorted(
         (
             friend
@@ -13994,38 +14003,45 @@ def mountain_detail(slug):
     # Secondary signals intentionally remain compact. Their counts include all
     # qualifying friends, while names already visible in current-intent rows are
     # suppressed from previews to avoid repetitive copy.
-    _visible_current_intent_ids = {
-        row['user_id'] for row in (going_friends[:3] + interested_friends[:3])
+    visible_current_intent_ids = {
+        row["user_id"]
+        for row in (going_friends[:3] + interested_friends[:3])
     }
 
-    def _compact_mountain_friend_summary(qualifying_friends):
+    def compact_mountain_friend_summary(qualifying_friends):
         sorted_friends = sorted(
             qualifying_friends,
-            key=lambda user: (
-                (user.first_name or '').lower(),
-                (user.last_name or '').lower(),
-                user.id,
+            key=lambda friend: (
+                (friend.first_name or "").lower(),
+                (friend.last_name or "").lower(),
+                friend.id,
             ),
         )
         preview_candidates = [
-            user for user in sorted_friends
-            if user.id not in _visible_current_intent_ids
+            friend
+            for friend in sorted_friends
+            if friend.id not in visible_current_intent_ids
         ]
         preview = preview_candidates[:3]
         return {
-            'count': len(sorted_friends),
-            'preview': preview,
-            'remaining_count': max(len(preview_candidates) - len(preview), 0),
+            "count": len(sorted_friends),
+            "preview": preview,
+            "remaining_count": max(
+                len(preview_candidates) - len(preview), 0
+            ),
         }
 
-    recorded_visit_friends = _compact_mountain_friend_summary(
+    recorded_visit_friends = compact_mountain_friend_summary(
         experienced_friends
     )
-    _wishlist_eligible_resort = bool(resort.is_active and not resort.is_region)
-    wishlist_friends = _compact_mountain_friend_summary([
-        friend for friend in friends_by_id.values()
+    wishlist_eligible_resort = bool(
+        resort.is_active and not resort.is_region
+    )
+    wishlist_friends = compact_mountain_friend_summary([
+        friend
+        for friend in friends_by_id.values()
         if (
-            _wishlist_eligible_resort
+            wishlist_eligible_resort
             and resort.id in normalize_wishlist_resort_ids(
                 friend.wish_list_resorts, strict=False
             )
@@ -14033,13 +14049,44 @@ def mountain_detail(slug):
     ])
 
     availability_overlaps = _build_mountain_availability_overlaps(
-        user=current_user,
+        user=user,
         resort_id=resort.id,
         friend_ids=friend_ids,
         friends_by_id=friends_by_id,
-        visible_current_intent_ids=_visible_current_intent_ids,
+        visible_current_intent_ids=visible_current_intent_ids,
         today=today,
     )
+    has_social_content = bool(
+        going_friends
+        or interested_friends
+        or contextual_friend_insights
+        or availability_overlaps
+        or recorded_visit_friends["count"]
+        or wishlist_friends["count"]
+    )
+    return {
+        "going_friends": going_friends,
+        "interested_friends": interested_friends,
+        "contextual_friend_insights": contextual_friend_insights,
+        "recorded_visit_friends": recorded_visit_friends,
+        "wishlist_friends": wishlist_friends,
+        "availability_overlaps": availability_overlaps,
+        "has_social_content": has_social_content,
+    }
+
+
+@app.route("/mountain/<slug>")
+@login_required
+def mountain_detail(slug):
+    """
+    Focused detail page for a single resort:
+    - Hero: state, name, primary pass pill
+    - Body: upcoming trips grouped by date window, showing current user + friends
+    """
+    _rp_t0 = time.perf_counter()
+    resort = Resort.query.filter_by(slug=slug, is_active=True).first_or_404()
+    has_recorded_visit = resort.id in (current_user.visited_resort_ids or [])
+    _wishlist_eligible_resort = bool(resort.is_active and not resort.is_region)
 
     resort_passes = resort.get_passes()
     pass_names = [resort_pass['pass_name'] for resort_pass in resort_passes]
@@ -14086,17 +14133,24 @@ def mountain_detail(slug):
         primary_pass=primary_pass,
         pass_names=pass_names,
         state_full=state_full,
-        going_friends=going_friends,
-        interested_friends=interested_friends,
-        contextual_friend_insights=contextual_friend_insights,
-        recorded_visit_friends=recorded_visit_friends,
         user_pass_covered=user_pass_covered,
         user_pass_name=user_pass_name,
         has_recorded_visit=has_recorded_visit,
         is_on_wishlist=is_on_wishlist,
-        wishlist_friends=wishlist_friends,
-        availability_overlaps=availability_overlaps,
     )
+
+
+@app.route("/api/mountain/<slug>/social")
+@login_required
+def mountain_social(slug):
+    resort = Resort.query.filter_by(slug=slug, is_active=True).first_or_404()
+    context = _build_mountain_social_context(current_user, resort)
+    if not context["has_social_content"]:
+        return jsonify({"html": "", "has_content": False})
+    html = app.jinja_env.get_template(
+        "components/mountain_social.html"
+    ).render(resort=resort, **context)
+    return jsonify({"html": html, "has_content": True})
 
 
 # ── Mountain page-view tracking ───────────────────────────────────────────────
