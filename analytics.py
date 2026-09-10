@@ -10,9 +10,13 @@ PostHog v7 API notes:
   alias(previous_id, distinct_id)                  — unchanged from v2
   flush()                                           — unchanged
 """
-import os
+import atexit
 import json
 import logging
+import os
+import re
+import uuid
+from urllib.parse import unquote
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -22,6 +26,11 @@ POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com")
 
 _client = None
 _init_logged = False
+_ANON_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
+
+# Analytics payloads must not contain email addresses, full names, passwords,
+# auth/reset/session tokens, invite tokens, planning free text, or exact
+# residential addresses. Keep intentionally bounded travel/social metadata only.
 
 
 def _get_client():
@@ -60,6 +69,22 @@ def is_internal(email):
     return domain in domains or email in emails
 
 
+def _valid_anon_id(value):
+    """Return a safe browser-generated anonymous ID, or None."""
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if (
+        not value
+        or value == "anonymous"
+        or value.startswith("anonymous_event:")
+        or value.isdigit()
+        or not _ANON_ID_PATTERN.fullmatch(value)
+    ):
+        return None
+    return value
+
+
 def get_anon_id(cookies):
     """
     Extract PostHog anonymous distinct_id from the browser cookie.
@@ -71,14 +96,24 @@ def get_anon_id(cookies):
     cookie_val = cookies.get(cookie_name, "")
     if cookie_val:
         try:
-            data = json.loads(cookie_val)
-            return data.get("distinct_id")
+            data = json.loads(unquote(cookie_val))
+            if not isinstance(data, dict):
+                return None
+            return _valid_anon_id(data.get("distinct_id"))
         except Exception:
             pass
     return None
 
 
-def track(user_id, event, properties=None, set_props=None, set_once_props=None):
+def track(
+    user_id,
+    event,
+    properties=None,
+    set_props=None,
+    set_once_props=None,
+    *,
+    anonymous_id=None,
+):
     """
     Track a server-side event. PostHog v7 compatible.
     Always call AFTER db.session.commit() — never before a successful DB write.
@@ -88,7 +123,11 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
     client = _get_client()
     if not client:
         return
-    distinct_id = str(user_id) if user_id is not None else "anonymous"
+    distinct_id = (
+        str(user_id)
+        if user_id is not None
+        else (_valid_anon_id(anonymous_id) or f"anonymous_event:{uuid.uuid4()}")
+    )
     props = dict(properties or {})
     if set_props:
         props["$set"] = set_props
@@ -100,13 +139,6 @@ def track(user_id, event, properties=None, set_props=None, set_once_props=None):
         logger.info("PostHog capture OK: event=%s distinct_id=%s", event, distinct_id)
     except Exception as exc:
         logger.warning("PostHog capture FAILED: event=%s distinct_id=%s error=%s", event, distinct_id, exc)
-        return
-
-    try:
-        client.flush()
-        logger.info("PostHog flush OK: event=%s", event)
-    except Exception as exc:
-        logger.warning("PostHog flush FAILED: event=%s error=%s", event, exc)
 
 
 def identify(user_id, properties=None, set_once_props=None):
@@ -126,7 +158,6 @@ def identify(user_id, properties=None, set_once_props=None):
         if set_once_props:
             client.set_once(distinct_id=uid, properties=dict(set_once_props))
         if properties or set_once_props:
-            client.flush()
             logger.info("PostHog identify OK: distinct_id=%s", uid)
     except Exception as exc:
         logger.warning("PostHog identify FAILED: distinct_id=%s error=%s", uid, exc)
@@ -147,3 +178,23 @@ def alias(anon_id, user_id):
         client.alias(anon_id, str(user_id))
     except Exception as exc:
         logger.warning("PostHog alias FAILED: anon_id=%s user_id=%s error=%s", anon_id, user_id, exc)
+
+
+def _shutdown_client():
+    """Best-effort delivery at clean process shutdown, never request time."""
+    client = _client
+    if client is None:
+        return
+    try:
+        shutdown = getattr(client, "shutdown", None)
+        if callable(shutdown):
+            shutdown()
+            return
+        flush = getattr(client, "flush", None)
+        if callable(flush):
+            flush()
+    except Exception as exc:
+        logger.warning("PostHog shutdown delivery failed: %s", exc)
+
+
+atexit.register(_shutdown_client)

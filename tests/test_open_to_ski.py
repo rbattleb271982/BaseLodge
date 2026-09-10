@@ -62,9 +62,14 @@ def test_open_to_ski_analytics_accepts_only_anonymous_allowlisted_payload(
     monkeypatch.setattr(
         app_module.ph_analytics,
         "track",
-        lambda user_id, event, properties: tracked.append(
-            (user_id, event, properties)
+        lambda user_id, event, properties, **kwargs: tracked.append(
+            (user_id, event, properties, kwargs)
         ),
+    )
+    monkeypatch.setattr(
+        app_module.ph_analytics,
+        "get_anon_id",
+        lambda _cookies: "open-to-ski-browser-id",
     )
     _login(client, owner_id)
     client.get("/open-to-ski")
@@ -81,13 +86,12 @@ def test_open_to_ski_analytics_accepts_only_anonymous_allowlisted_payload(
     )
 
     assert response.status_code == 204
-    assert tracked == [
-        (
-            None,
-            "availability_share_succeeded",
-            {"format": "png", "delivery": "download"},
-        )
-    ]
+    assert tracked == [(
+        None,
+        "availability_share_succeeded",
+        {"format": "png", "delivery": "download"},
+        {"anonymous_id": "open-to-ski-browser-id"},
+    )]
 
 
 def test_open_to_ski_analytics_rejects_private_or_extra_properties(client):

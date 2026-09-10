@@ -4328,6 +4328,33 @@ def forgot_password():
         
     return render_template("forgot_password.html")
 
+def _track_authenticated_auth(
+    user,
+    *,
+    event,
+    method,
+    alias_anonymous=False,
+    signup_source=None,
+    extra_properties=None,
+):
+    """Apply the shared non-PII PostHog identity contract after authentication."""
+    if alias_anonymous:
+        ph_analytics.alias(
+            ph_analytics.get_anon_id(request.cookies),
+            user.id,
+        )
+    ph_analytics.identify(
+        user.id,
+        properties={"is_internal": ph_analytics.is_internal(user.email)},
+    )
+    properties = {"method": method}
+    if signup_source is not None:
+        properties["signup_source"] = signup_source
+    if extra_properties:
+        properties.update(extra_properties)
+    ph_analytics.track(user.id, event, properties)
+
+
 @app.route("/reset-password", methods=["GET", "POST"])
 @app.route("/reset-password/<token>", methods=["GET", "POST"])
 @limiter.limit("10 per hour", methods=["POST"])
@@ -4366,6 +4393,11 @@ def reset_password(token=None):
 
         _establish_authenticated_session(
             user, remember=False, auth_method="reset"
+        )
+        _track_authenticated_auth(
+            user,
+            event="login_completed",
+            method="password_reset",
         )
         # Founder login alert (non-blocking, throttled to 1×/user/day)
         _queue_founder_login_push(user.id, user.email)
@@ -4502,17 +4534,15 @@ def auth():
                 new_user, remember=True, auth_method="signup"
             )
 
-            # Analytics: alias anon browser id → new user id, then identify
-            _ph_anon_id = ph_analytics.get_anon_id(request.cookies)
-            ph_analytics.alias(_ph_anon_id, new_user.id)
-            ph_analytics.identify(
-                new_user.id,
-                set_once_props={"is_internal": ph_analytics.is_internal(new_user.email)},
+            _track_authenticated_auth(
+                new_user,
+                event="signup_completed",
+                method="email",
+                alias_anonymous=True,
+                signup_source=(
+                    "invite" if "invite_token" in session else "organic"
+                ),
             )
-            ph_analytics.track(new_user.id, 'signup_completed', {
-                'method': 'email',
-                'signup_source': 'invite' if "invite_token" in session else 'organic',
-            })
 
             # After signup, redirect through onboarding then back to the invite
             # landing page (post_onboarding_redirect already set by invite_token_confirm).
@@ -4560,12 +4590,11 @@ def auth():
                 )
                 db.session.commit()
 
-                # Analytics: identify on login
-                ph_analytics.identify(
-                    user.id,
-                    set_once_props={"is_internal": ph_analytics.is_internal(user.email)},
+                _track_authenticated_auth(
+                    user,
+                    event="login_completed",
+                    method="email",
                 )
-                ph_analytics.track(user.id, 'login_completed', {'method': 'email'})
 
                 # Founder login alert (non-blocking, throttled to 1×/user/day)
                 _queue_founder_login_push(user.id, user.email)
@@ -14543,7 +14572,12 @@ def open_to_ski_analytics():
         and properties["error_code"] not in _OPEN_TO_SKI_ANALYTICS_ERROR_CODES
     ):
         abort(400)
-    ph_analytics.track(None, event, properties)
+    ph_analytics.track(
+        None,
+        event,
+        properties,
+        anonymous_id=ph_analytics.get_anon_id(request.cookies),
+    )
     return "", 204
 
 
@@ -17401,6 +17435,9 @@ def auth_google_callback():
             raise ValueError("Google did not return an email address")
 
         user = User.query.filter_by(email=email).first()
+        _has_invite = (
+            "invite_token" in session or "trip_invite_token" in session
+        )
 
         _is_new_google_user = False
         if user:
@@ -17425,18 +17462,26 @@ def auth_google_callback():
             )
             db.session.add(user)
             db.session.commit()
-            _has_invite = "invite_token" in session or "trip_invite_token" in session
-            ph_analytics.track(user.id, 'signup_completed', {
-                'method': 'google',
-                'signup_source': 'invite' if _has_invite else 'organic',
-                'is_invite_signup': _has_invite,
-            })
-
         user.last_active_at = datetime.utcnow()
         db.session.commit()
         _establish_authenticated_session(
             user, remember=False, auth_method="google"
         )
+        if _is_new_google_user:
+            _track_authenticated_auth(
+                user,
+                event="signup_completed",
+                method="google",
+                alias_anonymous=True,
+                signup_source="invite" if _has_invite else "organic",
+                extra_properties={"is_invite_signup": _has_invite},
+            )
+        else:
+            _track_authenticated_auth(
+                user,
+                event="login_completed",
+                method="google",
+            )
 
         # Founder login alert (non-blocking, throttled to 1×/user/day)
         _queue_founder_login_push(user.id, user.email)

@@ -31,6 +31,7 @@
 
   var key = window.__POSTHOG_KEY__;
   var host = window.__POSTHOG_HOST__ || 'https://us.i.posthog.com';
+  var authenticatedUserMarker = 'baselodge_posthog_authenticated_user_id';
 
   if (!key) { return; }
 
@@ -43,21 +44,59 @@
     api_host: host,
     autocapture: false,
     capture_pageview: false,
+    disable_session_recording: true,
     loaded: function (ph) {
-      /* 1. Reset session if flagged (user just logged out) */
-      if (window.__POSTHOG_RESET__) {
-        ph.reset();
+      var user = window.__USER__ || {};
+      var currentUserId = (
+        typeof user.id === 'number' && Number.isInteger(user.id) && user.id > 0
+      ) ? String(user.id) : null;
+      var storedUserId = null;
+      var shouldReset = Boolean(window.__POSTHOG_RESET__);
+
+      try {
+        storedUserId = window.localStorage.getItem(authenticatedUserMarker);
+        if (storedUserId && !/^[1-9][0-9]*$/.test(storedUserId)) {
+          window.localStorage.removeItem(authenticatedUserMarker);
+          storedUserId = null;
+        }
+        if (!currentUserId && storedUserId) {
+          shouldReset = true;
+        } else if (
+          currentUserId && storedUserId && currentUserId !== storedUserId
+        ) {
+          shouldReset = true;
+        }
+      } catch (error) {
+        storedUserId = null;
       }
 
-      /* 2. Identify logged-in users.
+      if (shouldReset) {
+        ph.reset();
+        try {
+          window.localStorage.removeItem(authenticatedUserMarker);
+        } catch (error) {
+          /* Storage denial must not interrupt analytics initialization. */
+        }
+      }
+
+      /* Identify logged-in users.
        *    Internal users are NOT excluded — they are tagged via is_internal
        *    person property and filtered in PostHog dashboards. */
-      var user = window.__USER__ || {};
-      if (user.id) {
-        ph.identify(String(user.id));
+      if (currentUserId) {
+        ph.identify(currentUserId, {
+          is_internal: Boolean(user.is_internal)
+        });
+        try {
+          window.localStorage.setItem(
+            authenticatedUserMarker,
+            currentUserId
+          );
+        } catch (error) {
+          /* Storage denial must not interrupt analytics initialization. */
+        }
       }
 
-      /* 3. Core activation event — fires for all users */
+      /* Core activation event — fires for all users. */
       ph.capture('app_loaded');
     }
   });

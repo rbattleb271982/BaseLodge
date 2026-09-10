@@ -1,0 +1,309 @@
+BASELODGE — BL-116 BUILD: POSTHOG ANALYTICS HARDENING
+
+AGENT LEVEL: POWER
+MODE: BUILD
+APPROXIMATE BL-116 COMPLETION AFTER THIS STEP: 70%
+
+IMPLEMENT THE PREVIOUSLY APPROVED BL-116 PLAN.
+
+IMPORTANT EXISTING WORKING TREE STATE
+
+There is legitimate unrelated unfinished work currently present in:
+
+- services/my_trips_paging.py
+- tests/test_my_trips_paging.py
+
+Those files belong to the cancelled-trip History change.
+
+DO NOT MODIFY, REVERT, STAGE, COMMIT, CLEAN, OR OTHERWISE TOUCH THEM.
+
+Environmental Replit noise may also exist in:
+- .replit
+- attached_assets/Pasted-*
+
+Ignore it.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- create/update/search/reconcile project tasks
+- create notes/docs/markdown report files
+- modify .replit
+- modify attached_assets
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish/deploy
+- run migrations
+- modify database data
+- modify secrets/environment variables
+- install/change dependencies unless implementation proves absolutely necessary
+- change unrelated analytics/product behavior
+- enable session replay
+- enable PostHog autocapture
+- enable automatic pageviews
+- auto-fix unrelated failures
+
+GIT PREFLIGHT
+
+Before editing, report:
+
+- git rev-parse HEAD
+- git rev-parse origin/main
+- git status --short
+
+Expected legitimate unrelated modifications:
+
+- services/my_trips_paging.py
+- tests/test_my_trips_paging.py
+
+These are NON-BLOCKING but MUST remain untouched.
+
+If any OTHER unexpected app/source/test/migration/config/dependency/native/deploy files are modified, STOP and report them.
+
+BL-116 APPROVED CONTRACT
+
+1. SERVER-SIDE ANONYMOUS EVENTS
+
+Fix analytics.py so server events with user_id=None no longer collapse unrelated anonymous activity onto literal distinct_id "anonymous".
+
+Use:
+
+- a valid browser PostHog anonymous ID when one is explicitly available
+- otherwise a fresh per-event non-linking ID such as:
+  anonymous_event:<uuid4>
+
+Do NOT create:
+- a persistent BaseLodge anonymous identity
+- fingerprinting
+- database-backed anonymous identity
+- cross-session fallback identity
+
+Harden get_anon_id() parsing/validation as needed.
+
+Open-to-Ski anonymous analytics must remain non-user-linked. If no valid browser ID exists, use the fresh per-event fallback.
+
+2. AUTH ANALYTICS PARITY
+
+Create one bounded shared server-side auth analytics helper if appropriate under the existing architecture.
+
+Email signup:
+- preserve alias behavior where appropriate
+- identify authenticated numeric user ID
+- set mutable is_internal
+- emit existing signup event
+
+Google signup:
+- add parity with email signup
+- consume valid browser anonymous ID when available
+- alias anonymous → authenticated ID where appropriate
+- identify numeric user ID
+- set mutable is_internal
+- emit signup event
+
+Existing email login:
+- DO NOT alias
+- identify numeric user ID
+- set mutable is_internal
+- emit login_completed
+
+Existing Google login:
+- same existing-user login behavior as email
+- DO NOT alias
+- identify
+- mutable is_internal
+- login_completed
+
+Password-reset login:
+- apply the same authenticated identity/internal-property contract where that path establishes a logged-in session
+
+Use the existing:
+- INTERNAL_EMAIL_DOMAINS
+- INTERNAL_USER_EMAILS
+- is_internal logic
+
+is_internal must be mutable, not set_once-only.
+
+Do not send email/full name/password/token values as analytics properties.
+
+3. CLIENT AUTHENTICATED IDENTITY
+
+In the existing central PostHog client initialization:
+
+- continue identifying authenticated users by numeric BaseLodge user ID
+- include is_internal in the identify properties
+- do not add PII
+
+4. LOGOUT / ACCOUNT-SWITCH IDENTITY ISOLATION
+
+Prevent PostHog identity from leaking across logout/account switching.
+
+Use a BaseLodge-owned localStorage marker containing only the last authenticated numeric BaseLodge user ID.
+
+Before analytics capture/identify:
+
+- if the current page is anonymous but a prior authenticated-user marker exists:
+  call PostHog reset and clear the marker
+
+- if the current authenticated numeric user ID differs from the stored authenticated user ID:
+  call PostHog reset BEFORE identifying/capturing the new user
+
+- after identifying the authenticated user:
+  store the numeric user ID marker
+
+Preserve the existing server ph_reset mechanism as defense in depth.
+
+Do not store:
+- email
+- name
+- tokens
+- session identifiers
+- invite identifiers
+- additional profile data
+
+5. REQUEST-TIME FLUSHING
+
+Remove normal request-time client.flush() behavior from analytics.py track() and identify().
+
+Use the PostHog client’s normal background delivery/batching behavior.
+
+Add one guarded process-shutdown flush/shutdown mechanism if supported by the installed client, using atexit or the established equivalent.
+
+Do not change explicit diagnostic/admin flush behavior where immediate delivery is intentionally required.
+
+6. SESSION REPLAY
+
+Explicitly configure PostHog client initialization with:
+
+disable_session_recording: true
+
+Do NOT enable session replay.
+
+Keep:
+- autocapture: false
+- capture_pageview: false
+
+7. PRIVACY CONVENTION
+
+Keep the event-property privacy convention adjacent to the existing central analytics wrapper/code.
+
+Do not create a standalone documentation file.
+
+The convention must reinforce that analytics payloads must not include:
+- email addresses
+- full names
+- passwords
+- auth/reset/session tokens
+- invite tokens
+- planning free text
+- exact residential addresses
+
+Preserve existing intentionally bounded travel/social metadata unless this task specifically requires otherwise.
+
+8. TESTS
+
+Add/update focused executable tests covering at minimum:
+
+SERVER:
+- user_id=None does not use literal "anonymous"
+- fresh fallback IDs do not link unrelated events
+- valid browser anonymous ID is honored where explicitly supplied
+- malformed anonymous IDs are rejected
+- normal track() does not flush synchronously
+- normal identify() does not flush synchronously
+- shutdown behavior is guarded
+- is_internal is mutable
+
+AUTH:
+- email signup alias/identify/event contract
+- Google signup parity
+- existing email login does not alias
+- existing Google login does not alias
+- both existing login paths identify + login_completed
+- password-reset authenticated path follows identity contract
+- no prohibited PII is introduced into event properties
+
+CLIENT:
+- authenticated numeric user is identified
+- is_internal included
+- anonymous page following authenticated marker resets
+- account switch resets before new identify
+- same-user page does not unnecessarily reset
+- marker contains only numeric user ID
+- disable_session_recording is true
+- autocapture remains false
+- capture_pageview remains false
+
+OPEN-TO-SKI:
+- anonymous analytics remains non-user-linked
+- per-event fallback behavior works when no browser ID exists
+
+LIKELY PRODUCTION FILES
+
+The approved PLAN expected bounded changes primarily in:
+
+- analytics.py
+- static/analytics.js
+- templates/components/analytics_head.html
+- bounded auth analytics call sites in app.py if required
+
+LIKELY TEST FILES
+
+- tests/test_analytics.py
+- tests/js/test_analytics_identity.js
+- bounded existing auth/project analytics/Open-to-Ski tests as required
+
+Do not expand beyond these areas without direct evidence.
+
+VALIDATION
+
+Run focused BL-116 tests first.
+
+Then run relevant adjacent:
+- authentication analytics regressions
+- signup/login regressions
+- Open-to-Ski analytics regressions
+- existing analytics tests
+- full JavaScript test suite if reasonably bounded
+
+Run:
+- Python compilation for modified Python files
+- git diff --check
+
+If focused validation passes and runtime is reasonable, run the full Python suite.
+
+If the full Python suite exceeds the environment time limit:
+- do not repeatedly rerun the same oversized command
+- report the timeout point and any failures seen before timeout
+- rely on focused/adjacent validation for the BUILD report
+
+Do not publish.
+
+FINAL REPORT
+
+Return ONLY a chat report containing:
+
+A. Exact analytics behavior changed
+B. Exact production files modified
+C. Anonymous identity implementation
+D. Auth identity/alias behavior by path
+E. Client logout/account-switch isolation behavior
+F. is_internal behavior
+G. Flush/batching behavior
+H. Session-replay configuration
+I. Privacy safeguards
+J. Tests added/updated
+K. Focused/adjacent test results
+L. Full-suite results if run
+M. Python compile and git diff --check results
+N. Current git status
+O. Confirmation the two cancelled-trip files remained untouched
+P. Confirmation no migration/dependency/config/native/deploy changes occurred
+Q. Any deviation or unresolved issue
+
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
+DO NOT CREATE OR UPDATE A TASK.
+
+STOP AFTER THE REPORT.
