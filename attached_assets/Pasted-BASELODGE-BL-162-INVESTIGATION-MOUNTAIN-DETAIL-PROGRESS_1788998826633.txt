@@ -1,0 +1,292 @@
+BASELODGE — BL-162 INVESTIGATION: MOUNTAIN DETAIL PROGRESSIVE LOADING
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE BL-162 COMPLETION AFTER THIS STEP: 20%
+
+READ-ONLY INVESTIGATION ONLY.
+
+DO NOT IMPLEMENT ANYTHING.
+
+CONTEXT
+
+BL-162 goal:
+
+Progressively render Mountain Detail so core mountain content appears first, while heavier social/intelligence modules load asynchronously afterward.
+
+We want to improve perceived performance without changing the product contract, privacy rules, mountain data semantics, or social visibility rules.
+
+HARD AUTONOMY RULE
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not:
+- modify application code
+- modify tests
+- create files
+- create documentation/report files
+- modify .replit
+- create/update/search/reconcile project tasks
+- install/change dependencies
+- modify database schema or data
+- modify secrets or environment variables
+- stage/commit/push/reset/rebase/amend/cherry-pick Git
+- publish or deploy
+- change privacy/social eligibility rules
+- redesign the Mountain Detail product
+- auto-fix unrelated issues
+
+GIT PREFLIGHT
+
+Before investigating, report:
+
+- git rev-parse HEAD
+- git rev-parse origin/main
+- git status --short
+
+If unexpected app/source/test/migration/config/dependency/native/deploy files are modified, report them.
+
+Do not stop for Replit environmental-only noise such as:
+- .replit
+- attached_assets/Pasted-*
+
+Do not clean or modify that noise.
+
+GOAL
+
+Map the current Mountain Detail request/render path and identify which work is essential for first paint versus which work can safely move behind asynchronous loading.
+
+INVESTIGATE
+
+1. ENTRY ROUTE
+
+Identify the exact Mountain Detail route(s).
+
+Report:
+- route path
+- function name
+- template(s)
+- any service/helper functions invoked
+- authentication requirements
+- whether anonymous and authenticated users share the same route
+
+2. CURRENT SERVER WORK
+
+Trace the route end-to-end.
+
+List every meaningful server-side operation performed before the initial HTML response is returned, including:
+
+- mountain lookup
+- resort metadata
+- pass information
+- wishlist state
+- friend counts
+- friend lists
+- friend trip activity
+- availability overlap
+- shared passes
+- social proof
+- ideas/recommendation logic
+- weather or external data
+- photos/media
+- any rankings/scores
+- any notifications/activity side effects
+- any analytics emitted server-side
+
+For each operation report:
+- exact file/function
+- query/service called
+- whether it is required for core first render
+- whether it is user-specific
+- whether it is social/privacy-sensitive
+- whether it appears expensive or query-heavy
+
+3. INITIAL TEMPLATE DEPENDENCIES
+
+Inspect the Mountain Detail template and identify which variables are required to render:
+
+A. Core mountain shell/content
+B. User-specific but lightweight state
+C. Heavy social modules
+D. Intelligence/recommendation modules
+E. Optional/noncritical modules
+
+Map exact template sections/partials/components to the server data they consume.
+
+4. EXISTING ASYNC BEHAVIOR
+
+Determine whether Mountain Detail already uses:
+
+- fetch/XHR
+- lazy loading
+- deferred JavaScript
+- intersection observers
+- partial endpoints
+- skeleton states
+- loading placeholders
+- client-side hydration
+- prefetch
+- fragment rendering
+
+Report exact files/functions/endpoints.
+
+5. QUERY PROFILE
+
+Without mutating data, inspect how many database queries the normal Mountain Detail route performs for:
+
+- anonymous user if supported
+- authenticated user with minimal social data
+- authenticated user with meaningful friends/trips/wishlist data if existing tests/fixtures allow
+
+Use existing query-count tooling if available.
+
+Do not invent load-test infrastructure.
+
+Report:
+- approximate query counts
+- biggest query clusters
+- obvious N+1 risks
+- duplicate queries
+- expensive repeated lookups
+
+6. SOCIAL / PRIVACY CONTRACT
+
+Identify the current exact rules controlling what friend/social information may appear on Mountain Detail.
+
+Do not change them.
+
+Report which functions/services enforce:
+- direct-friend requirement
+- public/private trip visibility
+- participant status visibility
+- availability visibility
+- wishlist/shared-pass visibility
+- exclusion-sensitive behavior if applicable
+
+The asynchronous design must reuse the same authorization logic rather than duplicating it.
+
+7. CANDIDATE CORE-FIRST BOUNDARY
+
+Based on actual code, identify the smallest safe “core first paint” payload.
+
+Likely examples may include:
+- mountain name
+- location
+- hero image
+- static resort facts
+- pass badges
+- user wishlist state
+
+But do not assume. Determine from code.
+
+Then identify which modules can move to deferred loading, such as:
+- friends who want to go
+- friends going / recent activity
+- availability overlap
+- shared passes
+- social intelligence
+- recommendations
+
+For each candidate deferred module:
+- exact current data source
+- dependencies
+- whether it can be loaded independently
+- whether it needs its own endpoint or can share one endpoint
+- whether loading order matters
+
+8. ENDPOINT OPTIONS
+
+Inspect existing architecture for partial/fragment endpoints.
+
+Determine the lowest-complexity approach:
+
+A. One deferred Mountain Detail social endpoint
+B. Multiple module-specific endpoints
+C. Reuse an existing endpoint
+D. Server-rendered partial returned over fetch
+E. JSON returned and rendered client-side
+
+Do not design a broad frontend framework change.
+
+Prefer existing BaseLodge patterns.
+
+9. UX / FAILURE BEHAVIOR
+
+Identify what should happen if deferred modules fail to load.
+
+Determine whether current design already has:
+- empty states
+- module hiding
+- retry behavior
+- error surfaces
+
+Recommend whether deferred failures should:
+- silently hide
+- show bounded empty/loading state
+- show a retry control
+
+Keep core mountain detail usable even if deferred calls fail.
+
+10. TEST COVERAGE
+
+Identify existing tests covering:
+- Mountain Detail route
+- privacy/authorization
+- social modules
+- query counts
+- client JS
+- rendering
+- failure states
+
+Report exact test files/functions and missing coverage relevant to progressive loading.
+
+11. RISK / SCOPE
+
+State whether BL-162 appears to require any:
+- database migration
+- dependency change
+- config change
+- native iOS/Android build
+- deployment config change
+- privacy-contract change
+
+12. RECOMMENDED IMPLEMENTATION SHAPE
+
+Do not implement.
+
+Recommend the smallest bounded architecture for BL-162, including:
+
+- what remains synchronous
+- what becomes asynchronous
+- exact likely endpoint(s)
+- exact likely partial(s)/template(s)
+- exact likely JS file(s)
+- exact likely tests
+
+RETURN ONLY A CHAT REPORT WITH:
+
+A. Current route/render architecture
+B. Core vs heavy server work
+C. Template/module dependency map
+D. Existing async behavior
+E. Query profile
+F. Current social/privacy enforcement
+G. Recommended core-first boundary
+H. Recommended deferred modules
+I. Recommended endpoint/render strategy
+J. Failure/loading UX recommendation
+K. Existing test coverage
+L. Exact likely files involved
+M. Migration/dependency/config/native impact
+N. Main regression risks
+O. Any genuine product/technical decision required before PLAN
+
+For every important conclusion, cite exact files/functions/templates.
+
+STOP AFTER THE REPORT.
+
+DO NOT IMPLEMENT.
+DO NOT CREATE OR UPDATE A TASK.
+DO NOT COMMIT.
+DO NOT PUSH.
+DO NOT PUBLISH.
