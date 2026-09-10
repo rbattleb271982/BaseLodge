@@ -70,8 +70,12 @@ def build_manifest() -> list[dict[str, Any]]:
     # Auth and onboarding
     for state, seg in (("default", "login"), ("validation-error", "login"),
                        ("forgot-password", "forgot-password"), ("invite-context", "invite")):
-        add("auth", "auth", "edge", state, "/auth?state={auth_state}", seg,
-            bindings={"auth_state": "auth-state"}, wait="auth-form-visible")
+        add("auth", "auth", "edge", state,
+            "/invite/{invite_id}" if state == "invite-context" else "/auth",
+            seg,
+            bindings={"invite_id": "capture-friend-invite"}
+            if state == "invite-context" else {},
+            wait="auth-form-visible")
     for state, seg in (("welcome", "welcome"), ("pass", "pass-selection"),
                        ("rider-type", "rider-type"), ("validation", "validation")):
         add("onboarding", "onboarding", "empty", state, "/setup-profile?step={step}", seg,
@@ -112,14 +116,20 @@ def build_manifest() -> list[dict[str, Any]]:
           ("empty-roster","light","people"),("dense-roster","heavy","people"),("planning-populated","heavy","planning"),
           ("invite-modal","heavy","modal-invite")]
     for state, persona, seg in td:
+        trip_binding = {
+            "organizer": "HT04",
+            "going": "HT04",
+            "interested": "TD_INTERESTED",
+            "pending-invitee": "TD_PENDING",
+            "private": "HT05",
+            "past-read-only": "TD_PAST",
+            "empty-roster": "TD_EMPTY",
+            "dense-roster": "HT04",
+            "planning-populated": "HT04",
+            "invite-modal": "HT04",
+        }[state]
         add("trip-detail","trip-detail",persona,state,"/trips/{trip_id}",seg,
-            bindings={
-                "trip_id": (
-                    "HT04"
-                    if persona == "heavy" and state == "dense-roster"
-                    else "HT01" if persona == "heavy" else "trip-01"
-                )
-            },
+            bindings={"trip_id": trip_binding},
             viewport="narrow" if state=="dense-roster" else "mobile",
             interaction="open invitation sheet" if state=="invite-modal" else "none",
             wait="trip-detail-visible")
@@ -177,8 +187,8 @@ def build_manifest() -> list[dict[str, Any]]:
     for state, persona in (("empty","empty"),("dense-unread","heavy"),("typical","typical")):
         add("notifications","notifications",persona,state,"/notifications","list",wait="notifications-visible")
     # User-facing system outcomes, never JSON/API-only routes.
-    for state, route in (("403","/profile/{user_id}"),("404","/capture-intentional-404"),("500","/home"),
-                         ("global-flash","/home"),("retry","/friends"),("invalid-invite","/invite/{invite_id}")):
+    for state, route in (("403","/profile/{user_id}"),("404","/capture-intentional-404"),("500","/capture-intentional-500"),
+                          ("global-flash","/capture-global-flash"),("retry","/friends"),("invalid-invite","/invite/{invite_id}")):
         add("system","system","edge",state,route,"top",
             bindings={"invite_id":"invite-edge", "user_id":"1"} if "{invite_id}" in route or "{user_id}" in route else {},
             wait="error-state-visible", control="transport-error" if state=="500" else None)

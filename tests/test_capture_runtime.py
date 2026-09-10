@@ -15,6 +15,7 @@ from capture_harness.effects import (
     OutboundNetworkBlocked,
     install_capture_effects,
 )
+from capture_harness.browser import _render_system_500_html
 
 
 def _environment(**overrides):
@@ -74,7 +75,20 @@ def test_capture_network_is_recorded_and_blocked():
     assert recorder.attempts[0].address == ("example.invalid", 443)
 
 
-def test_capture_auth_is_not_registered_on_normal_application(app_fixture):
+def test_capture_routes_are_not_registered_on_normal_application(app_fixture):
     routes = {rule.rule for rule in app_fixture.url_map.iter_rules()}
-    assert "/api/capture/auth" not in routes
-    assert "/api/capture/health" not in routes
+    assert {
+        "/api/capture/auth",
+        "/api/capture/health",
+        "/api/capture/prepare",
+        "/capture-global-flash",
+        "/capture-intentional-500",
+    }.isdisjoint(routes)
+
+
+def test_browser_intercept_uses_resolved_existing_500_template():
+    html = _render_system_500_html()
+    assert "<title>Something went wrong — BaseLodge</title>" in html
+    assert "We hit an unexpected bump." in html
+    assert "{{" not in html
+    assert "{%" not in html

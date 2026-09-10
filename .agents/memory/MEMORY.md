@@ -34,3 +34,4 @@
 - [CSRF mutation contract](csrf-mutation-contract.md) — global unsafe-method protection is sound; cookie-backed WebViews stay protected; safe-method persistence must be corrected or explicitly bounded.
 - [Privacy-isolated presentation](privacy-isolated-presentation.md) — allowlisted preview/export pages must suppress inherited identity, analytics, social-state, and flash channels.
 - [Capture transient UI controls](capture-transient-ui-controls.md) — drive transient states through browser-injected controls consumed by real components when managed request routing is unreliable.
+- [Capture semantic completeness](capture-semantic-completeness.md) — file counts and dimensions do not prove state accuracy; full runs require per-row semantic review or assertions.

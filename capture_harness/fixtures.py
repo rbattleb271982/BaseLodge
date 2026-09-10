@@ -9,10 +9,16 @@ from datetime import date, datetime, timedelta
 from models import (
     Activity,
     ActivityType,
+    EquipmentDiscipline,
+    EquipmentSetup,
     Friend,
     GuestStatus,
+    InviteToken,
+    Invitation,
+    InviteType,
     ParticipantRole,
     Resort,
+    SkiDay,
     SkiTrip,
     SkiTripPlanningPost,
     SkiTripParticipant,
@@ -150,6 +156,49 @@ def seed_all(database=None):
                 public=(number % 2 == 0), pass_type=u.pass_type,
             ))
         registry["personas"][label]["trips"] = persona_trips
+    # Dedicated trip-detail scenarios keep persona roles explicit without
+    # overloading the collection-count fixtures above.
+    state_trips = {}
+    state_trips["TD_INTERESTED"] = _trip(
+        users["EXTREME"], resorts["alta"], FROZEN_TODAY + timedelta(days=12),
+        FROZEN_TODAY + timedelta(days=15), "planning", True,
+    )
+    _participant(state_trips["TD_INTERESTED"], users["TYPICAL"], GuestStatus.INTERESTED)
+    state_trips["TD_PENDING"] = _trip(
+        users["EXTREME"], resorts["vail"], FROZEN_TODAY + timedelta(days=18),
+        FROZEN_TODAY + timedelta(days=20), "going", True,
+    )
+    _participant(state_trips["TD_PENDING"], users["EDGE"], GuestStatus.PENDING)
+    state_trips["TD_PAST"] = _trip(
+        users["EDGE"], resorts["mammoth"], FROZEN_TODAY - timedelta(days=20),
+        FROZEN_TODAY - timedelta(days=17), "going", True,
+        lifecycle_state="completed",
+    )
+    state_trips["TD_EMPTY"] = _trip(
+        users["LIGHT"], resorts["big-sky"], FROZEN_TODAY + timedelta(days=25),
+        FROZEN_TODAY + timedelta(days=27), "planning", True,
+    )
+    state_trips["HOME_PENDING"] = _trip(
+        users["EXTREME"], resorts["aspen"], FROZEN_TODAY + timedelta(days=1),
+        FROZEN_TODAY + timedelta(days=3), "going", True,
+    )
+    _participant(state_trips["HOME_PENDING"], users["TYPICAL"], GuestStatus.PENDING)
+    state_trips["HOME_PARTICIPANT"] = _trip(
+        users["EXTREME"], resorts["vail"], FROZEN_TODAY + timedelta(days=1),
+        FROZEN_TODAY + timedelta(days=4), "going", True,
+    )
+    _participant(state_trips["HOME_PARTICIPANT"], users["TYPICAL"], GuestStatus.GOING)
+    registry["state_trips"] = state_trips
+    pending_friend_request = Invitation(
+        sender_id=users["EDGE"].id,
+        receiver_id=users["TYPICAL"].id,
+        trip_id=None,
+        invite_type=InviteType.OUTBOUND,
+        status="declined",
+    )
+    db.session.add(pending_friend_request)
+    db.session.flush()
+    registry["pending_friend_request_id"] = pending_friend_request.id
     heavy = users["HEAVY"]
     friends = []
     friend_logical_ids = {}
@@ -262,6 +311,19 @@ def seed_all(database=None):
             db.session.add(row)
             availability.append(row)
     registry["personas"]["HEAVY"]["availability"] = availability
+    edge_availability = []
+    for block in (0, 14, 28):
+        for day in range(5):
+            offset = block + day
+            row = UserAvailability(
+                user_id=users["EDGE"].id,
+                date=FROZEN_TODAY + timedelta(days=offset),
+                is_available=True,
+                note="capture-export-error",
+            )
+            db.session.add(row)
+            edge_availability.append(row)
+    registry["personas"]["EDGE"]["availability"] = edge_availability
     # Exactly 25 notifications, with deterministic object and type diversity.
     activities = []
     types = (ActivityType.TRIP_CREATED.value, ActivityType.TRIP_OVERLAP.value,
@@ -278,6 +340,53 @@ def seed_all(database=None):
         db.session.add(row)
         activities.append(row)
     registry["personas"]["HEAVY"]["activities"] = activities
+    invite_token = InviteToken(
+        token="capture-friend-invite",
+        inviter_id=heavy.id,
+        expires_at=None,
+    )
+    db.session.add(invite_token)
+    registry["invite_token"] = invite_token
+    # Smaller populated states used by dedicated profile/history screenshots.
+    setup = EquipmentSetup(
+        user_id=heavy.id,
+        discipline=EquipmentDiscipline.SKIER,
+        equipment_status="own",
+        is_active=True,
+        is_primary=True,
+        label="Primary ski setup",
+        brand="Atomic",
+        model="Maverick",
+        length_cm=176,
+    )
+    db.session.add(setup)
+    registry["personas"]["HEAVY"]["equipment_setup"] = setup
+    ski_days = []
+    for offset, resort in zip((35, 24, 11), list(resorts.values())[:3]):
+        ski_day = SkiDay(
+            user_id=heavy.id,
+            resort_id=resort.id,
+            ski_date=FROZEN_TODAY - timedelta(days=offset),
+            source="historical_import",
+            confirmed_at=datetime(2027, 1, 10),
+        )
+        db.session.add(ski_day)
+        ski_days.append(ski_day)
+    registry["personas"]["HEAVY"]["ski_days"] = ski_days
+    typical_activities = []
+    for index in range(3):
+        activity = Activity(
+            actor_user_id=heavy.id,
+            recipient_user_id=users["TYPICAL"].id,
+            type=ActivityType.CONNECTION_ACCEPTED.value,
+            object_type="user",
+            object_id=heavy.id,
+            created_at=datetime(2027, 1, 10) + timedelta(days=index),
+            extra_data={"fixture": f"typical-activity:{index + 1:02d}"},
+        )
+        db.session.add(activity)
+        typical_activities.append(activity)
+    registry["personas"]["TYPICAL"]["activities"] = typical_activities
     registry["personas"]["HEAVY"]["scenarios"] = {
         "ideas": {"wishlist_resorts": 15, "visited_resorts": 12},
         "happening": {"current_trip": "HT04", "overlap_friends": 1},
@@ -342,6 +451,13 @@ def validate_fixtures(database=None, registry=None):
     assert len(heavy.visited_resort_ids) == 12
     assert len(set(heavy.visited_resort_ids)) == 12
     assert len(Activity.query.filter_by(recipient_user_id=heavy.id).all()) == 25
+    assert len(registry["personas"]["HEAVY"]["ski_days"]) == 3
+    assert registry["personas"]["HEAVY"]["equipment_setup"].equipment_status == "own"
+    assert len(registry["personas"]["TYPICAL"]["activities"]) == 3
+    assert set(registry["state_trips"]) == {
+        "TD_INTERESTED", "TD_PENDING", "TD_PAST", "TD_EMPTY",
+        "HOME_PENDING", "HOME_PARTICIPANT",
+    }
     assert len(UserAvailability.query.filter_by(user_id=heavy.id).all()) == 15
     assert len(registry["personas"]["HEAVY"]["planning_posts"]) == 3
     assert len(friends[0].wish_list_resorts) == 2

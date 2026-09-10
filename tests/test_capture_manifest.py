@@ -53,7 +53,11 @@ def test_route_templates_are_supported_or_intentional_system_outcomes():
         "/add-open-dates", "/open-to-ski", "/settings/equipment",
         "/profile", "/profile/ski-days", "/notifications", "/invite/",
     )
-    intentional = {"/capture-intentional-404"}
+    intentional = {
+        "/capture-global-flash",
+        "/capture-intentional-404",
+        "/capture-intentional-500",
+    }
     for row in MANIFEST:
         path = row["route_template"].split("?", 1)[0]
         assert path in intentional or path.startswith(supported), (row["capture_id"], path)
