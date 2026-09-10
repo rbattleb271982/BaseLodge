@@ -1,0 +1,1060 @@
+BASELODGE SCREEN-CAPTURE PROJECT — PHASE 2: FINAL MOBILE CAPTURE MATRIX + PERSONA SPECIFICATION
+
+AGENT LEVEL: POWER
+MODE: PLAN
+APPROXIMATE COMPLETION AFTER THIS PHASE: 40% OF SCREEN-CAPTURE PROJECT
+
+PURPOSE
+
+Using the Phase 1 UI/state inventory you just completed, design the exact deterministic MOBILE capture matrix and synthetic-persona specification that we will later implement and capture.
+
+This screen library will be used as the comprehensive current-state mobile product reference for an external BaseLodge redesign workflow.
+
+DO NOT IMPLEMENT ANYTHING YET.
+
+This phase must give us a row-by-row manifest of exactly which screenshots will eventually be generated.
+
+STRICT READ-ONLY SCOPE
+
+Do not modify code.
+Do not modify databases.
+Do not create fixture data.
+Do not create users.
+Do not create screenshots.
+Do not create files.
+Do not stage, commit, push, publish, deploy, or change configuration.
+
+ONLY DO EXACTLY WHAT THIS PROMPT EXPLICITLY AUTHORIZES.
+
+Do not take initiative beyond the requested task.
+Do not create tasks, project records, notes, docs, markdown report files, saved prompts, unrelated assets, or checkpoints.
+
+If something cannot be determined read-only, identify the gap instead of changing anything.
+
+==================================================
+REPOSITORY CHECK
+==================================================
+
+Report:
+
+- current HEAD
+- origin/main
+- ahead/behind
+- git status
+
+Environmental-only Replit changes such as `.replit` or `attached_assets/Pasted-*` are non-blocking.
+
+If unexpected BaseLodge application/source/test/migration/config/dependency/native/deployment files are modified, STOP and report them.
+
+==================================================
+SCOPE DECISIONS
+==================================================
+
+The redesign reference should represent the CURRENT BASELODGE MOBILE WEB PRODUCT.
+
+EXCLUDE:
+
+- all desktop captures
+- Admin screens
+- Legacy Group Trip unless it is currently reachable through normal supported product navigation
+- Planning Window / Overlap Detail unless currently reachable through normal supported product navigation
+- `/location-setup`
+- dead/legacy aliases
+- native-only startup/push/deep-link experiences
+- backend/API-only states that do not create visible UI
+- current web surfaces that are not reachable through supported product navigation unless they are necessary error/outcome routes
+
+If a surface's inclusion remains ambiguous, flag it rather than automatically including it.
+
+==================================================
+CANONICAL VIEWPORTS
+==================================================
+
+This screen library is for redesigning the MOBILE BaseLodge product.
+
+DO NOT generate or plan desktop captures.
+
+CANONICAL MOBILE:
+
+390 × 844
+
+NARROW MOBILE STRESS:
+
+360 × 800
+
+Every important capture should use 390 × 844.
+
+Use 360 × 800 only where the narrower width materially helps us evaluate layout stress, such as:
+
+- dense Home
+- Heavy 15-trip My Trips
+- dense Trip Detail
+- Heavy 25-friend Friends
+- dense Mountain Detail
+- long-content cases
+- bottom sheets/modals where width matters
+
+Do not duplicate the entire capture matrix at 360 × 800.
+
+==================================================
+PERSONA MODEL
+==================================================
+
+Design SIX deterministic underlying personas.
+
+------------------------------
+1. EMPTY
+------------------------------
+
+Brand-new or nearly brand-new account.
+
+Should support:
+
+- onboarding
+- empty Home
+- empty Trips
+- empty Friends
+- no availability
+- empty Wishlist
+- no visited mountains
+- empty notifications
+- minimal profile
+
+------------------------------
+2. LIGHT
+------------------------------
+
+Approximately:
+
+- 3–5 reciprocal friends
+- 1 organized trip
+- 1 participant trip
+- 1 pass
+- 1 availability range
+- 1 Wishlist mountain
+- limited equipment/profile data
+- 1 notification
+
+------------------------------
+3. TYPICAL
+------------------------------
+
+Approximately:
+
+- 10 reciprocal friends
+- several trips
+- organizer and participant roles
+- Going and Interested
+- pending trip invitation
+- several Ideas
+- several Happening entries
+- normal social overlap
+- several Wishlist mountains
+- several availability ranges
+- multiple notifications
+
+------------------------------
+4. HEAVY
+------------------------------
+
+This is a CRITICAL persona.
+
+Use exactly:
+
+- 25 reciprocal friends
+- 15 trips
+
+The 15 trips should deliberately cover meaningful combinations of:
+
+- organizer
+- participant
+- Going
+- Interested
+- invited/pending
+- upcoming
+- current if supported
+- historical/past
+- public/private where relevant
+
+Also include:
+
+- substantial mountain overlap
+- substantial Wishlist overlap
+- substantial availability overlap
+- multiple pass families
+- maximum 15-item Wishlist
+- populated visited mountains
+- populated equipment
+- complete profile
+- dense notifications
+- multiple availability ranges across months
+- enough data to max out capped Home intelligence sections
+- enough data to create +N summarized social states
+- enough data to exercise pagination/progressive loading
+
+Do NOT simply generate 25 unrelated friends.
+
+Create meaningful overlap clusters so the UI contains realistic social intelligence.
+
+Determine a deterministic structure where subsets of the 25 friends overlap on:
+
+- the same mountain
+- the same Wishlist mountain
+- the same pass
+- the same availability dates
+- the same trip
+- different combinations of those dimensions
+
+Use the actual BaseLodge intelligence rules discovered in the application.
+
+Do not violate privacy/authorization rules to manufacture these states.
+
+------------------------------
+5. EXTREME
+------------------------------
+
+Purpose-built MOBILE layout stress.
+
+Use:
+
+- long but valid first/last names
+- long supported trip/location copy
+- long mountain/resort/location names
+- dense trip roster
+- long planning content
+- long URLs where rendered
+- maximum visible badges
+- multiple simultaneous sections
+- mixed populated and empty subsections
+- content likely to wrap
+- narrow-mobile stress where useful
+
+This does not need to represent a realistic average user.
+
+It exists to expose design limits.
+
+------------------------------
+6. EDGE
+------------------------------
+
+Used to create deterministic conditional states such as:
+
+- loading
+- no results
+- recoverable failure
+- retry
+- 403
+- 404
+- 500
+- invalid invite
+- expired invite
+- validation errors
+- terminal/read-only trip
+- progressive-loading states
+- concurrency conflict
+- export failure
+
+==================================================
+HEAVY SOCIAL GRAPH SPECIFICATION
+==================================================
+
+Explicitly design the Heavy persona's 25-friend graph.
+
+Return a compact table showing for each synthetic friend or friend cluster:
+
+- stable logical ID
+- relationship status
+- pass(es)
+- Wishlist overlap
+- visited-mountain overlap
+- availability overlap
+- trip overlap
+- whether they contribute to Home Ideas
+- whether they contribute to Happening
+- whether they appear in Mountain Detail social intelligence
+- any other relevant social-intelligence contribution
+
+You may use friend clusters rather than 25 individual rows if several friends intentionally share identical characteristics.
+
+The purpose is to guarantee that the Heavy account genuinely stresses BaseLodge's overlap-driven UI.
+
+IMPORTANT:
+
+The Heavy persona must not merely produce large underlying datasets.
+
+Design the graph so that it deliberately exercises the ACTUAL VISIBLE behaviors BaseLodge uses when density increases, including:
+
+- capped previews
+- +N summaries
+- grouped friends
+- pass clusters
+- availability overlaps
+- Wishlist overlaps
+- trip overlaps
+- Ideas
+- Happening
+- Mountain Detail social sections
+- Friends pagination/progressive loading
+
+==================================================
+HEAVY TRIP SPECIFICATION
+==================================================
+
+Explicitly design all 15 Heavy persona trips.
+
+Return a table containing:
+
+- stable logical trip ID
+- lifecycle/date state
+- public/private
+- viewer role
+- viewer participation status
+- approximate participant count
+- mountain/resort
+- whether friends overlap
+- whether it should appear in My Trips
+- whether it contributes to Home
+- whether it contributes to Friends' Trips
+- special visual state being exercised
+
+Use fixed dates relative to a FROZEN CAPTURE DATE.
+
+Recommend the frozen date that should be used.
+
+The dataset must remain reproducible in future before/after captures.
+
+The 15 trips should collectively exercise the CURRENT PRODUCT'S meaningful trip permutations without manufacturing unsupported states.
+
+==================================================
+CAPTURE MATRIX
+==================================================
+
+Produce the exact proposed screenshot matrix.
+
+Each row must contain:
+
+- Capture ID
+- Product area
+- Screen
+- Route
+- Persona
+- State
+- Viewport
+- Segment
+- Preconditions
+- Required interaction
+- Required deterministic wait/state
+- Why this capture is necessary
+
+Use deterministic IDs following:
+
+screen__persona__state__viewport__segment
+
+Example:
+
+home__heavy__default__mobile__top
+
+Do not generate unnecessary permutations.
+
+We want comprehensive DESIGN COVERAGE, not every mathematically possible combination.
+
+The goal is to allow an external designer to understand:
+
+- every important BaseLodge mobile screen
+- its information hierarchy
+- its meaningful states
+- what it looks like empty
+- what it looks like normally populated
+- what it looks like highly populated
+- how overlapping social data changes it
+- how long/dense content behaves
+- its important overlays
+- its important errors/failures
+- its important permissions/role differences
+
+==================================================
+SCREEN COVERAGE REQUIREMENTS
+==================================================
+
+The final matrix must comprehensively represent the current supported MOBILE web product.
+
+------------------------------
+AUTH
+------------------------------
+
+Include where supported:
+
+- Login
+- Signup
+- Forgot password
+- Reset password
+- validation/error states
+- invite-context Authentication if visually different
+
+------------------------------
+ONBOARDING
+------------------------------
+
+Include:
+
+- all visual steps
+- meaningful selection variants
+- disabled/validation state
+- no pass
+- multiple passes where visually useful
+- relevant rider-type/skill permutations
+
+Do not screenshot every possible selection combination if the visual structure is redundant.
+
+------------------------------
+HOME
+------------------------------
+
+This is one of the highest-priority areas.
+
+Include:
+
+- empty
+- light or typical
+- heavy
+- dense overlap
+- next trip organizer
+- next trip participant if materially different
+- pending invitation where visible
+- pending connection where visible
+- Ideas
+- Happening
+- Ideas + Happening together
+- availability absent
+- availability populated
+- gear absent where visually relevant
+- gear populated
+- stats empty/populated where visually relevant
+- maximum visible intelligence sections
+- narrow-mobile stress where useful
+
+The Heavy Home state should be intentionally information-rich.
+
+------------------------------
+MY TRIPS
+------------------------------
+
+Include:
+
+- empty
+- typical
+- Heavy 15-trip account
+- upcoming
+- history
+- pending invitations
+- Friends' Trips
+- grouped destinations
+- filter sheet
+- no filter results
+- progressive loading / Load More
+- all pages loaded where visually different
+- failure/retry
+
+Ensure the Heavy state makes the volume of 15 trips visible through realistic scrolling/segmentation.
+
+------------------------------
+CREATE TRIP
+------------------------------
+
+Include:
+
+- empty form
+- resort search
+- resort results
+- no results if visually useful
+- dates selected
+- public/private where visually different
+- Planning/Going where visually different
+- validation
+- overlapping-date warning/error if user-facing
+- friend/group prefill if current supported UI
+- submission failure if materially visual
+
+------------------------------
+TRIP DETAIL
+------------------------------
+
+This is one of the most important screens.
+
+Include:
+
+- organizer
+- Going participant
+- Interested participant where materially different
+- pending invitee if this renders Trip Detail
+- public/private differences where visible
+- future
+- current if visually different
+- past/history
+- terminal/read-only
+- empty roster
+- dense roster
+- inline edit
+- stay absent
+- stay populated
+- planning preview empty/populated
+- join request where supported
+- invited-candidate loading
+- organizer controls
+- important confirmation states
+
+Heavy/Extreme Trip Detail must deliberately stress the page.
+
+------------------------------
+TRIP ROSTER
+------------------------------
+
+Include visible combinations of:
+
+- Going
+- Interested
+- Pending
+- Declined
+- organizer controls
+- participant read-only
+- long names
+- dense participant count
+
+------------------------------
+TRIP INVITATION
+------------------------------
+
+Include:
+
+- pending
+- Going/Interested choice
+- decline confirmation
+- participant settings where visually different
+- accepted outcome
+- declined outcome
+- invalid
+- expired
+
+------------------------------
+TRIP PLANNING
+------------------------------
+
+Include:
+
+- empty
+- populated
+- dense/long content
+- create sheet
+- edit sheet
+- validation/load error
+- terminal/read-only where relevant
+
+------------------------------
+FRIENDS
+------------------------------
+
+This is one of the highest-priority areas.
+
+Include:
+
+- empty
+- light/typical
+- Heavy 25-friend account
+- pending requests
+- Suggested tab empty/populated
+- search
+- no results
+- filters
+- pagination/progressive loading
+- loading
+- failure/retry
+- pull-to-refresh if meaningfully visible
+- narrow-mobile Heavy stress
+
+The Heavy Friends capture must clearly exercise the 25-friend dataset rather than simply showing the first few friends with no indication of density.
+
+------------------------------
+FRIEND PROFILE
+------------------------------
+
+Include:
+
+- minimal
+- complete
+- upcoming trips empty
+- upcoming trips populated
+- Invite to Trip available
+- shared Wishlist context
+- shared trip context
+- shared availability context
+- high-overlap +N summary
+- remove confirmation if important
+
+------------------------------
+FRIEND DISCOVERY
+------------------------------
+
+Where represented through the current UI, include meaningful states for:
+
+- no relationship
+- outgoing
+- incoming
+- connected
+- mutual-count context
+- long names
+- populated suggestions/search
+
+Do not create standalone captures for backend-only states.
+
+------------------------------
+MOUNTAINS
+------------------------------
+
+Include:
+
+- initial/default
+- normal populated results
+- search results
+- no results
+- country/state/pass filters where visible
+- combined filters
+- clear filters
+- education prompt if current
+- loading
+- failure
+
+------------------------------
+MOUNTAIN DETAIL
+------------------------------
+
+This is one of the highest-priority social screens.
+
+Include:
+
+- on pass
+- off pass if visually different
+- visited
+- not visited if visually different
+- Wishlisted
+- not Wishlisted if visually different
+- social loading
+- social success
+- social empty/hidden
+- social failure
+- Retry
+- dense Going/Interested
+- contextual insights
+- availability overlap
+- friend visits
+- friend Wishlist
+- high-overlap +N states
+- multiple simultaneous social sections
+- narrow-mobile dense stress
+
+------------------------------
+WISHLIST
+------------------------------
+
+Include:
+
+- empty
+- sparse
+- dense
+- maximum 15
+- mixed passes/regions if visually useful
+- owner editable
+- friend read-only
+- save success/error where visually meaningful
+
+------------------------------
+VISITED MOUNTAINS
+------------------------------
+
+Include:
+
+- empty
+- sparse
+- dense
+- owner editable
+- friend read-only if visually different
+
+------------------------------
+AVAILABILITY EDITOR
+------------------------------
+
+Include:
+
+- no dates
+- one range
+- multiple ranges
+- multiple months
+- deselected/edited state if visible
+- validation
+- saved confirmation
+
+------------------------------
+OPEN TO SKI
+------------------------------
+
+Include:
+
+- no eligible dates
+- normal review
+- sparse card
+- dense card
+- multi-month dense card
+- export/share state
+- export in progress
+- share success if visible
+- download fallback if visible
+- concurrency conflict
+- invalid selection
+- export failure
+
+The densest approved card configuration should be captured.
+
+------------------------------
+PROFILE
+------------------------------
+
+Include:
+
+- minimal
+- complete
+- no gear
+- full gear
+- zero stats
+- populated stats
+- Wishlist overlay
+- visited overlay
+- buddy-pass modal if current
+- Friend Discovery on/off if visually different
+- important account confirmation modal
+
+------------------------------
+EQUIPMENT
+------------------------------
+
+Include:
+
+- empty
+- one setup
+- multiple setups
+- primary setup
+- edit
+- save
+- delete confirmation
+- validation
+
+------------------------------
+SKI DAYS / HISTORY
+------------------------------
+
+Include:
+
+- empty
+- populated
+- dense if layout changes materially
+
+------------------------------
+PUSH SETTINGS
+------------------------------
+
+Include:
+
+- enabled
+- disabled
+- update in progress if visible
+- API failure
+
+Exclude native operating-system permission UI.
+
+------------------------------
+NOTIFICATIONS
+------------------------------
+
+Include:
+
+- empty
+- typical
+- dense
+- unread
+- read
+- pending connection
+- trip lifecycle examples
+- long content where useful
+
+------------------------------
+PERSONAL INVITE / QR
+------------------------------
+
+Include:
+
+- token loading if meaningfully visible
+- QR ready
+- copy success
+- share state where browser-visible
+- token-generation failure
+
+------------------------------
+FRIEND/TRIP INVITE OUTCOMES
+------------------------------
+
+Include meaningful visible states for:
+
+- landing
+- invalid
+- expired
+- accepted
+- already accepted/responded
+- terminal outcome
+
+------------------------------
+SYSTEM / ERRORS
+------------------------------
+
+Include user-facing:
+
+- 403
+- 404
+- 500
+- CSRF 403 if visually different
+- meaningful inline form errors
+- load failure/retry
+- global flash
+- global toast
+- page loader if meaningfully visible
+
+Do not create screenshots of JSON-only API responses.
+
+==================================================
+LONG PAGE CAPTURE RULE
+==================================================
+
+Do not rely solely on full-page screenshots for long pages.
+
+For long/dense screens, define readable segment captures.
+
+At minimum evaluate segmentation for:
+
+- Home
+- My Trips
+- Trip Detail
+- Friends
+- Mountains
+- Mountain Detail
+- Profile
+
+For Trip Detail specifically consider:
+
+- hero
+- people
+- stay-and-transport
+- planning
+- organizer-actions
+- modal-invite
+- modal-dates
+
+For Heavy Home consider segments such as:
+
+- top/next-trip
+- Ideas
+- Happening
+- availability/profile intelligence
+
+For Heavy My Trips consider:
+
+- top/upcoming
+- continuation
+- history
+- Friends' Trips
+
+For Heavy Friends consider:
+
+- top
+- continuation/pagination
+- suggestions
+- filters/search
+
+A full-page orientation capture may be included IN ADDITION to readable section captures where useful.
+
+Do not use full-page captures as a substitute for readable section captures.
+
+==================================================
+MODALS / SHEETS / OVERLAYS
+==================================================
+
+Treat materially different overlays as separate captures.
+
+Examples:
+
+- filters
+- invite people
+- confirmation dialogs
+- edit sheets
+- destination groups
+- equipment editing
+- account actions
+- trip participation controls
+
+Do not duplicate an overlay across multiple personas unless density, permissions, or content materially alter it.
+
+==================================================
+MOBILE CAPTURE RULE
+==================================================
+
+This is a MOBILE-ONLY design reference.
+
+Do not include desktop screenshots in the capture matrix.
+
+Use 390 × 844 as the standard viewport for the complete product reference.
+
+Use 360 × 800 selectively as a stress-test viewport only when narrower width exposes a meaningful design constraint.
+
+Do not multiply every state by both mobile sizes.
+
+The final library should make it possible to understand and redesign the complete BaseLodge mobile experience without needing desktop references.
+
+==================================================
+ERROR / LOADING STATE DETERMINISM
+==================================================
+
+Loading and failure captures must be reproducible.
+
+Do not plan to capture naturally brief network moments by timing screenshots manually.
+
+For each loading/error state in the matrix, identify how the future capture harness should deterministically hold or inject that state while still rendering the actual BaseLodge component/UI.
+
+Examples may include controlled fixture responses or capture-only interception.
+
+Do not implement these mechanisms yet.
+
+==================================================
+FROZEN DATE
+==================================================
+
+Recommend one fixed frozen capture date.
+
+All time-sensitive persona data must be generated relative to this fixed date.
+
+This must control, where relevant:
+
+- upcoming trips
+- current trips
+- past trips
+- completed trips
+- cancelled trips
+- invitations
+- availability
+- Open to Ski
+- relative date labels
+- seasonal logic
+- any age/time-dependent product state
+
+The same dataset should render identically when recaptured after redesign.
+
+==================================================
+CAPTURE COUNT
+==================================================
+
+At the end, report:
+
+- total proposed screenshots
+- 390 × 844 count
+- 360 × 800 stress count
+- count by product area
+- count by persona
+- count of modal/sheet captures
+- count of loading/error/system states
+
+If the total becomes excessive, identify low-value captures that could be removed while preserving strong design coverage.
+
+Do NOT arbitrarily reduce coverage merely to hit a round number.
+
+Do NOT add captures merely to make the matrix appear comprehensive.
+
+Every capture should have a clear design-review purpose.
+
+==================================================
+REDUNDANCY REVIEW
+==================================================
+
+After creating the matrix, explicitly review it for redundancy.
+
+Identify:
+
+1. Captures that look materially different and must remain.
+2. Captures whose underlying data differs but whose visible UI would be effectively identical.
+3. Captures that can safely be removed.
+4. Important combinations that would be missed if we only captured Empty / Typical / Heavy.
+
+Optimize for a comprehensive but usable design library.
+
+==================================================
+IMPLEMENTATION SPECIFICATION FOR PHASE 3
+==================================================
+
+After the capture matrix, provide a bounded implementation specification for the future capture harness.
+
+Specify:
+
+- isolated capture runtime
+- test database strategy
+- frozen date strategy
+- persona fixture architecture
+- Heavy 25-friend relationship graph generation
+- Heavy 15-trip generation
+- authentication/session approach
+- deterministic loading/error-state mechanism
+- external side-effect blocking
+- capture manifest architecture
+- managed-browser automation approach
+- screenshot naming
+- output directory
+- cleanup behavior
+- safety guards preventing Development/Production access
+- how to reproduce the exact same captures after redesign
+
+The preferred architecture from Phase 1 is an isolated capture server using BaseLodge's actual application with a disposable test database.
+
+Preserve these principles:
+
+- use real BaseLodge routes
+- use real templates/components
+- use real CSS
+- use real frontend JavaScript where possible
+- deterministic synthetic data
+- no Production data
+- no Development contamination
+- no real users
+- no external email/push/analytics side effects
+- reproducible before/after screenshots
+
+DO NOT IMPLEMENT IT.
+
+==================================================
+FINAL RESPONSE FORMAT
+==================================================
+
+Return:
+
+1. Repository state
+2. Final scope inclusions/exclusions
+3. Frozen capture-date recommendation
+4. Six persona specifications
+5. Heavy 25-friend social graph
+6. Heavy 15-trip dataset
+7. Exact MOBILE screenshot capture matrix
+8. Capture counts
+9. Redundancy review
+10. Phase 3 implementation specification
+11. Remaining decisions requiring product-owner input
+
+No implementation.
+No screenshots.
+No synthetic data creation.
+No repository changes.
+No database changes.
+No task creation.
+No Git operations.
+No desktop captures.
