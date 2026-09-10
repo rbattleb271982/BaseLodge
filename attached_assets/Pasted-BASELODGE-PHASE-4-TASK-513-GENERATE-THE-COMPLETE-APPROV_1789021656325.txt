@@ -1,0 +1,302 @@
+BASELODGE — PHASE 4 / TASK #513
+GENERATE THE COMPLETE APPROVED MOBILE SCREENSHOT LIBRARY
+
+Agent level: Plan
+Estimated scope: approximately 20–25% of a normal batch.
+
+Phase 3 is complete and approved.
+
+Do not redesign, refactor, or improve the BaseLodge UI in this task.
+
+The purpose of Phase 4 is to execute the already-built deterministic capture system across the complete approved mobile manifest, verify the output, and package the screenshot corpus for external UX/UI design review.
+
+PHASE 3 BASELINE
+
+The existing capture system has already been validated with:
+
+- isolated deterministic capture runtime
+- BASELODGE_RUNTIME_ENV=test
+- BASELODGE_CAPTURE_MODE=1
+- absolute file-backed SQLite databases under /tmp only
+- frozen time at January 15, 2027, 12:00 PM America/Denver
+- six deterministic personas:
+  - EMPTY
+  - LIGHT
+  - TYPICAL
+  - HEAVY
+  - EXTREME
+  - EDGE
+- HEAVY with exactly 25 reciprocal friends
+- HEAVY associated with exactly 15 distinct trips
+- canonical dense-roster trip HT04 with nine Going participants
+- stable logical fixture IDs
+- isolated capture authentication
+- fail-closed external socket access
+- deterministic Mountain Loading and Error/Retry capture controls
+- capture-output ignored by git
+- no Development or Production database access
+
+The approved machine-readable manifest contains exactly 104 entries:
+
+- 99 at 390×844
+- 5 at 360×800
+
+Nine representative Phase 3 screenshots have already been successfully generated and reviewed.
+
+TASK
+
+Generate the COMPLETE approved screenshot library represented by all 104 entries in the existing manifest.
+
+Do not add arbitrary screens.
+
+Do not remove approved manifest entries.
+
+Do not alter fixture data simply to make screenshots look better.
+
+Do not modify application UI or product behavior as part of visual review.
+
+If a screenshot reveals an actual product/design problem, document the problem separately rather than fixing it in this task.
+
+EXECUTION REQUIREMENTS
+
+1. Run all 104 approved manifest entries through the existing isolated capture harness.
+
+2. Preserve the exact Phase 3 runtime and database safety requirements.
+
+3. Confirm no Development or Production data is accessed, modified, migrated, or written.
+
+4. Confirm disposable capture databases are cleaned up after execution.
+
+5. Preserve deterministic frozen time.
+
+6. Preserve stable logical fixture IDs and deterministic persona data.
+
+7. Generate each screenshot at the viewport specified by its manifest entry.
+
+8. Do not introduce desktop screenshots.
+
+This library is MOBILE ONLY.
+
+COMPLETENESS VALIDATION
+
+After generation, programmatically verify:
+
+- exactly 104 expected manifest entries
+- exactly 104 successful screenshot outputs
+- no missing screenshots
+- no duplicate output identities
+- no unexpected extra screenshots
+- 99 screenshots at 390×844
+- 5 screenshots at 360×800
+- every output maps back to exactly one manifest entry
+
+Fail the task if completeness cannot be proven.
+
+VISUAL VALIDATION
+
+Review the complete screenshot corpus.
+
+The goal is NOT to judge whether the current design is good.
+
+The goal is to detect CAPTURE FAILURES.
+
+Check for issues such as:
+
+- blank pages
+- partially rendered pages
+- authentication failures
+- fixture failures
+- missing expected data
+- unintended loading states
+- broken images
+- clipped content caused by capture failure
+- overlays failing to appear
+- overlays appearing when they should not
+- incorrect routes
+- error pages where none are expected
+- screenshots captured before deterministic content settled
+- obvious browser/runtime errors
+
+IMPORTANT DISTINCTION:
+
+A real BaseLodge UX/UI problem is NOT a capture failure.
+
+For example, if a legitimate dense screen looks cluttered because the current BaseLodge UI does not handle density well, KEEP THE SCREENSHOT.
+
+That is exactly the kind of evidence the external UX/UI audit needs.
+
+Do not beautify or repair product UI during Phase 4.
+
+DENSE / STRESS STATES
+
+Pay particular attention to the HEAVY, EXTREME, and EDGE states.
+
+We explicitly want screenshots demonstrating real product stress, including:
+
+- approximately 25-friend networks
+- approximately 15-trip histories/current states
+- dense friend overlap
+- dense trip participation
+- long lists
+- crowded calendars/availability
+- invitation permutations
+- RSVP permutations
+- privacy permutations
+- lifecycle permutations
+- populated profiles
+- empty states
+- loading states
+- error/retry states
+- modal/overlay states
+- narrow 360×800 cases
+
+Do not simplify these states.
+
+They are intentionally part of the design corpus.
+
+DISCOVERED ISSUES
+
+Maintain a machine-readable or clearly structured discovered-issues report.
+
+Separate issues into:
+
+A. CAPTURE ISSUE
+Something prevented the screenshot from accurately representing the current application.
+
+B. PRODUCT / UX OBSERVATION
+The screenshot appears to accurately represent the current application, but exposes a potential UX/UI issue.
+
+Do NOT fix category B issues during this task.
+
+Retain the previously discovered buddy-pass-modal issue:
+
+The requested buddy-pass modal is not included by any active route template and therefore cannot be captured as an active application state.
+
+Do not fabricate the modal merely to produce a screenshot.
+
+OUTPUT STRUCTURE
+
+Keep the existing capture-output structure where practical:
+
+capture-output/
+  manifest.json
+  run-metadata.json
+  screenshots/
+  server.log
+
+Add any necessary validation/report files under capture-output/ without introducing production application dependencies.
+
+Also create a human-readable SCREENSHOT_INDEX.md under capture-output/.
+
+The index should organize the 104 screenshots into useful review groups such as:
+
+- Home
+- Friends
+- Trips
+- Trip Detail
+- Mountain
+- Profile
+- Onboarding
+- invitations / RSVP
+- overlays / modals
+- empty states
+- loading/error states
+- dense/stress states
+- other approved routes/states
+
+For each screenshot include enough information to understand:
+
+- screenshot filename
+- route/screen
+- persona
+- state/variant
+- viewport
+- relevant logical fixture ID where applicable
+- short description of what the screenshot demonstrates
+
+Do not include design recommendations in this index.
+
+EXTERNAL DESIGN REVIEW READINESS
+
+This screenshot corpus is going to be used for a comprehensive BaseLodge UX/UI audit.
+
+The reviewer needs to be able to understand:
+
+1. what a normal account looks like
+2. what a new/empty account looks like
+3. what a lightly populated account looks like
+4. what a typical account looks like
+5. what a heavily populated account looks like
+6. what an extreme account looks like
+7. what important edge/error/loading states look like
+8. how the same components behave under different amounts of data
+
+Therefore, preserve useful state diversity.
+
+Do not optimize the corpus for visual attractiveness.
+
+Optimize it for PRODUCT REPRESENTATION and DESIGN AUDIT COVERAGE.
+
+REGRESSION / SAFETY VERIFICATION
+
+Run the relevant capture tests and adjacent regressions necessary to confirm the Phase 4 execution did not alter normal application behavior.
+
+At minimum verify:
+
+- capture tests
+- relevant adjacent Python tests
+- JavaScript suite if affected
+- Python compilation if Python files changed
+- normal Flask workflow
+- normal application does not expose capture-only routes
+- no Development or Production DB access
+- no residual /tmp capture databases
+
+REPOSITORY RULES
+
+Do not commit, push, publish, or deploy.
+
+Do not stage files.
+
+capture-output must remain ignored.
+
+Do not make unrelated .replit/configuration changes.
+
+Do not modify application UI merely because visual review exposes an issue.
+
+FINAL REPORT
+
+Return a concise Phase 4 report containing:
+
+1. status
+2. total manifest entries
+3. total screenshots generated
+4. viewport breakdown
+5. persona breakdown
+6. screen/route category breakdown
+7. capture failures found and resolution, if any
+8. product/UX observations discovered, without fixing them
+9. confirmation of HEAVY/EXTREME/EDGE coverage
+10. confirmation of database/runtime isolation
+11. cleanup status
+12. verification/test results
+13. generated artifact paths
+14. repository status
+15. explicit confirmation that no redesign/UI changes were made
+16. whether the complete library is ready for external UX/UI audit
+
+STOP CONDITIONS
+
+Stop rather than weakening safeguards if:
+
+- Development or Production data would need to be accessed
+- a manifest entry cannot be generated without changing real application behavior
+- capture isolation cannot be maintained
+- deterministic fixture guarantees fail
+- completeness cannot be proven
+
+If stopped, report the exact blocker and affected manifest entries.
+
+SUCCESS CONDITION
+
+Phase 4 is complete only when the full approved 104-entry mobile screenshot library has been generated, validated, reviewed for capture integrity, indexed, and is ready to hand off for the BaseLodge UX/UI audit.
