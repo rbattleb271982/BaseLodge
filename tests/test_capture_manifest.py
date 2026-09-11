@@ -10,8 +10,8 @@ from capture_harness.manifest import (
 
 def test_manifest_shape_and_count():
     validate_manifest()
-    assert len(MANIFEST) == 107
-    assert len({r["capture_id"] for r in MANIFEST}) == 107
+    assert len(MANIFEST) == 114
+    assert len({r["capture_id"] for r in MANIFEST}) == 114
     required = {"capture_id", "product_area", "screen", "route_template", "persona",
                 "state", "viewport", "segment", "logical_route_bindings", "preconditions",
                 "interaction", "deterministic_wait_condition", "output_path", "rationale"}
@@ -43,6 +43,8 @@ def test_required_phase_three_additions_and_split_states():
                  "friends__edge__suggestions-loading", "friends__edge__suggestions-error",
                  "trips__edge__progressive-loading", "trips__edge__error-retry"):
         assert any(x.startswith(stem) for x in ids)
+    assert sum("both-" in x for x in ids) == 6
+    assert any("mine-regression" in x for x in ids)
 
 
 def test_route_templates_are_supported_or_intentional_system_outcomes():

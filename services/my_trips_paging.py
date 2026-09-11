@@ -225,7 +225,13 @@ def _after_cursor_predicate(
     )
 
 
-def _candidate_query(viewer_id: int, section: str, today: date, cursor):
+def _candidate_query(
+    viewer_id: int,
+    section: str,
+    today: date,
+    cursor,
+    through_date: date | None = None,
+):
     participant = aliased(SkiTripParticipant, name="viewer_participation")
     source_rank = sa.case(
         (SkiTrip.user_id == viewer_id, 0),
@@ -309,6 +315,8 @@ def _candidate_query(viewer_id: int, section: str, today: date, cursor):
                 section, cursor, source_rank, null_rank, sort_date
             )
         )
+    if through_date is not None:
+        query = query.filter(sort_date <= through_date)
 
     if section == "upcoming":
         query = query.order_by(
@@ -333,6 +341,8 @@ def load_my_trips_page(
     *,
     today: date | None = None,
     cursor_value: str | None = None,
+    page_size: int | None = MY_TRIPS_PAGE_SIZE,
+    through_date: date | None = None,
 ) -> MyTripsPage:
     """Load one authorized viewer-feed page without hydrating the lookahead row."""
     if section not in _VALID_SECTIONS:
@@ -341,13 +351,20 @@ def load_my_trips_page(
     cursor = (
         decode_my_trips_cursor(cursor_value, section) if cursor_value else None
     )
-    candidates = (
-        _candidate_query(viewer_id, section, today, cursor)
-        .limit(MY_TRIPS_PAGE_SIZE + 1)
-        .all()
+    query = _candidate_query(
+        viewer_id,
+        section,
+        today,
+        cursor,
+        through_date=through_date,
     )
-    has_more = len(candidates) > MY_TRIPS_PAGE_SIZE
-    page_candidates = candidates[:MY_TRIPS_PAGE_SIZE]
+    candidates = (
+        query.all()
+        if page_size is None
+        else query.limit(page_size + 1).all()
+    )
+    has_more = page_size is not None and len(candidates) > page_size
+    page_candidates = candidates if page_size is None else candidates[:page_size]
     if not page_candidates:
         return MyTripsPage(rows=[], has_more=False, next_cursor=None)
 

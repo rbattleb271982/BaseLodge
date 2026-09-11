@@ -430,6 +430,84 @@ def seed_all(database=None):
                                 "2027-01-29/2027-02-02",
                                 "2027-02-12/2027-02-16"),
     }
+    # Batch 2 Both uses a separate, initially inactive social graph.  Keeping
+    # these trips out of the canonical HEAVY collection makes capture state
+    # toggles deterministic without changing Mine's 15-trip contract.
+    both_scenarios = {
+        "typical": [],
+        "heavy_overlaps": [],
+        "heavy_opportunities": [],
+    }
+    def _scenario_friend(viewer, label, first):
+        friend = _user(label, first, "Both", "Ikon", "Intermediate")
+        db.session.add(friend)
+        db.session.flush()
+        db.session.add(Friend(user_id=viewer.id, friend_id=friend.id, is_seeded=True))
+        db.session.add(Friend(user_id=friend.id, friend_id=viewer.id, is_seeded=True))
+        return friend
+
+    typical = users["TYPICAL"]
+    typical_friends = [
+        _scenario_friend(typical, f"both-typical-{i}", name)
+        for i, name in enumerate(("Mara", "Noah", "Inez"), 1)
+    ]
+    # One normalized overlap and one wishlist-backed standalone opportunity.
+    t_own = registry["personas"]["TYPICAL"]["trips"][0]
+    t_overlap = _trip(
+        typical_friends[0], t_own.resort, t_own.start_date, t_own.end_date,
+        "going", True, lifecycle_state="cancelled",
+    )
+    _participant(t_overlap, typical_friends[1], GuestStatus.GOING)
+    t_standalone = _trip(
+        typical_friends[2], resorts["alta"], FROZEN_TODAY + timedelta(days=42),
+        FROZEN_TODAY + timedelta(days=45), "going", True, lifecycle_state="cancelled",
+    )
+    _participant(t_standalone, typical_friends[0], GuestStatus.GOING)
+    _participant(t_standalone, typical_friends[1], GuestStatus.GOING)
+    typical.wish_list_resorts = list(set(typical.wish_list_resorts or []) | {resorts["alta"].id})
+    typical_friends[2].wish_list_resorts = [resorts["alta"].id]
+    both_scenarios["typical"] = [t_overlap, t_standalone]
+
+    # Reuse the canonical HEAVY reciprocal graph so the account remains at
+    # exactly 25 friends. Scenario trips stay outside its 15-trip collection.
+    heavy_sfriends = friends[:6]
+    heavy_targets = [trips[3], trips[4], trips[5]]
+    h_overlap = []
+    for index, target in enumerate(heavy_targets):
+        friend_trip = _trip(
+            heavy_sfriends[index], target.resort, target.start_date, target.end_date,
+            "going", True, lifecycle_state="cancelled",
+        )
+        _participant(friend_trip, heavy_sfriends[(index + 1) % len(heavy_sfriends)], GuestStatus.GOING)
+        if index == 0:
+            _participant(friend_trip, heavy_sfriends[3], GuestStatus.GOING)
+        h_overlap.append(friend_trip)
+    # A separate three-going trip is a real Home friend-trip candidate.
+    h_standalone = _trip(
+        heavy_sfriends[3], resorts["alta"], FROZEN_TODAY + timedelta(days=48),
+        FROZEN_TODAY + timedelta(days=51), "going", True, lifecycle_state="cancelled",
+    )
+    for friend in heavy_sfriends[4:6]:
+        _participant(h_standalone, friend, GuestStatus.GOING)
+    h_standalone_two = _trip(
+        heavy_sfriends[4], resorts["big-sky"], FROZEN_TODAY + timedelta(days=63),
+        FROZEN_TODAY + timedelta(days=66), "going", True, lifecycle_state="cancelled",
+    )
+    for friend in heavy_sfriends[3:6]:
+        if friend.id != h_standalone_two.user_id:
+            _participant(h_standalone_two, friend, GuestStatus.GOING)
+    heavy.wish_list_resorts = list(set(heavy.wish_list_resorts or []) | {resorts["alta"].id})
+    heavy_sfriends[3].wish_list_resorts = [resorts["alta"].id]
+    both_scenarios["heavy_overlaps"] = h_overlap
+    both_scenarios["heavy_opportunities"] = [
+        h_standalone,
+        h_standalone_two,
+    ]
+    registry["both_scenarios"] = both_scenarios
+    registry["both_scenario_ids"] = {
+        key: [trip.id for trip in scenario_trips]
+        for key, scenario_trips in both_scenarios.items()
+    }
     registry["routes"] = {
         "home": "persona:heavy", "friends": "persona:heavy",
         "trips": "persona:heavy", "empty": "persona:empty",

@@ -185,6 +185,47 @@ class CaptureRunner:
             if row["state"] == "season-snapshot":
                 marker = ".ss-card"
             page.wait_for_selector(marker, state="attached")
+            if row["screen"] == "trips" and row["state"].startswith("both-"):
+                page.wait_for_selector(
+                    ".view-tab.active[href*='tab=both']", state="visible"
+                )
+                if page.locator(".ledger-invite").count():
+                    raise RuntimeError("Both capture unexpectedly contains invitations")
+                overlap_count = page.locator(
+                    ".both-row:not(.both-opportunity) .both-annotation:not(:empty)"
+                ).count()
+                opportunity_count = page.locator(".both-opportunity").count()
+                expected = {
+                    "both-normal": (1, 1),
+                    "both-heavy": (3, 2),
+                    "both-multiple-overlaps": (3, 0),
+                    "both-standalone-opportunities": (0, 2),
+                    "both-heavy-narrow": (3, 2),
+                    "both-no-relevant-friend-activity": (0, 0),
+                }
+                key = next((name for name in expected if row["state"].startswith(name)), None)
+                if key is not None:
+                    expected_overlaps, expected_opportunities = expected[key]
+                    if (
+                        overlap_count != expected_overlaps
+                        or opportunity_count != expected_opportunities
+                    ):
+                        raise RuntimeError(
+                            f"{row['state']} contract failed: "
+                            f"expected {expected_overlaps} overlaps and "
+                            f"{expected_opportunities} opportunities; got "
+                            f"{overlap_count} overlaps and "
+                            f"{opportunity_count} opportunities"
+                        )
+                    if key == "both-no-relevant-friend-activity":
+                        if not page.locator(".both-row").count():
+                            raise RuntimeError("Relevant-empty Both state lost viewer rows")
+                        if page.locator(".quiet-line").count() != 1:
+                            raise RuntimeError("Relevant-empty Both state lost quiet copy")
+            elif row["screen"] == "trips" and row["state"] == "mine-regression":
+                page.wait_for_selector(
+                    ".view-tab.active:not([href*='tab=both'])", state="visible"
+                )
             if row["state"] == "social-loading":
                 page.wait_for_selector(".md-social-loading", state="visible")
             elif row["state"] == "social-error":

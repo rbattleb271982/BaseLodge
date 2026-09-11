@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from freezegun import freeze_time
-from models import Invitation
+from models import Invitation, SkiTrip
 
 from .config import CAPTURE_NOW, capture_database, resolve_capture_config
 from .effects import install_capture_effects
@@ -29,6 +29,36 @@ def _logical_bindings(registry: dict[str, Any]) -> dict[str, Any]:
         bindings[resort.slug] = resort.slug
     bindings["capture-friend-invite"] = registry["invite_token"].token
     return bindings
+
+
+def _set_both_capture_state(registry, capture_id):
+    """Reset the isolated social scenario, then activate one named contract."""
+    scenarios = registry.get("both_scenario_ids", {})
+    all_trip_ids = [trip_id for trip_ids in scenarios.values() for trip_id in trip_ids]
+    if all_trip_ids:
+        SkiTrip.query.filter(SkiTrip.id.in_(all_trip_ids)).update(
+            {SkiTrip.lifecycle_state: "cancelled"},
+            synchronize_session=False,
+        )
+    selected = []
+    if "both-normal" in capture_id:
+        selected = scenarios.get("typical", [])
+    elif "both-multiple-overlaps" in capture_id:
+        selected = scenarios.get("heavy_overlaps", [])
+    elif "both-standalone-opportunities" in capture_id:
+        selected = scenarios.get("heavy_opportunities", [])
+    elif "both-heavy" in capture_id:
+        selected = (
+            scenarios.get("heavy_overlaps", [])
+            + scenarios.get("heavy_opportunities", [])
+        )
+    # no-relevant-friend-activity and Mine regression intentionally select none.
+    if selected:
+        SkiTrip.query.filter(SkiTrip.id.in_(selected)).update(
+            {SkiTrip.lifecycle_state: "active"},
+            synchronize_session=False,
+        )
+    return len(selected)
 
 
 def create_capture_application() -> tuple[Any, dict[str, Any]]:
@@ -96,6 +126,7 @@ def create_capture_application() -> tuple[Any, dict[str, Any]]:
     def capture_prepare():
         payload = application.request.get_json(silent=True) or {}
         capture_id = str(payload.get("capture_id", ""))
+        _set_both_capture_state(registry, capture_id)
         pending = registry["state_trips"]["HOME_PENDING"]
         participant = registry["state_trips"]["HOME_PARTICIPANT"]
         pending.lifecycle_state = (

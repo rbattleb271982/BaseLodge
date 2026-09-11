@@ -191,6 +191,7 @@ from services.friends_trips_paging import (
     load_friends_trips_group_page,
     load_friends_trips_page,
 )
+from services.both_trips import load_both_trips
 from services.request_observability import (
     begin_request,
     emit_unhandled_error,
@@ -5980,6 +5981,11 @@ def my_trips():
         friends_destinations, has_friends = load_friends_trips_context(
             user.id, today=today
         )
+    both_rows = load_both_trips(user.id, today=today) if active_tab == "both" else []
+    both_next_trip_id = next(
+        (row.trip.id for row in both_rows if not row.is_opportunity),
+        None,
+    )
     return render_template(
         "my_trips_redesign.html",
         user=user,
@@ -6016,6 +6022,8 @@ def my_trips():
         history_total_count=history_page.total_count,
         next_trip_id=next_trip_id,
         today=today,
+        both_rows=both_rows,
+        both_next_trip_id=both_next_trip_id,
     )
 
 @app.route("/api/my-trips/page")

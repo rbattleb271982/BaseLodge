@@ -299,7 +299,7 @@ def _wishlist_pairs(*, user_id):
     )
 
 
-def _trip_candidates(*, user_id, today, available_days):
+def _trip_candidates(*, user_id, today, available_days, through_date=None):
     trip = SkiTrip.__table__
     participant = SkiTripParticipant.__table__
     friendship = Friend.__table__
@@ -334,6 +334,8 @@ def _trip_candidates(*, user_id, today, available_days):
             reciprocal_friend_predicate(user_id, trip.c.user_id),
         )
     )
+    if through_date is not None:
+        owner_rows = owner_rows.where(trip.c.start_date <= through_date)
     going_override = sa.and_(
         participant.c.status == GuestStatus.GOING,
         participant.c.start_date.is_not(None),
@@ -382,6 +384,8 @@ def _trip_candidates(*, user_id, today, available_days):
             reciprocal_friend_predicate(user_id, participant.c.user_id),
         )
     )
+    if through_date is not None:
+        participant_rows = participant_rows.where(effective_start <= through_date)
     occurrences = sa.union_all(owner_rows, participant_rows).cte(
         "ideas_trip_occurrences"
     )
@@ -692,13 +696,17 @@ def _wishlist_candidates(wishlist_pairs):
 
 
 def _build_home_ideas_statement(
-    *, user_id, today, limit=HOME_IDEAS_RENDER_CAP
+    *, user_id, today, limit=HOME_IDEAS_RENDER_CAP, include_dismissed=False,
+    raw_candidates=False, through_date=None,
 ):
     """Build the complete cross-dialect Home Ideas winner statement."""
     available_days = _available_days(user_id=user_id, today=today)
     wishlist_pairs = _wishlist_pairs(user_id=user_id)
     trips = _trip_candidates(
-        user_id=user_id, today=today, available_days=available_days
+        user_id=user_id,
+        today=today,
+        available_days=available_days,
+        through_date=through_date,
     )
     overlaps = _availability_candidates(
         user_id=user_id,
@@ -779,6 +787,16 @@ def _build_home_ideas_statement(
         "ideas_all_candidates"
     )
     assert tuple(candidates.c.keys()) == candidate_columns
+    if raw_candidates:
+        resort = Resort.__table__
+        return sa.select(
+            candidates,
+            resort.c.name.label("resort_name"),
+            resort.c.slug.label("resort_slug"),
+            resort.c.state_code.label("resort_state_code"),
+        ).select_from(
+            candidates.outerjoin(resort, resort.c.id == candidates.c.resort_id)
+        )
 
     trip = SkiTrip.__table__
     participant = SkiTripParticipant.__table__
@@ -905,7 +923,7 @@ def _build_home_ideas_statement(
         )
     )
     resort = Resort.__table__
-    return (
+    final = (
         sa.select(
             ranked,
             card_key.label("card_key"),
@@ -916,7 +934,10 @@ def _build_home_ideas_statement(
         .select_from(
             ranked.outerjoin(resort, resort.c.id == ranked.c.resort_id)
         )
-        .where(ranked.c.concept_rank == 1, ~is_dismissed)
+        .where(
+            ranked.c.concept_rank == 1,
+            sa.true() if include_dismissed else ~is_dismissed,
+        )
         .order_by(
             ranked.c.friend_count.desc(),
             sa.case(
@@ -930,8 +951,36 @@ def _build_home_ideas_statement(
             ranked.c.resort_id.asc().nulls_last(),
             ranked.c.source_id.asc(),
         )
-        .limit(limit)
     )
+    if limit is not None:
+        final = final.limit(limit)
+    return final
+
+
+def _build_home_ideas_candidate_statement(*, user_id, today, through_date=None):
+    """Return the shared, pre-dismissal relevance boundary.
+
+    This is intentionally not a Home presentation query: it contains only
+    generated, authorized structured signals.  Home adds booking suppression,
+    concept reduction, dismissal, ranking, and the five-card cap afterwards.
+    """
+    return _build_home_ideas_statement(
+        user_id=user_id,
+        today=today,
+        raw_candidates=True,
+        through_date=through_date,
+    )
+
+
+def get_home_idea_candidates(*, user_id, today=None, through_date=None):
+    """Load structured relevant candidates for non-Home projections."""
+    return list(db.session.execute(
+        _build_home_ideas_candidate_statement(
+            user_id=user_id,
+            today=today or date.today(),
+            through_date=through_date,
+        )
+    ).mappings())
 
 
 def _split(value, separator=","):

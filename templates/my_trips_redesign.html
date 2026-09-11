@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% from "components/my_trips_ledger.html" import ordinary_row, invite_row as ledger_invite %}
+{% from "components/my_trips_ledger.html" import ordinary_row, invite_row as ledger_invite, both_row %}
 {% block title %}BaseLodge — Trips{% endblock %}
 {% block topbar_title %}Trips{% endblock %}
 {% block topbar_right %}<a href="{{ url_for('season_snapshot') }}" class="bl-top-bar-action">Season Snapshot ›</a>{% endblock %}
@@ -9,7 +9,7 @@
 .season-line{height:46px;display:flex;align-items:center;justify-content:flex-end;padding:0 16px;border-bottom:1px solid #e5dfd0;white-space:nowrap}
 .plan-link{color:#5c1219;text-decoration:none;font-size:13px;font-weight:600;padding:14px 0 14px 12px;min-height:44px}
 .view-tabs{height:42px;display:flex;align-items:stretch;border-bottom:1px solid #ded7ca;padding:0 8px}
-.view-tab{position:relative;display:flex;align-items:center;gap:5px;padding:0 9px;border:0;background:none;font:500 13px/1 var(--bl-font-ui);color:#6e6a62;white-space:nowrap}
+.view-tab{position:relative;display:flex;align-items:center;gap:5px;padding:0 9px;border:0;background:none;font:500 13px/1 var(--bl-font-ui);color:#6e6a62;white-space:nowrap;text-decoration:none}
 .view-tab.active{color:#1a1a1a;font-weight:700}.view-tab.active:after{content:"";position:absolute;left:9px;right:9px;bottom:-1px;height:2px;background:#5c1219}
 .inventory{color:#6e6a62;font-weight:400}.attention{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:10px;background:#5c1219;color:#fff;font-size:11px;font-weight:700}
 .ledger-month{padding:11px 16px 7px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ded7ca;color:#6e6a62;font-size:10px;letter-spacing:1.5px;font-weight:700}
@@ -25,6 +25,8 @@
 .earlier-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:0 16px;border:0;border-top:1px solid #d8d0c2;border-bottom:1px solid #d8d0c2;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui);text-align:left}.earlier-chevron{font-size:16px;line-height:1;transition:transform .15s ease}.earlier-toggle[aria-expanded="true"] .earlier-chevron{transform:rotate(180deg)}
 .empty-ledger{padding:24px 16px;border-bottom:1px solid #e5dfd0}.empty-title{margin:0 0 4px;color:#1a1a1a;font:600 14px/1.4 var(--bl-font-ui)}.empty-copy{margin:0;color:#6e6a62;font-size:13px;line-height:1.45}
 .quiet-line{padding:22px 16px;color:#6e6a62;font-size:14px}
+.both-row .ledger-row-bottom{gap:14px}.both-annotation{flex:0 1 58%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;color:#5c1219;font-size:11.5px;line-height:1.3}
+.both-opportunity{background:#f1ede5;color:#6e6a62}.both-opportunity .ledger-mountain{color:#6e6a62;font-weight:400}.both-opportunity .both-annotation{color:#5c1219}
 .mine-load-more{display:block;min-height:44px;margin:12px auto;padding:0 18px;border:1px solid #cdb6b5;border-radius:8px;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui)}
 .choice-backdrop{position:fixed;inset:0;z-index:500;background:rgba(26,26,26,.28);display:flex;align-items:flex-end;justify-content:center;padding:16px}.choice-sheet{width:100%;max-width:380px;background:#f5f1e8;border:1px solid #d8d0c2;border-radius:12px;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}.choice-title{margin:0 0 4px;font:400 20px/1.25 var(--bl-font-serif)}.choice-copy{margin:0 0 14px;color:#6e6a62;font-size:13px}.choice-actions{display:flex;gap:8px}.choice-actions button{flex:1;min-height:48px;border-radius:8px;font:600 13px var(--bl-font-ui);border:1px solid #cdb6b5;background:transparent;color:#5c1219}.choice-actions .choice-going{background:#5c1219;color:#fff;border-color:#5c1219}
 .choice-backdrop[hidden]{display:none}
@@ -42,12 +44,12 @@
     <a class="plan-link" href="{{ url_for('add_trip') }}">+ Plan a trip</a>
   </div>
   <nav class="view-tabs" aria-label="Trip views">
-    <button class="view-tab active" type="button" aria-current="page">Mine <span class="inventory">{{ ahead }}</span>{% if invite_count %}<span class="attention" aria-label="{{ invite_count }} invitations">{{ invite_count }}</span>{% endif %}</button>
-    <button class="view-tab" type="button" disabled>Both</button>
+    <a class="view-tab {% if active_tab != 'both' %}active{% endif %}" href="{{ url_for('my_trips') }}">Mine <span class="inventory">{{ ahead }}</span>{% if invite_count %}<span class="attention" aria-label="{{ invite_count }} invitations">{{ invite_count }}</span>{% endif %}</a>
+    <a class="view-tab {% if active_tab == 'both' %}active{% endif %}" href="{{ url_for('my_trips', tab='both') }}">Both</a>
     <button class="view-tab" type="button" disabled>Friends'</button>
   </nav>
 
-  {% if mine %}
+  {% if active_tab != 'both' and mine %}
     <div id="mine-upcoming-ledger">
     {% set ns = namespace(last='', month_count=0) %}
     {% for row in mine %}
@@ -68,8 +70,40 @@
     {% if upcoming_has_more %}
     <button type="button" class="my-trips-load-more mine-load-more" data-section="upcoming" data-target="mine-upcoming-ledger" data-cursor="{{ upcoming_next_cursor }}">Load more</button>
     {% endif %}
-  {% else %}
+  {% elif active_tab != 'both' %}
     <div class="empty-ledger"><p class="empty-title">No trips yet</p><p class="empty-copy">Plan a trip to start building your season.</p></div>
+  {% endif %}
+
+  {% if active_tab == 'both' %}
+  <div id="both-ledger">
+    {% if both_rows %}
+      {% set quiet_ns = namespace(has_signal=false) %}
+      {% for signal_row in both_rows %}
+        {% if signal_row.is_opportunity or signal_row.overlap_names %}{% set quiet_ns.has_signal = true %}{% endif %}
+      {% endfor %}
+      {% if not quiet_ns.has_signal %}<div class="quiet-line">Nothing of yours overlaps a friend's trip yet.</div>{% endif %}
+      {% set ns = namespace(last='') %}
+      {% for row in both_rows %}
+        {% set row_start = row.attendance_start_date or row.trip.start_date %}
+        {% set key = row_start.strftime('%Y-%m') if row_start else loop.index %}
+        {% if key != ns.last %}
+          {% if not loop.first %}</section>{% endif %}
+          {% set ns.last = key %}
+          {% set count_ns = namespace(value=0) %}
+          {% for candidate in both_rows %}
+            {% set candidate_start = candidate.attendance_start_date or candidate.trip.start_date %}
+            {% if (candidate_start.strftime('%Y-%m') if candidate_start else '') == key %}{% set count_ns.value = count_ns.value + 1 %}{% endif %}
+          {% endfor %}
+          <section class="ledger-month-group">
+            <div class="ledger-month"><span>{{ row_start.strftime('%B')|upper if row_start else 'SEASON' }}</span><span class="ledger-month-count">{{ count_ns.value }} entr{% if count_ns.value != 1 %}ies{% else %}y{% endif %}</span></div>
+        {% endif %}
+        {{ both_row(row, both_next_trip_id if not row.is_opportunity else none) }}
+      {% endfor %}
+      </section>
+    {% else %}
+      <div class="quiet-line">Nothing of yours overlaps a friend's trip yet.</div>
+    {% endif %}
+  </div>
   {% endif %}
 
   {% if past %}

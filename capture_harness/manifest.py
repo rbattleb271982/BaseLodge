@@ -105,6 +105,21 @@ def build_manifest() -> list[dict[str, Any]]:
             viewport="narrow" if state == "narrow-15-trips" else "mobile",
             interaction="open Season Snapshot" if state == "season-snapshot" else "none",
             wait="trips-state-visible", control="transport-error" if state == "error-retry" else None)
+    # Batch 2 Both ledger: the query route is part of the capture contract.
+    both_captures = (
+        ("both-normal", "typical", "mobile"),
+        ("both-heavy", "heavy", "mobile"),
+        ("both-multiple-overlaps", "heavy", "mobile"),
+        ("both-standalone-opportunities", "heavy", "mobile"),
+        ("both-no-relevant-friend-activity", "typical", "mobile"),
+        ("both-heavy-narrow", "heavy", "narrow"),
+        ("mine-regression", "heavy", "mobile"),
+    )
+    for state, persona, viewport in both_captures:
+        route = "/my-trips?tab=both" if state != "mine-regression" else "/my-trips"
+        add("trips", "trips", persona, state, route, "friends-trips",
+            viewport=viewport, wait="trips-state-visible",
+            rationale="Batch 2 approved compact Both/Mine ledger capture.")
     # Create trip.
     for state, interaction in (("empty-form","none"),("resort-results","search resort"),
                                ("dates-selected","select deterministic dates"),("validation-error","submit invalid form")):
@@ -203,8 +218,8 @@ MANIFEST = build_manifest()
 
 def validate_manifest(rows: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     rows = MANIFEST if rows is None else rows
-    if len(rows) != 107:
-        raise ValueError(f"capture manifest must contain exactly 107 rows (got {len(rows)})")
+    if len(rows) != 114:
+        raise ValueError(f"capture manifest must contain exactly 114 rows (got {len(rows)})")
     ids = [r["capture_id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise ValueError("capture IDs must be unique")
