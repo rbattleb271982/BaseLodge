@@ -81,6 +81,7 @@ def test_people_projection_counts_owner_once_and_normalizes_passes(client):
 
     assert 'data-people-total="4"' in html
     assert "People <span class=\"td-detail-tab-count\">4</span>" in html
+    assert "4 people are on this trip." in people_panel
     assert "The group <span>4 people</span>" in people_panel
     assert (
         'aria-label="1 organizing, 1 going, 1 interested, 1 invited"'
@@ -98,6 +99,20 @@ def test_people_projection_counts_owner_once_and_normalizes_passes(client):
     assert 'data-pass-bucket="no_pass" data-pass-count="1" data-pass-share="25.0"' in people_panel
     assert "have access" not in people_panel
     assert "Buddy Pass" not in people_panel
+
+
+def test_people_headline_handles_single_person_trip(client):
+    with app.app_context():
+        owner = _named_user("batch2-single-owner", "Single", "Organizer")
+        trip = _make_trip(owner, resort=_make_resort("Northstar"))
+        db.session.commit()
+        owner_id, trip_id = owner.id, trip.id
+
+    html = _trip_html(client, owner_id, trip_id)
+    people_panel = html.split('id="td-panel-people"', 1)[1].split(
+        "</section><!-- /td-hub-people -->", 1
+    )[0]
+    assert "1 person is on this trip." in people_panel
 
 
 def test_people_request_badge_is_owner_only_and_terminal_safe(client):
