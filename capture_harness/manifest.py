@@ -99,7 +99,7 @@ def build_manifest() -> list[dict[str, Any]]:
              ("season-snapshot","heavy","season-snapshot"),("filter-sheet","heavy","top-upcoming"),
              ("no-filter-results","edge","top-upcoming"),("progressive-loading","edge","friends-trips"),
              ("error-retry","edge","friends-trips"),("narrow-15-trips","heavy","continuation"),
-             ("pending-invites","typical","top-upcoming")]
+              ("three-invitations","heavy","top-upcoming"),("accept-choice","heavy","top-upcoming")]
     for state, persona, seg in trips:
         add("trips", "trips", persona, state, "/season-snapshot" if state == "season-snapshot" else "/my-trips", seg,
             viewport="narrow" if state == "narrow-15-trips" else "mobile",
@@ -203,8 +203,8 @@ MANIFEST = build_manifest()
 
 def validate_manifest(rows: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     rows = MANIFEST if rows is None else rows
-    if len(rows) != 106:
-        raise ValueError(f"capture manifest must contain exactly 106 rows (got {len(rows)})")
+    if len(rows) != 107:
+        raise ValueError(f"capture manifest must contain exactly 107 rows (got {len(rows)})")
     ids = [r["capture_id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise ValueError("capture IDs must be unique")

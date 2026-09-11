@@ -6,8 +6,8 @@
 {% block head %}
 <style>
 .trips-ledger{max-width:680px;margin:0 auto;padding:0 0 calc(82px + env(safe-area-inset-bottom,0px));}
-.season-line{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #e5dfd0;font-size:13px;color:#57534a;white-space:nowrap}
-.season-line strong{font-weight:700;color:#1a1a1a}.season-sep{margin:0 8px;color:#9b9388}.plan-link{color:#5c1219;text-decoration:none;font-weight:600;padding:14px 0 14px 12px;min-height:44px}
+.season-line{height:46px;display:flex;align-items:center;justify-content:flex-end;padding:0 16px;border-bottom:1px solid #e5dfd0;white-space:nowrap}
+.plan-link{color:#5c1219;text-decoration:none;font-size:13px;font-weight:600;padding:14px 0 14px 12px;min-height:44px}
 .view-tabs{height:42px;display:flex;align-items:stretch;border-bottom:1px solid #ded7ca;padding:0 8px}
 .view-tab{position:relative;display:flex;align-items:center;gap:5px;padding:0 9px;border:0;background:none;font:500 13px/1 var(--bl-font-ui);color:#6e6a62;white-space:nowrap}
 .view-tab.active{color:#1a1a1a;font-weight:700}.view-tab.active:after{content:"";position:absolute;left:9px;right:9px;bottom:-1px;height:2px;background:#5c1219}
@@ -19,11 +19,11 @@
 .ledger-row-next .ledger-mountain{font-weight:600}.ledger-row-main{display:block;min-width:0;width:100%}.ledger-row-top,.ledger-row-bottom{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0}
 .ledger-mountain{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15.5px;line-height:1.35;font-weight:500;color:#1a1a1a}.ledger-date{flex:none;white-space:nowrap;font-size:13px;line-height:1.35;color:#57534a;font-variant-numeric:tabular-nums}
 .ledger-row-bottom{margin-top:1px}.ledger-status{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;line-height:1.3;color:#57534a;font-weight:600;text-transform:uppercase;letter-spacing:.15px}.ledger-count{font-weight:400;text-transform:none;letter-spacing:0;color:#6e6a62}.ledger-dot{font-weight:400;color:#9b9388;text-transform:none}
-.ledger-invite{display:block;padding-top:10px;padding-bottom:9px;background:#fbf3f1;border-top:1px solid #d5b9b6;border-bottom:1px solid #d5b9b6}.ledger-invite .ledger-date{color:#5c1219}.ledger-invite .ledger-row-main{width:100%}.ledger-inviter{text-transform:none;font-weight:600;letter-spacing:0}
-.invite-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:5px}.invite-btn{min-height:44px;padding:0 14px;border-radius:8px;font:600 12px var(--bl-font-ui);cursor:pointer;touch-action:manipulation}.invite-decline{background:transparent;border:1px solid #cdb6b5;color:#5c1219}.invite-accept{background:#5c1219;border:1px solid #5c1219;color:#fff}
+.ledger-invite{display:block;min-height:0;padding-top:7px;padding-bottom:7px;background:#fbf3f1;border-top:1px solid #d5b9b6;border-bottom:1px solid #d5b9b6}.ledger-invite .ledger-date{color:#5c1219}.ledger-invite .ledger-row-main{width:100%}.ledger-invite-link{color:inherit;text-decoration:none}.ledger-invite .ledger-row-bottom{min-height:44px;margin-top:0;align-items:center}.ledger-inviter{text-transform:none;font-weight:600;letter-spacing:0}
+.invite-actions{display:flex;flex:none;justify-content:flex-end;gap:7px}.invite-btn{min-height:44px;padding:0 13px;border-radius:8px;font:600 12px var(--bl-font-ui);cursor:pointer;touch-action:manipulation}.invite-decline{background:transparent;border:1px solid #cdb6b5;color:#5c1219}.invite-accept{background:#5c1219;border:1px solid #5c1219;color:#fff}
 .ledger-row-past{color:#6e6a62}.ledger-row-past .ledger-mountain,.ledger-row-past .ledger-date{color:#6e6a62;font-weight:400}
 .earlier-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:0 16px;border:0;border-top:1px solid #d8d0c2;border-bottom:1px solid #d8d0c2;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui);text-align:left}.earlier-chevron{font-size:16px;line-height:1;transition:transform .15s ease}.earlier-toggle[aria-expanded="true"] .earlier-chevron{transform:rotate(180deg)}
-.empty-card{margin:18px 16px;padding:20px;background:#f0ddd8;border:1px solid #c79e9e;border-radius:8px}.empty-eyebrow{margin:0 0 7px;color:#5c1219;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}.empty-title{margin:0 0 5px;font:400 22px/1.25 var(--bl-font-serif)}.empty-copy{margin:0 0 16px;color:#57534a;font-size:14px;line-height:1.5}.empty-card .bl-cta-trip{font-size:15px}
+.empty-ledger{padding:24px 16px;border-bottom:1px solid #e5dfd0}.empty-title{margin:0 0 4px;color:#1a1a1a;font:600 14px/1.4 var(--bl-font-ui)}.empty-copy{margin:0;color:#6e6a62;font-size:13px;line-height:1.45}
 .quiet-line{padding:22px 16px;color:#6e6a62;font-size:14px}
 .mine-load-more{display:block;min-height:44px;margin:12px auto;padding:0 18px;border:1px solid #cdb6b5;border-radius:8px;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui)}
 .choice-backdrop{position:fixed;inset:0;z-index:500;background:rgba(26,26,26,.28);display:flex;align-items:flex-end;justify-content:center;padding:16px}.choice-sheet{width:100%;max-width:380px;background:#f5f1e8;border:1px solid #d8d0c2;border-radius:12px;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}.choice-title{margin:0 0 4px;font:400 20px/1.25 var(--bl-font-serif)}.choice-copy{margin:0 0 14px;color:#6e6a62;font-size:13px}.choice-actions{display:flex;gap:8px}.choice-actions button{flex:1;min-height:48px;border-radius:8px;font:600 13px var(--bl-font-ui);border:1px solid #cdb6b5;background:transparent;color:#5c1219}.choice-actions .choice-going{background:#5c1219;color:#fff;border-color:#5c1219}
@@ -39,7 +39,6 @@
   {% set ahead = (upcoming_total_count|default(mine|length)) - invite_count %}
   {% set past_count = history_total_count|default(past|length) %}
   <div class="season-line">
-    <span>{% if ahead == 0 %}{% if past_count %}<strong>No trips ahead</strong>{% else %}No trips yet{% endif %}{% elif ahead == 1 %}<strong>1 trip ahead</strong>{% else %}<strong>{{ ahead }} trips ahead</strong>{% endif %}{% if past_count %}<span class="season-sep">·</span>{{ past_count }} already skied{% endif %}</span>
     <a class="plan-link" href="{{ url_for('add_trip') }}">+ Plan a trip</a>
   </div>
   <nav class="view-tabs" aria-label="Trip views">
@@ -70,7 +69,7 @@
     <button type="button" class="my-trips-load-more mine-load-more" data-section="upcoming" data-target="mine-upcoming-ledger" data-cursor="{{ upcoming_next_cursor }}">Load more</button>
     {% endif %}
   {% else %}
-    <div class="empty-card"><p class="empty-eyebrow">Get started</p><h1 class="empty-title">Plan your first trip</h1><p class="empty-copy">Pick a mountain, choose your dates, and invite friends to join you.</p><a class="bl-cta-trip" href="{{ url_for('add_trip') }}">Plan a trip</a></div>
+    <div class="empty-ledger"><p class="empty-title">No trips yet</p><p class="empty-copy">Plan a trip to start building your season.</p></div>
   {% endif %}
 
   {% if past %}

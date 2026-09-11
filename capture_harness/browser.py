@@ -334,6 +334,15 @@ class CaptureRunner:
                     page.wait_for_selector("#segment-friends.active", state="visible")
                 elif row["state"] == "pending-invites":
                     page.locator(".ledger-invite").first.scroll_into_view_if_needed()
+                elif row["state"] == "three-invitations":
+                    page.set_viewport_size({"width": 390, "height": 1300})
+                    page.wait_for_function(
+                        "() => document.querySelectorAll('.ledger-invite').length === 3"
+                    )
+                    page.locator(".ledger-invite").first.scroll_into_view_if_needed()
+                elif row["state"] == "accept-choice":
+                    page.locator(".invite-accept").first.click()
+                    page.wait_for_selector("#invite-choice", state="visible")
             elif row["screen"] == "trip-detail":
                 target_tab = {
                     "people": "#td-tab-people",
@@ -396,6 +405,7 @@ class CaptureRunner:
                 "availability", "continuation", "filters-search", "friends-trips",
                 "happening", "ideas", "ideas-happening", "next-trip-participant",
                 "pagination", "pending-invite", "pending-invites",
+                "three-invitations", "accept-choice",
                 "pending-requests", "profile-intelligence",
             }
             if row["state"] not in explicit_states:

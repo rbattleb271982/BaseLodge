@@ -701,10 +701,30 @@ def test_mine_rendering_uses_locked_labels_counts_and_invitation_actions(client)
     assert "You're a guest" not in html
     assert "See where your season is taking shape." not in html
     assert "Filter for a mountain" not in html
+    assert "trips ahead" not in html
+    assert "already skied" not in html
+    assert "ledger-invite-link" in html
     assert 'data-response="declined"' in html
     assert 'data-response="choose"' in html
     assert 'data-choice="going"' in html
     assert 'data-choice="interested"' in html
+
+
+def test_mine_empty_state_is_quiet_ledger_copy(client):
+    with app.app_context():
+        viewer = _make_user("mine-empty-viewer")
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = client.get("/my-trips").get_data(as_text=True)
+
+    assert "No trips yet" in html
+    assert "Plan a trip to start building your season." in html
+    assert "Get started" not in html
+    assert "Plan your first trip" not in html
+    assert "empty-card" not in html
+    assert html.count("+ Plan a trip") == 1
 
 
 @pytest.mark.parametrize("source_count", [10, 50, 100, 500])
