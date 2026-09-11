@@ -1,0 +1,703 @@
+# Investigate Locked Trip Detail Design Requirements
+
+## What & Why
+
+Perform a read-only engineering investigation against the actual BaseLodge application source to verify the remaining data, state, permission, and interaction assumptions behind the now-locked Trip Detail redesign.
+
+The visual design is already approved.
+
+Do NOT redesign Trip Detail.
+Do NOT propose alternative layouts.
+Do NOT implement anything.
+
+The purpose of this investigation is to determine exactly which parts of the approved target design are already supported by BaseLodge, which require small presentation changes, which require new backend/data logic, and which should be deferred before implementation begins.
+
+Use the current application code, models, routes, services, templates, tests, and fixtures as the source of truth.
+
+## Critical constraint
+
+The following visual architecture is LOCKED and is not under review:
+
+- Hybrid trip header
+- Trip / People / You structure
+- Trip opens by default
+- Trip Planning is first under Trip
+- Two planning items shown by default
+- This Mountain section
+- People sentence headline
+- Participation graphic
+- Pass distribution graphic
+- Join requests inside People
+- Compact grouped participant roster
+- Expandable participant status groups
+- Invite action in the group header
+- You begins with profile-derived Riding + Pass
+- You includes trip-specific Status, Availability, Equipment, and Lessons
+- Availability is visual
+- Equipment and Lessons are directly selectable
+- You can show an unanswered-item badge
+- Cancel Trip requires confirmation
+- Leave Trip requires confirmation
+- No Stay section
+- No profile photos, avatar circles, profile bubbles, or initials avatars
+- No photography
+- Past trips retain mountain identity
+- Dates are informational, not independently tappable
+
+Do not challenge or replace these decisions.
+
+The task is to verify what is required to build them safely.
+
+# Questions to answer
+
+## 1. This Mountain data support
+
+The approved design shows three rows:
+
+### Other upcoming trips
+Example:
+`2 friends have Northstar trips planned`
+
+Verify:
+
+- whether BaseLodge can currently query a user's friends who have trips at the same mountain
+- whether those trips can be filtered to upcoming only
+- whether the current user can see only trips permitted by privacy rules
+- whether an accurate unique-friend count can be derived
+- whether a destination/list surface already exists for this relation
+- whether this requires any schema change
+
+Document exact models, relationships, service/query logic, routes, templates, and relevant tests.
+
+### Friends who have visited
+Example:
+`6 friends have skied Northstar`
+
+Verify:
+
+- whether BaseLodge currently stores mountain visit/history information per user
+- what exactly counts as "visited" or "skied"
+- whether it is derived from past trips, an explicit visited-mountain field, history records, or something else
+- whether friend-level visited data is already exposed anywhere
+- whether a unique-friend count can be produced under current privacy rules
+- whether this can be implemented with existing data
+- whether the wording "have skied Northstar" is actually supported by the data or whether only "visited" is defensible
+
+Do not assume visited == skied unless the data model proves it.
+
+### Friends with this mountain on their wishlist
+Example:
+`4 friends want to ski Northstar`
+
+Verify:
+
+- where wishlist data is stored
+- whether friend wishlists are visible to the current user
+- whether a unique-friend count can be derived
+- whether this is already queried anywhere
+- whether the current `On N friend(s)' wishlist` logic can be reused
+- whether a destination/list route exists or would need to be created
+- whether any migration is needed
+
+For all three rows, classify each as:
+
+- SUPPORTED NOW
+- SUPPORTED WITH SMALL QUERY/PRESENTATION WORK
+- REQUIRES NEW BACKEND LOGIC
+- REQUIRES SCHEMA/DATA MODEL CHANGE
+- SHOULD NOT BE BUILT FROM CURRENT DATA
+
+## 2. Trip Planning
+
+The locked design shows:
+
+- 2 most recent planning items
+- category
+- title
+- author
+- date
+- `All ideas`
+- `Share an idea or link`
+
+Verify:
+
+- exact model backing Trip Planning
+- exact model/field backing category
+- supported current category values
+- whether `Lodging`, `Travel`, `Terrain`, `Gear`, etc. exist or which are real
+- whether title and link are separate fields
+- author relationship
+- created/published timestamp
+- current ordering
+- whether the two most recent items can be queried deterministically
+- whether there is already a full-list route
+- whether "ideas" and "posts" are the same persisted object or different concepts
+- whether Trip Planning shares any model with Home Ideas
+- who may read planning
+- who may create planning content
+
+Explicitly verify the approved permission rule:
+
+- random non-participant friend: NO Trip Planning access
+- invited user: READ only
+- Going / Interested / Organizer: READ + CONTRIBUTE
+
+If current behavior differs, document the delta precisely.
+
+## 3. Participation states
+
+Verify the canonical relationship model and current persisted statuses.
+
+Map current backend values to the approved target vocabulary:
+
+- Organizing
+- Going
+- Interested
+- Invited
+
+Answer:
+
+- what does current `Planning` actually mean
+- whether `Pending` and `Invited` are the same underlying concept
+- whether organizer is a status, role, separate field, or derived relationship
+- how Going ↔ Interested transitions work
+- whether Not going persists a declined status or removes participation
+- whether Leave Trip exists
+- whether Leave Trip and Not going are the same transition
+- whether a participant can later rejoin
+- cooldown/restriction behavior, if any
+
+Do not modify vocabulary in code.
+
+Just document what implementation work would be needed to present the approved target vocabulary correctly.
+
+## 4. People counts and graphics
+
+The People design requires:
+
+- total associated people
+- Going count
+- Interested count
+- Invited count
+- pass distribution across ALL associated people
+
+Verify:
+
+- which participation states count toward "people on this trip"
+- whether organizer is included in Going, separate, or both
+- how to avoid double-counting organizer
+- whether declined/removed/cancelled people are excluded
+- whether invited users have profile/pass data available
+- whether all associated users can be joined efficiently in one query
+
+For the pass distribution:
+
+- identify the canonical pass field/model
+- enumerate actual current pass values
+- verify whether users can have multiple passes
+- verify how "No pass" is represented
+- determine whether the approved graphic can be computed without a migration
+- identify edge cases such as multiple passes or missing values
+
+Do NOT introduce pass compatibility logic.
+
+The approved design only needs group distribution.
+
+## 5. Participant roster
+
+The target roster uses:
+
+- grouped statuses
+- compact name row
+- riding type
+- ability
+- pass
+- tap person → Friend Profile
+- expandable groups at dense counts
+
+Verify:
+
+- exact source of riding type
+- exact source of ability
+- exact source of pass
+- whether these are profile-level or trip-level
+- whether the organizer and viewer can always see them under current privacy rules
+- canonical Friend Profile route
+- whether every participant is guaranteed to have a navigable profile
+- how current roster ordering is determined
+- whether organizer appears first
+- whether status groups have stable sorting
+
+Also verify whether the UI can safely render a preview of N rows and expand in place without needing a new API.
+
+Do NOT pick the final production cap of 3 vs 4 yet.
+Just establish implementation options and cost.
+
+## 6. Join requests
+
+The approved People tab places join requests before the roster.
+
+Verify:
+
+- exact join-request model/status
+- how requests are created
+- sender/recipient identities
+- organizer authorization
+- current Accept behavior
+- current Decline behavior
+- concurrency/idempotency behavior
+- whether multiple pending requests can coexist
+- whether accepted users become Going, Interested, Invited, or some other current state
+- current notification/side-effect behavior
+- whether request count can drive the People attention badge
+- whether request rows can be rendered inline without new backend work
+
+Also establish consistent button order with the rest of BaseLodge.
+
+Do not implement.
+
+## 7. Invite friends
+
+Verify the current invite flow:
+
+- who can invite
+- whether only organizer can invite
+- candidate query
+- current exclusions
+- current treatment of users already on the trip
+- invitation persistence
+- duplicate prevention
+- whether sent invitations can be withdrawn
+- whether existing invitation lifecycle can support the target People tab without architectural change
+
+The target visual entry point is compact.
+The underlying sheet/flow may remain existing functionality.
+
+## 8. You — profile-derived fields
+
+The approved You tab shows:
+
+### From Your Profile
+- Riding type
+- ability
+- pass
+
+Verify:
+
+- exact fields/models
+- whether ability is stored separately from riding type
+- whether pass is single- or multi-value
+- canonical edit/profile routes
+- whether those values currently update trip displays automatically
+- whether any of these are currently trip-specific and would need refactoring
+
+The target design treats these as PROFILE-derived, not trip-specific inputs.
+
+Flag any current implementation conflict.
+
+## 9. You — availability
+
+This is critical.
+
+The target design compares the trip's actual dates to the current user's stored availability.
+
+It needs to support:
+
+- all trip days available
+- partial availability
+- no availability entered
+- Add availability
+- Update availability
+
+Verify:
+
+- exact availability model
+- whether availability is season-scoped
+- representation of ranges vs individual days
+- timezone/date semantics
+- whether partial-day or full-day concepts exist
+- how overlap with a trip date range should be computed
+- whether trip start/end dates are inclusive
+- whether a trip date span of Jan 15–18 means 4 calendar days for this purpose
+- whether availability is currently editable from another context
+- whether the existing availability editor can be reused from Trip Detail
+- whether inline modification requires a new route/component/API
+
+Important:
+
+Availability is allowed on You because it is the current user's own availability.
+
+Do NOT expose other users' raw availability.
+
+## 10. You — Equipment
+
+The target design wants direct trip-specific selection.
+
+Verify:
+
+- exact current equipment field/model
+- whether equipment is profile-level or trip-level
+- all current supported values
+- whether `Bringing own` is exact current copy
+- whether `Renting` exists
+- whether `Not sure yet` exists
+- whether there are other values
+- current edit route/control
+- whether the value can be changed inline safely
+- whether unanswered/null is supported
+
+Do not invent values.
+
+Give the exact supported enum/options.
+
+## 11. You — Lessons
+
+Same investigation.
+
+Verify:
+
+- model/field
+- profile-level vs trip-level
+- supported values
+- whether `No lesson` is a boolean, enum, or display string
+- whether Yes / No / Not sure yet are actually representable
+- current null/unanswered behavior
+- whether inline selection is possible with existing backend logic
+
+If the target three-choice control requires a model change, state that plainly.
+
+## 12. You attention badge
+
+The approved design allows something like:
+
+`You ②`
+
+when trip-specific questions are unanswered.
+
+For now, only:
+
+- Equipment
+- Lessons
+
+should count.
+
+Availability does NOT count toward the badge.
+
+Verify:
+
+- whether Equipment can be truly unanswered/null
+- whether Lessons can be truly unanswered/null
+- whether current defaults make them look answered even when the user never chose them
+- whether distinguishing default vs user-answered currently exists
+- whether a completion badge can be computed honestly
+
+If the data model cannot tell "default value" from "user actually answered", identify that as a blocker.
+
+## 13. Non-participant friend view
+
+Approved target boundary:
+
+A friend who can see a friend-visible trip but is not:
+
+- organizer
+- Going
+- Interested
+- Invited
+
+may see:
+
+- mountain
+- location
+- dates
+- nights
+- visibility/context
+- number of people
+
+They do NOT see:
+
+- participant identities
+- Trip Planning
+- You content
+- join requests
+- organizer controls
+
+They may:
+
+- express Interested
+- Request to Join
+
+Verify:
+
+- whether this viewer can currently access the Trip Detail route at all
+- current authorization behavior
+- whether participant identities are currently leaked
+- whether planning data is currently leaked
+- whether the current viewer relationship can be resolved efficiently
+- whether Interested already exists for non-participants
+- whether Request to Join already exists
+- whether someone can be Interested AND have a pending join request simultaneously
+- how organizer sees those two states
+- whether Interested is visible to organizer today
+- whether Request to Join creates a separate queue
+
+This is a major product-state investigation.
+
+Do not change behavior.
+
+## 14. Invited user permissions
+
+Approved target:
+
+Invited user can:
+- see Trip Planning
+- read existing posts
+
+Invited user cannot:
+- create a planning item
+
+After selecting Going or Interested:
+- can contribute
+
+Verify current behavior and required implementation delta.
+
+Also verify what participant identities an invited user can currently see.
+
+## 15. Cancel Trip
+
+Approved target:
+
+- organizer only
+- at bottom of Trip
+- confirmation required
+- `Keep trip`
+- `Cancel trip`
+
+Verify:
+
+- whether cancellation exists now
+- exact current action
+- model/status transition
+- hard delete vs cancelled state
+- authorization
+- repeated cancellation behavior
+- whether cancelled trips remain in history
+- whether participant records survive
+- downstream effects
+- notification behavior
+- whether undo exists
+- whether the current app already has confirmation
+
+Do not add any copy about notifying participants unless code proves it.
+
+## 16. Leave Trip
+
+Approved target:
+
+- participant only
+- separate from Going ↔ Interested
+- destructive/quiet action
+- confirmation required
+
+Verify:
+
+- whether Leave Trip exists
+- exact current transition
+- whether a participant becomes declined/removed/deleted
+- whether organizer sees the departure
+- whether they can rejoin
+- whether invited Not going uses the same backend action
+- any cooldown/history implications
+
+## 17. Past trip behavior
+
+Approved target:
+
+- mountain identity remains visible
+- past trip is read-only
+- no disappearing mountain
+- no empty Stay shell
+- target tabs may remain visible only where useful
+
+Verify:
+
+- what current route/template branches on past
+- which controls are suppressed server-side vs frontend
+- whether current data still contains everything needed to render the new read-only treatment
+- whether participant/planning data remains queryable after completion
+- whether any historical records are removed
+
+## 18. This Mountain navigation targets
+
+For each supported This Mountain row, identify what tapping it should currently be able to open.
+
+Investigate whether BaseLodge already has a reusable screen/query for:
+
+- friends' trips at this mountain
+- friends who visited this mountain
+- friends whose wishlist contains this mountain
+
+Do not design a new destination unless none exists.
+
+If a destination does not exist, document the smallest coherent new surface needed.
+
+# Scope classification
+
+For every target requirement above, classify implementation as:
+
+### A — Presentation only
+Existing data + existing actions. Mostly template/UI changes.
+
+### B — Small backend/query extension
+Existing schema supports it, but query/service/API work is needed.
+
+### C — New state/behavior logic
+Requires new authorization, transition, or business logic.
+
+### D — Schema/migration required
+Existing data model cannot support the approved behavior honestly.
+
+### E — Unsupported / should defer
+Current data cannot justify the feature or the requirement is unsafe.
+
+# Required implementation matrix
+
+Create a final matrix with one row for every locked target feature:
+
+- Hybrid header
+- Trip / People / You
+- Trip Planning 2-item preview
+- This Mountain: upcoming friend trips
+- This Mountain: friends visited
+- This Mountain: friends wishlist
+- Participation graphic
+- Pass graphic
+- People attention badge
+- Join request inline actions
+- Compact grouped roster
+- Expandable roster
+- Invite action
+- Profile-derived Riding / Ability / Pass
+- Status controls
+- Availability comparison
+- Add/Update availability
+- Equipment inline control
+- Lessons inline control
+- You incomplete badge
+- Non-participant friend view
+- Interested
+- Request to Join
+- Invited read-only planning
+- Cancel Trip confirmation
+- Leave Trip confirmation
+- Past-trip read-only treatment
+- Remove Stay from target UI
+- Person row → Friend Profile
+
+Columns:
+
+- Target feature
+- Current support
+- Exact evidence
+- Required backend change
+- Required frontend change
+- Migration?
+- Tests required
+- Risk
+- Classification A/B/C/D/E
+
+# Tests
+
+Do not write tests.
+
+Identify the tests implementation will eventually need.
+
+At minimum cover:
+
+- organizer normal
+- Going participant
+- Interested participant
+- invited user
+- non-participant friend
+- private trip
+- past trip
+- 1-person trip
+- 13-person trip
+- 3 join requests
+- no planning items
+- 2+ planning items
+- full availability
+- partial availability
+- no availability
+- Equipment answered/unanswered
+- Lessons answered/unanswered
+- no pass
+- multiple pass types
+- cancellation
+- leave trip
+- join request lifecycle
+- Interested vs Request to Join interactions
+- privacy boundaries
+
+# Deliverable
+
+Create:
+
+`12-trip-detail/TRIP-DETAIL-IMPLEMENTATION-READINESS.md`
+
+Use these sections:
+
+1. Executive verdict
+2. Locked target design summary
+3. This Mountain data audit
+4. Trip Planning audit
+5. Participation/state audit
+6. People counts and Passes audit
+7. Roster audit
+8. Join request audit
+9. Invite flow audit
+10. You — profile fields audit
+11. You — availability audit
+12. You — Equipment audit
+13. You — Lessons audit
+14. You attention badge feasibility
+15. Non-participant friend-state audit
+16. Invited-user permissions
+17. Cancel Trip
+18. Leave Trip
+19. Past-trip behavior
+20. Navigation targets
+21. Implementation classification matrix
+22. Required tests
+23. Migration requirements
+24. Risks / unresolved product questions
+25. Recommended implementation batches
+
+## Final output
+
+End with:
+
+### READY NOW
+Features that can be implemented safely against current architecture.
+
+### NEEDS SMALL BACKEND WORK
+Features supported by current schema but needing query/service additions.
+
+### NEEDS PRODUCT/ARCHITECTURE WORK
+Features that cannot yet be implemented honestly.
+
+### DEFER
+Anything that should not be included in the first Trip Detail implementation.
+
+Then recommend the smallest sensible implementation batch order.
+
+Do not implement.
+
+Do not modify data.
+
+Do not create Replit tasks.
+
+Do not publish.
+
+Do not push to Git.
+
+Stop after the investigation document is complete.
