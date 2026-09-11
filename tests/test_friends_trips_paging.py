@@ -1,22 +1,16 @@
-"""Focused BL-159 Friends' Trips service coverage."""
+"""Focused coverage for the trip-centric Friends' Trips feed."""
 
 from datetime import date, timedelta
 
 import pytest
 from sqlalchemy import event
-from sqlalchemy.dialects import postgresql
 
 from app import app
-from models import Friend, GuestStatus, SkiTrip, db
+from models import Friend, GuestStatus, db
 from services.friends_trips_paging import (
-    FRIENDS_TRIPS_DETAIL_PAGE_SIZE,
     FRIENDS_TRIPS_PAGE_SIZE,
-    FriendsTripsGroupError,
-    _display_units_query,
-    _group_claims,
-    _group_detail_query,
-    load_friends_trips_destinations,
-    load_friends_trips_group,
+    FriendsTripsCursorError,
+    load_friends_trips_context,
     load_friends_trips_page,
 )
 from tests.conftest import (
@@ -35,616 +29,335 @@ def _connect(first, second):
     ])
 
 
-def _all_units(viewer_id, destination_key=None):
-    result = []
-    cursor = None
+def _all_rows(viewer_id, *, today=None):
+    rows, cursor = [], None
     while True:
         page = load_friends_trips_page(
-            viewer_id,
-            today=date.today(),
-            destination_key=destination_key,
-            cursor_value=cursor,
+            viewer_id, today=today or date.today(), cursor_value=cursor
         )
-        result.extend(page.rows)
+        rows.extend(page.rows)
         if not page.has_more:
-            return result
+            return rows
         cursor = page.next_cursor
 
 
-@pytest.mark.parametrize("count", [0, 1, 2, 3, 9, 10, 11, 20, 21])
-def test_complete_unit_page_boundaries(client, count):
+@pytest.mark.parametrize("count", [0, 1, 9, 10, 11, 21])
+def test_physical_trip_page_boundaries(client, count):
     today = date.today()
     with app.app_context():
-        viewer = _make_user(f"ft-boundary-viewer-{count}")
-        resort = _make_resort(f"FT Boundary {count}")
-        friends = []
+        viewer = _make_user(f"friends-page-viewer-{count}")
+        friend = _make_user(f"friends-page-friend-{count}")
+        resort = _make_resort(f"Friends Page {count}")
+        _connect(viewer, friend)
         for index in range(count):
-            friend = _make_user(f"ft-boundary-friend-{count}-{index}")
-            _connect(viewer, friend)
             _make_trip(
                 friend,
                 resort=resort,
+                trip_status="going",
                 start_date=today + timedelta(days=index + 1),
                 end_date=today + timedelta(days=index + 2),
             )
-            friends.append(friend)
         db.session.commit()
-
         first = load_friends_trips_page(viewer.id, today=today)
         assert len(first.rows) == min(count, FRIENDS_TRIPS_PAGE_SIZE)
         assert first.has_more is (count > FRIENDS_TRIPS_PAGE_SIZE)
-        rows = _all_units(viewer.id)
-        assert len(rows) == count
-        assert len({(row.friend_id, row.trip_id) for row in rows}) == count
-
-
-def test_grouping_uses_friend_destination_status_and_never_embeds_details(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-group-viewer")
-        friend = _make_user("ft-group-friend")
-        other = _make_user("ft-group-other")
-        resort = _make_resort("FT Group Peak")
-        _connect(viewer, friend)
-        _connect(viewer, other)
-        trip_ids = []
-        for offset in (1, 3, 5):
-            trip_ids.append(_make_trip(
-                friend,
-                resort=resort,
-                trip_status="planning",
-                start_date=today + timedelta(days=offset),
-                end_date=today + timedelta(days=offset + 1),
-            ).id)
-        # Same destination but a different friend and status are separate units.
-        _make_trip(other, resort=resort, trip_status="planning")
-        _make_trip(friend, resort=resort, trip_status="going")
-        db.session.commit()
-
-        page = load_friends_trips_page(viewer.id, today=today)
-        grouped = [row for row in page.rows if row.grouped]
-        assert len(grouped) == 1
-        assert grouped[0].grouped_count == 3
-        assert grouped[0].trip is None
-        assert grouped[0].trip_id is None
-        assert grouped[0].group_token
-
-        details = load_friends_trips_group(
-            viewer.id, grouped[0].group_token, today=today
-        )
-        assert [row.trip_id for row in details.rows] == trip_ids
-
-
-def test_exact_visibility_attendance_and_dedup_rules(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-rules-viewer")
-        owner = _make_user("ft-rules-owner")
-        going_friend = _make_user("ft-rules-going")
-        one_sided = _make_user("ft-rules-one-sided")
-        outsider = _make_user("ft-rules-outsider")
-        resort = _make_resort("FT Rules Peak")
-        _connect(viewer, owner)
-        _connect(viewer, going_friend)
-        db.session.add(Friend(user_id=viewer.id, friend_id=one_sided.id))
-
-        trip = _make_trip(
-            owner, resort=resort, start_date=today, end_date=today + timedelta(days=9)
-        )
-        attendance = _add_participant(trip, going_friend, GuestStatus.GOING)
-        attendance.start_date = today + timedelta(days=4)
-        attendance.end_date = today + timedelta(days=5)
-        _add_participant(trip, outsider, GuestStatus.GOING)
-        private = _make_trip(owner, resort=resort, is_public=False)
-        terminal = _make_trip(owner, resort=resort)
-        terminal.lifecycle_state = "cancelled"
-        stale = _make_trip(one_sided, resort=resort)
-        db.session.commit()
-
-        rows = _all_units(viewer.id)
-        pairs = {(row.friend_id, row.trip_id) for row in rows}
-        assert pairs == {(owner.id, trip.id), (going_friend.id, trip.id)}
-        guest_row = next(row for row in rows if row.friend_id == going_friend.id)
-        assert guest_row.attendance_start_date == attendance.start_date
-        assert private.id not in {row.trip_id for row in rows}
-        assert terminal.id not in {row.trip_id for row in rows}
-        assert stale.id not in {row.trip_id for row in rows}
-
-
-def test_destination_options_are_complete_and_filter_is_server_side(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-options-viewer")
-        destinations = []
-        for index in range(13):
-            friend = _make_user(f"ft-options-friend-{index}")
-            resort = _make_resort(f"FT Option {index:02d}")
-            _connect(viewer, friend)
-            _make_trip(friend, resort=resort)
-            destinations.append((resort.id, resort.name))
-        db.session.commit()
-
-        first = load_friends_trips_page(viewer.id, today=today)
-        options = load_friends_trips_destinations(viewer.id, today=today)
-        assert len(first.rows) == FRIENDS_TRIPS_PAGE_SIZE
-        assert [option.name for option in options] == sorted(name for _, name in destinations)
-        selected = options[-1]
-        rows = _all_units(viewer.id, selected.key)
-        assert len(rows) == 1
-        assert rows[0].destination_key == selected.key
-
-
-def test_destination_grouping_preserves_display_name_identity(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-same-name-viewer")
-        friend = _make_user("ft-same-name-friend")
-        first_resort = _make_resort("FT Same Name Peak")
-        second_resort = _make_resort("FT Same Name Peak")
-        second_resort.slug = "ft-same-name-peak-duplicate"
-        _connect(viewer, friend)
-        for index, resort in enumerate(
-            (first_resort, second_resort, first_resort), start=1
-        ):
-            _make_trip(
-                friend,
-                resort=resort,
-                start_date=today + timedelta(days=index),
-            )
-        db.session.commit()
-
-        page = load_friends_trips_page(viewer.id, today=today)
-        options = load_friends_trips_destinations(viewer.id, today=today)
-        assert len(page.rows) == 1
-        assert page.rows[0].grouped
-        assert page.rows[0].grouped_count == 3
-        assert [(option.key, option.name) for option in options] == [
-            ("m:FT Same Name Peak", "FT Same Name Peak")
-        ]
-
-
-def test_group_detail_reauthorizes_and_pages_twenty(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-detail-viewer")
-        friend = _make_user("ft-detail-friend")
-        resort = _make_resort("FT Detail Peak")
-        _connect(viewer, friend)
-        for index in range(FRIENDS_TRIPS_DETAIL_PAGE_SIZE + 1):
-            _make_trip(
-                friend,
-                resort=resort,
-                start_date=today + timedelta(days=index + 1),
-                end_date=today + timedelta(days=index + 2),
-            )
-        db.session.commit()
-
-        summary = load_friends_trips_page(viewer.id, today=today).rows[0]
-        first = load_friends_trips_group(viewer.id, summary.group_token, today=today)
-        assert len(first.rows) == FRIENDS_TRIPS_DETAIL_PAGE_SIZE
-        assert first.has_more and first.next_cursor
-        second = load_friends_trips_group(
-            viewer.id,
-            summary.group_token,
-            today=today,
-            cursor_value=first.next_cursor,
-        )
-        assert len(second.rows) == 1
-
-        Friend.query.filter(
-            ((Friend.user_id == viewer.id) & (Friend.friend_id == friend.id))
-            | ((Friend.user_id == friend.id) & (Friend.friend_id == viewer.id))
-        ).delete(synchronize_session=False)
-        db.session.commit()
-        with pytest.raises(FriendsTripsGroupError):
-            load_friends_trips_group(viewer.id, summary.group_token, today=today)
-
-
-@pytest.mark.parametrize("count", [3, 19, 20, 21, 40, 41, 500])
-def test_group_detail_page_boundaries(client, count):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user(f"ft-detail-boundary-viewer-{count}")
-        friend = _make_user(f"ft-detail-boundary-friend-{count}")
-        resort = _make_resort(f"FT Detail Boundary {count}")
-        _connect(viewer, friend)
-        for index in range(count):
-            _make_trip(
-                friend,
-                resort=resort,
-                start_date=today + timedelta(days=index + 1),
-            )
-        db.session.commit()
-        summary = load_friends_trips_page(viewer.id, today=today).rows[0]
-        rows = []
-        cursor = None
-        while True:
-            page = load_friends_trips_group(
-                viewer.id,
-                summary.group_token,
-                today=today,
-                cursor_value=cursor,
-            )
-            rows.extend(page.rows)
-            if not page.has_more:
-                break
-            cursor = page.next_cursor
+        rows = _all_rows(viewer.id, today=today)
         assert len(rows) == count
         assert len({row.trip_id for row in rows}) == count
 
 
-@pytest.mark.parametrize("source_count", [10, 50, 100, 500])
-def test_feed_hydration_is_bounded_by_display_units(client, source_count):
+def test_same_trip_consolidates_eligible_friends_once(client):
     today = date.today()
     with app.app_context():
-        viewer = _make_user(f"ft-cardinality-viewer-{source_count}")
-        resort = _make_resort(f"FT Cardinality {source_count}")
-        for index in range(source_count):
-            friend = _make_user(f"ft-cardinality-friend-{source_count}-{index}")
-            _connect(viewer, friend)
-            _make_trip(friend, resort=resort)
-        db.session.commit()
-        viewer_id = viewer.id
-        db.session.remove()
-        loads = []
-
-        def record(target, _context):
-            loads.append(target.id)
-
-        event.listen(SkiTrip, "load", record)
-        try:
-            page = load_friends_trips_page(viewer_id, today=today)
-        finally:
-            event.remove(SkiTrip, "load", record)
-        assert len(page.rows) == FRIENDS_TRIPS_PAGE_SIZE
-        assert len(loads) == FRIENDS_TRIPS_PAGE_SIZE
-
-
-def test_queries_compile_for_postgresql(client):
-    with app.app_context():
-        display = _display_units_query(1, date.today())
-        claims = {
-            "v": 1,
-            "viewer": 1,
-            "friend": 2,
-            "destination": "r:3",
-            "status": "planning",
-        }
-        detail = _group_detail_query(1, date.today(), claims)
-        for statement in (display, detail):
-            compiled = str(statement.compile(
-                dialect=postgresql.dialect(),
-                compile_kwargs={"literal_binds": True},
-            ))
-            assert "ORDER BY" in compiled
-            assert "row_number()" in compiled.lower()
-
-
-def test_route_endpoints_and_lazy_group_details(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-route-viewer")
-        grouped_friend = _make_user("ft-route-grouped")
-        resort = _make_resort("FT Route Group Peak")
-        _connect(viewer, grouped_friend)
-        for index in range(3):
-            _make_trip(
-                grouped_friend,
-                resort=resort,
-                start_date=today + timedelta(days=index + 1),
-                end_date=today + timedelta(days=index + 1),
-            )
-        for index in range(10):
-            friend = _make_user(f"ft-route-friend-{index:02d}")
-            _connect(viewer, friend)
-            _make_trip(
-                friend,
-                resort=_make_resort(f"FT Route Peak {index:02d}"),
-                start_date=today + timedelta(days=index + 10),
-                end_date=today + timedelta(days=index + 10),
-            )
-        db.session.commit()
-        viewer_id = viewer.id
-
-    _login(client, viewer_id)
-    standard = client.get("/my-trips")
-    assert standard.status_code == 200
-    standard_html = standard.get_data(as_text=True)
-    assert "Loading friends' trips" not in standard_html
-    assert ">Friends'<" in standard_html
-
-    direct = client.get("/my-trips?tab=friends")
-    assert direct.status_code == 200
-    html = direct.get_data(as_text=True)
-    assert "Loading friends' trips" not in html
-    assert html.count("data-unit-id=") == 0
-    assert "data-trip-id=" not in html
-
-    first = client.get(
-        "/api/my-trips/friends/page", query_string={"context": "1"}
-    )
-    assert first.status_code == 200
-    payload = first.get_json()
-    assert len(payload["unit_ids"]) == FRIENDS_TRIPS_PAGE_SIZE
-    assert len(payload["destinations"]) == 11
-    assert payload["has_more"]
-
-    with app.app_context():
-        page = load_friends_trips_page(viewer_id, today=today)
-        token = next(row.group_token for row in page.rows if row.grouped)
-    details = client.get(
-        "/api/my-trips/friends/group", query_string={"group": token}
-    )
-    assert details.status_code == 200
-    detail_payload = details.get_json()
-    assert len(detail_payload["trip_ids"]) == 3
-    assert detail_payload["html"].count("data-trip-id=") == 3
-
-
-def test_route_reauthorizes_and_rejects_bad_tokens(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-route-auth-viewer")
-        friend = _make_user("ft-route-auth-friend")
-        resort = _make_resort("FT Route Auth Peak")
-        _connect(viewer, friend)
-        for index in range(3):
-            _make_trip(
-                friend,
-                resort=resort,
-                start_date=today + timedelta(days=index + 1),
-            )
-        db.session.commit()
-        viewer_id = viewer.id
-        friend_id = friend.id
-
-    _login(client, viewer_id)
-    first = client.get("/api/my-trips/friends/page").get_json()
-    token = next(
-        unit_id[2:] for unit_id in first["unit_ids"] if unit_id.startswith("g:")
-    )
-    with app.app_context():
-        Friend.query.filter_by(
-            user_id=friend_id, friend_id=viewer_id
-        ).delete()
-        db.session.commit()
-    assert client.get(
-        "/api/my-trips/friends/group", query_string={"group": token}
-    ).status_code == 400
-    assert client.get(
-        "/api/my-trips/friends/group",
-        query_string={"group": "not-a-token"},
-    ).status_code == 400
-    assert client.get(
-        "/api/my-trips/friends/page",
-        query_string={"cursor": "not-a-cursor"},
-    ).status_code == 400
-
-
-@pytest.mark.parametrize(
-    "mutation",
-    [
-        "friendship",
-        "private",
-        "completed",
-        "past",
-        "interested",
-        "declined",
-        "removed",
-    ],
-)
-def test_group_detail_reauthorizes_after_every_eligibility_mutation(
-    client, mutation
-):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user(f"ft-mutation-viewer-{mutation}")
-        friend = _make_user(f"ft-mutation-friend-{mutation}")
-        owner = _make_user(f"ft-mutation-owner-{mutation}")
-        resort = _make_resort(f"FT Mutation Peak {mutation}")
-        _connect(viewer, friend)
+        viewer = _make_user("friends-same-trip-viewer")
+        owner = _make_user("z-owner")
+        guest = _make_user("a-guest")
+        owner.first_name = "Zoe"
+        guest.first_name = "Ava"
+        resort = _make_resort("Same Trip Peak")
         _connect(viewer, owner)
-        trips = []
-        participants = []
-        for index in range(3):
-            trip = _make_trip(
-                owner,
-                resort=resort,
+        _connect(viewer, guest)
+        trip = _make_trip(
+            owner, resort=resort, trip_status="going",
+            start_date=today + timedelta(days=2),
+            end_date=today + timedelta(days=4),
+        )
+        _add_participant(trip, guest, GuestStatus.GOING)
+        db.session.commit()
+
+        rows = load_friends_trips_page(viewer.id, today=today).rows
+        assert len(rows) == 1
+        assert rows[0].trip_id == trip.id
+        assert rows[0].friend_ids == (guest.id, owner.id)
+        assert rows[0].friend_names == ("Ava", "Zoe")
+
+
+def test_identical_destination_and_dates_keep_distinct_trip_ids(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-distinct-viewer")
+        friend = _make_user("friends-distinct-friend")
+        resort = _make_resort("Telluride")
+        _connect(viewer, friend)
+        trips = [
+            _make_trip(
+                friend, resort=resort, trip_status="going",
+                start_date=today + timedelta(days=3),
+                end_date=today + timedelta(days=6),
+            )
+            for _ in range(2)
+        ]
+        db.session.commit()
+        rows = load_friends_trips_page(viewer.id, today=today).rows
+        assert [row.trip_id for row in rows] == [trip.id for trip in trips]
+
+
+def test_only_authorized_going_activity_is_visible(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-rules-viewer")
+        owner = _make_user("friends-rules-owner")
+        going = _make_user("friends-rules-going")
+        interested = _make_user("friends-rules-interested")
+        outsider = _make_user("friends-rules-outsider")
+        resort = _make_resort("Rules Peak")
+        for friend in (owner, going, interested):
+            _connect(viewer, friend)
+        planning = _make_trip(
+            owner, resort=resort, trip_status="planning",
+            start_date=today + timedelta(days=2), end_date=today + timedelta(days=5),
+        )
+        _add_participant(planning, going, GuestStatus.GOING)
+        _add_participant(planning, interested, GuestStatus.INTERESTED)
+        _add_participant(planning, outsider, GuestStatus.GOING)
+        private = _make_trip(owner, resort=resort, trip_status="going", is_public=False)
+        terminal = _make_trip(owner, resort=resort, trip_status="going")
+        terminal.lifecycle_state = "cancelled"
+        db.session.commit()
+
+        rows = load_friends_trips_page(viewer.id, today=today).rows
+        assert [(row.trip_id, row.friend_ids) for row in rows] == [
+            (planning.id, (going.id,))
+        ]
+        assert private.id not in {row.trip_id for row in rows}
+        assert terminal.id not in {row.trip_id for row in rows}
+
+
+def test_ended_effective_attendance_is_excluded(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-attendance-viewer")
+        owner = _make_user("friends-attendance-owner")
+        guest = _make_user("friends-attendance-guest")
+        _connect(viewer, owner)
+        _connect(viewer, guest)
+        trip = _make_trip(
+            owner, trip_status="planning",
+            start_date=today - timedelta(days=4),
+            end_date=today + timedelta(days=4),
+        )
+        attendance = _add_participant(trip, guest, GuestStatus.GOING)
+        attendance.start_date = today - timedelta(days=3)
+        attendance.end_date = today - timedelta(days=1)
+        db.session.commit()
+        assert load_friends_trips_page(viewer.id, today=today).rows == []
+
+
+def test_overlap_uses_friend_effective_attendance(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-overlap-viewer")
+        owner = _make_user("friends-overlap-owner")
+        guest = _make_user("friends-overlap-guest")
+        resort = _make_resort("Effective Overlap Peak")
+        _connect(viewer, owner)
+        _connect(viewer, guest)
+        _make_trip(
+            viewer, resort=resort, trip_status="going",
+            start_date=today + timedelta(days=1),
+            end_date=today + timedelta(days=3),
+        )
+        friend_trip = _make_trip(
+            owner, resort=resort, trip_status="planning",
+            start_date=today + timedelta(days=1),
+            end_date=today + timedelta(days=6),
+        )
+        attendance = _add_participant(friend_trip, guest, GuestStatus.GOING)
+        attendance.start_date = today + timedelta(days=5)
+        attendance.end_date = today + timedelta(days=6)
+        db.session.commit()
+        row = load_friends_trips_page(viewer.id, today=today).rows[0]
+        assert row.overlaps_viewer_trip is False
+
+
+def test_interested_viewer_participation_does_not_create_overlap(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-overlap-interested-viewer")
+        friend = _make_user("friends-overlap-visible-friend")
+        other_owner = _make_user("friends-overlap-other-owner")
+        resort = _make_resort("Interested Overlap Peak")
+        _connect(viewer, friend)
+        interested_trip = _make_trip(
+            other_owner, resort=resort, trip_status="going",
+            start_date=today + timedelta(days=1),
+            end_date=today + timedelta(days=3),
+        )
+        _add_participant(interested_trip, viewer, GuestStatus.INTERESTED)
+        _make_trip(
+            friend, resort=resort, trip_status="going",
+            start_date=today + timedelta(days=2),
+            end_date=today + timedelta(days=4),
+        )
+        db.session.commit()
+        row = load_friends_trips_page(viewer.id, today=today).rows[0]
+        assert row.overlaps_viewer_trip is False
+
+
+def test_ordering_is_date_destination_then_trip_id(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-order-viewer")
+        friend = _make_user("friends-order-friend")
+        _connect(viewer, friend)
+        zulu = _make_resort("Zulu")
+        alpha = _make_resort("Alpha")
+        later = _make_trip(
+            friend, resort=alpha, trip_status="going",
+            start_date=today + timedelta(days=5), end_date=today + timedelta(days=6),
+        )
+        zulu_trip = _make_trip(
+            friend, resort=zulu, trip_status="going",
+            start_date=today + timedelta(days=2), end_date=today + timedelta(days=3),
+        )
+        alpha_trip = _make_trip(
+            friend, resort=alpha, trip_status="going",
+            start_date=today + timedelta(days=2), end_date=today + timedelta(days=3),
+        )
+        db.session.commit()
+        assert [row.trip_id for row in load_friends_trips_page(
+            viewer.id, today=today
+        ).rows] == [alpha_trip.id, zulu_trip.id, later.id]
+
+
+def test_context_distinguishes_no_friends_from_no_visible_trips(client):
+    with app.app_context():
+        viewer = _make_user("friends-context-viewer")
+        friend = _make_user("friends-context-friend")
+        assert load_friends_trips_context(viewer.id) == ([], False)
+        _connect(viewer, friend)
+        db.session.commit()
+        assert load_friends_trips_context(viewer.id) == ([], True)
+
+
+def test_cursor_is_viewer_bound_and_filter_is_rejected(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-cursor-viewer")
+        other = _make_user("friends-cursor-other")
+        friend = _make_user("friends-cursor-friend")
+        _connect(viewer, friend)
+        for index in range(FRIENDS_TRIPS_PAGE_SIZE + 1):
+            _make_trip(
+                friend, trip_status="going",
                 start_date=today + timedelta(days=index + 1),
                 end_date=today + timedelta(days=index + 2),
             )
-            participants.append(_add_participant(
-                trip, friend, GuestStatus.GOING
-            ))
-            trips.append(trip)
+        db.session.commit()
+        cursor = load_friends_trips_page(viewer.id, today=today).next_cursor
+        with pytest.raises(FriendsTripsCursorError):
+            load_friends_trips_page(other.id, today=today, cursor_value=cursor)
+        with pytest.raises(FriendsTripsCursorError):
+            load_friends_trips_page(viewer.id, today=today, destination_key="m:any")
+
+
+def test_friends_tab_and_page_endpoint_render_trip_ledger(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("friends-route-viewer")
+        owner = _make_user("friends-route-owner")
+        guest = _make_user("friends-route-guest")
+        owner.first_name = "Elena"
+        guest.first_name = "Jonah"
+        _connect(viewer, owner)
+        _connect(viewer, guest)
+        trip = _make_trip(
+            owner, resort=_make_resort("Telluride"), trip_status="going",
+            start_date=today + timedelta(days=2), end_date=today + timedelta(days=4),
+        )
+        _add_participant(trip, guest, GuestStatus.GOING)
+        _make_trip(
+            viewer, resort=trip.resort, trip_status="going",
+            start_date=today + timedelta(days=1), end_date=today + timedelta(days=3),
+        )
         db.session.commit()
         viewer_id = viewer.id
-        friend_id = friend.id
-        token = next(
-            row.group_token
-            for row in load_friends_trips_page(viewer_id, today=today).rows
-            if row.friend_id == friend_id and row.grouped
-        )
-
-        if mutation == "friendship":
-            Friend.query.filter_by(
-                user_id=friend_id, friend_id=viewer_id
-            ).delete()
-        elif mutation == "private":
-            trips[0].is_public = False
-        elif mutation == "completed":
-            trips[0].lifecycle_state = "completed"
-        elif mutation == "past":
-            participants[0].start_date = today - timedelta(days=2)
-            participants[0].end_date = today - timedelta(days=1)
-        else:
-            participants[0].status = {
-                "interested": GuestStatus.INTERESTED,
-                "declined": GuestStatus.DECLINED,
-                "removed": GuestStatus.REMOVED,
-            }[mutation]
-        db.session.commit()
-
+        trip_id = trip.id
     _login(client, viewer_id)
-    response = client.get(
-        "/api/my-trips/friends/group", query_string={"group": token}
-    )
-    assert response.status_code == 400
+    response = client.get("/my-trips?tab=friends")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Elena, Jonah" in html
+    assert ">Overlap<" in html
+    assert "Overlaps your dates" not in html
+    assert "1 trip" in html
+    assert "1 entry" not in html
+    assert "Friends' Trips destination" not in html
+    assert "Filter for a mountain" not in html
+    assert 'href="/my-trips?tab=friends"' in html
+    assert "view-tab active" in html
+
+    payload = client.get("/api/my-trips/friends/page").get_json()
+    assert payload["unit_ids"] == [f"t:{trip_id}"]
+    assert "friends-row" in payload["html"]
 
 
-def test_feed_and_detail_continuations_reauthorize_mutations(client):
+def test_friends_empty_states_render_distinct_copy_and_actions(client):
+    with app.app_context():
+        no_friends = _make_user("friends-empty-none")
+        has_friend = _make_user("friends-empty-connected")
+        friend = _make_user("friends-empty-connected-friend")
+        _connect(has_friend, friend)
+        db.session.commit()
+        no_friends_id = no_friends.id
+        has_friend_id = has_friend.id
+
+    _login(client, no_friends_id)
+    no_friends_html = client.get("/my-trips?tab=friends").get_data(as_text=True)
+    assert "You haven't added any friends yet." in no_friends_html
+    assert 'href="/friends">Find friends →</a>' in no_friends_html
+    assert "Invite friends →" not in no_friends_html
+
+    _login(client, has_friend_id)
+    no_trips_html = client.get("/my-trips?tab=friends").get_data(as_text=True)
+    assert "No trips planned yet." in no_trips_html
+    assert "None of your friends have upcoming trips." in no_trips_html
+    assert 'href="/invite">Invite friends →</a>' in no_trips_html
+    assert "Find friends →" not in no_trips_html
+
+
+def test_page_query_budget_is_fixed(client):
     today = date.today()
     with app.app_context():
-        viewer = _make_user("ft-continuation-viewer")
-        resort = _make_resort("FT Continuation Peak")
-        friends = []
-        trips = []
-        for index in range(11):
-            friend = _make_user(f"ft-continuation-{index:02d}")
-            _connect(viewer, friend)
-            friends.append(friend)
-            trips.append(_make_trip(
-                friend,
-                resort=resort,
-                start_date=today + timedelta(days=index + 1),
-            ))
-        grouped_friend = _make_user("ft-continuation-grouped")
-        _connect(viewer, grouped_friend)
-        grouped_trips = [
-            _make_trip(
-                grouped_friend,
-                resort=_make_resort("FT Detail Continuation Peak"),
-                start_date=today + timedelta(days=index + 30),
-            )
-            for index in range(21)
-        ]
-        db.session.commit()
-        viewer_id = viewer.id
-        grouped_friend_id = grouped_friend.id
-        hidden_trip_id = trips[-1].id
-        detail_hidden_id = grouped_trips[-1].id
-
-    _login(client, viewer_id)
-    first_feed = client.get("/api/my-trips/friends/page").get_json()
-    with app.app_context():
-        db.session.get(SkiTrip, hidden_trip_id).is_public = False
-        db.session.commit()
-    second_feed = client.get(
-        "/api/my-trips/friends/page",
-        query_string={"cursor": first_feed["next_cursor"]},
-    ).get_json()
-    assert hidden_trip_id not in {
-        int(unit_id.rsplit(":", 1)[-1])
-        for unit_id in second_feed["unit_ids"]
-        if unit_id.startswith("t:")
-    }
-
-    with app.app_context():
-        token = next(
-            row.group_token
-            for row in load_friends_trips_page(
-                viewer_id,
-                today=today,
-                destination_key="m:FT Detail Continuation Peak",
-            ).rows
-            if row.friend_id == grouped_friend_id and row.grouped
-        )
-    first_detail = client.get(
-        "/api/my-trips/friends/group", query_string={"group": token}
-    ).get_json()
-    with app.app_context():
-        db.session.get(SkiTrip, detail_hidden_id).lifecycle_state = "cancelled"
-        db.session.commit()
-    second_detail = client.get(
-        "/api/my-trips/friends/group",
-        query_string={
-            "group": token,
-            "cursor": first_detail["next_cursor"],
-        },
-    ).get_json()
-    assert detail_hidden_id not in second_detail["trip_ids"]
-
-
-def test_friends_trips_tokens_are_viewer_bound(client):
-    today = date.today()
-    with app.app_context():
-        first_viewer = _make_user("ft-token-first")
-        second_viewer = _make_user("ft-token-second")
-        friend = _make_user("ft-token-friend")
-        _connect(first_viewer, friend)
-        for index in range(12):
-            _make_trip(
-                friend,
-                resort=_make_resort(f"FT Token Peak {index:02d}"),
-                start_date=today + timedelta(days=index + 1),
-            )
-        group_resort = _make_resort("FT Token Group Peak")
-        for index in range(3):
-            _make_trip(
-                friend,
-                resort=group_resort,
-                start_date=today + timedelta(days=index + 30),
-            )
-        db.session.commit()
-        first_id = first_viewer.id
-        second_id = second_viewer.id
-
-    _login(client, first_id)
-    first_payload = client.get(
-        "/api/my-trips/friends/page", query_string={"context": "1"}
-    ).get_json()
-    cursor = first_payload["next_cursor"]
-    with app.app_context():
-        token = next(
-            row.group_token
-            for row in load_friends_trips_page(
-                first_id,
-                today=today,
-                destination_key="m:FT Token Group Peak",
-            ).rows
-            if row.grouped
-        )
-
-    _login(client, second_id)
-    assert client.get(
-        "/api/my-trips/friends/page", query_string={"cursor": cursor}
-    ).status_code == 400
-    assert client.get(
-        "/api/my-trips/friends/group", query_string={"group": token}
-    ).status_code == 400
-
-
-def test_friends_trips_page_endpoint_warmed_budget(client):
-    today = date.today()
-    with app.app_context():
-        viewer = _make_user("ft-endpoint-budget-viewer")
+        viewer = _make_user("friends-budget-viewer")
+        friend = _make_user("friends-budget-friend")
+        _connect(viewer, friend)
         for index in range(FRIENDS_TRIPS_PAGE_SIZE):
-            friend = _make_user(f"ft-endpoint-budget-friend-{index}")
-            _connect(viewer, friend)
             _make_trip(
-                friend,
-                resort=_make_resort(f"FT Endpoint Budget Peak {index}"),
+                friend, resort=_make_resort(f"Budget {index}"), trip_status="going",
                 start_date=today + timedelta(days=index + 1),
+                end_date=today + timedelta(days=index + 2),
             )
         db.session.commit()
         viewer_id = viewer.id
         engine = db.engine
+        statements = []
+        def record(_connection, _cursor, statement, _params, _context, _many):
+            statements.append(statement)
 
-    _login(client, viewer_id)
-    assert client.get(
-        "/api/my-trips/friends/page", query_string={"context": "1"}
-    ).status_code == 200
-    statements = []
-
-    def record(_connection, _cursor, statement, _params, _context, _many):
-        statements.append(statement)
-
-    event.listen(engine, "before_cursor_execute", record)
-    try:
-        response = client.get(
-            "/api/my-trips/friends/page", query_string={"context": "1"}
-        )
-    finally:
-        event.remove(engine, "before_cursor_execute", record)
-    assert response.status_code == 200
-    assert len(statements) <= 4
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            load_friends_trips_page(viewer_id, today=today)
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+        assert len(statements) <= 4

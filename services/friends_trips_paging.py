@@ -1,11 +1,4 @@
-"""Bounded Friends' Trips retrieval.
-
-The feed is a person-presence surface: an entry identifies a reciprocal friend
-and a public, live trip on which that friend is either the organizer or an
-explicitly Going guest.  SQL window functions turn those entries into display
-units before the page limit is applied, so a three-trip group never straddles
-pages and its details do not ride along with the feed response.
-"""
+"""Bounded, trip-centric Friends' Trips retrieval."""
 
 from __future__ import annotations
 
@@ -18,68 +11,55 @@ from itsdangerous import BadData, URLSafeSerializer
 from sqlalchemy.orm import joinedload
 
 from models import Friend, GuestStatus, Resort, SkiTrip, SkiTripParticipant, User, db
+from services.ski_seasons import get_ski_season_window
 from services.trip_attendance import effective_attendance_date_expressions
 from services.visibility import reciprocal_friend_predicate
 
 
 FRIENDS_TRIPS_PAGE_SIZE = 10
-FRIENDS_TRIPS_DETAIL_PAGE_SIZE = 20
-FRIENDS_TRIPS_GROUP_PAGE_SIZE = FRIENDS_TRIPS_DETAIL_PAGE_SIZE
-_GROUP_SALT = "bl159-friends-trips-group-v1"
-_CURSOR_SALT = "bl159-friends-trips-cursor-v1"
+_CURSOR_SALT = "friends-trips-trip-feed-v2"
 
 
 class FriendsTripsCursorError(ValueError):
-    """Raised for malformed, stale-scope, or cross-viewer paging tokens."""
+    """Raised for malformed or cross-viewer paging tokens."""
 
 
 class FriendsTripsGroupError(ValueError):
-    """Raised when a grouped identity is malformed or no longer authorized."""
+    """Retained for compatibility with the retired destination-group API."""
 
 
 @dataclass(frozen=True)
 class FriendsTripRow:
-    friend_id: int
-    friend_name: str
-    destination: str
-    destination_key: str
-    status: str
+    trip: SkiTrip
+    friend_ids: tuple[int, ...]
+    friend_names: tuple[str, ...]
     attendance_start_date: date | None
     attendance_end_date: date | None
-    group_start_date: date | None = None
-    group_end_date: date | None = None
-    trip: SkiTrip | None = None
-    grouped_count: int = 1
-    group_token: str | None = None
+    overlaps_viewer_trip: bool = False
 
     @property
-    def grouped(self) -> bool:
-        return self.grouped_count >= 3
+    def trip_id(self) -> int:
+        return self.trip.id
 
     @property
-    def trip_id(self) -> int | None:
-        return self.trip.id if self.trip is not None else None
+    def destination(self) -> str:
+        return self.trip.resort.name if self.trip.resort else (self.trip.mountain or "TBD")
 
     @property
-    def formatted_date(self) -> str:
-        start = self.attendance_start_date
-        end = self.attendance_end_date
-        if not start:
-            return "Dates TBD"
-        if not end or end == start:
-            return start.strftime("%b %-d")
-        end_format = "%b %-d" if start.month != end.month else "%-d"
-        return f"{start.strftime('%b %-d')}–{end.strftime(end_format)}"
+    def destination_key(self) -> str:
+        return f"t:{self.trip.id}"
 
-    def __getitem__(self, key):
-        aliases = {
-            "trip_start": self.attendance_start_date,
-            "trip_end": self.attendance_end_date,
-            "formatted_date": self.formatted_date,
-        }
-        if key in aliases:
-            return aliases[key]
-        return getattr(self, key)
+    @property
+    def status(self) -> str:
+        return "going"
+
+    @property
+    def friend_id(self) -> int:
+        return self.friend_ids[0]
+
+    @property
+    def friend_name(self) -> str:
+        return self.friend_names[0]
 
 
 @dataclass(frozen=True)
@@ -89,29 +69,8 @@ class FriendsTripsPage:
     next_cursor: str | None
 
 
-@dataclass(frozen=True)
-class FriendsTripsDetailPage:
-    rows: list[FriendsTripRow]
-    has_more: bool
-    next_cursor: str | None
-
-
-@dataclass(frozen=True)
-class DestinationOption:
-    key: str
-    name: str
-
-
-def _serializer(salt):
-    return URLSafeSerializer(current_app.config["SECRET_KEY"], salt=salt)
-
-
-def _destination_expressions():
-    name = sa.func.coalesce(Resort.name, SkiTrip.mountain, "TBD")
-    # Preserve the existing UI's displayed-name grouping identity. Resort-backed
-    # and manually-entered trips with the same displayed destination are one group.
-    key = sa.literal("m:") + name
-    return key, name
+def _serializer():
+    return URLSafeSerializer(current_app.config["SECRET_KEY"], salt=_CURSOR_SALT)
 
 
 def _active_public():
@@ -121,19 +80,19 @@ def _active_public():
     )
 
 
-def _entry_union(viewer_id: int, today: date):
-    """Return authorized scalar entries; deliberately does not hydrate Trips."""
-    destination_key, destination = _destination_expressions()
+def _entry_union(viewer_id: int, today: date, season_end: date):
+    """Return one authorized scalar row per eligible friend/trip source."""
+    friend_name = sa.func.coalesce(
+        sa.func.nullif(User.first_name, ""), "Friend"
+    )
     common = (
         SkiTrip.id.label("trip_id"),
         User.id.label("friend_id"),
-        (sa.func.coalesce(User.first_name, "") + sa.literal(" ")
-         + sa.func.coalesce(User.last_name, "")).label("friend_name"),
-        destination_key.label("destination_key"),
-        destination.label("destination"),
-        sa.func.coalesce(SkiTrip.trip_status, "planning").label("status"),
+        friend_name.label("friend_name"),
+        SkiTrip.start_date.label("trip_start"),
+        SkiTrip.end_date.label("trip_end"),
+        sa.func.coalesce(Resort.name, SkiTrip.mountain, "TBD").label("destination"),
     )
-
     organizer = (
         sa.select(
             *common,
@@ -147,12 +106,14 @@ def _entry_union(viewer_id: int, today: date):
         .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
         .where(
             _active_public(),
+            SkiTrip.trip_status == "going",
             SkiTrip.end_date >= today,
+            SkiTrip.start_date <= season_end,
             reciprocal_friend_predicate(viewer_id, SkiTrip.user_id),
         )
     )
 
-    participant = SkiTripParticipant.__table__.alias("friend_going")
+    participant = SkiTripParticipant.__table__.alias("friends_trip_going")
     effective_start, effective_end = effective_attendance_date_expressions(
         SkiTrip, participant.c
     )
@@ -170,163 +131,127 @@ def _entry_union(viewer_id: int, today: date):
         .outerjoin(Resort, Resort.id == SkiTrip.resort_id)
         .where(
             _active_public(),
-            SkiTrip.end_date >= today,
             participant.c.status == GuestStatus.GOING,
             participant.c.user_id != SkiTrip.user_id,
             effective_end >= today,
+            effective_start <= season_end,
             reciprocal_friend_predicate(viewer_id, participant.c.user_id),
-            # Preserve the pre-BL-159 rule: both people on the trip are direct
-            # friends, rather than exposing an unrelated organizer's trip.
             reciprocal_friend_predicate(viewer_id, SkiTrip.user_id),
         )
     )
     return organizer.union_all(guest).subquery("friends_trip_entries")
 
 
-def _deduped_entries(viewer_id: int, today: date):
-    raw = _entry_union(viewer_id, today)
+def _deduped_entries(viewer_id: int, today: date, season_end: date):
+    raw = _entry_union(viewer_id, today, season_end)
     ranked = sa.select(
         *raw.c,
         sa.func.row_number().over(
             partition_by=(raw.c.friend_id, raw.c.trip_id),
             order_by=(raw.c.source_rank, raw.c.participant_id),
         ).label("duplicate_rank"),
-    ).subquery("friends_trip_dedup_rank")
-    return sa.select(*[c for c in ranked.c if c.key != "duplicate_rank"]).where(
-        ranked.c.duplicate_rank == 1
-    ).subquery("friends_trip_deduped")
+    ).subquery("friends_trip_ranked")
+    return sa.select(
+        *[column for column in ranked.c if column.key != "duplicate_rank"]
+    ).where(ranked.c.duplicate_rank == 1).subquery("friends_trip_deduped")
 
 
-def _grouped_entries(viewer_id: int, today: date, destination_key=None):
-    entries = _deduped_entries(viewer_id, today)
-    query = sa.select(
-        *entries.c,
-        sa.func.count().over(
-            partition_by=(entries.c.friend_id, entries.c.destination_key, entries.c.status)
-        ).label("group_count"),
-        sa.func.row_number().over(
-            partition_by=(entries.c.friend_id, entries.c.destination_key, entries.c.status),
-            order_by=(
-                sa.case((entries.c.attendance_start.is_(None), 1), else_=0),
-                entries.c.attendance_start,
-                entries.c.trip_id,
-            ),
-        ).label("group_rank"),
-        sa.func.min(entries.c.attendance_start).over(
-            partition_by=(entries.c.friend_id, entries.c.destination_key, entries.c.status)
-        ).label("group_start"),
-        sa.func.max(entries.c.attendance_end).over(
-            partition_by=(entries.c.friend_id, entries.c.destination_key, entries.c.status)
-        ).label("group_end"),
-    )
-    if destination_key is not None:
-        query = query.where(entries.c.destination_key == destination_key)
-    return query.subquery("friends_trip_grouped")
-
-
-def _cursor_payload(row, viewer_id, destination_key):
+def _cursor_payload(row, viewer_id):
     return {
-        "v": 1,
+        "v": 2,
         "viewer": int(viewer_id),
-        "destination": destination_key,
-        "null": int(row.null_rank),
-        "start": row.attendance_start.isoformat() if row.attendance_start else None,
-        "friend": int(row.friend_id),
-        "destination_sort": row.destination_key,
-        "status": row.status,
+        "start": row.trip_start.isoformat(),
+        "destination": row.destination,
         "trip": int(row.trip_id),
     }
 
 
-def _load_cursor(value, viewer_id, destination_key):
+def _load_cursor(value, viewer_id):
     try:
-        payload = _serializer(_CURSOR_SALT).loads(value)
-        expected = {
-            "v", "viewer", "destination", "null", "start", "friend",
-            "destination_sort", "status", "trip",
-        }
-        if not isinstance(payload, dict) or set(payload) != expected:
+        payload = _serializer().loads(value)
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"v", "viewer", "start", "destination", "trip"}
+            or payload["v"] != 2
+            or payload["viewer"] != int(viewer_id)
+            or type(payload["trip"]) is not int
+            or not isinstance(payload["destination"], str)
+        ):
             raise ValueError
-        if payload["v"] != 1 or payload["viewer"] != int(viewer_id):
-            raise ValueError
-        if payload["destination"] != destination_key or payload["null"] not in (0, 1):
-            raise ValueError
-        start = date.fromisoformat(payload["start"]) if payload["start"] else None
-        if (start is None) != (payload["null"] == 1):
-            raise ValueError
-        if type(payload["friend"]) is not int or type(payload["trip"]) is not int:
-            raise ValueError
-        return payload, start
+        return payload, date.fromisoformat(payload["start"])
     except (BadData, KeyError, TypeError, ValueError) as exc:
         raise FriendsTripsCursorError("Invalid Friends' Trips cursor.") from exc
 
 
-def _after(values, columns):
-    """Portable lexicographic keyset predicate with one nullable date."""
-    null_rank, start, friend_id, destination_key, status, trip_id = columns
-    p, cursor_start = values
-    terms = [null_rank > p["null"]]
-    prefix = null_rank == p["null"]
-    if cursor_start is not None:
-        terms.append(sa.and_(prefix, start > cursor_start))
-        prefix = sa.and_(prefix, start == cursor_start)
-    terms.extend([
-        sa.and_(prefix, friend_id > p["friend"]),
-        sa.and_(prefix, friend_id == p["friend"], destination_key > p["destination_sort"]),
-        sa.and_(prefix, friend_id == p["friend"], destination_key == p["destination_sort"],
-                status > p["status"]),
-        sa.and_(prefix, friend_id == p["friend"], destination_key == p["destination_sort"],
-                status == p["status"], trip_id > p["trip"]),
-    ])
-    return sa.or_(*terms)
-
-
-def _display_units_query(viewer_id, today, destination_key=None, cursor_value=None):
-    grouped = _grouped_entries(viewer_id, today, destination_key)
-    null_rank = sa.case((grouped.c.attendance_start.is_(None), 1), else_=0).label(
-        "null_rank"
-    )
-    query = sa.select(*grouped.c, null_rank).where(
-        sa.or_(grouped.c.group_count < 3, grouped.c.group_rank == 1)
-    )
+def _trip_units_query(viewer_id, today, season_end, cursor_value=None):
+    entries = _deduped_entries(viewer_id, today, season_end)
+    units = sa.select(
+        entries.c.trip_id,
+        entries.c.trip_start,
+        entries.c.trip_end,
+        entries.c.destination,
+    ).group_by(
+        entries.c.trip_id,
+        entries.c.trip_start,
+        entries.c.trip_end,
+        entries.c.destination,
+    ).subquery("friends_trip_units")
+    query = sa.select(*units.c)
     if cursor_value:
-        cursor = _load_cursor(cursor_value, viewer_id, destination_key)
-        query = query.where(_after(cursor, (
-            null_rank, grouped.c.attendance_start, grouped.c.friend_id,
-            grouped.c.destination_key, grouped.c.status, grouped.c.trip_id,
-        )))
-    return query.order_by(
-        null_rank, grouped.c.attendance_start, grouped.c.friend_id,
-        grouped.c.destination_key, grouped.c.status, grouped.c.trip_id,
+        payload, cursor_start = _load_cursor(cursor_value, viewer_id)
+        query = query.where(sa.or_(
+            units.c.trip_start > cursor_start,
+            sa.and_(
+                units.c.trip_start == cursor_start,
+                units.c.destination > payload["destination"],
+            ),
+            sa.and_(
+                units.c.trip_start == cursor_start,
+                units.c.destination == payload["destination"],
+                units.c.trip_id > payload["trip"],
+            ),
+        ))
+    return query.order_by(units.c.trip_start, units.c.destination, units.c.trip_id)
+
+
+def _viewer_occurrences(
+    viewer_id: int,
+    today: date,
+    season_end: date,
+    resort_ids: set[int],
+    window_start: date,
+    window_end: date,
+):
+    participant = SkiTripParticipant.__table__.alias("friends_viewer_going")
+    effective_start, effective_end = effective_attendance_date_expressions(
+        SkiTrip, participant.c
     )
-
-
-def _group_claims(token, viewer_id):
-    try:
-        claims = _serializer(_GROUP_SALT).loads(token)
-        if (
-            not isinstance(claims, dict)
-            or set(claims) != {"v", "viewer", "friend", "destination", "status"}
-            or claims["v"] != 1
-            or claims["viewer"] != int(viewer_id)
-            or type(claims["friend"]) is not int
-            or not isinstance(claims["destination"], str)
-            or not isinstance(claims["status"], str)
-        ):
-            raise ValueError
-        return claims
-    except (BadData, TypeError, ValueError) as exc:
-        raise FriendsTripsGroupError("Invalid Friends' Trips group.") from exc
-
-
-def _issue_group_token(viewer_id, friend_id, destination_key, status):
-    return _serializer(_GROUP_SALT).dumps({
-        "v": 1,
-        "viewer": int(viewer_id),
-        "friend": int(friend_id),
-        "destination": destination_key,
-        "status": status,
-    })
+    owned = sa.select(
+        SkiTrip.resort_id, SkiTrip.start_date, SkiTrip.end_date
+    ).where(
+        SkiTrip.user_id == viewer_id,
+        sa.or_(SkiTrip.lifecycle_state.is_(None), SkiTrip.lifecycle_state == "active"),
+        SkiTrip.end_date >= today,
+        SkiTrip.start_date <= season_end,
+        SkiTrip.resort_id.in_(resort_ids),
+        SkiTrip.end_date >= window_start,
+        SkiTrip.start_date <= window_end,
+    )
+    attending = sa.select(
+        SkiTrip.resort_id, effective_start, effective_end
+    ).select_from(SkiTrip.__table__.join(
+        participant, participant.c.trip_id == SkiTrip.id
+    )).where(
+        participant.c.user_id == viewer_id,
+        participant.c.status == GuestStatus.GOING,
+        sa.or_(SkiTrip.lifecycle_state.is_(None), SkiTrip.lifecycle_state == "active"),
+        effective_end >= today,
+        effective_start <= season_end,
+        SkiTrip.resort_id.in_(resort_ids),
+        effective_end >= window_start,
+        effective_start <= window_end,
+    )
+    return db.session.execute(owned.union_all(attending)).all()
 
 
 def load_friends_trips_page(
@@ -336,241 +261,117 @@ def load_friends_trips_page(
     cursor_value: str | None = None,
     destination_key: str | None = None,
 ) -> FriendsTripsPage:
+    """Return a chronological page of physical trips with eligible friends."""
+    if destination_key is not None:
+        raise FriendsTripsCursorError("Friends' Trips no longer supports filtering.")
     today = today or date.today()
+    _season_start, season_end = get_ski_season_window(today)
     candidates = db.session.execute(
-        _display_units_query(
-            viewer_id, today, destination_key, cursor_value
-        ).limit(FRIENDS_TRIPS_PAGE_SIZE + 1)
+        _trip_units_query(viewer_id, today, season_end, cursor_value)
+        .limit(FRIENDS_TRIPS_PAGE_SIZE + 1)
     ).all()
     has_more = len(candidates) > FRIENDS_TRIPS_PAGE_SIZE
     candidates = candidates[:FRIENDS_TRIPS_PAGE_SIZE]
-    trip_ids = [r.trip_id for r in candidates if r.group_count < 3]
+    trip_ids = [row.trip_id for row in candidates]
     trips = (
         SkiTrip.query.options(joinedload(SkiTrip.resort))
-        .filter(SkiTrip.id.in_(trip_ids)).all()
+        .filter(SkiTrip.id.in_(trip_ids))
+        .all()
         if trip_ids else []
     )
     by_id = {trip.id: trip for trip in trips}
+
+    friends_by_trip: dict[int, dict[int, tuple[str, date, date]]] = {
+        trip_id: {} for trip_id in trip_ids
+    }
+    if trip_ids:
+        entries = _deduped_entries(viewer_id, today, season_end)
+        name_rows = db.session.execute(
+            sa.select(
+                entries.c.trip_id,
+                entries.c.friend_id,
+                entries.c.friend_name,
+                entries.c.attendance_start,
+                entries.c.attendance_end,
+            )
+            .where(entries.c.trip_id.in_(trip_ids))
+            .order_by(entries.c.friend_name, entries.c.friend_id)
+        ).all()
+        for entry in name_rows:
+            friends_by_trip[entry.trip_id][entry.friend_id] = (
+                entry.friend_name.strip() or "Friend",
+                entry.attendance_start,
+                entry.attendance_end,
+            )
+
+    page_trips = [by_id[trip_id] for trip_id in trip_ids]
+    resort_ids = {trip.resort_id for trip in page_trips if trip.resort_id}
+    viewer_occurrences = (
+        _viewer_occurrences(
+            viewer_id,
+            today,
+            season_end,
+            resort_ids,
+            min(trip.start_date for trip in page_trips),
+            max(trip.end_date for trip in page_trips),
+        )
+        if page_trips and resort_ids else []
+    )
     rows = []
     for candidate in candidates:
-        grouped = candidate.group_count >= 3
-        rows.append(FriendsTripRow(
-            friend_id=candidate.friend_id,
-            friend_name=candidate.friend_name.strip() or "Friend",
-            destination=candidate.destination,
-            destination_key=candidate.destination_key,
-            status=candidate.status,
-            attendance_start_date=candidate.attendance_start,
-            attendance_end_date=candidate.attendance_end,
-            group_start_date=candidate.group_start,
-            group_end_date=candidate.group_end,
-            trip=None if grouped else by_id[candidate.trip_id],
-            grouped_count=candidate.group_count if grouped else 1,
-            group_token=(
-                _issue_group_token(
-                    viewer_id, candidate.friend_id, candidate.destination_key,
-                    candidate.status,
-                ) if grouped else None
-            ),
-        ))
-    next_cursor = None
-    if has_more:
-        next_cursor = _serializer(_CURSOR_SALT).dumps(
-            _cursor_payload(candidates[-1], viewer_id, destination_key)
+        trip = by_id[candidate.trip_id]
+        friends = friends_by_trip[candidate.trip_id]
+        overlaps = bool(
+            trip.resort_id
+            and any(
+                occurrence.resort_id == trip.resort_id
+                and occurrence.start_date <= attendance_end
+                and occurrence.end_date >= attendance_start
+                for _name, attendance_start, attendance_end in friends.values()
+                for occurrence in viewer_occurrences
+            )
         )
-    return FriendsTripsPage(rows, has_more, next_cursor)
+        rows.append(FriendsTripRow(
+            trip=trip,
+            friend_ids=tuple(friends),
+            friend_names=tuple(value[0] for value in friends.values()),
+            attendance_start_date=trip.start_date,
+            attendance_end_date=trip.end_date,
+            overlaps_viewer_trip=overlaps,
+        ))
 
-
-def load_friends_trips_destinations(
-    viewer_id: int, *, today: date | None = None
-) -> list[DestinationOption]:
-    """Return the complete filter domain, independent of the current feed page."""
-    options, _has_friends = load_friends_trips_context(
-        viewer_id, today=today
+    next_cursor = (
+        _serializer().dumps(_cursor_payload(candidates[-1], viewer_id))
+        if has_more else None
     )
-    return options
+    return FriendsTripsPage(rows, has_more, next_cursor)
 
 
 def load_friends_trips_context(
     viewer_id: int, *, today: date | None = None
-) -> tuple[list[DestinationOption], bool]:
-    """Return complete destination options and friendship presence in one query."""
-    entries = _deduped_entries(viewer_id, today or date.today())
-    options = sa.select(
-        sa.literal("option").label("kind"),
-        entries.c.destination_key,
-        entries.c.destination,
-    ).distinct()
-    has_friend = sa.select(
-        sa.literal("friend").label("kind"),
-        sa.null().label("destination_key"),
-        sa.null().label("destination"),
-    ).where(
-        sa.exists(
+) -> tuple[list, bool]:
+    """Return no filter options plus reciprocal friendship presence."""
+    has_friend = db.session.scalar(
+        sa.select(sa.exists(
             sa.select(1).select_from(Friend).where(
                 Friend.user_id == viewer_id,
                 reciprocal_friend_predicate(viewer_id, Friend.friend_id),
             )
-        )
-    )
-    rows = db.session.execute(
-        sa.union_all(options, has_friend).order_by(
-            sa.column("kind"), sa.column("destination"), sa.column("destination_key")
-        )
-    ).all()
-    return (
-        [
-            DestinationOption(row.destination_key, row.destination)
-            for row in rows
-            if row.kind == "option"
-        ],
-        any(row.kind == "friend" for row in rows),
-    )
-
-
-def load_friends_trips_destination_options(
-    viewer_id: int, *, today: date | None = None
-) -> list[DestinationOption]:
-    """Descriptive alias used by route/template integration."""
-    return load_friends_trips_destinations(viewer_id, today=today)
-
-
-def _detail_cursor(token, claims):
-    if not token:
-        return None
-    try:
-        value = _serializer(_CURSOR_SALT).loads(token)
-        if (
-            not isinstance(value, dict)
-            or set(value) != {"v", "group", "null", "start", "trip"}
-            or value["v"] != 1
-            or value["group"] != claims
-            or value["null"] not in (0, 1)
-            or type(value["trip"]) is not int
-        ):
-            raise ValueError
-        start = date.fromisoformat(value["start"]) if value["start"] else None
-        if (start is None) != (value["null"] == 1):
-            raise ValueError
-        return value, start
-    except (BadData, TypeError, ValueError) as exc:
-        raise FriendsTripsCursorError("Invalid Friends' Trips detail cursor.") from exc
-
-
-def _group_detail_query(viewer_id, today, claims, cursor_value=None):
-    entries = _deduped_entries(viewer_id, today)
-    scoped = sa.select(
-        *entries.c,
-        sa.case((entries.c.attendance_start.is_(None), 1), else_=0).label(
-            "null_rank"
-        ),
-        sa.func.count().over().label("group_total"),
-    ).where(
-        entries.c.friend_id == claims["friend"],
-        entries.c.destination_key == claims["destination"],
-        entries.c.status == claims["status"],
-    ).subquery("friends_trip_detail_scope")
-    query = sa.select(*scoped.c)
-    cursor = _detail_cursor(cursor_value, claims)
-    if cursor:
-        value, cursor_start = cursor
-        after_date = (
-            sa.false() if cursor_start is None
-            else scoped.c.attendance_start > cursor_start
-        )
-        query = query.where(sa.or_(
-            scoped.c.null_rank > value["null"],
-            sa.and_(
-                scoped.c.null_rank == value["null"],
-                sa.or_(
-                    after_date,
-                    sa.and_(
-                        scoped.c.attendance_start == cursor_start,
-                        scoped.c.trip_id > value["trip"],
-                    ),
-                ),
-            ),
         ))
-    return query.order_by(
-        scoped.c.null_rank, scoped.c.attendance_start, scoped.c.trip_id
     )
+    return [], bool(has_friend)
 
 
-def load_friends_trips_group(
-    viewer_id: int,
-    group_token: str,
-    *,
-    today: date | None = None,
-    cursor_value: str | None = None,
-) -> FriendsTripsDetailPage:
-    """Reauthorize and page one opaque group; never trust stored trip IDs."""
-    claims = _group_claims(group_token, viewer_id)
-    today = today or date.today()
-    candidates = db.session.execute(
-        _group_detail_query(
-            viewer_id, today, claims, cursor_value
-        ).limit(FRIENDS_TRIPS_DETAIL_PAGE_SIZE + 1)
-    ).all()
-    # The window count is evaluated before the page cursor, so every request
-    # independently verifies current authorized group cardinality.
-    if not candidates and cursor_value:
-        entries = _deduped_entries(viewer_id, today)
-        group_total = db.session.scalar(
-            sa.select(sa.func.count()).select_from(entries).where(
-                entries.c.friend_id == claims["friend"],
-                entries.c.destination_key == claims["destination"],
-                entries.c.status == claims["status"],
-            )
-        ) or 0
-        if group_total >= 3:
-            return FriendsTripsDetailPage([], False, None)
-    if not candidates or candidates[0].group_total < 3:
-        raise FriendsTripsGroupError("Friends' Trips group is no longer available.")
-    has_more = len(candidates) > FRIENDS_TRIPS_DETAIL_PAGE_SIZE
-    candidates = candidates[:FRIENDS_TRIPS_DETAIL_PAGE_SIZE]
-    trips = (
-        SkiTrip.query.options(joinedload(SkiTrip.resort))
-        .filter(SkiTrip.id.in_([r.trip_id for r in candidates])).all()
-        if candidates else []
-    )
-    by_id = {trip.id: trip for trip in trips}
-    rows = [
-        FriendsTripRow(
-            friend_id=r.friend_id,
-            friend_name=r.friend_name.strip() or "Friend",
-            destination=r.destination,
-            destination_key=r.destination_key,
-            status=r.status,
-            attendance_start_date=r.attendance_start,
-            attendance_end_date=r.attendance_end,
-            trip=by_id[r.trip_id],
-        )
-        for r in candidates
-    ]
-    next_cursor = None
-    if has_more:
-        last = candidates[-1]
-        next_cursor = _serializer(_CURSOR_SALT).dumps({
-            "v": 1,
-            "group": claims,
-            "null": last.null_rank,
-            "start": last.attendance_start.isoformat() if last.attendance_start else None,
-            "trip": last.trip_id,
-        })
-    return FriendsTripsDetailPage(rows, has_more, next_cursor)
+def load_friends_trips_destinations(viewer_id: int, *, today=None) -> list:
+    return []
 
 
-def load_friends_trips_group_page(
-    viewer_id: int,
-    group_token: str,
-    *,
-    today: date | None = None,
-    cursor_value: str | None = None,
-) -> FriendsTripsDetailPage:
-    """Descriptive alias for the grouped-detail paging operation."""
-    return load_friends_trips_group(
-        viewer_id,
-        group_token,
-        today=today,
-        cursor_value=cursor_value,
-    )
+def load_friends_trips_destination_options(viewer_id: int, *, today=None) -> list:
+    return []
+
+
+def load_friends_trips_group(*_args, **_kwargs):
+    raise FriendsTripsGroupError("Friends' Trips destination groups were retired.")
+
+
+load_friends_trips_group_page = load_friends_trips_group

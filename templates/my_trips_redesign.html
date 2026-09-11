@@ -23,10 +23,11 @@
 .invite-actions{display:flex;flex:none;justify-content:flex-end;gap:7px}.invite-btn{min-height:44px;padding:0 13px;border-radius:8px;font:600 12px var(--bl-font-ui);cursor:pointer;touch-action:manipulation}.invite-decline{background:transparent;border:1px solid #cdb6b5;color:#5c1219}.invite-accept{background:#5c1219;border:1px solid #5c1219;color:#fff}
 .ledger-row-past{color:#6e6a62}.ledger-row-past .ledger-mountain,.ledger-row-past .ledger-date{color:#6e6a62;font-weight:400}
 .earlier-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:0 16px;border:0;border-top:1px solid #d8d0c2;border-bottom:1px solid #d8d0c2;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui);text-align:left}.earlier-chevron{font-size:16px;line-height:1;transition:transform .15s ease}.earlier-toggle[aria-expanded="true"] .earlier-chevron{transform:rotate(180deg)}
-.empty-ledger{padding:24px 16px;border-bottom:1px solid #e5dfd0}.empty-title{margin:0 0 4px;color:#1a1a1a;font:600 14px/1.4 var(--bl-font-ui)}.empty-copy{margin:0;color:#6e6a62;font-size:13px;line-height:1.45}
+.empty-ledger{padding:24px 16px;border-bottom:1px solid #e5dfd0}.empty-title{margin:0 0 4px;color:#1a1a1a;font:600 14px/1.4 var(--bl-font-ui)}.empty-copy{margin:0;color:#6e6a62;font-size:13px;line-height:1.45}.empty-action{display:inline-block;margin-top:10px;color:#6f0f1d;font:600 13px/1.4 var(--bl-font-ui);text-decoration:none}
 .quiet-line{padding:22px 16px;color:#6e6a62;font-size:14px}
 .both-row .ledger-row-bottom{align-items:flex-start;gap:14px}.both-annotation{flex:0 1 58%;min-width:0;white-space:normal;text-align:right;color:#5c1219;font-size:11.5px;line-height:1.3}
 .both-opportunity{background:#f1ede5;color:#6e6a62}.both-opportunity .ledger-mountain{color:#6e6a62;font-weight:400}.both-opportunity .both-annotation{color:#5c1219}
+.friends-row .ledger-row-bottom{align-items:flex-start;gap:14px}.friends-people{overflow:visible;text-overflow:clip;white-space:normal;text-transform:none;letter-spacing:0}.friends-overlap{flex:none;white-space:nowrap;color:#6e6a62;font-size:10px;font-weight:600;line-height:1.3;letter-spacing:.08em;text-transform:uppercase}
 .mine-load-more{display:block;min-height:44px;margin:12px auto;padding:0 18px;border:1px solid #cdb6b5;border-radius:8px;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui)}
 .choice-backdrop{position:fixed;inset:0;z-index:500;background:rgba(26,26,26,.28);display:flex;align-items:flex-end;justify-content:center;padding:16px}.choice-sheet{width:100%;max-width:380px;background:#f5f1e8;border:1px solid #d8d0c2;border-radius:12px;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}.choice-title{margin:0 0 4px;font:400 20px/1.25 var(--bl-font-serif)}.choice-copy{margin:0 0 14px;color:#6e6a62;font-size:13px}.choice-actions{display:flex;gap:8px}.choice-actions button{flex:1;min-height:48px;border-radius:8px;font:600 13px var(--bl-font-ui);border:1px solid #cdb6b5;background:transparent;color:#5c1219}.choice-actions .choice-going{background:#5c1219;color:#fff;border-color:#5c1219}
 .choice-backdrop[hidden]{display:none}
@@ -44,12 +45,12 @@
     <a class="plan-link" href="{{ url_for('add_trip') }}">+ Plan a trip</a>
   </div>
   <nav class="view-tabs" aria-label="Trip views">
-    <a class="view-tab {% if active_tab != 'both' %}active{% endif %}" href="{{ url_for('my_trips') }}">Mine <span class="inventory">{{ ahead }}</span>{% if invite_count %}<span class="attention" aria-label="{{ invite_count }} invitations">{{ invite_count }}</span>{% endif %}</a>
+    <a class="view-tab {% if active_tab not in ['both', 'friends'] %}active{% endif %}" href="{{ url_for('my_trips') }}">Mine <span class="inventory">{{ ahead }}</span>{% if invite_count %}<span class="attention" aria-label="{{ invite_count }} invitations">{{ invite_count }}</span>{% endif %}</a>
     <a class="view-tab {% if active_tab == 'both' %}active{% endif %}" href="{{ url_for('my_trips', tab='both') }}">Both</a>
-    <button class="view-tab" type="button" disabled>Friends'</button>
+    <a class="view-tab {% if active_tab == 'friends' %}active{% endif %}" href="{{ url_for('my_trips', tab='friends') }}">Friends'</a>
   </nav>
 
-  {% if active_tab != 'both' and mine %}
+  {% if active_tab not in ['both', 'friends'] and mine %}
     <div id="mine-upcoming-ledger">
     {% set ns = namespace(last='', month_count=0) %}
     {% for row in mine %}
@@ -70,7 +71,7 @@
     {% if upcoming_has_more %}
     <button type="button" class="my-trips-load-more mine-load-more" data-section="upcoming" data-target="mine-upcoming-ledger" data-cursor="{{ upcoming_next_cursor }}">Load more</button>
     {% endif %}
-  {% elif active_tab != 'both' %}
+  {% elif active_tab not in ['both', 'friends'] %}
     <div class="empty-ledger"><p class="empty-title">No trips yet</p><p class="empty-copy">Plan a trip to start building your season.</p></div>
   {% endif %}
 
@@ -106,7 +107,22 @@
   </div>
   {% endif %}
 
-  {% if past %}
+  {% if active_tab == 'friends' %}
+  <div id="friends-ledger" data-has-friends="{{ 'true' if friends else 'false' }}">
+    {% if friends_trips_tab %}
+      {% include "components/friends_trips_groups.html" %}
+    {% elif friends %}
+      <div class="empty-ledger"><p class="empty-title">No trips planned yet.</p><p class="empty-copy">None of your friends have upcoming trips.</p><a class="empty-action" href="{{ url_for('invite') }}">Invite friends →</a></div>
+    {% else %}
+      <div class="empty-ledger"><p class="empty-title">You haven't added any friends yet.</p><a class="empty-action" href="{{ url_for('friends') }}">Find friends →</a></div>
+    {% endif %}
+  </div>
+  {% if friends_trips_has_more %}
+  <button type="button" id="friends-load-more" class="mine-load-more" data-cursor="{{ friends_trips_next_cursor }}">Load more</button>
+  {% endif %}
+  {% endif %}
+
+  {% if past and active_tab not in ['both', 'friends'] %}
   <section class="past-section">
      <button class="earlier-toggle" type="button" aria-expanded="{{ 'true' if not mine else 'false' }}" aria-controls="earlier-rows"><span>Earlier this season <span class="earlier-chevron">⌄</span></span><span class="ledger-month-count">{{ past_count }} trip{% if past_count != 1 %}s{% endif %}</span></button>
     <div id="earlier-rows" {% if mine %}hidden{% endif %}>
@@ -145,7 +161,9 @@
   document.querySelectorAll('.invite-btn').forEach(function(button){button.addEventListener('click',function(){var id=this.getAttribute('data-trip-id'), response=this.getAttribute('data-response');if(response==='choose'){selectedId=id;choice.hidden=false;return;}respond(id,response,this);});});
   choice.querySelectorAll('[data-choice]').forEach(function(button){button.addEventListener('click',function(){if(!selectedId)return;respond(selectedId,this.getAttribute('data-choice'),this);choice.hidden=true;});});
   choice.addEventListener('click',function(event){if(event.target===choice)choice.hidden=true;});
-  document.querySelectorAll('.mine-load-more').forEach(function(button){button.addEventListener('click',function(){var self=this;self.disabled=true;fetch('/api/my-trips/page?section='+encodeURIComponent(self.dataset.section)+'&cursor='+encodeURIComponent(self.dataset.cursor),{headers:{'Accept':'application/json'},credentials:'include'}).then(function(r){if(!r.ok)throw new Error();return r.json();}).then(function(payload){self.insertAdjacentHTML('beforebegin',payload.html);if(payload.has_more){self.dataset.cursor=payload.next_cursor;self.disabled=false;}else{self.remove();}}).catch(function(){self.disabled=false;if(window.blToast)blToast('More trips could not be loaded. Try again.');});});});
+  document.querySelectorAll('.mine-load-more[data-section]').forEach(function(button){button.addEventListener('click',function(){var self=this;self.disabled=true;fetch('/api/my-trips/page?section='+encodeURIComponent(self.dataset.section)+'&cursor='+encodeURIComponent(self.dataset.cursor),{headers:{'Accept':'application/json'},credentials:'include'}).then(function(r){if(!r.ok)throw new Error();return r.json();}).then(function(payload){self.insertAdjacentHTML('beforebegin',payload.html);if(payload.has_more){self.dataset.cursor=payload.next_cursor;self.disabled=false;}else{self.remove();}}).catch(function(){self.disabled=false;if(window.blToast)blToast('More trips could not be loaded. Try again.');});});});
+  var friendsMore=document.getElementById('friends-load-more');
+  if(friendsMore){friendsMore.addEventListener('click',function(){var self=this;self.disabled=true;fetch('/api/my-trips/friends/page?cursor='+encodeURIComponent(self.dataset.cursor),{headers:{'Accept':'application/json'},credentials:'include'}).then(function(r){if(!r.ok)throw new Error();return r.json();}).then(function(payload){var holder=document.createElement('div');holder.innerHTML=payload.html||'';holder.querySelectorAll('.friends-month-section').forEach(function(section){var key=section.dataset.monthKey, existing=document.querySelector('.friends-month-section[data-month-key=\"'+CSS.escape(key)+'\"]');if(existing){section.querySelectorAll('.friends-row').forEach(function(row){existing.appendChild(row);});var count=existing.querySelectorAll('.friends-row').length;existing.querySelector('.ledger-month-count').textContent=count+' '+(count===1?'entry':'entries');}else{document.getElementById('friends-ledger').appendChild(section);}});if(payload.has_more){self.dataset.cursor=payload.next_cursor;self.disabled=false;}else{self.remove();}}).catch(function(){self.disabled=false;self.textContent='Try again';});});}
 })();
 </script>
 {% endblock %}

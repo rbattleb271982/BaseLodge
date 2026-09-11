@@ -61,6 +61,25 @@ def _set_both_capture_state(registry, capture_id):
     return len(selected)
 
 
+def _set_friends_capture_state(registry, capture_id):
+    scenarios = registry.get("friends_scenario_ids", {})
+    all_trip_ids = [trip_id for values in scenarios.values() for trip_id in values]
+    if all_trip_ids:
+        SkiTrip.query.filter(SkiTrip.id.in_(all_trip_ids)).update(
+            {SkiTrip.lifecycle_state: "cancelled"}, synchronize_session=False
+        )
+    selected = []
+    if "friends-normal" in capture_id or "friends-same-trip" in capture_id or "friends-distinct-trip-ids" in capture_id:
+        selected = scenarios.get("normal", [])
+    elif "friends-heavy" in capture_id:
+        selected = scenarios.get("heavy", [])
+    if selected:
+        SkiTrip.query.filter(SkiTrip.id.in_(selected)).update(
+            {SkiTrip.lifecycle_state: "active"}, synchronize_session=False
+        )
+    return len(selected)
+
+
 def create_capture_application() -> tuple[Any, dict[str, Any]]:
     """Import and initialize BaseLodge only after capture safety is validated."""
     config = resolve_capture_config()
@@ -127,6 +146,7 @@ def create_capture_application() -> tuple[Any, dict[str, Any]]:
         payload = application.request.get_json(silent=True) or {}
         capture_id = str(payload.get("capture_id", ""))
         _set_both_capture_state(registry, capture_id)
+        _set_friends_capture_state(registry, capture_id)
         pending = registry["state_trips"]["HOME_PENDING"]
         participant = registry["state_trips"]["HOME_PARTICIPANT"]
         pending.lifecycle_state = (

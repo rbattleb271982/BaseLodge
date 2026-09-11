@@ -103,3 +103,29 @@
     </span>
   </a>
 {%- endmacro %}
+
+{% macro friends_people(row) -%}
+  {% set count = row.friend_names|length %}
+  {% if count == 1 %}{{ row.friend_names[0] }}
+  {% elif count == 2 %}{{ row.friend_names|join(', ') }}
+  {% else %}{{ row.friend_names[0] }}, {{ row.friend_names[1] }} + {{ count - 2 }} other{% if count - 2 != 1 %}s{% endif %}{% endif %}
+{%- endmacro %}
+
+{% macro friends_row(row) -%}
+  {% set resort = row.trip.resort if row.trip.resort is defined else none %}
+  {% set state = (resort.state_code if resort and resort.state_code else (resort.state if resort else '')) %}
+  <a class="ledger-row friends-row"
+     href="{{ url_for('friend_trip_details', trip_id=row.trip.id) }}"
+     data-trip-id="{{ row.trip.id }}">
+    <span class="ledger-row-main">
+      <span class="ledger-row-top">
+        <span class="ledger-mountain">{{ row.destination }}{% if state %}, {{ state }}{% endif %}</span>
+        <span class="ledger-date">{{ both_date_text(row) }}</span>
+      </span>
+      <span class="ledger-row-bottom">
+        <span class="ledger-status friends-people">{{ friends_people(row) }}<span class="ledger-dot"> · </span><span class="ledger-count">going</span></span>
+      {% if row.overlaps_viewer_trip %}<span class="friends-overlap">Overlap</span>{% endif %}
+      </span>
+    </span>
+  </a>
+{%- endmacro %}

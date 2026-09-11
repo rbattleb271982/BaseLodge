@@ -27,6 +27,8 @@ def test_capture_registry_is_stable(client, db_fixture, app_fixture):
         assert len(registry["personas"]["HEAVY"]["ski_days"]) == 3
         assert registry["personas"]["HEAVY"]["equipment_setup"].is_primary
         assert len(registry["personas"]["TYPICAL"]["activities"]) == 3
+        assert len(registry["friends_scenario_ids"]["normal"]) == 3
+        assert len(registry["friends_scenario_ids"]["heavy"]) == 12
         assert set(registry["state_trips"]) == {
             "TD_INTERESTED", "TD_PENDING", "TD_PAST", "TD_EMPTY",
             "HOME_PENDING", "HOME_PARTICIPANT",

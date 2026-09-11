@@ -10,8 +10,8 @@ from capture_harness.manifest import (
 
 def test_manifest_shape_and_count():
     validate_manifest()
-    assert len(MANIFEST) == 114
-    assert len({r["capture_id"] for r in MANIFEST}) == 114
+    assert len(MANIFEST) == 116
+    assert len({r["capture_id"] for r in MANIFEST}) == 116
     required = {"capture_id", "product_area", "screen", "route_template", "persona",
                 "state", "viewport", "segment", "logical_route_bindings", "preconditions",
                 "interaction", "deterministic_wait_condition", "output_path", "rationale"}
@@ -40,11 +40,16 @@ def test_required_phase_three_additions_and_split_states():
     assert DISCOVERED_ISSUES[0]["requested_state"] == "profile buddy-pass modal"
     assert any("friend-read-only" in x for x in ids)
     for stem in ("mountain-detail__edge__social-loading", "mountain-detail__edge__social-error",
-                 "friends__edge__suggestions-loading", "friends__edge__suggestions-error",
-                 "trips__edge__progressive-loading", "trips__edge__error-retry"):
+                 "friends__edge__suggestions-loading", "friends__edge__suggestions-error"):
         assert any(x.startswith(stem) for x in ids)
-    assert sum("both-" in x for x in ids) == 6
+    assert sum("both-" in x for x in ids) == 7
     assert any("mine-regression" in x for x in ids)
+    for stem in (
+        "friends-normal", "friends-heavy", "friends-heavy-narrow",
+        "friends-same-trip", "friends-distinct-trip-ids", "friends-empty",
+        "both-regression",
+    ):
+        assert any(stem in value for value in ids)
 
 
 def test_route_templates_are_supported_or_intentional_system_outcomes():

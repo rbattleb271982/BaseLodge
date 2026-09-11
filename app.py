@@ -5903,25 +5903,20 @@ def _group_friends_trip_rows(rows):
 
     months = OrderedDict()
     for row in rows:
-        start = row.group_start_date or row.attendance_start_date
+        start = row.attendance_start_date
         month_key = start.strftime("%Y-%m") if start else "9999-99"
-        month_label = start.strftime("%B %Y") if start else "Dates TBD"
+        month_label = start.strftime("%B") if start else "Season"
         month = months.setdefault(month_key, {
             "month_key": month_key,
             "month_label": month_label,
-            "destinations": OrderedDict(),
-        })
-        destination = month["destinations"].setdefault(row.destination_key, {
-            "key": row.destination_key,
-            "name": row.destination,
             "rows": [],
         })
-        destination["rows"].append(row)
+        month["rows"].append(row)
     return [
         {
             "month_key": month["month_key"],
             "month_label": month["month_label"],
-            "destinations": list(month["destinations"].values()),
+            "rows": month["rows"],
         }
         for month in months.values()
     ]
@@ -6012,10 +6007,7 @@ def my_trips():
         friends_trips_next_cursor=(
             friends_page.next_cursor if friends_page else None
         ),
-        friends_trips_destinations=[
-            {"key": option.key, "name": option.name}
-            for option in friends_destinations
-        ],
+        friends_trips_destinations=[],
         friends_trips_loaded=friends_page is not None,
         upcoming_total_count=upcoming_page.total_count,
         pending_invite_count=upcoming_page.pending_count,
@@ -6067,15 +6059,11 @@ def my_trips_page():
 @login_required
 def friends_trips_page():
     cursor = request.args.get("cursor")
-    destination = request.args.get("destination") or None
-    if destination is not None and len(destination) > 512:
-        return jsonify({"error": "Invalid Friends' Trips destination."}), 400
     try:
         page = load_friends_trips_page(
             current_user.id,
             today=date.today(),
             cursor_value=cursor,
-            destination_key=destination,
         )
     except FriendsTripsCursorError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -6094,11 +6082,7 @@ def friends_trips_page():
         "has_more": page.has_more,
         "next_cursor": page.next_cursor,
         "unit_ids": [
-            (
-                f"g:{row.group_token}"
-                if row.grouped
-                else f"t:{row.friend_id}:{row.trip_id}"
-            )
+            f"t:{row.trip_id}"
             for row in page.rows
         ],
         "destinations": [

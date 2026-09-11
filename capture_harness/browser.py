@@ -165,6 +165,7 @@ class CaptureRunner:
                 }""",
                 row["capture_id"],
             )
+            page.wait_for_timeout(50)
             logical_bindings = bootstrap.get("bindings", {})
             bindings = {
                 key: logical_bindings.get(value, value)
@@ -185,7 +186,81 @@ class CaptureRunner:
             if row["state"] == "season-snapshot":
                 marker = ".ss-card"
             page.wait_for_selector(marker, state="attached")
-            if row["screen"] == "trips" and row["state"].startswith("both-"):
+            if row["screen"] == "trips" and row["state"] == "mine-regression":
+                page.wait_for_selector(
+                    ".view-tab.active:not([href*='tab=both']):not([href*='tab=friends'])",
+                    state="visible",
+                )
+                if not page.locator(".trip-row").count():
+                    raise RuntimeError("Mine regression has no native trip rows")
+                if page.locator(".friends-row, .both-row").count():
+                    raise RuntimeError("Mine regression contains another tab's rows")
+            elif row["screen"] == "trips" and row["state"] == "both-regression":
+                page.wait_for_selector(
+                    ".view-tab.active[href*='tab=both']", state="visible"
+                )
+                if not page.locator(".both-row").count() or page.locator(".friends-row").count():
+                    raise RuntimeError("Both regression row contract failed")
+            elif row["screen"] == "trips" and row["state"].startswith("friends-"):
+                page.wait_for_selector(
+                    ".view-tab.active[href*='tab=friends']", state="visible"
+                )
+                if page.locator(".ledger-invite, .both-opportunity, #ft-mtn-filter-btn").count():
+                    raise RuntimeError("Friends capture contains a forbidden row or filter")
+                if page.locator(".season-summary, .trips-summary").count():
+                    raise RuntimeError("Friends capture contains a season summary")
+                clipped_people = page.locator(
+                    ".friends-people"
+                ).evaluate_all(
+                    """elements => elements.filter(element =>
+                        element.scrollWidth > element.clientWidth + 1
+                        || element.scrollHeight > element.clientHeight + 1
+                    ).map(element => element.textContent.trim())"""
+                )
+                if clipped_people:
+                    raise RuntimeError(
+                        "Friends capture clipped people text: " + ", ".join(clipped_people)
+                    )
+                trip_rows = page.locator(".friends-row")
+                if row["state"] == "friends-empty":
+                    if trip_rows.count() or page.locator(".empty-title").count() != 1:
+                        raise RuntimeError("Friends empty state contract failed")
+                    if page.locator(
+                        ".empty-title",
+                        has_text="You haven't added any friends yet.",
+                    ).count() != 1:
+                        raise RuntimeError("Friends no-friends copy is missing")
+                    if page.locator(
+                        ".empty-action[href='/friends']", has_text="Find friends"
+                    ).count() != 1:
+                        raise RuntimeError("Friends no-friends action is missing")
+                else:
+                    if not trip_rows.count():
+                        raise RuntimeError("Friends populated state has no trip rows")
+                if row["state"] == "friends-normal" and trip_rows.count() != 3:
+                    raise RuntimeError("Friends normal state must contain three trips")
+                if row["state"] == "friends-heavy":
+                    initial_count = trip_rows.count()
+                    button = page.locator("#friends-load-more")
+                    if button.count() and button.is_visible():
+                        button.click()
+                        page.wait_for_function(
+                            "count => document.querySelectorAll('.friends-row').length > count",
+                            arg=initial_count,
+                        )
+                    if page.locator(".friends-row").count() <= initial_count:
+                        raise RuntimeError("Friends continuation did not add physical trips")
+                    page.evaluate("window.scrollTo(0, 0)")
+                if row["state"] == "friends-same-trip":
+                    consolidated = page.locator(
+                        ".friends-row", has_text="Mara, Noah"
+                    )
+                    if consolidated.count() != 1:
+                        raise RuntimeError("Same Trip ID did not consolidate friends")
+                if row["state"] == "friends-distinct-trip-ids":
+                    if page.locator(".friends-row .ledger-mountain", has_text="Telluride").count() != 2:
+                        raise RuntimeError("Distinct Telluride Trip IDs were consolidated")
+            elif row["screen"] == "trips" and row["state"].startswith("both-"):
                 page.wait_for_selector(
                     ".view-tab.active[href*='tab=both']", state="visible"
                 )
@@ -240,10 +315,6 @@ class CaptureRunner:
                             raise RuntimeError("Relevant-empty Both state lost viewer rows")
                         if page.locator(".quiet-line").count() != 1:
                             raise RuntimeError("Relevant-empty Both state lost quiet copy")
-            elif row["screen"] == "trips" and row["state"] == "mine-regression":
-                page.wait_for_selector(
-                    ".view-tab.active:not([href*='tab=both'])", state="visible"
-                )
             if row["state"] == "social-loading":
                 page.wait_for_selector(".md-social-loading", state="visible")
             elif row["state"] == "social-error":
@@ -483,6 +554,7 @@ class CaptureRunner:
                 }""",
                     row["segment"],
                 )
+            page.wait_for_load_state("networkidle")
             page.screenshot(path=str(screenshot))
             dimensions = page.evaluate("""() => ({
               scroll_width: document.documentElement.scrollWidth,

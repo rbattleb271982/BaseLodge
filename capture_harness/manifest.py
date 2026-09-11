@@ -95,10 +95,8 @@ def build_manifest() -> list[dict[str, Any]]:
     # Trips; Season Snapshot is an explicit populated surface.
     trips = [("empty","empty","top-upcoming"),("typical","typical","top-upcoming"),
              ("heavy-upcoming","heavy","top-upcoming"),("continuation","heavy","continuation"),
-             ("history","heavy","history"),("friends-trips","heavy","friends-trips"),
-             ("season-snapshot","heavy","season-snapshot"),("filter-sheet","heavy","top-upcoming"),
-             ("no-filter-results","edge","top-upcoming"),("progressive-loading","edge","friends-trips"),
-             ("error-retry","edge","friends-trips"),("narrow-15-trips","heavy","continuation"),
+             ("history","heavy","history"),
+             ("season-snapshot","heavy","season-snapshot"),("narrow-15-trips","heavy","continuation"),
               ("three-invitations","heavy","top-upcoming"),("accept-choice","heavy","top-upcoming")]
     for state, persona, seg in trips:
         add("trips", "trips", persona, state, "/season-snapshot" if state == "season-snapshot" else "/my-trips", seg,
@@ -120,6 +118,20 @@ def build_manifest() -> list[dict[str, Any]]:
         add("trips", "trips", persona, state, route, "friends-trips",
             viewport=viewport, wait="trips-state-visible",
             rationale="Batch 2 approved compact Both/Mine ledger capture.")
+    friends_captures = (
+        ("friends-normal", "typical", "mobile"),
+        ("friends-heavy", "heavy", "mobile"),
+        ("friends-heavy-narrow", "heavy", "narrow"),
+        ("friends-same-trip", "typical", "mobile"),
+        ("friends-distinct-trip-ids", "typical", "mobile"),
+        ("friends-empty", "empty", "mobile"),
+        ("both-regression", "heavy", "mobile"),
+    )
+    for state, persona, viewport in friends_captures:
+        route = "/my-trips?tab=both" if state == "both-regression" else "/my-trips?tab=friends"
+        add("trips", "trips", persona, state, route, "friends-trips",
+            viewport=viewport, wait="trips-state-visible",
+            rationale="Batch 3 Friends ledger acceptance and completed-view regression.")
     # Create trip.
     for state, interaction in (("empty-form","none"),("resort-results","search resort"),
                                ("dates-selected","select deterministic dates"),("validation-error","submit invalid form")):
@@ -218,8 +230,8 @@ MANIFEST = build_manifest()
 
 def validate_manifest(rows: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     rows = MANIFEST if rows is None else rows
-    if len(rows) != 114:
-        raise ValueError(f"capture manifest must contain exactly 114 rows (got {len(rows)})")
+    if len(rows) != 116:
+        raise ValueError(f"capture manifest must contain exactly 116 rows (got {len(rows)})")
     ids = [r["capture_id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise ValueError("capture IDs must be unique")

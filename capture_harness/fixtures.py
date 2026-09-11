@@ -508,6 +508,42 @@ def seed_all(database=None):
         key: [trip.id for trip in scenario_trips]
         for key, scenario_trips in both_scenarios.items()
     }
+    # Batch 3 Friends' rows are isolated from canonical persona trip counts.
+    friends_scenarios = {"normal": [], "heavy": []}
+    normal_one = _trip(
+        typical_friends[0], resorts["telluride"],
+        date(2027, 2, 24), date(2027, 3, 1), "going", True,
+        lifecycle_state="cancelled",
+    )
+    _participant(normal_one, typical_friends[1], GuestStatus.GOING)
+    normal_two = _trip(
+        typical_friends[2], resorts["telluride"],
+        date(2027, 2, 26), date(2027, 3, 1), "going", True,
+        lifecycle_state="cancelled",
+    )
+    normal_three = _trip(
+        typical_friends[1], resorts["alta"],
+        date(2027, 3, 14), date(2027, 3, 17), "going", True,
+        lifecycle_state="cancelled",
+    )
+    friends_scenarios["normal"] = [normal_one, normal_two, normal_three]
+    for index in range(12):
+        owner = heavy_sfriends[index % len(heavy_sfriends)]
+        start = FROZEN_TODAY + timedelta(days=7 + index * 9)
+        friend_trip = _trip(
+            owner, list(resorts.values())[(index + 5) % len(resorts)],
+            start, start + timedelta(days=3 + index % 3), "going", True,
+            lifecycle_state="cancelled",
+        )
+        if index % 3 == 0:
+            for attendee in heavy_sfriends[1:4]:
+                if attendee.id != owner.id:
+                    _participant(friend_trip, attendee, GuestStatus.GOING)
+        friends_scenarios["heavy"].append(friend_trip)
+    registry["friends_scenario_ids"] = {
+        key: [trip.id for trip in scenario_trips]
+        for key, scenario_trips in friends_scenarios.items()
+    }
     registry["routes"] = {
         "home": "persona:heavy", "friends": "persona:heavy",
         "trips": "persona:heavy", "empty": "persona:empty",
