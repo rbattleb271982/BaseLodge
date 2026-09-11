@@ -1,0 +1,549 @@
+# Trips Redesign — Batch 2: Both
+
+Implement ONLY the approved `Both` view from the locked Trips redesign.
+
+Batch 1: Mine is complete and approved.
+Do not regress Mine.
+Do not start Friends’.
+
+This batch is primarily a shared-relevance/projection task plus the Both presentation.
+
+Use as source material:
+
+- the approved Batch 1 Mine implementation
+- `13-trips/05-final-synthesis/`
+- `FINAL-BOTH-normal.png`
+- `FINAL-BOTH-heavy.png`
+- `FINAL-three-tabs-comparison.png`
+- `FINAL-first-viewport.png`
+- `FINAL-TRIPS-SPEC.md`
+- Task #528 readiness audit
+- current Home Ideas implementation
+- current Trip Detail overlap/social logic where relevant
+
+If the exact Both design assets are missing from the Repl, STOP before visual implementation and report which files are missing.
+
+==================================================
+LOCKED PRODUCT PURPOSE
+==================================================
+
+Both answers:
+
+“Where does my season meet my friends’?”
+
+Both is NOT:
+
+- Mine plus every friend trip
+- a general Friends’ feed
+- an invitation inbox
+- a duplicate recommendation engine
+- a copy of Home Ideas cards
+
+Both combines:
+
+1. My actual active trips
+2. Relevant friend activity/opportunities derived from the SAME underlying relevance logic used by Home Ideas
+
+Pending invitations do NOT appear in Both.
+
+==================================================
+1. PRESERVE BATCH 1 SHELL
+==================================================
+
+Keep the approved Trips shell from Batch 1:
+
+Trips                         Season Snapshot ›
+
+                              + Plan a trip
+
+Mine   Both   Friends’
+
+No trips-ahead summary line.
+No season timeline graphic.
+No mountain filter.
+No `All mountains`.
+
+For this batch:
+
+- Mine remains fully functional and unchanged
+- Both becomes functional
+- Friends’ remains inert/unimplemented
+
+==================================================
+2. BOTH BASE POPULATION
+==================================================
+
+Start from the viewer’s actual active season.
+
+Include:
+
+- organizer-owned active/upcoming trips
+- Going participant trips
+- Interested participant trips
+
+Exclude:
+
+- pending invitations
+- Declined
+- Removed
+- cancelled/terminal trips
+- historical trips from the active Both ledger
+
+Do not display invitation rows in Both under any circumstance.
+
+Do not duplicate the viewer’s trip merely because friend relevance exists.
+
+==================================================
+3. REUSE HOME IDEAS LOGIC
+==================================================
+
+This is the key requirement.
+
+Do NOT recreate relevance logic inside Trips.
+
+Task #528 established that Home Ideas currently contains the canonical candidate/relevance pipeline in:
+
+- `services/ideas_retrieval.py`
+- current `get_home_ideas()` wrapper
+
+However, do NOT simply call the current Home wrapper unchanged if it would carry over Home-specific:
+
+- five-card limit
+- ranking
+- dismissal filtering
+- concept reduction
+- presentation copy
+- Home-only ordering
+
+Instead, extract the smallest shared candidate/relevance service needed so:
+
+- Home continues to behave exactly as it does today
+- Both can consume the same candidate eligibility/privacy logic
+- Trips can date-order and annotate rows differently
+
+Preserve current Home behavior and tests.
+
+Do not invent a second relevance system.
+
+==================================================
+4. DISMISSAL RULE
+==================================================
+
+Product decision is locked:
+
+Home dismissals do NOT suppress opportunities from Trips → Both.
+
+Share:
+
+- eligibility
+- privacy
+- candidate generation
+- overlap/availability/wishlist/friend-attendance semantics
+
+Do NOT share:
+
+- Home dismissal state as a visibility rule for Both
+
+A dismissed Home card may still contribute social context in Both.
+
+Do not add a dismissal `×` in Both.
+
+==================================================
+5. RELEVANCE RULES
+==================================================
+
+Do not invent relevance rules beyond what current Home logic supports.
+
+Task #528 established the current Home candidate types:
+
+- friend_trip
+- availability_overlap
+- wishlist_overlap
+
+And established that:
+
+- a visible friend trip may qualify independently
+- availability affects relevance/ranking but is not always required
+- wishlist overlap is its own signal
+- multiple friends can strengthen relevance
+- same mountain/date overlap with one of my trips is often a suppression condition in Home
+- 3+ friends can bypass some booking suppression
+
+Trips Both may PRESENT overlapping friend activity even when Home would suppress a separate card due to the viewer already being booked there, but only by reusing the same underlying friend/trip data and privacy constraints.
+
+Do not fabricate new friend-trip opportunities.
+
+==================================================
+6. ANNOTATE MY EXISTING TRIPS
+==================================================
+
+When relevant friend activity aligns with one of my existing trips, annotate the existing row instead of adding a duplicate friend row.
+
+Examples of approved grammar:
+
+Indy Basin, CO                         12–15
+ORGANIZING · +7 others     Dana + 2 others overlap your dates
+
+Park City, UT                          20–21
+GOING · +2 others              Nora overlaps your dates
+
+Rules:
+
+- keep mountain primary
+- keep date right-aligned
+- preserve the same compact row footprint where possible
+- overlap annotation is secondary social context
+- do not repeat the same friend trip as a separate standalone row if it is already represented as an overlap annotation
+
+Use exact deduplicated friend counts.
+
+==================================================
+7. OVERLAP SEMANTICS
+==================================================
+
+Overlap means actual date intersection with the viewer’s trip.
+
+Use the same effective attendance-date logic already established elsewhere:
+
+- trip dates for organizer where appropriate
+- participant attendance dates where canonical/current behavior supports them
+
+Only authorized visible reciprocal-friend activity may contribute.
+
+Do not expose:
+
+- private trips the viewer is not allowed to know about
+- non-reciprocal-friend activity
+- Interested friend attendance in Friends’-style disclosure unless existing Home relevance already safely uses that signal
+
+For Both, the candidate service may know about Interested/considering signals because Home Ideas already uses them, but presentation must not overstate them as confirmed attendance.
+
+==================================================
+8. STANDALONE FRIEND OPPORTUNITY ROWS
+==================================================
+
+Some relevant friend activity may not map to one of my existing trips.
+
+Those may appear as standalone quiet rows in Both only when justified by the shared Home relevance logic.
+
+Example shape:
+
+Big Sky, MT                             2–5
+FRIEND TRIP · Maeve going        [reason]
+
+But DO NOT hardcode mockup reasons such as:
+
+“On your wishlist”
+“3 friends going”
+“You’re free these dates”
+
+unless the shared candidate output actually supports that reason for that row.
+
+The reason string must come from structured candidate/relevance data, not visual mockup assumptions.
+
+If a candidate lacks a clean explainable reason, do not invent one.
+
+==================================================
+9. NO INVITATIONS
+==================================================
+
+Pending invitations do not appear in Both.
+
+Even if an invitation’s trip has friend relevance, it remains out of Both until the viewer accepts as Going or Interested.
+
+Mine remains the only place with pending invitation rows/actions.
+
+==================================================
+10. MONTH GROUPING
+==================================================
+
+Both is always grouped by month.
+
+No threshold.
+
+Use the same month-heading system as Mine.
+
+Within month:
+
+12–15
+20–21
+
+Cross-month:
+
+24–Mar 1
+
+Sort chronologically and deterministically.
+
+Standalone friend opportunities are placed in season order alongside my trips.
+
+==================================================
+11. ROW ANATOMY
+==================================================
+
+Reuse the approved Batch 1 ledger anatomy.
+
+For my trips:
+
+Mountain                                Date
+RELATIONSHIP · people context     overlap annotation
+
+For standalone friend opportunities:
+
+Mountain                                Date
+FRIEND TRIP · friend context      relevance reason
+
+Do not create cards.
+Do not create Home-style recommendation cards.
+Do not add avatars.
+Do not add a second visual system.
+
+Use the same rules, type scale, row height, and ledger hairlines as Mine.
+
+==================================================
+12. FRIEND COUNT / PEOPLE GRAMMAR
+==================================================
+
+Use deduplicated reciprocal-friend identities.
+
+Examples:
+
+Nora overlaps your dates
+Dana + 1 other overlap your dates
+Dana + 2 others overlap your dates
+
+Grammar must be correct for singular/plural.
+
+Do not count:
+
+- viewer
+- non-friends
+- duplicate participant rows
+- pending invitations
+- unauthorized identities
+
+==================================================
+13. HOME MUST NOT REGRESS
+==================================================
+
+Because this batch extracts/reuses Home Ideas logic:
+
+Run existing Home Ideas tests.
+
+Home must preserve:
+
+- current candidate eligibility
+- existing card output
+- current ranking
+- five-card cap
+- current Home dismissal behavior
+- current booking suppression
+- current privacy/visibility
+- existing query bounds
+
+Do not visually or behaviorally redesign Home in this task.
+
+If extraction requires large architectural movement, keep it minimal and report it.
+
+==================================================
+14. NO FRIENDS’ IMPLEMENTATION
+==================================================
+
+Do NOT implement:
+
+- Friends’ trip-centric projection
+- same-trip consolidation
+- Friends’ populated rows
+- Interested friend expansion
+- separate-trip clustering
+- Friends’ row navigation changes
+
+Friends’ remains inert for this batch.
+
+==================================================
+15. NO FUZZY LEGACY MOUNTAIN MATCHING
+==================================================
+
+Product decision is locked:
+
+Do NOT treat manual/legacy mountain names as equivalent to normalized resorts merely because the names match.
+
+For shared Both matching:
+
+- prefer normalized resort ID
+- do not introduce fuzzy/name-based equivalence
+
+Legacy/manual trip behavior should remain safe and conservative.
+
+==================================================
+16. EMPTY / SPARSE STATES
+==================================================
+
+Support:
+
+- viewer has trips but no relevant friend activity
+- no trips and no relevant friend activity
+- relevant standalone friend opportunity but no viewer trip
+- one overlap
+- many overlaps
+
+Use quiet ledger-style empty states.
+
+Do not introduce promotional cards.
+
+==================================================
+17. RESPONSIVE / CAPACITOR
+==================================================
+
+Verify at:
+
+- 390px
+- 360px
+
+Preserve:
+
+- bottom nav
+- safe areas
+- touch behavior
+- no horizontal overflow
+- no hover-only interaction
+
+Long overlap annotations must wrap or truncate safely without breaking row layout.
+
+==================================================
+18. REQUIRED TESTS
+==================================================
+
+Add/update focused tests for at least:
+
+### Both base population
+- organizer trip included
+- Going trip included
+- Interested trip included
+- pending invitation excluded
+- Declined excluded
+- Removed excluded
+- terminal excluded
+- no duplicate Mine trip
+
+### Shared relevance
+- Home candidate service reused
+- Home wrapper behavior unchanged
+- Both not subject to Home dismissal suppression
+- same privacy rules
+- reciprocal-friend requirement
+- private trip exclusion
+- lifecycle exclusion
+
+### Overlap annotation
+- one friend overlap
+- multiple friend overlap
+- deduplication
+- effective attendance dates
+- no unauthorized friend name leakage
+- annotation maps to existing Mine row
+- no duplicate standalone row for same overlap
+
+### Standalone opportunity
+- eligible candidate appears
+- chronological placement
+- structured reason present
+- no invented reason
+- no invitation leakage
+
+### Resort identity
+- normalized resort-ID matching
+- legacy/manual same-name values do not fuzzy-match
+
+### Rendering
+- normal Both
+- heavy Both
+- no relevant activity
+- standalone friend opportunity
+- 360px
+- 390px
+- Mine unchanged
+
+### Home regression
+- current Home Ideas suites
+- dismissal
+- ranking
+- card limit
+- candidate types
+- query budget
+
+Preserve bounded-query behavior and avoid N+1 queries.
+
+==================================================
+19. VISUAL ACCEPTANCE CAPTURES
+==================================================
+
+Provide NEW running-app captures for:
+
+1. Both — normal — 390px
+2. Both — heavy — 390px
+3. Both — multiple overlaps — 390px
+4. Both — standalone friend opportunities — 390px
+5. Both — no relevant friend activity — 390px
+6. Both — heavy — 360px
+7. Mine — 390px regression capture showing Batch 1 unchanged
+
+Compare against:
+
+- `FINAL-BOTH-normal.png`
+- `FINAL-BOTH-heavy.png`
+- `FINAL-three-tabs-comparison.png`
+- `FINAL-first-viewport.png`
+
+Do not blindly copy mockup reason strings if current Home relevance data does not support them.
+
+==================================================
+20. VERIFICATION
+==================================================
+
+Run:
+
+- targeted Both tests
+- Home Ideas retrieval tests
+- visibility/privacy tests
+- Trips projection tests
+- query-budget tests
+- capture harness
+- Python compile check
+- `git diff --check`
+
+Confirm:
+
+- no console errors
+- no horizontal overflow
+- no invitation rows in Both
+- no private trip leakage
+- no Home behavior regression
+- no migration
+
+==================================================
+21. FINAL RESPONSE
+==================================================
+
+Report:
+
+1. What changed
+2. Shared Home Ideas service extraction
+3. Exact Both projection contract
+4. Exact overlap annotation rules
+5. Exact standalone opportunity rules
+6. Privacy/visibility rules
+7. Files changed
+8. Tests added/updated
+9. Exact test results
+10. Query-budget results
+11. Capture results
+12. Home regression verification
+13. Intentional differences from the synthesis mockups
+14. Deferred Friends’ work
+15. Any blockers
+
+Do not deploy.
+Do not publish.
+Do not push Git.
+
+Stop after implementation and verification so I can review the rendered Both screens.
