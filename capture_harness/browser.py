@@ -195,6 +195,24 @@ class CaptureRunner:
                     ".both-row:not(.both-opportunity) .both-annotation:not(:empty)"
                 ).count()
                 opportunity_count = page.locator(".both-opportunity").count()
+                truncated_annotations = page.locator(
+                    ".both-annotation:not(:empty)"
+                ).evaluate_all(
+                    """elements => elements
+                        .filter(element => {
+                            const style = getComputedStyle(element);
+                            return style.textOverflow === "ellipsis"
+                                || style.whiteSpace === "nowrap"
+                                || element.scrollWidth > element.clientWidth + 1
+                                || element.scrollHeight > element.clientHeight + 1;
+                        })
+                        .map(element => element.textContent.trim())"""
+                )
+                if truncated_annotations:
+                    raise RuntimeError(
+                        "Both capture truncated annotations: "
+                        + ", ".join(truncated_annotations)
+                    )
                 expected = {
                     "both-normal": (1, 1),
                     "both-heavy": (3, 2),
