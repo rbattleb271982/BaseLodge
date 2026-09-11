@@ -1000,8 +1000,8 @@
             margin-left: 6px; color: var(--bl-color-text-muted, #8A857A);
             font-weight: 500; letter-spacing: 0; text-transform: none;
         }
-        .td-join-request-list { margin-bottom: 24px; border: 1px solid #E7D5D7; border-radius: 10px; background: #FCF5F5; overflow: hidden; }
-        .td-join-request-row + .td-join-request-row { border-top: 1px solid #E7D5D7; }
+        .td-join-request-list { margin-bottom: 24px; border-top: 1px solid #E5DFD0; }
+        .td-join-request-row { padding: 10px 0; }
         .td-cancel-trip-note { margin: 10px 0 0; color: var(--bl-color-text-muted, #8A857A); font-size: 12px; text-align: center; }
         .td-header-context { margin: 9px 0 0; color: var(--bl-color-text-muted, #8A857A); font-size: 12px; letter-spacing: .02em; }
         .td-header-context strong { color: #5C1219; text-transform: uppercase; font-size: 11px; letter-spacing: .08em; }
@@ -1646,6 +1646,11 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
+            .td-join-request-row { row-gap: 6px; }
+            .td-join-request-row .td-person-actions {
+                flex: 0 0 auto;
+                gap: 6px;
+            }
         }
 
         /* ── Sticky action bar (for is_invited on trip_detail) ── */
@@ -1935,7 +1940,7 @@
         .td-pass-fill--other { background:#8a857a; }
         .td-pass-fill--none { background:#c7c0b7; }
         .td-pass-share-row strong { color:#57524b; font-size:12px; font-weight:500; text-align:right; letter-spacing:0; }
-        .td-join-request-list { margin-bottom: 20px; border-radius:9px; }
+        .td-join-request-list { margin-bottom: 20px; }
         .td-group-heading button { padding: 8px 0; font-size:14px; }
         .td-person-status-heading { margin: 16px 0 4px; font-size:11px; }
         .td-person-row { min-height: 42px; padding: 8px 0; border-bottom: 1px solid #E5DFD0; }
@@ -2360,7 +2365,7 @@
 
         {% if is_owner and pending_requests %}
         <p class="td-section-label" id="td-join-requests">Requests <span>{{ pending_join_request_count }} asked to join</span></p>
-        <div class="td-join-request-list">
+        <div class="td-join-request-list" data-presentation="flat-ledger">
             {% for req in pending_requests %}
             <div class="td-person-row td-join-request-row">
                 <div class="td-person-info">

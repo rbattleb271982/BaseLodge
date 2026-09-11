@@ -121,6 +121,8 @@ def test_people_request_badge_is_owner_only_and_terminal_safe(client):
     owner_html = _trip_html(client, owner_id, trip_id)
     assert '<span class="td-detail-tab-attention" aria-hidden="true">3</span>' in owner_html
     assert 'id="td-join-requests">Requests <span>3 asked to join</span>' in owner_html
+    assert 'class="td-join-request-list" data-presentation="flat-ledger"' in owner_html
+    assert owner_html.count('class="td-person-row td-join-request-row"') == 3
 
     guest_html = _trip_html(client, guest_id, trip_id)
     assert '<span class="td-detail-tab-attention"' not in guest_html
@@ -232,7 +234,14 @@ def test_mountain_social_counts_and_destinations_share_scoped_populations(client
         response = client.get(f"/trips/{trip_id}/mountain-friends/{signal}")
         assert response.status_code == 200
         destination_html = response.get_data(as_text=True)
-        assert f'data-mountain-signal="{signal}" data-matching-count="{len(names)}"' in destination_html
+        assert (
+            f'data-mountain-signal="{signal}" '
+            f'data-matching-count="{len(names)}" data-presentation="flat-ledger"'
+            in destination_html
+        )
+        assert destination_html.count('class="tmf-info"') == len(names)
+        assert destination_html.count('class="tmf-name"') == len(names)
+        assert destination_html.count('class="tmf-meta"') == len(names)
         for name in names:
             assert name in destination_html
         for excluded_name in (
