@@ -1,0 +1,315 @@
+Verify the implementation of BL-518: Pending Request Withdrawal.
+
+This is a read-only verification and regression audit. Do not modify code, database schema, fixtures, tests, or data unless explicitly asked after the audit.
+
+## Scenario to verify
+
+Use this exact behavior as the target:
+
+1. Richard suggests Eric to Charles.
+2. Charles sees the suggestion.
+3. Charles sends Eric a connection request.
+4. Eric has not accepted or declined.
+5. Charles withdraws the request.
+6. Charles and Eric should return to a non-pending, non-connected state.
+7. Eric must no longer have an actionable request from Charles.
+8. Eric must not be able to accept the withdrawn request from stale UI.
+9. Canonical request/friendship history and suggestion attribution must remain intact.
+
+## 1. Audit what changed
+
+Identify every file changed for BL-518.
+
+For each changed file, explain:
+
+* what changed
+* why it was necessary
+* whether it is within the intended BL-518 scope
+* whether any unrelated behavior was changed
+
+Flag any unrelated refactors or unexpected changes.
+
+## 2. Verify canonical backend behavior
+
+Confirm whether the implementation reused the existing canonical friend-request cancellation transition.
+
+Verify:
+
+* only the sender can withdraw
+* the request must still be pending
+* the canonical persisted request status is updated correctly
+* reciprocal/current friendship rows are updated correctly
+* no duplicate cancellation state machine was introduced
+* history/lifecycle records are preserved
+* cooldown behavior remains consistent with the existing system
+* repeated withdrawal behaves safely
+* reconnect behavior follows existing rules
+
+If BL-518 bypasses the canonical service or duplicates cancellation logic, mark that as a failure.
+
+## 3. Verify the exact Richard / Charles / Eric flow
+
+Trace the persisted state at each point:
+
+### Before Richard suggests Eric
+
+Document relevant relationship/request/suggestion state.
+
+### After Richard suggests Eric to Charles
+
+Confirm:
+
+* suggestion record exists
+* Richard remains recorded as suggester
+* Charles is the suggestion recipient
+* Eric is the suggested connection
+
+### After Charles presses Connect
+
+Confirm:
+
+* pending request exists
+* sender is Charles
+* recipient is Eric
+* pending relationship projections are correct
+* Richard's original suggestion attribution is still preserved
+
+### After Charles withdraws
+
+Confirm:
+
+* request has the correct terminal/cancelled status
+* Charles no longer sees Eric as pending
+* Eric no longer sees Charles as an actionable incoming request
+* Charles and Eric are not projected as connected
+* no orphaned directed friendship rows remain
+* history remains preserved
+* Richard's suggestion attribution remains preserved
+* the suggestion does not unexpectedly reappear unless that is explicitly required by the existing architecture
+
+## 4. Verify stale acceptance protection
+
+This is critical.
+
+Simulate or inspect the equivalent state transition:
+
+1. Charles sends request.
+2. Eric loads a UI showing the pending request.
+3. Charles withdraws it.
+4. Eric attempts to accept using the stale UI/request.
+
+Confirm the server rejects the acceptance and does not create a friendship.
+
+The persisted request state must win over stale client state.
+
+Mark BL-518 as failing if stale acceptance can recreate the friendship.
+
+## 5. Verify repeated withdrawal
+
+Check:
+
+1. Charles withdraws successfully.
+2. Charles or a stale client submits the withdrawal again.
+
+Confirm the result is safe and consistent with BaseLodge's existing idempotency/error conventions.
+
+There must be no:
+
+* duplicate history
+* duplicate cancellation events
+* broken friendship rows
+* server error caused by inconsistent state
+
+## 6. Verify authorization
+
+Confirm:
+
+* Charles can withdraw Charles → Eric.
+* Eric cannot withdraw Charles → Eric as though Eric were the sender.
+* Richard cannot withdraw the request merely because Richard created the original suggestion.
+* another authenticated user cannot withdraw it.
+
+Authorization must be enforced server-side, not only through UI visibility.
+
+## 7. Verify acceptance and decline races
+
+Inspect the authoritative outcomes for:
+
+### Accept wins first
+
+Eric successfully accepts before Charles's withdrawal is committed.
+
+Expected:
+
+* friendship is established
+* Charles can no longer use pending-request withdrawal
+* any later action must follow normal friendship-removal behavior
+
+### Withdrawal wins first
+
+Charles successfully withdraws before Eric's acceptance is committed.
+
+Expected:
+
+* Eric's acceptance fails
+* no friendship is established
+
+### Decline wins first
+
+Eric declines before Charles withdraws.
+
+Expected:
+
+* withdrawal does not improperly mutate the already-terminal request
+* final state remains internally consistent
+
+Confirm these transitions are protected by server-side persisted state.
+
+## 8. Verify UI behavior
+
+Audit every relevant UI surface.
+
+At minimum:
+
+* Suggested Friends
+* Friends
+* outgoing/pending request state
+* incoming requests
+* Home requests
+* notifications
+* friend profile
+* any other surface touched by BL-518
+
+For Charles, verify the pending state now exposes a coherent withdrawal interaction.
+
+For Eric, verify withdrawal removes or disables the actionable incoming request.
+
+After withdrawal, verify stale pages recover correctly after refresh/navigation.
+
+Check that the UI does not incorrectly show combinations such as:
+
+* Requested and Connect simultaneously
+* pending after cancellation
+* connected after cancellation
+* actionable Accept after cancellation
+
+## 9. Verify suggestion behavior
+
+Confirm what happens to Richard's original suggestion after Charles withdraws.
+
+Specifically verify:
+
+* whether the suggestion remains terminal/acted upon
+* whether it stays hidden
+* whether it reappears
+* whether attribution to Richard remains stored
+
+Compare the implemented behavior against the existing suggestion architecture.
+
+Flag any behavior that destroys suggestion attribution or unexpectedly recreates the suggestion.
+
+## 10. Verify notifications
+
+Determine what happens to Eric's request notification after withdrawal.
+
+Confirm:
+
+* it cannot still perform an acceptance action
+* notification state remains internally consistent
+* already-opened notification pages cannot bypass the cancelled request state
+* no duplicate cleanup records or orphaned notification references are introduced
+
+Do not require destructive deletion if BaseLodge intentionally preserves notification/history records.
+
+## 11. Verify analytics
+
+Identify any analytics added or changed by BL-518.
+
+Confirm:
+
+* event naming follows existing BaseLodge conventions
+* properties are privacy-safe
+* no unnecessary user-identifying values are emitted
+* withdrawal fires once per successful canonical withdrawal
+* duplicate withdrawal attempts do not incorrectly produce duplicate successful-action analytics
+
+If no analytics were added, state whether that is consistent with the existing architecture.
+
+## 12. Run tests
+
+Report exact results for:
+
+* BL-518-specific tests
+* friend request service tests
+* suggestion tests
+* notification-related tests
+* relevant Friends/Home UI tests
+* adjacent friendship lifecycle tests
+* full test suite, if practical
+
+Do not just report "tests passed."
+
+Report:
+
+* exact commands or test groups run
+* number passed
+* number failed
+* number skipped
+* any pre-existing unrelated failures separately
+
+## 13. Check migration impact
+
+Confirm whether BL-518 introduced a database migration.
+
+Expected default: no migration.
+
+If one exists, explain precisely why the existing model/status architecture could not support withdrawal without it.
+
+## 14. Check scope discipline
+
+Flag any change that:
+
+* redesigns Friends
+* redesigns Suggested Friends
+* changes unrelated connection behavior
+* modifies unrelated models
+* changes unrelated APIs
+* performs broad refactoring
+* changes Production data
+* creates a second friend-request state machine
+
+## 15. Final verification matrix
+
+Return this table:
+
+| Verification                               | Expected | Actual | Pass/Fail |
+| ------------------------------------------ | -------- | ------ | --------- |
+| Sender can withdraw pending request        | Yes      |        |           |
+| Recipient cannot withdraw sender's request | Yes      |        |           |
+| Third party cannot withdraw request        | Yes      |        |           |
+| Request leaves pending state               | Yes      |        |           |
+| Current friendship rows are correct        | Yes      |        |           |
+| Eric loses actionable incoming request     | Yes      |        |           |
+| Stale acceptance is rejected               | Yes      |        |           |
+| Repeated withdrawal is safe                | Yes      |        |           |
+| History is preserved                       | Yes      |        |           |
+| Richard's suggestion attribution survives  | Yes      |        |           |
+| Suggestion does not incorrectly reappear   | Yes      |        |           |
+| Reconnect follows existing rules           | Yes      |        |           |
+| Notifications remain consistent            | Yes      |        |           |
+| UI states remain consistent                | Yes      |        |           |
+| No unnecessary migration                   | Yes      |        |           |
+| No parallel cancellation mechanism         | Yes      |        |           |
+| Relevant tests pass                        | Yes      |        |           |
+
+## Final verdict
+
+End with exactly one of:
+
+* **PASS — BL-518 is safe to accept**
+* **PASS WITH MINOR ISSUES — BL-518 is safe, but follow-up cleanup is recommended**
+* **FAIL — BL-518 should not be accepted yet**
+
+If the verdict is not PASS, list the specific failures and the smallest corrective changes required.
+
+Do not implement any fixes. Stop after the verification report.
