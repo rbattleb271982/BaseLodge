@@ -1,0 +1,139 @@
+The Trip Detail structure is now correct, but visual acceptance is still blocked by SCALE and BORDER/RULE conformance.
+
+Do not change architecture, content, behavior, permissions, states, or data.
+
+This is a CSS/typography/spacing conformance pass only.
+
+Compare the RUNNING implementation directly against the uploaded approved synthesis at the same 390px viewport.
+
+Primary reference:
+SHEET-three-tabs-organizer-normal.png
+
+Also use:
+- approved Hybrid C header
+- PEOPLE-organizer-dense-13.png
+- SPEC-availability-three-states.png
+- SHEET-states.png
+
+## 1. SCALE
+
+The current implementation is visually oversized relative to the approved synthesis.
+
+Audit and correct, using the reference rather than guessing:
+
+- mountain-name font size / line height
+- location text
+- date + nights font size / line height
+- relationship/visibility metadata
+- tab height
+- tab label size
+- section-heading size / letter spacing
+- body copy
+- metadata copy
+- participant names
+- participant attributes
+- action text
+- availability weekday/date sizing
+- Equipment/Lessons row sizing
+- vertical section gaps
+- row padding
+- overall top/header spacing
+
+The goal is NOT "make everything smaller."
+
+The goal is to reproduce the approved 390px hierarchy and density.
+
+Measure the rendered reference proportions where possible and establish a coherent type scale rather than applying arbitrary per-element reductions.
+
+## 2. BORDER / RULE SYSTEM
+
+The current rule system does not match the synthesis.
+
+Audit all:
+- borders
+- dividers
+- underlines
+- section rules
+- row separators
+- tab rules
+
+The approved synthesis uses quiet hairline ledger rules.
+
+Remove incorrect short decorative underlines such as those currently appearing beneath section headings where they are not present in the approved reference.
+
+Match:
+- rule thickness
+- rule opacity
+- horizontal extent
+- spacing above/below rules
+- active-tab underline thickness and length
+- section-divider behavior
+- row-divider behavior
+
+Do not convert sections into cards.
+
+Do not add containers.
+
+## 3. CONTENT WIDTH / GUTTERS
+
+Compare:
+- outer page gutters
+- header gutters
+- tab width
+- section content width
+- rule width
+
+The current implementation feels more open/large than the approved mobile synthesis.
+
+Match the approved 390px proportions.
+
+Do not hardcode the screenshot width in a way that breaks 360px.
+
+## 4. PRESERVE
+
+Do not change:
+- Hybrid header architecture
+- Trip / People / You
+- content order
+- planning behavior
+- This Mountain behavior
+- People behavior
+- availability logic
+- equipment/lesson behavior
+- RSVP behavior
+- cancel/leave behavior
+- lifecycle logic
+- permissions
+- fixtures
+
+No backend changes should be necessary.
+
+## 5. FIRST REPORT BEFORE MUTATION
+
+Before changing CSS, report:
+
+- current computed sizes for the major type levels
+- current major spacing values
+- current border/rule thicknesses
+- the specific differences you observe versus the approved synthesis
+- which CSS selectors/files control them
+
+Then make the minimum CSS/template-class corrections.
+
+## 6. VERIFICATION
+
+After correction provide NEW 390px captures of:
+
+1. Trip organizer normal
+2. People organizer populated
+3. You organizer
+4. Past Trip
+
+Also provide the 360px dense People state.
+
+Do not deploy.
+Do not publish.
+Do not push Git.
+Do not start Batch 2.
+
+Stop after visual verification.
