@@ -1,0 +1,549 @@
+# Trips Redesign — Batch 1: Mine
+
+Implement ONLY the approved `Mine` view from the locked Trips redesign.
+
+The design exploration, final synthesis, readiness audit, and product decisions are complete.
+
+Do not redesign the screen.
+Do not start Both or Friends’ implementation beyond the minimum inert/shared shell required for the three-view control.
+
+Use these as source material:
+
+- `13-trips/05-final-synthesis/`
+- `FINAL-MINE-normal.png`
+- `FINAL-MINE-heavy.png`
+- `FINAL-first-viewport.png`
+- `FINAL-TRIPS-SPEC.md`
+- Task #528 / Trips Redesign readiness audit
+- current BaseLodge source and tests
+
+If the exact design files are not present in the Repl, STOP before visual implementation and report which assets are missing.
+
+==================================================
+LOCKED PRODUCT DECISIONS
+==================================================
+
+The Trips area will eventually have:
+
+Mine · Both · Friends’
+
+This batch implements MINE only.
+
+Mine answers:
+
+“What am I doing?”
+
+Mine contains:
+
+- trips I organize
+- trips where I am Going
+- trips where I am Interested
+- pending invitations requiring my response
+- Earlier this season
+
+Pending invitations belong in Mine only.
+
+Do not expose them in Both or Friends’.
+
+==================================================
+1. HEADER / TOP OF PAGE
+==================================================
+
+Implement the approved compact Trips header.
+
+Top row:
+
+Trips                              Season Snapshot ›
+
+Season Snapshot should use the existing Season Snapshot destination/route.
+
+Below that:
+
++ Plan a trip
+
+Use the existing Plan/Create Trip route.
+
+This is a quiet utility action, NOT a large full-width CTA.
+
+Then render:
+
+Mine · Both · Friends’
+
+For this batch:
+
+- Mine is active and functional
+- Both and Friends’ may remain nonfunctional placeholders/inert controls only if necessary for visual shell continuity
+- do NOT implement their projections yet
+
+Do NOT render:
+
+- the old `See where your season is taking shape.` tagline
+- the old graphical season timeline
+- `9 trips ahead · 3 already skied`
+- My Trips / Friends’ Trips / Season Snapshot old tab structure
+- mountain filter
+- `All mountains`
+
+==================================================
+2. MONTH GROUPING
+==================================================
+
+Mine is ALWAYS grouped chronologically by month.
+
+No threshold.
+
+Use:
+
+JANUARY
+FEBRUARY
+MARCH
+
+etc.
+
+Within a month, row dates should omit the repeated month when possible:
+
+12–15
+20–21
+
+For cross-month trips, keep the range understandable:
+
+24–Mar 1
+
+Sort deterministically by trip start date and existing stable tie-breaker behavior.
+
+==================================================
+3. MINE PROJECTION
+==================================================
+
+Build one bounded, explicit Mine display projection.
+
+Include:
+
+- organizer-owned active/upcoming trips
+- participant Going trips
+- participant Interested trips
+- pending invitations
+
+Exclude from the active upcoming ledger:
+
+- Declined
+- Removed
+- cancelled/terminal trips
+- inappropriate historical rows
+
+Avoid duplicate trips where the viewer is represented through more than one relationship.
+
+Do not use the current `active_guest_count` label semantics blindly.
+
+The readiness audit established that current Trips counts are inconsistent with Trip Detail/Home.
+
+Use explicit viewer relationship and explicit deduplicated people sets.
+
+==================================================
+4. ROW ANATOMY
+==================================================
+
+Use the approved two-row mountain-led treatment.
+
+Example:
+
+Indy Basin, CO                         ORGANIZING
+Jan 12–15 · +7 others
+
+Stowe, VT                                  GOING
+Feb 4–8 · +3 others
+
+Alta, UT                              INTERESTED
+Jan 15–18 · 2 going
+
+Rules:
+
+- mountain/location is primary
+- relationship/status appears once only
+- date is secondary
+- people/context appears on the same secondary line
+- do not display `ORGANIZING` twice
+- do not add status eyebrows above the row
+- no cards
+- no avatar circles
+- use flat ledger hairlines
+- preserve the BaseLodge scale/rule system established in Trip Detail
+
+==================================================
+5. STATUS SEMANTICS
+==================================================
+
+Do NOT map trip-level `PLANNING` to Interested.
+
+Readiness audit established:
+
+- Planning = trip-level state
+- Interested = participant RSVP
+
+Viewer relationship presentation should come from actual role/RSVP semantics:
+
+- owner → ORGANIZING
+- participant Going → GOING
+- participant Interested → INTERESTED
+- pending invitation → invitation treatment, not a duplicate INVITED status label
+
+Trip-level Planning may still exist in backend data but should not masquerade as a person-level relationship.
+
+Do not change the underlying trip state model.
+
+==================================================
+6. `+N OTHERS`
+==================================================
+
+Use a deduplicated qualifying-person projection.
+
+Do not reuse raw row counts.
+
+For a viewer who is represented by the row relationship:
+
+- exclude the viewer from the `others` count
+- count qualifying other people exactly once
+- suppress the suffix when there are zero others
+
+Grammar:
+
++1 other
++N others
+
+Do not derive this from:
+
+- trip count
+- date count
+- Friends’ grouped_count
+- pending join requests
+- raw participant rows without deduplication
+
+For Interested rows, preserve meaning accurately.
+
+If viewer is Interested and two people are Going:
+
+INTERESTED · 2 going
+
+Do not convert that to `+N others` unless the count is actually describing the viewer’s same participation group.
+
+==================================================
+7. INVITATIONS INLINE
+==================================================
+
+Pending invitations appear chronologically within Mine.
+
+Use the approved I1 treatment.
+
+Example:
+
+Whistler, BC                            Jan 25–29
+Dana invited you · 5 going      Decline    Accept
+
+Rules:
+
+- invitation stays in the two-row ledger footprint
+- subtle waiting-for-answer treatment may use the established blush/accent system
+- do not create a separate invitations inbox
+- do not create a large attention block
+- do not add an `INVITED` label if `Dana invited you` already communicates it
+- Accept and Decline are equal, explicit actions
+
+==================================================
+8. INVITATION ACTION BEHAVIOR
+==================================================
+
+Reuse the existing canonical route:
+
+POST `/trips/<trip_id>/respond`
+
+Do not create a second RSVP write path.
+
+Decline:
+
+- directly submit canonical `declined`
+- preserve all current side effects, history, notifications, and transition rules
+
+Accept:
+
+We explicitly decided that Accept does NOT automatically mean Going.
+
+Tapping Accept opens a small choice:
+
+Going
+Interested
+
+Choosing one submits the existing canonical response.
+
+Do not introduce a new RSVP state.
+
+Preserve:
+
+- CSRF
+- authorization
+- transition history
+- existing activity/messaging side effects
+- duplicate-trip reconciliation behavior
+- terminal mutation protections
+
+After successful response:
+
+- refresh/recompute the Mine projection
+- remove the pending invitation treatment
+- place the accepted trip into its normal month/relationship position
+- update any counts/context affected
+
+A full page reload is acceptable if needed for safety, but prefer the smallest existing bounded refresh pattern if already supported.
+
+==================================================
+9. NEXT TRIP EMPHASIS
+==================================================
+
+The next/imminent trip gets only subtle emphasis.
+
+Use the approved direction:
+
+- same two-row footprint
+- no hero card
+- no `NEXT UP` block
+- no additional vertical height
+
+A subtle left accent rail and/or minimal background emphasis is acceptable if it matches the synthesis.
+
+Do not overstate it.
+
+==================================================
+10. EARLIER THIS SEASON
+==================================================
+
+Past/completed trips remain accessible under:
+
+Earlier this season
+
+below the active/upcoming ledger.
+
+Do not mix all historical trips into the upcoming month flow.
+
+Preserve existing lifecycle rules:
+
+- completed/past retained where current product allows
+- cancelled/terminal behavior follows existing visibility/history rules
+- no mutation controls on terminal items
+
+Use month grouping within Earlier this season where appropriate.
+
+==================================================
+11. REMOVE OLD TRIPS PRESENTATION
+==================================================
+
+For the redesigned Mine surface, remove/replace the old visible presentation:
+
+- old My Trips card/list styling
+- old subtitle
+- old filter UI
+- old `Planning` person-status presentation
+- old `You’re a guest` presentation
+- old large Plan another trip CTA
+- old Season Snapshot main-tab architecture
+
+Do not delete underlying routes/services simply because the redesigned Mine view no longer renders them.
+
+==================================================
+12. EMPTY / SPARSE STATES
+==================================================
+
+Support:
+
+- no upcoming trips
+- invitation-only state
+- one upcoming trip
+- no Earlier this season
+- historical trips only
+
+Empty states should fit the restrained BaseLodge visual system.
+
+Do not use oversized illustration/card treatments.
+
+`+ Plan a trip` should remain available.
+
+==================================================
+13. RESPONSIVE / CAPACITOR
+==================================================
+
+Verify at:
+
+- 390px
+- 360px
+
+BaseLodge uses Capacitor.
+
+Preserve:
+
+- safe-area behavior
+- touch-friendly interaction
+- bottom navigation
+- no hover-only actions
+- 44pt effective action targets where appropriate
+- no horizontal overflow
+
+Invitation visual buttons may be compact, but their actual touch targets must remain accessible.
+
+==================================================
+14. DO NOT BUILD YET
+==================================================
+
+Explicitly exclude:
+
+- Both projection
+- Home Ideas shared-service extraction
+- overlap annotations
+- standalone relevant friend opportunity rows
+- Friends’ trip-centric projection
+- Friends’ consolidation
+- Interested friend visibility changes
+- Home dismissal sharing
+- mountain-name fuzzy matching
+- new mountain filter
+- schema migrations
+- any Trip Detail redesign
+- Home redesign
+- unrelated task work
+
+If Mine unexpectedly requires one of these, STOP and report the dependency.
+
+==================================================
+15. REQUIRED TESTS
+==================================================
+
+Add/update tests for at least:
+
+### Projection
+- organizer trip
+- Going participant trip
+- Interested participant trip
+- pending invitation
+- deduplication when viewer has overlapping representations
+- Declined excluded
+- Removed excluded
+- terminal excluded from active ledger
+- deterministic ordering
+
+### Month grouping
+- multiple months
+- multiple trips same month
+- cross-month range
+- stable sort
+
+### Relationship labels
+- ORGANIZING
+- GOING
+- INTERESTED
+- no PLANNING→Interested mapping
+- no duplicate status label
+
+### Headcount grammar
+- zero others
+- +1 other
+- +N others
+- organizer counted once
+- viewer excluded from `others`
+- Interested row with Going count
+
+### Invitations
+- invitation chronological placement
+- Decline action
+- Accept opens Going/Interested choice
+- Going response
+- Interested response
+- authorization
+- CSRF
+- repeated/idempotent behavior
+- projection refresh after response
+
+### History
+- Earlier this season
+- historical-only account
+- terminal behavior
+
+### Rendering
+- normal Mine
+- heavy Mine
+- invitation-heavy Mine
+- 360px
+- 390px
+- no mountain filter
+- Season Snapshot placement
+- Plan a trip placement
+
+Preserve relevant query-budget expectations and avoid N+1 queries.
+
+==================================================
+16. VISUAL ACCEPTANCE CAPTURES
+==================================================
+
+Provide NEW captures from the running app for:
+
+1. Mine — normal — 390px
+2. Mine — heavy — 390px
+3. Mine — 3 inline invitations — 390px
+4. Mine — heavy — 360px
+5. Mine — Earlier this season visible
+6. Mine — empty/sparse state
+
+Compare against:
+
+- `FINAL-MINE-normal.png`
+- `FINAL-MINE-heavy.png`
+- `FINAL-first-viewport.png`
+- approved invitation I1 treatment
+
+Do not independently redesign based on preference during implementation.
+
+==================================================
+17. VERIFICATION
+==================================================
+
+Run:
+
+- targeted Mine tests
+- relevant Trips paging tests
+- RSVP transition tests
+- lifecycle/history tests
+- relevant visibility tests
+- capture harness
+- query-budget tests
+- Python compile check
+- `git diff --check`
+
+Confirm:
+
+- no console errors
+- no horizontal overflow
+- no unauthorized trip visibility
+- no RSVP behavior regression
+- no migration
+
+==================================================
+18. FINAL RESPONSE
+==================================================
+
+Report:
+
+1. What changed
+2. Mine projection contract
+3. Exact relationship/status rules
+4. Exact `+N others` rule
+5. Invitation action reuse
+6. Files changed
+7. Tests added/updated
+8. Exact test results
+9. Query-budget result
+10. Capture results
+11. Intentional visual differences from synthesis
+12. Deferred Batch 2+ work
+13. Any blockers
+
+Do not deploy.
+Do not publish.
+Do not push Git.
+
+Stop after implementation and verification so I can review the rendered Mine screens.
