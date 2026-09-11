@@ -363,7 +363,7 @@ def test_nonorganizer_roster_never_receives_invitation_identities(client):
     _login(client, owner_id)
     owner_html = client.get(f"/trips/{trip_id}").get_data(as_text=True)
     assert "PendingSecret" in owner_html
-    assert "DeclinedSecret" in owner_html
+    assert "DeclinedSecret" not in owner_html
     assert "RemovedSecret" not in owner_html
 
 

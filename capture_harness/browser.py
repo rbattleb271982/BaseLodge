@@ -326,6 +326,17 @@ class CaptureRunner:
                     page.wait_for_selector("#segment-friends.active", state="visible")
                 elif row["state"] == "pending-invites":
                     page.get_by_text("Pending Invites", exact=True).scroll_into_view_if_needed()
+            elif row["screen"] == "trip-detail":
+                target_tab = {
+                    "people": "#td-tab-people",
+                    "hero": "#td-tab-trip",
+                    "planning": "#td-tab-trip",
+                }.get(row["segment"])
+                if target_tab:
+                    page.locator(target_tab).click()
+                    page.wait_for_selector(
+                        target_tab + "[aria-selected='true']", state="visible"
+                    )
             elif row["screen"] == "friends" and row["state"] in {
                 "suggestions-loading", "suggestions-error",
             }:

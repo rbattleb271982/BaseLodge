@@ -152,7 +152,7 @@ def test_roster_filters_before_loading_user_identities(client):
     assert "RosterGoing" in owner_html
     assert "RosterInterested" in owner_html
     assert "RosterPending" in owner_html
-    assert "RosterDeclined" in owner_html
+    assert "RosterDeclined" not in owner_html
     assert "RosterRemoved" not in owner_html
     assert ids["removed"] not in owner_loaded_ids
 

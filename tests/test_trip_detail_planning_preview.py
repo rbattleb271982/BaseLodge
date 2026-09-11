@@ -71,7 +71,7 @@ def test_pending_and_nonmembers_do_not_receive_planning_preview(client, preview_
     assert client.get(f"/trips/{preview_setup['trip_id']}").status_code == 404
 
 
-def test_preview_is_newest_first_limited_to_three_and_keeps_total_count(
+def test_preview_is_newest_first_limited_to_two_and_keeps_total_count(
     client, preview_setup
 ):
     with app.app_context():
@@ -94,9 +94,8 @@ def test_preview_is_newest_first_limited_to_three_and_keeps_total_count(
 
     assert "4 posts" in html
     assert "oldest" not in html
-    assert html.index(">newest</p>") < html.index(">middle</p>") < html.index(
-        ">older</p>"
-    )
+    assert html.index(">newest</p>") < html.index(">middle</p>")
+    assert ">older</p>" not in html
 
 
 def test_preview_truncates_body_without_changing_canonical_post_and_uses_safe_link(
@@ -203,7 +202,7 @@ def test_create_returns_canonical_one_request_presentation(client, preview_setup
     assert "Posted by" in html
 
 
-def test_create_presentation_is_newest_first_limited_to_three(client, preview_setup):
+def test_create_presentation_is_newest_first_limited_to_two(client, preview_setup):
     _login(client, preview_setup["owner_id"])
     for body in ("first", "second", "third", "fourth"):
         response = json_post(
@@ -216,9 +215,8 @@ def test_create_presentation_is_newest_first_limited_to_three(client, preview_se
     html = response.get_json()["presentation"]["planning_html"]
     assert "4 posts" in html
     assert "first" not in html
-    assert html.index(">fourth</p>") < html.index(">third</p>") < html.index(
-        ">second</p>"
-    )
+    assert html.index(">fourth</p>") < html.index(">third</p>")
+    assert "second" not in html
 
 
 def test_composer_exposes_all_existing_canonical_categories(client, preview_setup):

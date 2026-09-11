@@ -938,6 +938,72 @@
         .td-hub-planning { order: 6; }
         .td-hub-invite { order: 7; }
         .td-hub-actions { order: 8; }
+        .td-detail-tabs {
+            display: flex; gap: 0; margin: 18px 0 4px;
+            border-bottom: 1px solid #E5DFD0; position: sticky; top: 0;
+            z-index: 4; background: var(--bl-color-background, #FFFCF8);
+        }
+        .td-detail-tab {
+            flex: 1; min-height: 48px; padding: 13px 8px 11px;
+            border: 0; border-bottom: 2px solid transparent;
+            background: transparent; color: var(--bl-color-text-muted, #8A857A);
+            font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .td-detail-tab[aria-selected="true"] { border-bottom-color: #5C1219; color: #5C1219; }
+        .td-tab-panel[hidden] { display: none !important; }
+        .td-people-sentence { margin: 18px 0 10px; color: #3E3933; font-size: 16px; line-height: 1.45; }
+        .td-participation-bar { display: flex; width: 100%; height: 8px; margin: 0 0 18px; overflow: hidden; border-radius: 4px; background: #E9E4DB; }
+        .td-participation-bar span { display: block; min-width: 2px; }
+        .td-participation-going { background: #5C1219; }
+        .td-participation-interested { background: #B8947E; }
+        .td-participation-invited { background: #D8CEC1; }
+        .td-roster-more { display: block; width: 100%; padding: 12px 0; border: 0; background: transparent; color: #5C1219; font: inherit; font-size: 13px; font-weight: 650; text-align: left; cursor: pointer; }
+        .td-roster .td-person-row[hidden] { display: none !important; }
+        .td-availability-summary { margin: 0 0 3px; color: #3E3933; font-size: 15px; font-weight: 650; }
+        .td-availability-summary--soft, .td-availability-range { color: var(--bl-color-text-muted, #8A857A); font-weight: 400; }
+        .td-availability-range { margin: 0 0 10px; font-size: 13px; }
+        .td-day-strip { display: flex; gap: 5px; margin: 10px 0 12px; }
+        .td-day-cell { flex: 1; min-width: 0; text-align: center; color: var(--bl-color-text-muted, #8A857A); font-size: 10px; letter-spacing: .04em; }
+        .td-day-cell strong { display: block; margin: 3px 0 5px; color: #3E3933; font-size: 15px; letter-spacing: 0; }
+        .td-day-cell i { display: block; height: 3px; border-radius: 2px; background: #D8D1C7; }
+        .td-day-cell i.is-available { background: #5C1219; }
+        .td-availability-action { color: #5C1219; font-size: 13px; font-weight: 650; text-decoration: none; }
+        .td-you-section-heading, .td-group-heading {
+            display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+        }
+        .td-you-section-heading a, .td-group-heading button {
+            border: 0; padding: 8px 0; background: transparent; color: #5C1219;
+            font: inherit; font-size: 13px; font-weight: 650; text-decoration: none; cursor: pointer;
+        }
+        .td-you-context, .td-people-supporting {
+            margin: -4px 0 14px; color: var(--bl-color-text-muted, #8A857A);
+            font-size: 12px; line-height: 1.45;
+        }
+        .td-profile-facts {
+            display: grid; grid-template-columns: minmax(0, 1fr) minmax(90px, .65fr);
+            gap: 18px; margin-bottom: 28px;
+        }
+        .td-profile-fact span { display: block; }
+        .td-profile-fact-label {
+            margin-bottom: 4px; color: var(--bl-color-text-muted, #8A857A);
+            font-size: 10px; font-weight: 750; letter-spacing: .1em; text-transform: uppercase;
+        }
+        .td-profile-fact-value { color: #27231F; font-size: 14px; line-height: 1.4; }
+        .td-for-trip-label { margin-top: 4px; }
+        .td-participation-legend {
+            display: flex; flex-wrap: wrap; gap: 8px 18px; margin: -10px 0 24px;
+            color: var(--bl-color-text-muted, #8A857A); font-size: 11px;
+        }
+        .td-group-heading .td-section-label span, #td-join-requests span {
+            margin-left: 6px; color: var(--bl-color-text-muted, #8A857A);
+            font-weight: 500; letter-spacing: 0; text-transform: none;
+        }
+        .td-join-request-list { margin-bottom: 24px; border: 1px solid #E7D5D7; border-radius: 10px; background: #FCF5F5; overflow: hidden; }
+        .td-join-request-row + .td-join-request-row { border-top: 1px solid #E7D5D7; }
+        .td-cancel-trip-note { margin: 10px 0 0; color: var(--bl-color-text-muted, #8A857A); font-size: 12px; text-align: center; }
+        .td-header-context { margin: 9px 0 0; color: var(--bl-color-text-muted, #8A857A); font-size: 12px; letter-spacing: .02em; }
+        .td-header-context strong { color: #5C1219; text-transform: uppercase; font-size: 11px; letter-spacing: .08em; }
         .td-cancel-trip-wrap {
             border-top: 1px solid rgba(92,18,25,0.08);
             padding: 36px 0 calc(20px + env(safe-area-inset-bottom, 0px));
@@ -1783,7 +1849,7 @@
             line-height: 1.5;
             margin: 0;
         }
-        .td-terminal button,
+        .td-terminal button:not(.td-detail-tab):not(#td-location-btn),
         .td-terminal form {
             display: none !important;
         }
@@ -1834,7 +1900,7 @@
         <div class="td-header td-hub-block">
             <div class="td-mountain-header">
                 {% if mountain_name %}
-                <button type="button" class="td-mountain-name td-location-btn" onclick="tdLocationTap()" id="td-location-btn">{{ mountain_name }}{% if state_abbr %}, {{ state_abbr }}{% endif %}<span class="td-location-caret"> ›</span></button>
+                <p class="td-mountain-name">{{ mountain_name }}</p>
                 {% else %}
                 <span></span>
                 {% endif %}
@@ -1842,15 +1908,10 @@
                 <button type="button" class="td-edit-link" id="td-edit-toggle-btn" onclick="tdToggleEditMode()">Edit trip</button>
                 {% endif %}
             </div>
-            {% if is_owner and not is_terminal %}
-            <button type="button" class="td-header-dates td-header-dates--tap" onclick="openDateSheet()" aria-label="Edit trip dates">
-                <span class="td-date-text" id="td-dates-text">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}<span class="td-date-chevron">›</span></span>
-            </button>
-            {% else %}
+            {% if state_abbr %}<p class="td-location-label">{{ state_abbr }}</p>{% endif %}
             <div>
                 <p class="td-header-dates">{% if trip.start_date and trip.end_date %}{% set _nights = (trip.end_date - trip.start_date).days %}{{ format_trip_dates(trip) }}, {{ trip.end_date.year }}{% if _nights > 0 %} · {{ _nights }} night{{ 's' if _nights != 1 else '' }}{% else %} · Day trip{% endif %}{% else %}{{ format_trip_dates(trip) }}{% endif %}</p>
             </div>
-            {% endif %}
             {% if trip.rsvp_deadline %}
             <p class="td-header-notice" id="td-rsvp-deadline-text">RSVP by {{ trip.rsvp_deadline.strftime('%b') }} {{ trip.rsvp_deadline.day }}, {{ trip.rsvp_deadline.year }}</p>
             {% endif %}
@@ -1866,13 +1927,17 @@
             {% if is_guest %}
             <p class="td-guest-note">Guest trip · Only the owner can edit or cancel</p>
             {% endif %}
-            {% if friends_wishlist_count > 0 %}
+            <p class="td-header-context">
+                <strong>{% if is_owner %}Organizing{% elif is_invited %}Invited{% elif current_user_participant and current_user_participant.status.value == 'going' %}Going{% elif current_user_participant %}Interested{% else %}Trip member{% endif %}</strong>
+                · {% if trip.is_public %}Visible to friends{% else %}Private{% endif %}
+            </p>
+            {% if false and friends_wishlist_count > 0 %}
             <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(92,18,25,0.07);border-radius:20px;padding:5px 12px;margin:6px 0 0;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                 <span style="font-size:13px;color:#5C1219;font-weight:500;">On {{ friends_wishlist_count }} friend{{ 's' if friends_wishlist_count != 1 else '' }}' wishlists</span>
             </div>
             {% endif %}
-            <div class="td-meta-badges">
+            {% if false %}<div class="td-meta-badges">
                 <div class="td-meta-badge" id="td-vis-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     <span id="td-vis-badge-text">{% if trip.is_public %}Visible to friends{% else %}Private{% endif %}</span>
@@ -1881,7 +1946,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                     <span id="td-status-badge-text">{% if ts == 'going' %}Going{% else %}Planning{% endif %}</span>
                 </div>
-            </div>
+            </div>{% endif %}
 
             {% if is_owner %}
             <!-- Edit mode controls — hidden in normal view, revealed by .td-edit-mode CSS class.
@@ -1956,6 +2021,17 @@
         {% endif %}
         </div><!-- /summary region -->
 
+        <nav class="td-detail-tabs" aria-label="Trip detail sections" role="tablist">
+            <button type="button" class="td-detail-tab" id="td-tab-trip" role="tab" aria-selected="true" aria-controls="td-panel-trip" onclick="selectTripDetailTab('trip')">Trip</button>
+            <button type="button" class="td-detail-tab" id="td-tab-people" role="tab" aria-selected="false" aria-controls="td-panel-people" onclick="selectTripDetailTab('people')">People</button>
+            <button type="button" class="td-detail-tab" id="td-tab-you" role="tab" aria-selected="false" aria-controls="td-panel-you" onclick="selectTripDetailTab('you')">You</button>
+        </nav>
+
+        <div data-td-region="trip" id="td-panel-trip" role="tabpanel" aria-labelledby="td-tab-trip">
+        {% if can_plan %}
+        {% include "partials/trip_detail_planning_region.html" %}
+        {% endif %}
+
         <div data-td-region="attention">
         {% if attention_items %}
         <section class="td-hub-attention td-hub-section" aria-labelledby="td-attention-heading">
@@ -1978,9 +2054,42 @@
         </section>
         {% endif %}
         </div>
+        {% if is_owner and not is_terminal %}
+        <div class="td-cancel-trip-wrap">
+            <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">
+                Cancel trip
+            </button>
+            <p class="td-cancel-trip-note">Cancels {{ mountain_name }} for everyone. You’ll be asked to confirm.</p>
+        </div>
+        {% endif %}
+        </div><!-- /Trip panel -->
 
-        <section class="td-hub-your-trip td-hub-section" aria-labelledby="td-your-trip-heading" data-td-region="setup">
-            <p class="td-section-label" id="td-your-trip-heading">Your trip</p>
+        <section class="td-hub-your-trip td-hub-section" data-td-region="setup" id="td-panel-you" role="tabpanel" aria-labelledby="td-tab-you">
+            <div class="td-you-section-heading">
+                <p class="td-section-label" id="td-your-trip-heading">From your profile</p>
+                <a href="{{ url_for('profile') }}">Manage ›</a>
+            </div>
+            <p class="td-you-context">BaseLodge already knows this — it is not asked per trip.</p>
+            <div class="td-profile-facts">
+                <div class="td-profile-fact">
+                    <span class="td-profile-fact-label">Riding</span>
+                    <span class="td-profile-fact-value">{{ (current_user.display_rider_type or 'Not set')|trim }}{% if current_user.skill_level %} · {{ current_user.skill_level.value|title if current_user.skill_level.value is defined else current_user.skill_level|title }}{% endif %}</span>
+                </div>
+                <div class="td-profile-fact">
+                    <span class="td-profile-fact-label">Pass</span>
+        {% set _has_explicit_no_pass = current_user.pass_type in ('no_pass', 'No Pass') %}
+                    <span class="td-profile-fact-value" id="td-pass-display-text">{{ my_pass_display or ('No pass' if _has_explicit_no_pass else 'Not set') }}</span>
+                </div>
+            </div>
+            <p class="td-section-label td-for-trip-label">For this trip</p>
+            <div class="td-trip-status">
+                <span class="td-profile-fact-label">Your status</span>
+                {% if is_owner %}
+                <p class="td-profile-fact-value">Organizing</p>
+                {% elif current_user_participant %}
+                <p class="td-profile-fact-value">{{ current_user_participant.status.value|title }}</p>
+                {% endif %}
+            </div>
         {% if is_guest and current_user_participant and current_user_participant.status.value in ('going', 'interested') %}
         <details class="td-swg-card td-self-rsvp-card" id="td-self-rsvp">
             <summary class="td-rsvp-summary td-self-rsvp-summary" aria-label="Your RSVP: {{ 'Going' if current_user_participant.status.value == 'going' else 'Interested' }}">
@@ -2023,41 +2132,36 @@
         </div>
         {% endif %}
 
-        <!-- My Setup -->
-        <h2 class="td-setup-heading">My setup</h2>
+        <section class="td-availability td-hub-section" aria-labelledby="td-availability-heading" data-td-region="setup">
+            <p class="td-section-label" id="td-availability-heading">Availability</p>
+            {% if availability_entered %}
+            {% set _available_count = namespace(value=0) %}
+            {% for day in trip_calendar_dates %}
+                {% if day.isoformat() in viewer_available_dates %}{% set _available_count.value = _available_count.value + 1 %}{% endif %}
+            {% endfor %}
+            <p class="td-availability-summary">{% if _available_count.value == trip_calendar_dates|length %}Available all {{ trip_calendar_dates|length }} day{{ 's' if trip_calendar_dates|length != 1 else '' }}{% elif _available_count.value %}Available {{ _available_count.value }} of {{ trip_calendar_dates|length }} days{% else %}No available days{% endif %}</p>
+            {% if _available_count.value and _available_count.value < trip_calendar_dates|length %}
+            <p class="td-availability-range">{% for day in trip_calendar_dates if day.isoformat() in viewer_available_dates %}{{ day.strftime('%b %-d') }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            {% endif %}
+            {% else %}
+            <p class="td-availability-summary td-availability-summary--soft">No availability entered for this trip</p>
+            {% endif %}
+            <div class="td-day-strip" aria-label="Your availability by trip date">
+            {% for day in trip_calendar_dates %}
+                {% set available = day.isoformat() in viewer_available_dates %}
+                <div class="td-day-cell">
+                    <span>{{ day.strftime('%a')|upper }}</span><strong>{{ day.day }}</strong>
+                    <i class="{{ 'is-available' if available else '' }}" aria-label="{{ 'Available' if available else 'Not available' }}"></i>
+                </div>
+            {% endfor %}
+            </div>
+            <a class="td-availability-action" href="{{ url_for('add_open_dates') }}">{{ 'Update' if availability_entered else 'Add availability' }} ›</a>
+        </section>
+
+        <!-- Existing safe profile and trip-specific controls -->
+        <h2 class="td-setup-heading">Trip choices</h2>
         <div class="td-setup-card" id="td-setup-card">
         <div class="td-setup-rows">
-            {# Rider type is profile context, not a trip-editable setting. #}
-            <div class="td-setup-row td-setup-row--readonly" aria-label="Riding">
-                <span class="td-setup-row-label">Riding</span>
-                <span class="td-setup-row-value{% if not current_user.display_rider_type %} td-setup-row-value--soft{% endif %}">
-                    {{ (current_user.display_rider_type or 'Not set')|trim }}
-                </span>
-            </div>
-
-            {# Pass — still opens the existing pass sheet for editable members. #}
-            {% if is_member %}
-            <button type="button" class="td-setup-row" onclick="openPassSheet()" aria-label="Edit pass type">
-            {% else %}
-            <div class="td-setup-row td-setup-row--readonly" aria-label="Pass">
-            {% endif %}
-                <span class="td-setup-row-label">Pass</span>
-                {% set _participant_pass_value = current_user_participant.pass_type if current_user_participant else '' %}
-                {% set _has_explicit_no_pass = _participant_pass_value in ('no_pass', 'No Pass') or current_user.pass_type in ('no_pass', 'No Pass') %}
-                <span class="td-setup-row-value{% if not my_pass_display %} td-setup-row-value--soft{% endif %}">
-                    <span id="td-pass-display-text">{{ my_pass_display or ('No pass' if _has_explicit_no_pass or not is_member else 'Add pass') }}</span>
-                    {% if is_member %}
-                    <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--bl-color-text-muted);" aria-hidden="true">
-                        <polyline points="9 18 15 12 9 6"></polyline>
-                    </svg>
-                    {% endif %}
-                </span>
-            {% if is_member %}
-            </button>
-            {% else %}
-            </div>
-            {% endif %}
-
             {# Equipment — trip-level status with profile fallback. #}
             {% if is_member %}
             <button type="button" class="td-setup-row" id="equipmentHeader" aria-controls="equipmentOverrideOptions" aria-expanded="false" onclick="toggleEquipmentOverride()">
@@ -2151,84 +2255,66 @@
         </div><!-- /td-setup-card -->
         </section><!-- /td-hub-your-trip -->
 
-        <div data-td-region="stay">
-        {% if is_overnight and (is_owner or is_guest) and (trip.stay_name or is_owner) %}
-        <section class="td-hub-stay td-hub-section" aria-labelledby="td-stay-heading">
-            <p class="td-section-label" id="td-stay-heading">Stay</p>
-            {% if trip.stay_name %}
-            <div class="td-stay-card">
-                <span class="td-stay-icon" aria-hidden="true">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v16"></path><path d="M3 17h18"></path><path d="M7 17v4"></path><path d="M17 17v4"></path><path d="M7 8h3"></path><path d="M14 8h3"></path><path d="M7 12h3"></path><path d="M14 12h3"></path></svg>
-                </span>
-                <div class="td-stay-copy">
-                    <p class="td-stay-name">{{ trip.stay_name }}</p>
-                    {% if trip.stay_description %}
-                    <p class="td-stay-description">{{ trip.stay_description }}</p>
-                    {% endif %}
-                    {% if trip.accommodation_link %}
-                    <a class="td-stay-link" href="{{ trip.accommodation_link }}" target="_blank" rel="noopener noreferrer">View property <span aria-hidden="true">›</span></a>
-                    {% endif %}
-                </div>
-                {% if is_owner %}
-                <div class="td-stay-actions">
-                    <button type="button" class="td-stay-action" onclick="openStaySheet()">Edit</button>
-                    <button type="button" class="td-stay-action td-stay-action--clear" onclick="clearTripStay(this)">Clear</button>
-                </div>
-                {% endif %}
-            </div>
-            {% elif is_owner %}
-            <button type="button" class="td-stay-add" onclick="openStaySheet()" aria-controls="td-stay-sheet">
-                <span aria-hidden="true">＋</span> Add Stay
-            </button>
-            {% endif %}
-        </section>
-        {% endif %}
-        </div><!-- /stay region -->
-
         <!-- People -->
-        <section class="td-hub-people td-hub-section" aria-label="Trip participants" data-td-region="people">
-        {% if trip.resort and trip.resort.slug %}
-        <div class="td-swg-card">
-            <a href="{{ url_for('mountain_detail', slug=trip.resort.slug) }}" class="td-swg-row" aria-label="Friends at this mountain">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Friends at this mountain</p>
-                    <p class="td-swg-sub">See your friends' trips at {{ mountain_name }}.</p>
+        <section class="td-hub-people td-hub-section" aria-label="Trip participants" data-td-region="people" id="td-panel-people" role="tabpanel" aria-labelledby="td-tab-people">
+        <!-- RSVP summary and groups -->
+        {% if going_participants or interested_participants or pending_participants or declined_participants %}
+        {% set _going_count = going_participants|length %}
+        {% set _owner_interested_ns = namespace(value=0) %}
+        {% for _person in interested_participants %}{% if _person.role and _person.role.value == 'owner' %}{% set _owner_interested_ns.value = 1 %}{% endif %}{% endfor %}
+        {% set _owner_interested = _owner_interested_ns.value %}
+        {% set _interested_count = interested_participants|length - _owner_interested %}
+        {% set _invited_count = pending_participants|length %}
+        {% set _people_count = _going_count + _interested_count + _invited_count %}
+        <p class="td-people-sentence">{{ _going_count }} of you {{ 'is' if _going_count == 1 else 'are' }} going.</p>
+        <p class="td-people-supporting">{% set _support = [] %}{% if _interested_count %}{% set _ = _support.append(_interested_count ~ ' interested') %}{% endif %}{% if _invited_count %}{% set _ = _support.append(_invited_count ~ ' invited, no reply yet') %}{% endif %}{% if pending_requests %}{% set _ = _support.append(pending_requests|length ~ ' asked to join') %}{% endif %}{{ _support|join(' · ') }}</p>
+        {% if _people_count %}
+        <p class="td-section-label">Participation</p>
+        <div class="td-participation-bar" aria-label="{{ _going_count }} going, {{ _interested_count }} interested, {{ _invited_count }} invited">
+            {% if _going_count %}<span class="td-participation-going" style="width:{{ (_going_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
+            {% if _interested_count %}<span class="td-participation-interested" style="width:{{ (_interested_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
+            {% if _invited_count %}<span class="td-participation-invited" style="width:{{ (_invited_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
+        </div>
+        <div class="td-participation-legend"><span>{{ _going_count }} going</span><span>{{ _interested_count }} interested</span><span>{{ _invited_count }} invited</span></div>
+        {% endif %}
+
+        {% if is_owner and pending_requests %}
+        <p class="td-section-label" id="td-join-requests">Requests <span>{{ pending_requests|length }} asked to join</span></p>
+        <div class="td-join-request-list">
+            {% for req in pending_requests %}
+            <div class="td-person-row td-join-request-row">
+                <div class="td-person-info">
+                    <p class="td-person-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
+                    <p class="td-person-meta">{{ req.sender|identity_line }}</p>
                 </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </a>
+                <div class="td-person-actions">
+                    <button onclick="respondToJoinRequest(this, {{ req.id }}, 'decline')" class="td-person-btn-decline">Decline</button>
+                    <button onclick="respondToJoinRequest(this, {{ req.id }}, 'accept')" class="td-person-btn-accept">Accept</button>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         {% endif %}
 
-        <!-- RSVP summary and groups -->
-        {% if going_participants or interested_participants or pending_participants or declined_participants %}
-        {% set _rsvp_total = (going_participants|length) + (interested_participants|length) + (pending_participants|length) + (declined_participants|length) %}
+        <div class="td-group-heading">
+            <p class="td-section-label">The group <span>{{ _people_count }} people</span></p>
+            {% if is_owner and not is_terminal %}<button type="button" onclick="openInviteModal()">Invite ›</button>{% endif %}
+        </div>
+        {% set _rsvp_total = (going_participants|length) + (interested_participants|length) + (pending_participants|length) %}
         {% set _rsvp_count_parts = [] %}
         {% if going_participants %}{% set _ = _rsvp_count_parts.append(going_participants|length ~ ' Going') %}{% endif %}
         {% if interested_participants %}{% set _ = _rsvp_count_parts.append(interested_participants|length ~ ' Interested') %}{% endif %}
-        {% if pending_participants %}{% set _ = _rsvp_count_parts.append(pending_participants|length ~ ' Pending') %}{% endif %}
-        {% if declined_participants %}{% set _ = _rsvp_count_parts.append(declined_participants|length ~ ' Declined') %}{% endif %}
-        <p class="td-section-label">Trip participants</p>
-        <details class="td-swg-card" id="td-rsvp-section" {% if _rsvp_total <= 3 %}open{% endif %}>
-            <summary class="td-rsvp-summary" aria-controls="td-rsvp-details">
-                <span>
-                    <span class="td-rsvp-summary-title">Trip participants</span>
-                    <span class="td-rsvp-summary-counts">{{ _rsvp_count_parts|join(' · ') }}</span>
-                </span>
-            </summary>
-            <div class="td-rsvp-details" id="td-rsvp-details">
+        {% if pending_participants %}{% set _ = _rsvp_count_parts.append(pending_participants|length ~ ' Invited') %}{% endif %}
+        <div class="td-roster" id="td-rsvp-section" aria-label="{{ _rsvp_count_parts|join(', ') }}">
 
-        {% for label, people in [('Going', going_participants), ('Interested', interested_participants), ('Pending', pending_participants), ('Declined', declined_participants)] %}
+        {% for label, people in [('Organizing', interested_participants|selectattr('role.value', 'equalto', 'owner')|list), ('Going', going_participants), ('Interested', interested_participants|rejectattr('role.value', 'equalto', 'owner')|list), ('Invited', pending_participants)] %}
             {% if people %}
             <p class="td-person-status-tag td-person-status-heading">{{ label }}</p>
-            {% for p in people %}
+            {% for p in people[:4] %}
             <div class="td-person-row" data-participant-user-id="{{ p.user_id }}" data-participant-status="{{ label|lower }}">
                 <div class="td-person-info">
                     <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight:400;color:var(--bl-color-text-muted);font-size:12px;">(Organizer)</span>{% endif %}</p>
                     <p class="td-person-meta">{{ p.user|identity_line }}</p>
-                    <span class="td-person-status-chip td-person-status-chip--{{ label|lower }}">{{ label }}</span>
                     {% if is_owner and label == 'Going' and p.user_id != current_user.id %}
                     <p class="td-person-meta" data-attendance-dates="true" style="margin-top:2px;">
                         Attending {% if p.attendance_start_date == trip.start_date and p.attendance_end_date == trip.end_date %}full trip{% elif p.attendance_start_date == p.attendance_end_date %}{{ p.attendance_start_date.strftime('%b %-d') }}{% elif p.attendance_start_date.month == p.attendance_end_date.month %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%-d') }}{% else %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%b %-d') }}{% endif %}
@@ -2248,7 +2334,7 @@
                         <input type="hidden" name="confirm" value="remove">
                         <button type="submit" class="td-cancel-link">Remove</button>
                     </form>
-                    {% elif label == 'Pending' %}
+                    {% elif label == 'Invited' %}
                     <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" data-td-targeted-form="people,actions,invite-controls">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="user_id" value="{{ p.user_id }}">
@@ -2264,72 +2350,52 @@
                 {% endif %}
             </div>
             {% endfor %}
+            {% if people|length > 4 %}
+            <button type="button" class="td-roster-more" onclick="this.closest('.td-roster').querySelectorAll('.td-roster-extra-{{ label|lower }}').forEach(function(el){el.hidden=false}); this.hidden=true;">
+                Show {{ people|length - 4 }} more {{ label|lower }} ↓
+            </button>
+            {% for p in people[4:] %}
+            <div class="td-person-row td-roster-extra-{{ label|lower }}" hidden data-participant-user-id="{{ p.user_id }}" data-participant-status="{{ label|lower }}">
+                <div class="td-person-info">
+                    <p class="td-person-name">{{ p.user|display_name(current_user.id) }}{% if p.role and p.role.value == 'owner' %} <span style="font-weight:400;color:var(--bl-color-text-muted);font-size:12px;">(Organizer)</span>{% endif %}</p>
+                    <p class="td-person-meta">{{ p.user|identity_line }}</p>
+                    {% if is_owner and label == 'Going' and p.user_id != current_user.id %}
+                    <p class="td-person-meta" data-attendance-dates="true" style="margin-top:2px;">
+                        Attending {% if p.attendance_start_date == trip.start_date and p.attendance_end_date == trip.end_date %}full trip{% elif p.attendance_start_date == p.attendance_end_date %}{{ p.attendance_start_date.strftime('%b %-d') }}{% elif p.attendance_start_date.month == p.attendance_end_date.month %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%-d') }}{% else %}{{ p.attendance_start_date.strftime('%b %-d') }}–{{ p.attendance_end_date.strftime('%b %-d') }}{% endif %}
+                    </p>
+                    {% endif %}
+                </div>
+                {% if is_owner and p.user_id != current_user.id %}
+                <div class="td-person-actions">
+                {% if label in ('Going', 'Interested') %}
+                    <form method="POST" action="{{ url_for('organizer_update_trip_rsvp', trip_id=trip.id, user_id=p.user_id) }}" data-td-targeted-form="people,invite-controls">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="response" value="{{ 'interested' if label == 'Going' else 'going' }}">
+                        <button type="submit" class="td-cancel-link">Change to {{ 'Interested' if label == 'Going' else 'Going' }}</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('organizer_remove_trip_participant', trip_id=trip.id, user_id=p.user_id) }}" data-td-targeted-form="people,invite-controls" onsubmit="return confirm('Remove this participant from the trip?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="confirm" value="remove">
+                        <button type="submit" class="td-cancel-link">Remove</button>
+                    </form>
+                {% elif label == 'Invited' %}
+                    <form method="POST" action="{{ url_for('cancel_trip_invite', trip_id=trip.id) }}" data-td-targeted-form="people,invite-controls">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="user_id" value="{{ p.user_id }}">
+                        <button type="submit" class="td-cancel-link">Cancel invite</button>
+                    </form>
+                {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% endif %}
             {% endif %}
         {% endfor %}
-            </div>
-        </details>
+        </div>
         {% endif %}
         </section><!-- /td-hub-people -->
 
-        <!-- Trip Planning -->
-        {% if can_plan %}
-        {% include "partials/trip_detail_planning_region.html" %}
-        {% endif %}
-
-        <!-- Join requests remain separate from RSVP groups. -->
-        <section class="td-hub-actions td-hub-section" aria-label="Trip actions" data-td-region="actions">
-        {% if is_owner %}
-        <div class="td-swg-card td-hub-invite">
-            <button type="button" class="td-swg-row" onclick="openInviteModal()">
-                <span class="td-swg-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-                </span>
-                <div class="td-swg-text">
-                    <p class="td-swg-title">Invite friends to this trip</p>
-                    <p class="td-swg-sub">Bring more people into the plan.</p>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color:#B5AFA5;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
-            </button>
-        </div>
-        {% endif %}
-        {% if is_owner and pending_requests %}
-        <p class="td-section-label" id="td-join-requests">Join requests</p>
-        <div>
-            {% for req in pending_requests %}
-            <div class="td-person-row">
-                <div class="td-person-info">
-                    <p class="td-person-name">{{ req.sender.first_name }} {{ req.sender.last_name }}</p>
-                    <p class="td-person-meta">{{ req.sender|identity_line }}</p>
-                    <p class="td-person-status-tag">Requested to Join</p>
-                </div>
-                <div class="td-person-actions">
-                    <button onclick="respondToJoinRequest(this, {{ req.id }}, 'accept')" class="td-person-btn-accept">Accept</button>
-                    <button onclick="respondToJoinRequest(this, {{ req.id }}, 'decline')" class="td-person-btn-decline">Decline</button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if is_owner and current_user_participant %}
-        <div class="td-cancel-trip-wrap">
-            <form method="POST" action="{{ url_for('update_own_trip_rsvp', trip_id=trip.id) }}" data-td-targeted-form="setup,participant-editor,people,actions,lifecycle">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="response" value="{{ 'interested' if current_user_participant.status.value == 'going' else 'going' }}">
-                <button type="submit" class="td-cancel-trip-link">Mark {{ 'Interested' if current_user_participant.status.value == 'going' else 'Going' }}</button>
-            </form>
-        </div>
-        {% endif %}
-
-        {% if is_owner %}
-        <div class="td-cancel-trip-wrap">
-            <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">
-                Cancel trip
-            </button>
-        </div>
-        {% endif %}
-
-        </section><!-- /td-hub-actions -->
     </div><!-- /page-container -->
 
     <!-- Sticky action bar (for invited guests viewing this page) -->
@@ -2542,33 +2608,6 @@
     {% endif %}
     </div><!-- /participant-tools region -->
 
-    <div data-td-region="stay-editor">
-    {% if is_owner and is_overnight %}
-    <!-- Shared Stay edit bottom sheet (owner only) -->
-    <div class="td-date-sheet-overlay" id="td-stay-sheet" onclick="if(event.target===this)closeStaySheet()">
-        <div class="td-date-sheet" role="dialog" aria-modal="true" aria-labelledby="td-stay-sheet-title">
-            <div class="td-date-sheet-handle"></div>
-            <p class="td-date-sheet-title" id="td-stay-sheet-title">Stay</p>
-            <div class="td-date-sheet-field">
-                <label class="td-date-sheet-label" for="td-stay-name">Where are you staying?</label>
-                <input type="text" id="td-stay-name" class="td-date-sheet-input" maxlength="200" value="{{ (trip.stay_name or '')|e }}" placeholder="Hotel, rental, condo, or home">
-            </div>
-            <div class="td-date-sheet-field">
-                <label class="td-date-sheet-label" for="td-stay-description">Details <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-                <textarea id="td-stay-description" class="td-note-textarea" maxlength="500" placeholder="Add any helpful details">{{ trip.stay_description or '' }}</textarea>
-            </div>
-            <div class="td-date-sheet-field">
-                <label class="td-date-sheet-label" for="td-stay-link">Property link <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-                <input type="url" id="td-stay-link" class="td-date-sheet-input" maxlength="500" value="{{ ((trip.accommodation_link if trip.stay_name else '') or '')|e }}" placeholder="https://…">
-            </div>
-            <p class="td-date-sheet-error" id="td-stay-error"></p>
-            <button type="button" class="td-date-sheet-save" id="td-stay-save" onclick="saveTripStay()">Save Stay</button>
-            <button type="button" class="td-date-sheet-cancel" onclick="closeStaySheet()">Cancel</button>
-        </div>
-    </div>
-    {% endif %}
-    </div><!-- /stay-editor region -->
-
     {% if can_plan %}
     <!-- Plan Together composer: uses the canonical planning-post create endpoint. -->
     <div class="td-date-sheet-overlay" id="td-planning-sheet" onclick="if(event.target===this)closeTripPlanningSheet()">
@@ -2637,12 +2676,13 @@
     <div class="td-date-sheet-overlay" id="td-cancel-trip-sheet" onclick="if(event.target===this)closeCancelTripSheet()">
         <div class="td-date-sheet">
             <div class="td-date-sheet-handle"></div>
-            <p class="td-date-sheet-title">Cancel this trip?</p>
-            <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">This will remove the trip from your profile and friends' activity.</p>
+            <p class="td-date-sheet-title">Cancel {{ mountain_name }} trip?</p>
+            <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">Are you sure you want to cancel this trip?</p>
             <form method="POST" action="{{ url_for('delete_trip_form', trip_id=trip.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;" data-loading-text="Cancelling…">Cancel trip</button>
             </form>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeCancelTripSheet()">Keep trip</button>
         </div>
     </div>
     {% endif %}
@@ -2651,13 +2691,13 @@
     <div class="td-date-sheet-overlay" id="td-leave-trip-sheet" onclick="if(event.target===this)closeLeaveSheet()">
         <div class="td-date-sheet">
             <div class="td-date-sheet-handle"></div>
-            <p class="td-date-sheet-title">Leave trip?</p>
-            <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">You'll be removed from this trip, but the trip will remain available to everyone else.</p>
+            <p class="td-date-sheet-title">Leave the {{ mountain_name }} trip?</p>
+            <p style="font-size:14px;color:var(--bl-color-text-muted);line-height:1.5;margin:0 0 18px 0;">You’ll come off the group and lose access to the trip’s planning.</p>
             <form method="POST" action="{{ url_for('leave_trip', trip_id=trip.id) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="td-date-sheet-save" style="background:#8B4A52;" data-loading-text="Leaving…">Leave trip</button>
             </form>
-            <button type="button" class="td-date-sheet-cancel" onclick="closeLeaveSheet()">Keep trip</button>
+            <button type="button" class="td-date-sheet-cancel" onclick="closeLeaveSheet()">Stay on the trip</button>
         </div>
     </div>
     {% endif %}
@@ -3256,7 +3296,7 @@
             }
 
             // ── Shared Stay — organizer-only, silent ──
-            {% if is_overnight %}
+            {% if false %}
             const _tdStayCsrf = {{ csrf_token() | tojson }};
             window.openStaySheet = function() {
                 var error = document.getElementById('td-stay-error');
@@ -3973,5 +4013,41 @@
             };
         })();
         {% endif %}
+    </script>
+    <script>
+    (function () {
+        const groups = {
+            trip: ['trip'],
+            people: ['people'],
+            you: ['setup']
+        };
+        window.selectTripDetailTab = function (tab) {
+            document.querySelectorAll('.td-detail-tab').forEach(function (button) {
+                const selected = button.id === 'td-tab-' + tab;
+                button.setAttribute('aria-selected', selected ? 'true' : 'false');
+                button.tabIndex = selected ? 0 : -1;
+            });
+            document.querySelectorAll('[data-td-region]').forEach(function (region) {
+                const name = region.getAttribute('data-td-region');
+                if (name === 'lifecycle' || name === 'summary' || name === 'attention' || name === 'planning') return;
+                region.hidden = !(groups[tab] || []).includes(name);
+            });
+            document.querySelectorAll('[data-td-region="lifecycle"]').forEach(function (region) {
+                region.hidden = tab === 'you';
+            });
+        };
+        document.querySelectorAll('.td-detail-tab').forEach(function (button) {
+            button.addEventListener('keydown', function (event) {
+                if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                    const tabs = Array.from(document.querySelectorAll('.td-detail-tab'));
+                    const offset = event.key === 'ArrowRight' ? 1 : -1;
+                    const next = tabs[(tabs.indexOf(button) + offset + tabs.length) % tabs.length];
+                    next.focus();
+                    selectTripDetailTab(next.id.replace('td-tab-', ''));
+                }
+            });
+        });
+        window.selectTripDetailTab('trip');
+    })();
     </script>
 {% endblock %}

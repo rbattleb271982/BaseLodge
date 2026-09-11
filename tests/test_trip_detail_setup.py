@@ -59,15 +59,15 @@ def test_compact_setup_chips_preserve_editable_controls(client):
 
     html = _trip_html(client, owner_id, trip_id)
 
-    assert '<h2 class="td-setup-heading">My setup</h2>' in html
+    assert '<h2 class="td-setup-heading">Trip choices</h2>' in html
+    assert "From your profile" in html
+    assert "For this trip" in html
     assert 'class="td-setup-rows"' in html
-    assert 'class="td-setup-row td-setup-row--readonly" aria-label="Riding"' in html
-    assert 'class="td-setup-row-label">Riding</span>' in html
-    assert re.search(r'class="td-setup-row-value">\s*Skier\s*</span>', html)
+    assert 'class="td-profile-fact-label">Riding</span>' in html
+    assert "Skier" in html
     assert 'id="td-pass-display-text"' in html
     assert 'id="equipmentSummaryText"' in html
     assert 'id="lesson-summary-text"' in html
-    assert 'onclick="openPassSheet()"' in html
     assert 'id="equipmentHeader"' in html
     assert 'id="lessonHeader"' in html
     assert 'aria-controls="equipmentOverrideOptions"' in html
@@ -165,7 +165,7 @@ def test_pending_invitee_gets_view_only_setup_chips(client):
 
     html = _trip_html(client, invited_id, trip_id)
 
-    assert html.count('td-setup-row td-setup-row--readonly') == 4
+    assert html.count('td-setup-row td-setup-row--readonly') == 2
     assert 'onclick="openPassSheet()"' not in html
     assert 'onclick="toggleEquipmentOverride()"' not in html
     assert 'onclick="toggleLessonEditor()"' not in html
@@ -242,7 +242,7 @@ def test_my_setup_riding_row_supports_rider_type_variants(
     html = _trip_html(client, owner_id, trip_id)
 
     assert re.search(
-        rf'class="td-setup-row-value">\s*{re.escape(display_value)}\s*</span>',
+        rf'class="td-profile-fact-value">\s*{re.escape(display_value)}',
         html,
     )
 
@@ -276,7 +276,7 @@ def test_my_setup_distinguishes_missing_values_from_explicit_no_pass(
     missing_html = _trip_html(client, missing_owner_id, missing_trip_id)
     explicit_html = _trip_html(client, explicit_owner_id, explicit_trip_id)
 
-    assert "Add pass" in missing_html
+    assert "Not set" in missing_html
     assert "Set equipment" in missing_html
     assert "No pass" in explicit_html
     assert "Add pass" not in explicit_html
@@ -352,17 +352,15 @@ def test_trip_detail_hub_has_summary_attention_and_progressive_rsvp_sections(cli
     assert "Start planning together" in html
     assert 'id="td-setup-card"' in html
     assert 'id="td-rsvp-section"' in html
-    assert 'class="td-rsvp-summary"' in html
-    assert "Trip participants" in html
-    assert html.index('<section class="td-hub-attention') < html.index(
-        '<div class="td-setup-card" id="td-setup-card"'
+    assert 'class="td-roster"' in html
+    assert 'class="td-rsvp-summary"' not in html
+    assert '<summary class="td-rsvp-summary"' not in html
+    assert "The group" in html
+    assert html.index('id="td-planning-heading"') < html.index(
+        '<section class="td-hub-attention'
     )
-    assert html.index('<div class="td-setup-card" id="td-setup-card"') < html.index(
-        '<details class="td-swg-card" id="td-rsvp-section"'
-    )
-    assert html.index('<details class="td-swg-card" id="td-rsvp-section"') < html.index(
-        'id="td-planning-heading"'
-    )
+    assert html.index('id="td-tab-trip"') < html.index('id="td-tab-people"')
+    assert html.index('id="td-tab-people"') < html.index('id="td-tab-you"')
 
 
 def test_trip_detail_hub_keeps_pending_invitee_view_only_and_sticky_rsvp(client):
@@ -434,20 +432,22 @@ def test_trip_detail_people_uses_product_labels_counts_and_alpha_groups(client):
         db.session.commit()
 
     html = _trip_html(client, owner_id, trip_id)
-    summary = html.split('id="td-rsvp-section"', 1)[1].split("</summary>", 1)[0]
+    people_panel = html.split('id="td-panel-people"', 1)[1].split(
+        "</section><!-- /td-hub-people -->", 1
+    )[0]
 
-    assert "Friends at this mountain" in html
-    assert "See your friends' trips at Aspen." in html
-    assert "Trip participants" in summary
-    assert "2 Going · 1 Interested · 1 Pending · 1 Declined" in summary
-    assert 'aria-controls="td-rsvp-details"' in summary
-    assert 'id="td-rsvp-details"' in html
+    assert "Friends at this mountain" not in html
+    assert "The group" in people_panel
+    assert "2 going" in people_panel
+    assert "0 interested" in people_panel
+    assert "1 invited" in people_panel
+    assert 'aria-label="2 Going, 1 Interested, 1 Invited"' in people_panel
+    assert 'aria-controls="td-rsvp-details"' not in people_panel
+    assert 'id="td-rsvp-details"' not in html
 
     heading_positions = [
         html.index('class="td-person-status-tag td-person-status-heading">Going'),
-        html.index('class="td-person-status-tag td-person-status-heading">Interested'),
-        html.index('class="td-person-status-tag td-person-status-heading">Pending'),
-        html.index('class="td-person-status-tag td-person-status-heading">Declined'),
+        html.index('class="td-person-status-tag td-person-status-heading">Invited'),
     ]
     assert heading_positions == sorted(heading_positions)
     assert html.index("Anna Alpha") < html.index("Zoe Zed")
@@ -459,10 +459,12 @@ def test_trip_detail_people_hides_zero_declined_count(client):
         owner_id, trip_id, _participant_id = _setup_trip()
 
     html = _trip_html(client, owner_id, trip_id)
-    summary = html.split('id="td-rsvp-section"', 1)[1].split("</summary>", 1)[0]
+    people_panel = html.split('id="td-panel-people"', 1)[1].split(
+        "</section><!-- /td-hub-people -->", 1
+    )[0]
 
-    assert "1 Interested" in summary
-    assert "Declined" not in summary
+    assert "1 Interested" in people_panel
+    assert "Declined" not in people_panel
 
 
 def test_trip_detail_people_keeps_attendance_dates_owner_only(client):

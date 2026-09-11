@@ -196,8 +196,7 @@ def test_organizer_cannot_edit_guest_attendance_dates(client):
     [
         (GuestStatus.GOING, "Going", "Change to Interested", "Change to Going"),
         (GuestStatus.INTERESTED, "Interested", "Change to Going", "Change to Interested"),
-        (GuestStatus.PENDING, "Pending", "Cancel invite", "Reinvite"),
-        (GuestStatus.DECLINED, "Declined", "Reinvite", "Cancel invite</button>"),
+            (GuestStatus.PENDING, "Invited", "Cancel invite", "Reinvite"),
     ],
 )
 def test_organizer_trip_detail_exposes_state_specific_actions(
@@ -213,9 +212,10 @@ def test_organizer_trip_detail_exposes_state_specific_actions(
 
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert f'data-participant-status="{status.value}"' in html
-    assert f'td-person-status-chip--{status.value}' in html
-    assert f">{status_label}</span>" in html
+    rendered_status = "invited" if status == GuestStatus.PENDING else status.value
+    assert f'data-participant-status="{rendered_status}"' in html
+    assert f'class="td-person-status-tag td-person-status-heading">{status_label}' in html
+    assert f'<span class="td-person-status-chip td-person-status-chip--{status.value}">' not in html
     assert expected_action in html
     assert forbidden_action not in html
 

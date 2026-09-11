@@ -15173,8 +15173,11 @@ def _trip_detail_planning_preview_state(trip_id):
         SkiTripPlanningPost.query
         .options(selectinload(SkiTripPlanningPost.author))
         .filter_by(trip_id=trip_id)
-        .order_by(SkiTripPlanningPost.created_at.desc())
-        .limit(3)
+        .order_by(
+            SkiTripPlanningPost.created_at.desc(),
+            SkiTripPlanningPost.id.desc(),
+        )
+        .limit(2)
         .all()
     )
     for planning_post in planning_preview_posts:
@@ -15496,10 +15499,29 @@ def trip_detail(trip_id):
 
     # My Setup: effective pass display for current user.
     # Precedence: participant.pass_type → User.pass_type fallback → empty
-    _participant_pass = (current_user_participant.pass_type or "") if current_user_participant else ""
     _profile_pass = (current_user.pass_type or "") if (current_user.pass_type and current_user.pass_type not in ("No Pass", "no_pass", "")) else ""
-    my_pass_str = _participant_pass or _profile_pass
+    my_pass_str = _profile_pass
     my_pass_display = format_passes_for_display(my_pass_str) if my_pass_str else ""
+    # Availability is private to the viewer.  Keep this as a single normalized
+    # lookup and expose only the inclusive trip-day comparison to the template.
+    viewer_available_dates = get_available_dates_for_user(current_user)
+    trip_calendar_dates = []
+    if trip.start_date and trip.end_date and trip.end_date >= trip.start_date:
+        trip_calendar_dates = [
+            trip.start_date + timedelta(days=offset)
+            for offset in range((trip.end_date - trip.start_date).days + 1)
+        ]
+    availability_entered = False
+    if trip_calendar_dates:
+        availability_entered = bool(
+            set(current_user.open_dates or []).intersection(
+                {day.isoformat() for day in trip_calendar_dates}
+            )
+        ) or UserAvailability.query.filter(
+            UserAvailability.user_id == current_user.id,
+            UserAvailability.date >= trip.start_date,
+            UserAvailability.date <= trip.end_date,
+        ).first() is not None
 
     # Lightweight attention summary: derived only from existing trip state and
     # links to an existing row, sheet, or planning page.  This is intentionally
@@ -15580,6 +15602,9 @@ def trip_detail(trip_id):
         planning_categories=PLANNING_CATEGORY_ORDER,
         my_pass_str=my_pass_str,
         my_pass_display=my_pass_display,
+        trip_calendar_dates=trip_calendar_dates,
+        viewer_available_dates=viewer_available_dates,
+        availability_entered=availability_entered,
         is_overnight=is_overnight,
         attention_items=attention_items,
         is_terminal=is_terminal,
