@@ -1,0 +1,687 @@
+# Trip Detail Batch 1 — Build Locked Presentation Foundation
+
+Implement the Notion task:
+
+TRIP DETAIL — Build locked presentation foundation
+
+This is the first implementation batch of the approved Trip Detail redesign.
+
+The visual direction has already been designed, reviewed, and LOCKED. This is not a design exploration. Do not reinterpret the approved architecture or substitute a different design system.
+
+Before making changes, inspect the current Trip Detail implementation, the readiness audit, and the existing tests/routes/services referenced below.
+
+Use:
+
+12-trip-detail/TRIP-DETAIL-IMPLEMENTATION-READINESS.md
+
+as the engineering source of truth for what is safe in this batch.
+
+## PRIMARY GOAL
+
+Implement the approved Trip Detail foundation using ONLY existing safe data, permissions, state transitions, and actions.
+
+The finished page should establish:
+
+- Hybrid trip header
+- Trip / People / You
+- Trip as default
+- approved Trip Planning treatment
+- approved People structure
+- approved You structure
+- existing lifecycle actions in their new presentation
+- past/cancelled read-only behavior
+
+Do NOT pull Batch 2+ features into this implementation.
+
+# LOCKED VISUAL REFERENCE
+
+The approved synthesis is in:
+
+BaseLodge-Cowork-Audit-Package/12-trip-detail/synthesis/
+
+Use those screens as the visual specification.
+
+The approved organizer-normal synthesis is the primary reference:
+
+01-trip/SHEET-three-tabs-organizer-normal.png
+
+Also inspect the relevant individual screens and state specimens in:
+
+00-header-comparison/
+01-trip/
+02-people/
+03-you/
+04-states/
+05-confirmations/
+
+The approved header is:
+
+C — Hybrid
+
+Do not redesign these screens.
+
+Match the approved synthesis as closely as practical within the existing BaseLodge frontend architecture and mobile/Capacitor constraints.
+
+# 1. HYBRID HEADER
+
+Implement the approved Hybrid header.
+
+It must preserve:
+
+- mountain name as dominant identity
+- location
+- trip dates
+- nights
+- viewer relationship
+- visibility
+- Edit trip for organizer
+
+Target hierarchy:
+
+Northstar
+California
+
+Jan 15–18, 2027 · 3 nights
+
+ORGANIZING · Visible to friends
+
+Edit trip
+
+Use the actual trip data and current relationship/visibility logic.
+
+Do not introduce:
+
+- WHEN / SHARING / YOU ledger blocks
+- profile bubbles
+- avatars
+- initials circles
+- resort photography
+- decorative mountain imagery
+
+Dates are informational.
+
+Do NOT add a chevron or independent date action.
+
+# 2. TAB ARCHITECTURE
+
+Implement:
+
+TRIP | PEOPLE | YOU
+
+Trip is ALWAYS selected when Trip Detail first opens.
+
+Do not remember the previously selected tab between page loads.
+
+Tabs must work within the current mobile web/Capacitor architecture.
+
+Preserve accessibility and keyboard semantics where applicable.
+
+# 3. TRIP TAB
+
+Trip Planning is the FIRST content below the tabs.
+
+Do not insert a trip-summary block above it.
+
+## Trip Planning preview
+
+Show at most the TWO newest planning items using the existing deterministic ordering and current persisted fields.
+
+Preserve the approved compact treatment:
+
+TRIP PLANNING
+N shared                                      All ideas >
+
+CATEGORY
+Planning content
+Author · date
+
+CATEGORY
+Planning content
+Author · date
+
++ Share an idea or link
+
+Use ONLY real supported planning data/category values.
+
+Do not invent a planning-title field.
+
+If the current object is body-only, render the existing content honestly.
+
+Preserve existing planning permissions and actions.
+
+Do not implement invited-user read-only planning permissions in this batch if the readiness audit classifies that as later work.
+
+## Stay
+
+REMOVE the canonical Stay block from the target Trip Detail UI.
+
+Important:
+
+- do not delete Stay data
+- do not migrate Stay data
+- do not change Stay models
+- do not remove unrelated Stay functionality elsewhere
+- simply do not render the old Stay section in the new Trip Detail target
+
+Lodging may still appear as Trip Planning content where current data supports it.
+
+# 4. PEOPLE TAB
+
+Implement the approved People structure.
+
+Order:
+
+1. sentence-style group summary
+2. Participation graphic
+3. join requests, when applicable
+4. group heading + Invite
+5. grouped participant roster
+
+Do NOT implement the Passes graphic in this batch if the readiness audit requires the normalized pass projection planned for Batch 2.
+
+Do not fake it from unsafe/incomplete data merely to match the mockup.
+
+## Sentence summary
+
+Use current canonical participation state.
+
+Examples conceptually:
+
+Three of you are going.
+
+1 interested · 1 invited, no reply yet
+
+If join requests exist, the supporting sentence may also communicate that fact using existing request data.
+
+Generate the language from actual counts.
+
+Handle singular/plural correctly.
+
+Do not double-count the organizer.
+
+## Participation graphic
+
+Implement the approved full-width segmented distribution bar using existing safe participation counts.
+
+Represent:
+
+- Going
+- Interested
+- Invited
+
+Use the approved synthesis as the visual reference.
+
+Segment width must represent the actual counts.
+
+Do not add:
+
+- skiers vs snowboarders
+- pass compatibility
+- analytics-style charts
+- pie/donut charts
+
+## Join requests
+
+For organizer views, render existing pending join requests after the Participation overview and before the regular roster.
+
+Reuse canonical existing Accept and Decline actions.
+
+Use:
+
+Decline | Accept
+
+Do not create new lifecycle logic.
+
+Do not change authorization.
+
+Do not create a new request state.
+
+Do not change notifications or side effects.
+
+## Group heading / Invite
+
+Use a compact group heading with the existing Invite action.
+
+Conceptually:
+
+THE GROUP · N people                         Invite >
+
+Reuse the current invite flow.
+
+Do not redesign or replace the underlying Invite sheet/flow in this batch.
+
+Preserve current authorization.
+
+## Roster
+
+Replace the large participant treatment with the approved compact grouped roster.
+
+Relevant groups:
+
+ORGANIZING
+GOING
+INTERESTED
+INVITED
+
+Only render groups supported by actual current state.
+
+Rows should use existing safe data for:
+
+- name
+- riding type
+- ability
+- pass, where currently available/safe
+
+Do not create profile bubbles, photos, avatars, or initials.
+
+Use the approved typography-led row treatment.
+
+Person-row navigation must use the existing Friend Profile route ONLY where current authorization safely permits it.
+
+Do not broaden profile access.
+
+## Dense groups
+
+Support in-place expansion for larger groups.
+
+A status group may initially show a compact preview followed by:
+
+Show N more going ↓
+
+Expansion occurs IN PLACE.
+
+Do not open a new page or modal merely to expand the roster.
+
+Do not establish a permanent product rule for the preview cap in this batch. Choose the smallest implementation constant necessary to reproduce the approved behavior cleanly and make it easy to change later.
+
+# 5. YOU TAB
+
+The conceptual structure is:
+
+FROM YOUR PROFILE
+
+then:
+
+FOR THIS TRIP
+
+Do not recreate the old My Setup block.
+
+## From Your Profile
+
+Show current user's existing profile-derived:
+
+RIDING
+Skier · Advanced
+
+PASS
+Epic
+
+Use actual current fields and current display vocabulary.
+
+These are profile-derived.
+
+Do not create trip-specific copies.
+
+Include the existing safe profile-management entry point where appropriate.
+
+Do NOT add Buddy Passes.
+
+## For This Trip — Status
+
+Show the viewer's current trip relationship.
+
+Organizer:
+
+Organizing
+
+Participant:
+
+Going / Interested
+
+Reuse canonical existing Going ↔ Interested transition behavior.
+
+Do not create a new RSVP state machine.
+
+Do not introduce Planning → Confirmed.
+
+# 6. AVAILABILITY
+
+Show the current user's own availability against the trip's inclusive calendar dates.
+
+Never expose another user's raw availability.
+
+Use the approved compact day-strip treatment.
+
+Support display states for:
+
+- all trip dates available
+- some trip dates available
+- no availability entered for the trip dates
+
+Example conceptual structure:
+
+AVAILABILITY
+
+Available 2 of 4 days
+Jan 15–16
+
+FRI   SAT   SUN   MON
+15    16    17    18
+━━    ━━    ┄─    ┄─
+
+Update >
+
+Use actual date calculations.
+
+Trip start/end are inclusive for this display.
+
+Do not invent partial-day semantics if the current model does not support them.
+
+Reuse current availability logic/service.
+
+If the existing editor can be safely linked/reused without new API or permission work, preserve the appropriate Add/Update action.
+
+Do NOT create the Batch 2+ embedded availability editor architecture in this task.
+
+# 7. EQUIPMENT
+
+Equipment is trip-specific.
+
+Use existing participant equipment state and existing supported values only.
+
+Make it directly selectable from You using existing safe mutation behavior.
+
+Do not invent new enum values.
+
+Do not create schema changes.
+
+# 8. LESSONS
+
+Lessons is trip-specific.
+
+Use the existing canonical yes/no/maybe state and existing transition/action behavior.
+
+Make it directly selectable from You.
+
+Do NOT implement a new unanswered/null lesson state.
+
+Do NOT implement a Lessons migration.
+
+Do NOT use Lessons as evidence for an incomplete You badge in this batch.
+
+# 9. YOU ATTENTION BADGE
+
+Do NOT implement the final You incomplete-items badge in this batch unless the readiness audit explicitly proves it can be computed honestly with the current data.
+
+The audit identified Lessons unanswered-state semantics as later work.
+
+Do not fake completion state.
+
+# 10. CANCEL TRIP
+
+Organizer only.
+
+Use the existing canonical cancellation lifecycle.
+
+Move/present the action according to the approved synthesis.
+
+Require confirmation before invoking the existing cancellation action.
+
+Conceptually:
+
+Cancel Northstar trip?
+
+Are you sure you want to cancel this trip?
+
+Keep trip
+Cancel trip
+
+Use actual mountain/trip naming where appropriate.
+
+Do not invent notification consequences.
+
+Do not change cancellation semantics.
+
+Do not hard-delete data if the existing lifecycle retains history.
+
+# 11. LEAVE TRIP
+
+Participant only.
+
+Leave Trip is separate from Going ↔ Interested.
+
+Use the existing canonical leave lifecycle.
+
+Require confirmation.
+
+Do not reinterpret Leave as Not Going if current backend semantics differ.
+
+Preserve history/cooldown/rejoin behavior exactly as currently implemented.
+
+# 12. PAST / CANCELLED TRIPS
+
+Past and cancelled Trip Detail must retain:
+
+- mountain identity
+- location
+- dates
+- appropriate historical context
+
+Suppress mutating controls according to existing lifecycle rules.
+
+Do not reproduce the current defect where mountain identity disappears.
+
+Do not render an empty Stay shell.
+
+# 13. DO NOT BUILD THESE YET
+
+Explicitly exclude:
+
+- This Mountain social counts/lists
+- upcoming friend-trip count
+- friends visited count
+- wishlist friend count
+- Pass distribution graphic/projection
+- People request attention badge
+- final deterministic roster projection refactor
+- You incomplete badge
+- Lessons unanswered-state migration
+- reduced non-participant friend Trip Detail
+- non-participant lightweight Interested signal
+- invited-user read-only Trip Planning
+- new mountain inverse-list destinations
+- new profile visibility rules
+- pass compatibility
+- Buddy Passes
+- new planning-title field
+- Planning → Confirmed lifecycle
+- schema migrations
+
+If implementation pressure suggests one of these is necessary, STOP and report the dependency rather than silently expanding scope.
+
+# 14. VISUAL CONSTRAINTS
+
+The synthesis is approved.
+
+Do not redesign it.
+
+ABSOLUTELY NO:
+
+- profile photos
+- profile bubbles
+- avatar circles
+- initials avatars
+- circular initials
+- resort photography
+- mountain photography
+- stock ski imagery
+- decorative mountain silhouettes
+- generic dashboard cards
+- pie charts
+- donut charts
+
+Keep the editorial, restrained, information-dense BaseLodge character from the approved synthesis.
+
+# 15. MOBILE / CAPACITOR
+
+BaseLodge uses Capacitor.
+
+Treat the target as a mobile-first interface running inside the existing web/Capacitor architecture.
+
+Verify:
+
+- 360px width
+- 390px width
+- current desktop/web behavior where applicable
+- touch targets
+- sticky/tab behavior
+- overflow
+- modal/confirmation behavior
+- safe-area behavior where existing app conventions require it
+- no hover-only interactions
+- no layout that depends on desktop viewport assumptions
+
+Do not introduce native-only architecture.
+
+# 16. REQUIRED TESTS
+
+Add/update tests necessary to protect this implementation.
+
+At minimum cover:
+
+- organizer normal
+- Trip selected by default
+- planning preview with 0 items
+- 1 item
+- 2 items
+- 3+ items
+- newest-first preview
+- Stay absent from new Trip Detail UI
+- stored Stay data untouched
+- organizer counted once
+- Going / Interested / Invited counts
+- participation summary grammar
+- participation bar values
+- grouped roster
+- dense roster expansion
+- join-request authorization
+- Decline / Accept actions
+- Invite organizer authorization
+- profile-derived Riding / Ability / Pass
+- Going ↔ Interested
+- full availability
+- partial availability
+- no matching availability
+- inclusive date calculation
+- Equipment supported states
+- Lessons existing yes/no/maybe states
+- no fake Lessons unanswered state
+- Cancel confirmation
+- cancellation idempotency/history
+- Leave confirmation
+- leave lifecycle/history
+- past trip retains mountain identity
+- cancelled trip retains mountain identity
+- private-trip privacy
+- invited/pending privacy
+- no broadened Friend Profile access
+
+Preserve existing query-budget tests.
+
+Do not solve the redesign by introducing obvious N+1 behavior.
+
+# 17. RELEVANT SOURCE
+
+Start with:
+
+app.py
+models.py
+services/rsvp_transitions.py
+services/open_dates.py
+services/visibility.py
+templates/trip_detail.html
+templates/partials/trip_detail_planning_region.html
+templates/trip_planning.html
+templates/friend_profile.html
+
+Tests:
+
+tests/test_trip_detail_planning_preview.py
+tests/test_trip_detail_setup.py
+tests/test_trip_detail_query_budget.py
+tests/test_trip_detail_friend_overlaps.py
+tests/test_bl78_rsvp_transition_routes.py
+tests/test_bl133_visibility.py
+tests/test_trip_organizer_participants.py
+tests/test_trip_deletion.py
+tests/test_open_dates_contract.py
+
+Also inspect any directly relevant code identified by:
+
+12-trip-detail/TRIP-DETAIL-IMPLEMENTATION-READINESS.md
+
+# 18. EXECUTION ORDER
+
+Before mutation:
+
+1. Inspect the readiness audit.
+2. Inspect current Trip Detail code.
+3. Inspect the approved synthesis.
+4. Map each Batch 1 requirement to existing data/action.
+5. Identify any requirement that unexpectedly needs Batch 2+ work.
+
+If a locked Batch 1 requirement cannot be implemented without schema, authorization, or lifecycle changes:
+
+STOP before making that expansion.
+
+Report the blocker.
+
+Otherwise implement Batch 1.
+
+# 19. VERIFICATION
+
+After implementation:
+
+Run the targeted Trip Detail suite plus all directly affected RSVP, visibility, invite, cancellation, availability, and query-budget tests.
+
+Then inspect representative rendered states at minimum:
+
+- organizer normal
+- Going participant
+- Interested participant
+- invited/pending
+- past
+- cancelled
+- sparse roster
+- dense roster
+
+Inspect at both:
+
+- 360px
+- 390px
+
+Compare the resulting Trip / People / You screens against the approved synthesis.
+
+Do not make independent aesthetic changes during verification.
+
+# 20. FINAL RESPONSE
+
+When complete, report:
+
+1. What changed
+2. Files changed
+3. Tests added/updated
+4. Exact test results
+5. Any intentional differences from the approved synthesis and why
+6. Anything deferred because it belongs to Batch 2+
+7. Whether query-budget tests still pass
+8. Whether 360px and 390px visual verification passed
+9. Any remaining blockers
+
+Do NOT publish.
+
+Do NOT deploy.
+
+Do NOT push to Git.
+
+Stop after implementation and verification so I can review the result.
