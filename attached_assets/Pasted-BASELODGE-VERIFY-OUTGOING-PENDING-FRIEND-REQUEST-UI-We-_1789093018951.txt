@@ -1,0 +1,207 @@
+BASELODGE — VERIFY OUTGOING PENDING FRIEND REQUEST UI
+
+We completed the friend-request lifecycle investigation.
+
+The investigation found that the CURRENT codebase is already intended to support the desired behavior:
+
+Charles sends Eric a friend request from Suggested Friends
+→ Eric remains visible in Charles's Suggested Friends
+→ Eric's row changes from "Connect" to actionable "Requested"
+→ Charles can use that state to withdraw the request
+→ after withdrawal the row displays "Request withdrawn" during the 24-hour cooldown.
+
+However, this does NOT match the actual UI behavior we observed.
+
+Observed behavior:
+
+After Charles sent Eric a friend request:
+
+1. Eric did not appear in Charles's Friends list.
+   - This is expected because they are not reciprocal friends yet.
+
+2. Eric ALSO did not appear in Charles's Suggested Friends tab.
+   - This is NOT expected according to the current implementation.
+
+3. Charles therefore had no visible "Requested" state and no way from this UI to withdraw the pending invitation.
+
+We now need to determine why the live/runtime behavior does not match the current code.
+
+DO NOT redesign the friend system.
+
+The desired behavior already exists conceptually. Debug the discrepancy.
+
+STEP 1 — VERIFY THE CURRENT IMPLEMENTATION
+
+Confirm the findings from the prior investigation in the actual current working tree.
+
+Specifically verify:
+
+- `services/friend_suggestions_paging.py`
+- `load_suggestions_page(...)`
+- `templates/friends.html`
+- `templates/components/friends_suggestion_rows.html`
+- `frSuggConnect(...)`
+- `frSuggCancelRequest(...)`
+- `GET /api/friends/suggestions/page`
+- `POST /api/friends/suggestions/connect`
+- `DELETE /api/friends/invite/<invitation_id>`
+
+Confirm that outgoing pending invitations are supposed to produce:
+
+- `has_outgoing_request`
+- `outgoing_invitation_id`
+
+and that the UI is supposed to render an actionable `Requested` state.
+
+STEP 2 — REPRODUCE THE CHARLES → ERIC CASE
+
+Using safe development/test data only, reproduce this exact lifecycle:
+
+A. Charles has Eric as an active Suggested Friend.
+B. Charles sends Eric a friend request.
+C. Request succeeds.
+D. Reload Charles's Suggested Friends from the server.
+
+Inspect:
+
+- FriendSuggestion row before request
+- Invitation row after request
+- FriendSuggestion row after request
+- API response from `/api/friends/suggestions/page`
+- rendered row state
+
+Determine exactly where Eric disappears.
+
+We need to know whether the failure is:
+
+A. DATA
+The FriendSuggestion is being dismissed/deleted/expired unexpectedly.
+
+B. QUERY
+The FriendSuggestion still exists, but the paging query excludes Eric.
+
+C. STATE PROJECTION
+Eric is returned, but `has_outgoing_request` or `outgoing_invitation_id` is incorrect/missing.
+
+D. TEMPLATE
+Correct state reaches the template but the row is not rendered.
+
+E. CLIENT
+The server response/rendering is correct, but JavaScript removes or fails to restore Eric.
+
+F. DEPLOYMENT/VERSION
+The current working tree contains the fix but the deployed/runtime application is running an older implementation.
+
+G. SOMETHING ELSE
+Document it precisely.
+
+STEP 3 — CHECK THE ACTUAL SEND PATH
+
+The previous investigation says Suggested Friends uses:
+
+`frSuggConnect(...)`
+→ `POST /api/friends/suggestions/connect`
+→ `create_friend_request(...)`
+
+Verify that the UI Charles actually uses follows this exact path.
+
+Look for any alternate:
+- Connect handler
+- friendship endpoint
+- suggested-friend implementation
+- legacy UI
+- mobile/Capacitor path
+- targeted refresh path
+
+that could explain why the behavior differs.
+
+Remember BaseLodge runs through Capacitor, but the previous investigation found that Friends uses the same web/server-rendered implementation. Verify that assumption for this exact flow.
+
+STEP 4 — CHECK TARGETED REFRESH / CLIENT STATE
+
+Pay particular attention to what happens immediately after `frSuggConnect(...)` succeeds.
+
+Trace:
+
+Connect
+→ successful response
+→ local row mutation
+→ any targeted refresh
+→ any pagination refresh
+→ server response
+→ DOM replacement
+
+Determine whether Eric:
+
+- initially changes to Requested and later disappears,
+- disappears immediately,
+- only disappears after full reload,
+- or is absent only because the server query excludes him.
+
+STEP 5 — CHECK DEPLOYMENT PARITY
+
+Determine whether the currently deployed BaseLodge version includes the outgoing-pending Suggested Friends implementation found in the repository.
+
+Compare the relevant deployed behavior/build/version to the current working tree using whatever deployment metadata/version information is safely available.
+
+Do NOT deploy or republish anything.
+
+If the discrepancy is simply that the fix exists locally but has not reached production, state that clearly.
+
+STEP 6 — TEST THE EXACT EXPECTED STATE
+
+The required invariant is:
+
+IF:
+
+- Charles has an active FriendSuggestion for Eric
+- Charles and Eric are not reciprocal friends
+- Charles has a pending social Invitation to Eric
+
+THEN:
+
+Eric MUST remain returned in Charles's Suggested Friends results and MUST render:
+
+`Requested`
+
+with the correct outgoing invitation ID available for withdrawal.
+
+Verify whether the current code satisfies this invariant.
+
+STEP 7 — ONLY FIX IF ROOT CAUSE IS PROVEN
+
+If you identify a concrete code defect in the current working tree:
+
+- make the smallest safe fix necessary;
+- do not redesign the friend system;
+- preserve existing FriendSuggestion attribution;
+- preserve the canonical Invitation lifecycle;
+- preserve the 24-hour cooldown;
+- continue using the existing cancellation endpoint.
+
+Add or update regression tests for the exact failure.
+
+If the current working tree is already correct and the problem is deployment/version mismatch:
+
+STOP.
+
+Do not change code simply to create a diff.
+
+Report that deployment parity is the issue.
+
+OUTPUT:
+
+1. Reproduction result
+2. Exact point where Eric disappears
+3. Root cause
+4. Whether this is data, query, state projection, template, client, or deployment
+5. Files/functions involved
+6. Whether code was changed
+7. Exact fix, if any
+8. Tests added/updated
+9. Test results
+10. Whether production/deployed behavior still needs action
+
+Do not make unrelated changes.
+Do not redesign the Friends UI.
+Do not alter database schema unless you stop first and explain why it is absolutely necessary.
