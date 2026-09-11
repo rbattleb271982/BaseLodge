@@ -52,7 +52,7 @@ def _all_pages(viewer_id, section):
 
 
 def _trip_ids_from_html(html, css_class):
-    pattern = rf'class="{css_class}" data-trip-id="(\d+)"'
+    pattern = rf'class="[^"]*\b{css_class}\b[^"]*"[^>]*data-trip-id="(\d+)"'
     return [int(value) for value in re.findall(pattern, html)]
 
 
@@ -122,7 +122,7 @@ def test_total_order_preserves_owned_before_guest_ties(client):
         ]
 
 
-def test_history_keeps_all_owned_before_guest_rows(client):
+def test_history_is_chronological_with_owned_before_guest_ties(client):
     today = date.today()
     with app.app_context():
         viewer = _make_user("history-order-viewer")
@@ -149,8 +149,8 @@ def test_history_keeps_all_owned_before_guest_rows(client):
         rows = _all_pages(viewer.id, "history")
         assert [row.trip.id for row in rows] == [
             owned_new.id,
-            owned_old.id,
             guest_new.id,
+            owned_old.id,
             guest_old.id,
         ]
 
@@ -325,7 +325,14 @@ def test_attendance_lifecycle_and_authorization_membership(client):
         assert upcoming_by_id[going.id].attendance_start_date == going_participant.start_date
         assert upcoming_by_id[incomplete.id].attendance_start_date == incomplete.start_date
         assert upcoming_by_id[interested.id].attendance_start_date == interested.start_date
-        assert not (set(hidden.values()) & set(upcoming_by_id))
+        assert hidden[GuestStatus.PENDING] in upcoming_by_id
+        assert not (
+            {
+                hidden[GuestStatus.DECLINED],
+                hidden[GuestStatus.REMOVED],
+            }
+            & set(upcoming_by_id)
+        )
         assert unrelated_private.id not in upcoming_by_id
         assert terminal.id not in upcoming_by_id
         assert terminal.id not in history_ids
@@ -482,10 +489,10 @@ def test_initial_route_and_fragment_render_independent_pages(client):
     initial_html = initial.get_data(as_text=True)
     assert len(_trip_ids_from_html(initial_html, "trip-row")) == 20
     assert len(_trip_ids_from_html(initial_html, "past-row")) == 20
-    assert initial_html.count('class="my-trips-load-more"') == 2
+    assert initial_html.count("my-trips-load-more") == 2
 
     match = re.search(
-        r'data-section="upcoming"\s+data-cursor="([^"]+)"', initial_html
+        r'data-section="upcoming"[^>]+data-cursor="([^"]+)"', initial_html
     )
     assert match
     fragment = client.get(
@@ -496,7 +503,7 @@ def test_initial_route_and_fragment_render_independent_pages(client):
     assert payload["has_more"] is False
     assert payload["next_cursor"] is None
     assert len(payload["trip_ids"]) == 1
-    assert payload["html"].count('class="trip-row"') == 1
+    assert len(_trip_ids_from_html(payload["html"], "trip-row")) == 1
 
 
 def test_cancelled_trip_is_absent_from_initial_and_fragment_history(client):
@@ -538,7 +545,7 @@ def test_cancelled_trip_is_absent_from_initial_and_fragment_history(client):
     assert visible_id in payload["trip_ids"]
 
 
-def test_pending_invites_remain_complete_when_viewer_feeds_are_bounded(client):
+def test_pending_invites_share_the_bounded_chronological_feed(client):
     today = date.today()
     with app.app_context():
         viewer = _make_user("complete-invites-viewer")
@@ -557,9 +564,147 @@ def test_pending_invites_remain_complete_when_viewer_feeds_are_bounded(client):
 
     _login(client, viewer_id)
     html = client.get("/my-trips").get_data(as_text=True)
-    assert html.count("invited you to a trip") == 25
-    assert '<span class="tab-badge">25</span>' in html
-    assert '<button type="button"\n                    class="my-trips-load-more"' not in html
+    assert html.count("invited you") == MY_TRIPS_PAGE_SIZE
+    assert 'aria-label="25 invitations">25</span>' in html
+    assert "mine-load-more" in html
+
+
+def test_mine_projection_relationships_and_people_counts(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("mine-contract-viewer")
+        owner = _make_user("mine-contract-owner")
+        going_friend = _make_user("mine-contract-going")
+        interested_friend = _make_user("mine-contract-interested")
+        resort = _make_resort("Mine Contract Peak")
+
+        organized = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today + timedelta(days=1),
+            end_date=today + timedelta(days=2),
+        )
+        _add_participant(organized, going_friend, GuestStatus.GOING)
+        _add_participant(organized, interested_friend, GuestStatus.INTERESTED)
+
+        going = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=3),
+            end_date=today + timedelta(days=4),
+        )
+        _add_participant(going, viewer, GuestStatus.GOING)
+        _add_participant(going, interested_friend, GuestStatus.INTERESTED)
+
+        interested = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=5),
+            end_date=today + timedelta(days=6),
+        )
+        _add_participant(interested, viewer, GuestStatus.INTERESTED)
+        _add_participant(interested, going_friend, GuestStatus.GOING)
+        second_going = _make_user("mine-contract-second-going")
+        _add_participant(interested, second_going, GuestStatus.GOING)
+
+        invited = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=7),
+            end_date=today + timedelta(days=8),
+        )
+        _add_participant(invited, viewer, GuestStatus.PENDING)
+        _add_participant(invited, going_friend, GuestStatus.GOING)
+        _add_participant(invited, second_going, GuestStatus.GOING)
+
+        declined = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=9),
+            end_date=today + timedelta(days=10),
+        )
+        _add_participant(declined, viewer, GuestStatus.DECLINED)
+        removed = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=11),
+            end_date=today + timedelta(days=12),
+        )
+        _add_participant(removed, viewer, GuestStatus.REMOVED)
+        db.session.commit()
+
+        page = load_my_trips_page(viewer.id, "upcoming", today=today)
+        rows = {row.trip.id: row for row in page.rows}
+
+        assert [row.relationship for row in page.rows] == [
+            "organizing",
+            "going",
+            "interested",
+            "invited",
+        ]
+        assert rows[organized.id].others_count == 2
+        assert rows[going.id].others_count == 2
+        assert rows[interested.id].going_count == 2
+        assert rows[invited.id].going_count == 2
+        assert rows[invited.id].inviter_name == owner.first_name
+        assert declined.id not in rows
+        assert removed.id not in rows
+        assert page.pending_count == 1
+        assert page.total_count == 4
+
+
+def test_mine_rendering_uses_locked_labels_counts_and_invitation_actions(client):
+    today = date.today()
+    with app.app_context():
+        viewer = _make_user("mine-render-viewer")
+        owner = _make_user("mine-render-owner")
+        friend_one = _make_user("mine-render-one")
+        friend_two = _make_user("mine-render-two")
+        resort = _make_resort("Mine Render Peak")
+
+        organized = _make_trip(
+            viewer,
+            resort=resort,
+            start_date=today + timedelta(days=1),
+            end_date=today + timedelta(days=3),
+        )
+        _add_participant(organized, friend_one, GuestStatus.GOING)
+
+        interested = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=35),
+            end_date=today + timedelta(days=38),
+        )
+        _add_participant(interested, viewer, GuestStatus.INTERESTED)
+        _add_participant(interested, friend_one, GuestStatus.GOING)
+        _add_participant(interested, friend_two, GuestStatus.GOING)
+
+        invited = _make_trip(
+            owner,
+            resort=resort,
+            start_date=today + timedelta(days=12),
+            end_date=today + timedelta(days=14),
+        )
+        _add_participant(invited, viewer, GuestStatus.PENDING)
+        db.session.commit()
+        viewer_id = viewer.id
+
+    _login(client, viewer_id)
+    html = client.get("/my-trips").get_data(as_text=True)
+
+    assert "Organizing" in html
+    assert "+1 other" in html
+    assert "Interested" in html
+    assert "2 going" in html
+    assert ">Planning<" not in html
+    assert "You're a guest" not in html
+    assert "See where your season is taking shape." not in html
+    assert "Filter for a mountain" not in html
+    assert 'data-response="declined"' in html
+    assert 'data-response="choose"' in html
+    assert 'data-choice="going"' in html
+    assert 'data-choice="interested"' in html
 
 
 @pytest.mark.parametrize("source_count", [10, 50, 100, 500])

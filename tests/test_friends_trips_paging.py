@@ -349,13 +349,15 @@ def test_route_endpoints_and_lazy_group_details(client):
     _login(client, viewer_id)
     standard = client.get("/my-trips")
     assert standard.status_code == 200
-    assert "Loading friends' trips" in standard.get_data(as_text=True)
+    standard_html = standard.get_data(as_text=True)
+    assert "Loading friends' trips" not in standard_html
+    assert ">Friends'<" in standard_html
 
     direct = client.get("/my-trips?tab=friends")
     assert direct.status_code == 200
     html = direct.get_data(as_text=True)
-    assert html.count("data-unit-id=") == FRIENDS_TRIPS_PAGE_SIZE
-    assert "data-group-token=" in html
+    assert "Loading friends' trips" not in html
+    assert html.count("data-unit-id=") == 0
     assert "data-trip-id=" not in html
 
     first = client.get(

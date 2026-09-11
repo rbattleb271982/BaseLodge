@@ -1,0 +1,118 @@
+{% extends "base_app.html" %}
+{% from "components/my_trips_ledger.html" import ordinary_row, invite_row as ledger_invite %}
+{% block title %}BaseLodge — Trips{% endblock %}
+{% block topbar_title %}Trips{% endblock %}
+{% block topbar_right %}<a href="{{ url_for('season_snapshot') }}" class="bl-top-bar-action">Season Snapshot ›</a>{% endblock %}
+{% block head %}
+<style>
+.trips-ledger{max-width:680px;margin:0 auto;padding:0 0 calc(82px + env(safe-area-inset-bottom,0px));}
+.season-line{height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #e5dfd0;font-size:13px;color:#57534a;white-space:nowrap}
+.season-line strong{font-weight:700;color:#1a1a1a}.season-sep{margin:0 8px;color:#9b9388}.plan-link{color:#5c1219;text-decoration:none;font-weight:600;padding:14px 0 14px 12px;min-height:44px}
+.view-tabs{height:42px;display:flex;align-items:stretch;border-bottom:1px solid #ded7ca;padding:0 8px}
+.view-tab{position:relative;display:flex;align-items:center;gap:5px;padding:0 9px;border:0;background:none;font:500 13px/1 var(--bl-font-ui);color:#6e6a62;white-space:nowrap}
+.view-tab.active{color:#1a1a1a;font-weight:700}.view-tab.active:after{content:"";position:absolute;left:9px;right:9px;bottom:-1px;height:2px;background:#5c1219}
+.inventory{color:#6e6a62;font-weight:400}.attention{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:10px;background:#5c1219;color:#fff;font-size:11px;font-weight:700}
+.ledger-month{padding:11px 16px 7px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid #ded7ca;color:#6e6a62;font-size:10px;letter-spacing:1.5px;font-weight:700}
+.ledger-month-count{letter-spacing:0;font-size:12px;font-weight:400;color:#6e6a62}
+.ledger-row{position:relative;display:flex;align-items:center;min-height:62px;padding:10px 16px;border-bottom:1px solid #e5dfd0;color:inherit;text-decoration:none;background:transparent}
+.ledger-row-next{background:#f1ebe2}.ledger-row-next:before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:#5c1219}
+.ledger-row-next .ledger-mountain{font-weight:600}.ledger-row-main{display:block;min-width:0;width:100%}.ledger-row-top,.ledger-row-bottom{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0}
+.ledger-mountain{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15.5px;line-height:1.35;font-weight:500;color:#1a1a1a}.ledger-date{flex:none;white-space:nowrap;font-size:13px;line-height:1.35;color:#57534a;font-variant-numeric:tabular-nums}
+.ledger-row-bottom{margin-top:1px}.ledger-status{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;line-height:1.3;color:#57534a;font-weight:600;text-transform:uppercase;letter-spacing:.15px}.ledger-count{font-weight:400;text-transform:none;letter-spacing:0;color:#6e6a62}.ledger-dot{font-weight:400;color:#9b9388;text-transform:none}
+.ledger-invite{display:block;padding-top:10px;padding-bottom:9px;background:#fbf3f1;border-top:1px solid #d5b9b6;border-bottom:1px solid #d5b9b6}.ledger-invite .ledger-date{color:#5c1219}.ledger-invite .ledger-row-main{width:100%}.ledger-inviter{text-transform:none;font-weight:600;letter-spacing:0}
+.invite-actions{display:flex;justify-content:flex-end;gap:7px;margin-top:5px}.invite-btn{min-height:44px;padding:0 14px;border-radius:8px;font:600 12px var(--bl-font-ui);cursor:pointer;touch-action:manipulation}.invite-decline{background:transparent;border:1px solid #cdb6b5;color:#5c1219}.invite-accept{background:#5c1219;border:1px solid #5c1219;color:#fff}
+.ledger-row-past{color:#6e6a62}.ledger-row-past .ledger-mountain,.ledger-row-past .ledger-date{color:#6e6a62;font-weight:400}
+.earlier-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:48px;padding:0 16px;border:0;border-top:1px solid #d8d0c2;border-bottom:1px solid #d8d0c2;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui);text-align:left}.earlier-chevron{font-size:16px;line-height:1;transition:transform .15s ease}.earlier-toggle[aria-expanded="true"] .earlier-chevron{transform:rotate(180deg)}
+.empty-card{margin:18px 16px;padding:20px;background:#f0ddd8;border:1px solid #c79e9e;border-radius:8px}.empty-eyebrow{margin:0 0 7px;color:#5c1219;font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase}.empty-title{margin:0 0 5px;font:400 22px/1.25 var(--bl-font-serif)}.empty-copy{margin:0 0 16px;color:#57534a;font-size:14px;line-height:1.5}.empty-card .bl-cta-trip{font-size:15px}
+.quiet-line{padding:22px 16px;color:#6e6a62;font-size:14px}
+.mine-load-more{display:block;min-height:44px;margin:12px auto;padding:0 18px;border:1px solid #cdb6b5;border-radius:8px;background:transparent;color:#5c1219;font:600 13px var(--bl-font-ui)}
+.choice-backdrop{position:fixed;inset:0;z-index:500;background:rgba(26,26,26,.28);display:flex;align-items:flex-end;justify-content:center;padding:16px}.choice-sheet{width:100%;max-width:380px;background:#f5f1e8;border:1px solid #d8d0c2;border-radius:12px;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px))}.choice-title{margin:0 0 4px;font:400 20px/1.25 var(--bl-font-serif)}.choice-copy{margin:0 0 14px;color:#6e6a62;font-size:13px}.choice-actions{display:flex;gap:8px}.choice-actions button{flex:1;min-height:48px;border-radius:8px;font:600 13px var(--bl-font-ui);border:1px solid #cdb6b5;background:transparent;color:#5c1219}.choice-actions .choice-going{background:#5c1219;color:#fff;border-color:#5c1219}
+.choice-backdrop[hidden]{display:none}
+@media (min-width:680px){.trips-ledger{border-left:1px solid #e5dfd0;border-right:1px solid #e5dfd0}}
+</style>
+{% endblock %}
+{% block content %}
+<main class="trips-ledger" aria-label="My trips">
+  {% set mine = upcoming_rows or [] %}
+  {% set past = history_rows or [] %}
+  {% set invite_count = pending_invite_count|default(0) %}
+  {% set ahead = (upcoming_total_count|default(mine|length)) - invite_count %}
+  {% set past_count = history_total_count|default(past|length) %}
+  <div class="season-line">
+    <span>{% if ahead == 0 %}{% if past_count %}<strong>No trips ahead</strong>{% else %}No trips yet{% endif %}{% elif ahead == 1 %}<strong>1 trip ahead</strong>{% else %}<strong>{{ ahead }} trips ahead</strong>{% endif %}{% if past_count %}<span class="season-sep">·</span>{{ past_count }} already skied{% endif %}</span>
+    <a class="plan-link" href="{{ url_for('add_trip') }}">+ Plan a trip</a>
+  </div>
+  <nav class="view-tabs" aria-label="Trip views">
+    <button class="view-tab active" type="button" aria-current="page">Mine <span class="inventory">{{ ahead }}</span>{% if invite_count %}<span class="attention" aria-label="{{ invite_count }} invitations">{{ invite_count }}</span>{% endif %}</button>
+    <button class="view-tab" type="button" disabled>Both</button>
+    <button class="view-tab" type="button" disabled>Friends'</button>
+  </nav>
+
+  {% if mine %}
+    <div id="mine-upcoming-ledger">
+    {% set ns = namespace(last='', month_count=0) %}
+    {% for row in mine %}
+      {% set row_start = row.attendance_start_date or row.trip.start_date %}
+      {% set key = row_start.strftime('%Y-%m') if row_start else loop.index %}
+      {% if key != ns.last %}
+        {% if not loop.first %}</section>{% endif %}
+        {% set ns.last = key %}
+        {% set ns.month_count = 0 %}
+        {% for candidate in mine %}{% set candidate_start = candidate.attendance_start_date or candidate.trip.start_date %}{% set ckey = candidate_start.strftime('%Y-%m') if candidate_start else '' %}{% if ckey == key %}{% set ns.month_count = ns.month_count + 1 %}{% endif %}{% endfor %}
+        <section class="ledger-month-group">
+          <div class="ledger-month"><span>{{ (row_start.strftime('%B') if row_start else 'Season')|upper }}</span><span class="ledger-month-count">{{ ns.month_count }} trip{% if ns.month_count != 1 %}s{% endif %}</span></div>
+      {% endif %}
+      {% if row.is_invitation or (row.relationship or '')|lower == 'invited' %}{{ ledger_invite(row) }}{% else %}{{ ordinary_row(row, next_trip_id|default(None)) }}{% endif %}
+    {% endfor %}
+    </section>
+    </div>
+    {% if upcoming_has_more %}
+    <button type="button" class="my-trips-load-more mine-load-more" data-section="upcoming" data-target="mine-upcoming-ledger" data-cursor="{{ upcoming_next_cursor }}">Load more</button>
+    {% endif %}
+  {% else %}
+    <div class="empty-card"><p class="empty-eyebrow">Get started</p><h1 class="empty-title">Plan your first trip</h1><p class="empty-copy">Pick a mountain, choose your dates, and invite friends to join you.</p><a class="bl-cta-trip" href="{{ url_for('add_trip') }}">Plan a trip</a></div>
+  {% endif %}
+
+  {% if past %}
+  <section class="past-section">
+     <button class="earlier-toggle" type="button" aria-expanded="{{ 'true' if not mine else 'false' }}" aria-controls="earlier-rows"><span>Earlier this season <span class="earlier-chevron">⌄</span></span><span class="ledger-month-count">{{ past_count }} trip{% if past_count != 1 %}s{% endif %}</span></button>
+    <div id="earlier-rows" {% if mine %}hidden{% endif %}>
+      {% set pns = namespace(last='') %}
+      {% for row in past %}
+        {% set row_start = row.trip.start_date %}
+        {% set key = row_start.strftime('%Y-%m') if row_start else loop.index %}
+        {% if key != pns.last %}{% set pns.last = key %}<div class="ledger-month"><span>{{ (row_start.strftime('%B') if row_start else 'Season')|upper }}</span></div>{% endif %}
+        {{ ordinary_row(row, past=True) }}
+      {% endfor %}
+      {% if history_has_more %}
+      <button type="button" class="my-trips-load-more mine-load-more" data-section="history" data-target="earlier-rows" data-cursor="{{ history_next_cursor }}">Load more</button>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+</main>
+<div class="choice-backdrop" id="invite-choice" hidden>
+  <div class="choice-sheet" role="dialog" aria-modal="true" aria-labelledby="choice-title">
+    <h2 class="choice-title" id="choice-title">Join this trip?</h2>
+    <p class="choice-copy">Choose how you want to show up. You can change this later in trip details.</p>
+    <div class="choice-actions">
+      <button type="button" data-choice="interested">Interested</button>
+      <button type="button" class="choice-going" data-choice="going">Going</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  var token={{ (csrf_token() if csrf_token is defined else '')|tojson }};
+  document.querySelectorAll('.earlier-toggle').forEach(function(button){button.addEventListener('click',function(){var open=this.getAttribute('aria-expanded')==='true';this.setAttribute('aria-expanded',String(!open));document.getElementById(this.getAttribute('aria-controls')).hidden=open;});});
+  var choice=document.getElementById('invite-choice'), selectedId=null;
+  function respond(id,response,source){source.disabled=true;fetch('/trips/'+encodeURIComponent(id)+'/respond',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':token},credentials:'include',body:JSON.stringify({response:response})}).then(function(r){if(!r.ok)throw new Error();window.location.reload();}).catch(function(){source.disabled=false;if(window.blToast)blToast('That response could not be saved. Try again.');});}
+  document.querySelectorAll('.invite-btn').forEach(function(button){button.addEventListener('click',function(){var id=this.getAttribute('data-trip-id'), response=this.getAttribute('data-response');if(response==='choose'){selectedId=id;choice.hidden=false;return;}respond(id,response,this);});});
+  choice.querySelectorAll('[data-choice]').forEach(function(button){button.addEventListener('click',function(){if(!selectedId)return;respond(selectedId,this.getAttribute('data-choice'),this);choice.hidden=true;});});
+  choice.addEventListener('click',function(event){if(event.target===choice)choice.hidden=true;});
+  document.querySelectorAll('.mine-load-more').forEach(function(button){button.addEventListener('click',function(){var self=this;self.disabled=true;fetch('/api/my-trips/page?section='+encodeURIComponent(self.dataset.section)+'&cursor='+encodeURIComponent(self.dataset.cursor),{headers:{'Accept':'application/json'},credentials:'include'}).then(function(r){if(!r.ok)throw new Error();return r.json();}).then(function(payload){self.insertAdjacentHTML('beforebegin',payload.html);if(payload.has_more){self.dataset.cursor=payload.next_cursor;self.disabled=false;}else{self.remove();}}).catch(function(){self.disabled=false;if(window.blToast)blToast('More trips could not be loaded. Try again.');});});});
+})();
+</script>
+{% endblock %}

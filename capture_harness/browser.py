@@ -179,7 +179,7 @@ class CaptureRunner:
             page.add_style_tag(content="*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}")
             marker = {
                 "home": "[data-fr-region], .home-page-container", "friends": ".tab-bar",
-                "trips": ".tab-bar", "mountain-detail": "#md-social-region",
+                "trips": ".view-tabs, .ss-card", "mountain-detail": "#md-social-region",
                 "profile": ".profile-card", "system": "body",
             }.get(row["screen"], "main, .page-container, body")
             if row["state"] == "season-snapshot":
@@ -320,12 +320,20 @@ class CaptureRunner:
                     if button.count() and button.is_visible():
                         button.click()
                         page.wait_for_timeout(100)
-                    page.locator("#my-trips-upcoming-rows .trip-row").last.scroll_into_view_if_needed()
+                    page.locator("#mine-upcoming-ledger .trip-row").last.scroll_into_view_if_needed()
+                elif row["state"] == "history":
+                    toggle = page.locator(".earlier-toggle")
+                    if toggle.get_attribute("aria-expanded") != "true":
+                        toggle.click()
+                    page.wait_for_selector("#earlier-rows", state="visible")
+                    toggle.evaluate(
+                        "(el) => el.scrollIntoView({block: 'start', behavior: 'instant'})"
+                    )
                 elif row["state"] == "friends-trips":
                     page.locator(".tab-btn[data-tab='friends']").click()
                     page.wait_for_selector("#segment-friends.active", state="visible")
                 elif row["state"] == "pending-invites":
-                    page.get_by_text("Pending Invites", exact=True).scroll_into_view_if_needed()
+                    page.locator(".ledger-invite").first.scroll_into_view_if_needed()
             elif row["screen"] == "trip-detail":
                 target_tab = {
                     "people": "#td-tab-people",

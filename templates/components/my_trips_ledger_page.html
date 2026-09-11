@@ -1,0 +1,24 @@
+{% from "components/my_trips_ledger.html" import ordinary_row, invite_row %}
+{% set ns = namespace(last='') %}
+{% for row in rows %}
+  {% set row_start = row.attendance_start_date or row.trip.start_date %}
+  {% set key = row_start.strftime('%Y-%m') if row_start else loop.index %}
+  {% if key != ns.last %}
+    {% if not loop.first %}</section>{% endif %}
+    {% set ns.last = key %}
+    {% set month_count = namespace(value=0) %}
+    {% for candidate in rows %}
+      {% set candidate_start = candidate.attendance_start_date or candidate.trip.start_date %}
+      {% if candidate_start and candidate_start.strftime('%Y-%m') == key %}
+        {% set month_count.value = month_count.value + 1 %}
+      {% endif %}
+    {% endfor %}
+    <section class="ledger-month-group">
+      <div class="ledger-month">
+        <span>{{ (row_start.strftime('%B') if row_start else 'Season')|upper }}</span>
+        <span class="ledger-month-count">{{ month_count.value }} trip{% if month_count.value != 1 %}s{% endif %}</span>
+      </div>
+  {% endif %}
+  {% if row.is_invitation %}{{ invite_row(row) }}{% else %}{{ ordinary_row(row) }}{% endif %}
+{% endfor %}
+{% if rows %}</section>{% endif %}

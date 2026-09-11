@@ -1,0 +1,57 @@
+{# Batch 1: the compact, chronological Mine ledger. #}
+{% macro date_text(row) -%}
+  {% set start = row.attendance_start_date or row.trip.start_date %}
+  {% set end = row.attendance_end_date or row.trip.end_date %}
+  {% if start and end %}
+    {% if start == end %}{{ start.strftime('%-d') }}
+    {% elif start.month == end.month %}{{ start.strftime('%-d') }}–{{ end.strftime('%-d') }}
+    {% else %}{{ start.strftime('%-d') }}–{{ end.strftime('%b %-d') }}{% endif %}
+  {% else %}Dates TBD{% endif %}
+{%- endmacro %}
+
+{% macro count_text(row) -%}
+  {% set relation = (row.relationship or '')|lower %}
+  {% if relation in ['organizing', 'going'] %}
+    {% if row.others_count == 1 %}+1 other{% elif row.others_count > 1 %}+{{ row.others_count }} others{% endif %}
+  {% else %}
+    {% if row.going_count > 1 %}{{ row.going_count }} going{% endif %}
+  {% endif %}
+{%- endmacro %}
+
+{% macro ordinary_row(row, next_id=None, past=False) -%}
+  {% set relation = (row.relationship or '')|lower %}
+  {% set is_next = (next_id is not none and row.trip.id == next_id and not past) %}
+  <a class="{% if past %}past-row{% else %}trip-row{% endif %} ledger-row{% if is_next %} ledger-row-next{% endif %}{% if past %} ledger-row-past{% endif %}"
+     href="{{ url_for('trip_detail', trip_id=row.trip.id) }}"
+     data-trip-id="{{ row.trip.id }}">
+    <span class="ledger-row-main">
+      <span class="ledger-row-top">
+        <span class="ledger-mountain">{{ row.mountain_name }}{% if row.trip_location %}, {{ row.trip_location }}{% endif %}</span>
+        <span class="ledger-date">{{ date_text(row) }}</span>
+      </span>
+      {% if not past %}
+      <span class="ledger-row-bottom">
+        <span class="ledger-status">{{ relation|capitalize }}{% if count_text(row)|trim %}<span class="ledger-dot"> · </span><span class="ledger-count">{{ count_text(row) }}</span>{% endif %}</span>
+      </span>
+      {% endif %}
+    </span>
+  </a>
+{%- endmacro %}
+
+{% macro invite_row(row) -%}
+  <div class="trip-row ledger-row ledger-invite" data-trip-id="{{ row.trip.id }}">
+    <a class="ledger-row-main ledger-row-link" href="{{ url_for('trip_invite_detail', trip_id=row.trip.id) }}">
+      <span class="ledger-row-top">
+        <span class="ledger-mountain">{{ row.mountain_name }}{% if row.trip_location %}, {{ row.trip_location }}{% endif %}</span>
+        <span class="ledger-date">{{ date_text(row) }}</span>
+      </span>
+      <span class="ledger-row-bottom">
+        <span class="ledger-status ledger-inviter">{{ row.inviter_name or 'Someone' }} invited you{% if row.going_count > 1 %}<span class="ledger-dot"> · </span><span class="ledger-count">{{ row.going_count }} going</span>{% endif %}</span>
+      </span>
+    </a>
+    <span class="invite-actions">
+      <button type="button" class="invite-btn invite-decline" data-trip-id="{{ row.trip.id }}" data-response="declined">Decline</button>
+      <button type="button" class="invite-btn invite-accept" data-trip-id="{{ row.trip.id }}" data-response="choose">Accept</button>
+    </span>
+  </div>
+{%- endmacro %}

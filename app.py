@@ -5938,8 +5938,21 @@ def my_trips():
     _t = time.perf_counter()
     upcoming_page = load_my_trips_page(user.id, "upcoming", today=today)
     upcoming_rows = upcoming_page.rows
-    upcoming_trips = [row.trip for row in upcoming_rows if not row.is_guest]
-    accepted_guest_trips = [row.trip for row in upcoming_rows if row.is_guest]
+    next_trip_id = next(
+        (
+            row.trip.id for row in upcoming_rows
+            if not row.is_invitation
+        ),
+        None,
+    )
+    upcoming_trips = [
+        row.trip for row in upcoming_rows
+        if row.relationship == "organizing"
+    ]
+    accepted_guest_trips = [
+        row.trip for row in upcoming_rows
+        if row.relationship in {"going", "interested"}
+    ]
     if app.debug:
         print(
             f"[ROUTE_PERF] my_trips.upcoming={time.perf_counter()-_t:.4f}s "
@@ -5956,33 +5969,6 @@ def my_trips():
             f"count={len(history_rows)}"
         )
 
-    # Get trips where the user has a Pending RSVP.
-    invited_trips = []
-    invite_inviters = {}
-    try:
-        invited_participations = SkiTripParticipant.query.filter(
-            SkiTripParticipant.user_id == current_user.id,
-            SkiTripParticipant.status == GuestStatus.PENDING
-        ).all()
-        invited_trip_ids = [p.trip_id for p in invited_participations]
-        if invited_trip_ids:
-            invited_trips = SkiTrip.query.options(
-                db.joinedload(SkiTrip.resort)
-            ).filter(
-                SkiTrip.id.in_(invited_trip_ids),
-                active_or_legacy_trip_predicate(),
-                SkiTrip.end_date >= today
-            ).order_by(SkiTrip.start_date.asc()).all() or []
-            # Batch-load inviters (trip owner = inviter) — one query, no N+1
-            inviter_ids = list({t.user_id for t in invited_trips})
-            inviter_users = User.query.filter(User.id.in_(inviter_ids)).all() if inviter_ids else []
-            _inviter_map = {u.id: u for u in inviter_users}
-            invite_inviters = {t.id: _inviter_map.get(t.user_id) for t in invited_trips}
-    except Exception as e:
-        print(f"  ERROR fetching invited trips: {e}")
-        invited_trips = []
-        invite_inviters = {}
-
     # Friends' Trips is independent from the BL-158 viewer feeds. A direct
     # Friends-tab request receives its first bounded page; the normal tab does
     # no social-trip collection work and lets the client fetch on activation.
@@ -5995,7 +5981,7 @@ def my_trips():
             user.id, today=today
         )
     return render_template(
-        "my_trips.html",
+        "my_trips_redesign.html",
         user=user,
         upcoming_rows=upcoming_rows,
         history_rows=history_rows,
@@ -6005,8 +5991,10 @@ def my_trips():
         history_next_cursor=history_page.next_cursor,
         upcoming_trips=upcoming_trips or [],
         past_trips=past_trips or [],
-        invited_trips=invited_trips or [],
-        invite_inviters=invite_inviters or {},
+        invited_trips=[
+            row.trip for row in upcoming_rows if row.is_invitation
+        ],
+        invite_inviters={},
         accepted_guest_trips=accepted_guest_trips or [],
         active_tab=active_tab,
         friends=[True] if has_friends else [],
@@ -6023,6 +6011,10 @@ def my_trips():
             for option in friends_destinations
         ],
         friends_trips_loaded=friends_page is not None,
+        upcoming_total_count=upcoming_page.total_count,
+        pending_invite_count=upcoming_page.pending_count,
+        history_total_count=history_page.total_count,
+        next_trip_id=next_trip_id,
         today=today,
     )
 
@@ -6045,9 +6037,15 @@ def my_trips_page():
 
     # Render the focused fragment directly so full app-shell context processors
     # (notification and friend-request badges) do not add unrelated queries.
-    html = app.jinja_env.get_template("components/my_trips_rows.html").render(
+    template_name = (
+        "components/my_trips_ledger_page.html"
+        if section == "upcoming"
+        else "components/my_trips_rows.html"
+    )
+    html = app.jinja_env.get_template(template_name).render(
         rows=page.rows,
         section=section,
+        today=date.today(),
     )
     return jsonify({
         "html": html,

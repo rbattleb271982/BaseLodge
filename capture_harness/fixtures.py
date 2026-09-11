@@ -283,7 +283,7 @@ def seed_all(database=None):
         )
         trips.append(t)
         viewer_status = (
-            GuestStatus.PENDING if i in (3, 9, 15)
+            GuestStatus.PENDING if i in (3, 9, 13, 15)
             else GuestStatus.INTERESTED if i in (2, 7, 11)
             else GuestStatus.GOING
         )
