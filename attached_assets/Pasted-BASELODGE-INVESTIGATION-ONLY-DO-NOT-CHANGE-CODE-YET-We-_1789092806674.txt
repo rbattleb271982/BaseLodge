@@ -1,0 +1,203 @@
+BASELODGE INVESTIGATION ONLY — DO NOT CHANGE CODE YET
+
+We need to investigate the current friend-request lifecycle, specifically outgoing pending friend requests.
+
+Context / observed behavior:
+
+Charles sent Eric a friend request / invitation.
+
+After the request was sent:
+- Eric does NOT appear in Charles’s Friends list.
+- Eric also does NOT appear in Charles’s Suggested Friends tab.
+- Charles therefore has no visible indication that an invitation to Eric is pending.
+- Charles also has no obvious UI path to withdraw/cancel that pending invitation.
+
+The attached screenshots show Charles’s current Friends and Suggested Friends states after the invitation was sent.
+
+This feels like a product/state-model gap: a sent-but-unaccepted invitation should probably remain visible somewhere to the sender as “Pending,” with a way to withdraw it. But DO NOT propose or implement the final UX yet. First determine exactly how the system currently works.
+
+INVESTIGATE THE FOLLOWING:
+
+1. FRIEND RELATIONSHIP / REQUEST DATA MODEL
+
+Identify all database tables, models, enums, fields, and statuses involved in:
+- friend relationships
+- sent friend requests
+- received friend requests
+- suggested friends / suggested connections
+- withdrawn/cancelled requests
+- accepted requests
+- rejected/declined requests
+
+Document the exact lifecycle/state machine that exists today.
+
+For example, determine whether the system distinguishes:
+- suggested
+- invitation sent
+- invitation received
+- pending
+- accepted
+- declined
+- withdrawn
+- blocked / hidden
+or whether some of those states are inferred rather than explicitly stored.
+
+2. WHAT HAPPENS WHEN CHARLES INVITES ERIC
+
+Trace the exact code path from the moment Charles taps the action that sends Eric a connection/friend invitation.
+
+Identify:
+- frontend handler
+- API endpoint / server action
+- validation
+- database mutation
+- resulting records/fields/statuses
+- any analytics events
+- any notification creation
+- any cache/query invalidation
+
+Show the before/after data state.
+
+3. WHY ERIC DISAPPEARS FROM CHARLES’S UI
+
+Trace the data/query logic powering:
+
+A. Friends tab
+B. Suggested Friends tab
+
+For each screen, identify the exact inclusion/exclusion rules.
+
+Specifically answer:
+
+- Why is Eric excluded from Friends?
+- Why is Eric excluded from Suggested Friends?
+- Is there currently any query returning Charles’s outgoing pending invitations?
+- If so, where is that data used?
+- If not, is the pending relationship only discoverable from Eric’s side or directly in the database?
+
+Look carefully for filtering such as:
+- exclude existing relationship IDs
+- exclude any pending requests
+- only show accepted friendships
+- only show untouched suggestions
+
+4. CURRENT WITHDRAW/CANCEL SUPPORT
+
+Search the entire codebase for functionality related to:
+- withdraw friend request
+- cancel friend request
+- revoke invitation
+- delete pending request
+- undo invite
+- remove outgoing request
+
+Determine:
+
+- Does a backend/API operation already exist?
+- Is there a frontend action somewhere that calls it?
+- What exact relationship statuses are allowed to use it?
+- Is it only available from some other screen?
+- Is it dead/unreachable code?
+- Is it covered by tests?
+
+If withdraw functionality exists, trace it end-to-end.
+
+If it does not exist, state that clearly.
+
+5. RECEIVER SIDE
+
+Trace what Eric sees after Charles sends the request.
+
+Document:
+- where incoming requests appear
+- how Eric accepts/declines
+- whether the request record is the same object Charles would need to withdraw
+- what happens if Charles withdraws before Eric acts
+- whether the current schema safely supports that transition
+
+6. SUGGESTED FRIENDS BEHAVIOR
+
+Investigate what “Suggested Friends” actually represents technically.
+
+Determine whether it is:
+- persisted suggestions
+- computed recommendations
+- explicit suggestions made by mutual friends
+- some combination
+
+Then determine what happens to a Suggested Friend record once an invitation is sent.
+
+Does it:
+- change status?
+- get deleted?
+- become hidden?
+- remain stored but excluded by the query?
+
+This is important because the likely UX fix may be to keep the person visible in Suggested Friends with a “Pending” state, but we need to understand whether that aligns with the existing data model.
+
+7. EDGE CASES
+
+Document current behavior for:
+
+- Charles sends request → Eric accepts
+- Charles sends request → Eric declines
+- Charles sends request → Charles wants to withdraw
+- Charles sends request → Eric tries to send Charles a request
+- duplicate invitation attempts
+- invitation withdrawn, then sent again
+- suggestion exists before request is sent
+- no suggestion exists before request is sent
+- one user unfriends the other later
+
+Identify any inconsistent or impossible states.
+
+8. TEST COVERAGE
+
+Find all relevant automated tests.
+
+List:
+- unit tests
+- API/integration tests
+- UI/E2E tests
+
+State what is currently covered and, especially, what is NOT covered about outgoing pending invitations and withdrawal.
+
+DO NOT WRITE NEW TESTS YET.
+
+9. OUTPUT
+
+Return a concise investigation report with these sections:
+
+A. Current friend-request state model
+B. Exact Charles → Eric send flow
+C. Why Eric disappears from Charles’s screens
+D. Current withdraw capability
+E. What Eric sees
+F. Suggested Friends behavior after invite
+G. Edge-case findings
+H. Relevant files/functions/endpoints/tables
+I. Test coverage gaps
+J. Root cause
+K. Recommended product/technical options
+
+For section K, give 2–3 possible approaches, but DO NOT IMPLEMENT THEM.
+
+One option should specifically evaluate:
+
+“Keep outgoing pending invitations visible to the sender, likely in Suggested Friends, with a clear Pending state and a Withdraw action.”
+
+For each option, explain:
+- UX implications
+- data-model implications
+- implementation complexity
+- risk
+- whether it uses existing backend support or requires new support
+
+IMPORTANT:
+- Investigation only.
+- Do not mutate the database.
+- Do not modify application code.
+- Do not create migrations.
+- Do not silently fix anything.
+- Cite exact file paths, function names, endpoints, table/model names, and status values.
+- If behavior differs between web and Capacitor/native shell, call that out explicitly.
