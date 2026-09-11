@@ -178,6 +178,17 @@ def seed_all(database=None):
         users["LIGHT"], resorts["big-sky"], FROZEN_TODAY + timedelta(days=25),
         FROZEN_TODAY + timedelta(days=27), "planning", True,
     )
+    for key, body in (
+        ("TD_PENDING", "Cabin details are saved for the invited group."),
+        ("TD_PAST", "Final lodging plan retained with trip history."),
+    ):
+        db.session.add(SkiTripPlanningPost(
+            trip_id=state_trips[key].id,
+            user_id=state_trips[key].user_id,
+            category="Lodging",
+            body=body,
+            created_at=datetime(2027, 1, 2),
+        ))
     state_trips["HOME_PENDING"] = _trip(
         users["EXTREME"], resorts["aspen"], FROZEN_TODAY + timedelta(days=1),
         FROZEN_TODAY + timedelta(days=3), "going", True,
@@ -281,12 +292,20 @@ def seed_all(database=None):
         else:
             _participant(t, heavy, viewer_status)
     registry["personas"]["HEAVY"]["trips"] = trips
-    # HT04 is the canonical narrow dense-roster capture: owner plus eight guests.
-    for dense_friend in friends[:8]:
+    # HT04 is the canonical narrow dense-roster capture: owner plus twelve guests.
+    for dense_friend in friends[:12]:
         if not SkiTripParticipant.query.filter_by(
             trip_id=trips[3].id, user_id=dense_friend.id
         ).first():
             _participant(trips[3], dense_friend, GuestStatus.GOING)
+    for requester in friends[12:15]:
+        db.session.add(Invitation(
+            sender_id=requester.id,
+            receiver_id=heavy.id,
+            trip_id=trips[3].id,
+            invite_type=InviteType.REQUEST,
+            status="pending",
+        ))
     posts = []
     for index, (trip, author) in enumerate(
         ((trips[3], heavy), (trips[6], friends[0]), (trips[7], friends[1])), 1
@@ -430,7 +449,7 @@ def validate_fixtures(database=None, registry=None):
     } | {t.id for t in SkiTrip.query.filter_by(user_id=heavy.id)}
     assert len(associated) == 15, "HEAVY must have exactly 15 associated trips"
     assert len({t.id for t in trips}) == 15
-    assert SkiTripParticipant.query.filter_by(trip_id=trips[3].id).count() == 9
+    assert SkiTripParticipant.query.filter_by(trip_id=trips[3].id).count() == 13
     assert {t.trip_status for t in trips} == {"planning", "going"}
     assert {t.lifecycle_state for t in trips} == {"active", "completed", "cancelled"}
     assert {t.is_public for t in trips} == {True, False}

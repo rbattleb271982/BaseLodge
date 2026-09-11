@@ -15475,9 +15475,10 @@ def trip_detail(trip_id):
 
     # Planning board access + post count
     can_plan = not is_terminal and can_access_trip_planning(trip, current_user)
+    can_view_planning = can_plan or is_invited or is_terminal
     planning_preview_posts = []
     planning_post_count = 0
-    if can_plan:
+    if can_view_planning:
         planning_post_count, planning_preview_posts = (
             _trip_detail_planning_preview_state(trip_id)
         )
@@ -15597,6 +15598,7 @@ def trip_detail(trip_id):
         today=date.today(),
         resorts_json=resorts_json,
         can_plan=can_plan,
+        can_view_planning=can_view_planning,
         planning_post_count=planning_post_count,
         planning_preview_posts=planning_preview_posts,
         planning_categories=PLANNING_CATEGORY_ORDER,

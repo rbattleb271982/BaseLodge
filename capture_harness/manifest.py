@@ -34,7 +34,7 @@ ROUTE_IDS = {
 SEGMENTS = {
     "home": ("top", "ideas-happening", "lower-intelligence"),
     "trips": ("top-upcoming", "continuation", "history", "friends-trips", "season-snapshot"),
-    "trip": ("hero", "people", "stay-transport", "planning", "organizer-actions", "modal-invite"),
+    "trip": ("hero", "people", "you", "stay-transport", "planning", "organizer-actions", "modal-invite"),
     "friends": ("top", "continuation", "suggestions", "filters-search"),
     "mountains": ("results", "filters"),
     "mountain": ("hero", "community"),
@@ -111,13 +111,16 @@ def build_manifest() -> list[dict[str, Any]]:
         add("create-trip","create-trip","typical" if state != "validation-error" else "edge",state,
             "/add_trip", "form", interaction=interaction, wait="trip-form-visible")
     # Trip detail.
-    td = [("organizer","heavy","hero"),("going","heavy","people"),("interested","typical","people"),
-          ("pending-invitee","edge","people"),("private","heavy","hero"),("past-read-only","edge","hero"),
+    td = [("organizer","heavy","hero"),("organizer-people","heavy","people"),("organizer-you","heavy","you"),
+          ("going","heavy","people"),("interested","typical","people"),
+          ("pending-invitee","edge","hero"),("private","heavy","hero"),("past-read-only","edge","hero"),
           ("empty-roster","light","people"),("dense-roster","heavy","people"),("planning-populated","heavy","planning"),
           ("invite-modal","heavy","modal-invite")]
     for state, persona, seg in td:
         trip_binding = {
             "organizer": "HT04",
+            "organizer-people": "HT04",
+            "organizer-you": "HT04",
             "going": "HT04",
             "interested": "TD_INTERESTED",
             "pending-invitee": "TD_PENDING",
@@ -200,8 +203,8 @@ MANIFEST = build_manifest()
 
 def validate_manifest(rows: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     rows = MANIFEST if rows is None else rows
-    if len(rows) != 104:
-        raise ValueError(f"capture manifest must contain exactly 104 rows (got {len(rows)})")
+    if len(rows) != 106:
+        raise ValueError(f"capture manifest must contain exactly 106 rows (got {len(rows)})")
     ids = [r["capture_id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise ValueError("capture IDs must be unique")

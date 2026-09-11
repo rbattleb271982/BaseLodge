@@ -341,15 +341,15 @@ def test_setup_chips_keep_single_open_editor_contract():
     assert "sourceEl.textContent = value ? 'For this trip' : 'From profile';" in TRIP_DETAIL_TEMPLATE
 
 
-def test_trip_detail_hub_has_summary_attention_and_progressive_rsvp_sections(client):
+def test_trip_detail_hub_has_flat_planning_and_progressive_rsvp_sections(client):
     with app.app_context():
         owner_id, trip_id, _participant_id = _setup_trip()
 
     html = _trip_html(client, owner_id, trip_id)
 
     assert 'class="page-container td-hub-page' in html
-    assert 'id="td-attention-heading"' in html
-    assert "Start planning together" in html
+    assert 'id="td-attention-heading"' not in html
+    assert "Start planning together" not in html
     assert 'id="td-setup-card"' in html
     assert 'id="td-rsvp-section"' in html
     assert 'class="td-roster"' in html
@@ -357,7 +357,7 @@ def test_trip_detail_hub_has_summary_attention_and_progressive_rsvp_sections(cli
     assert '<summary class="td-rsvp-summary"' not in html
     assert "The group" in html
     assert html.index('id="td-planning-heading"') < html.index(
-        '<section class="td-hub-attention'
+        'class="td-planning-compose-row"'
     )
     assert html.index('id="td-tab-trip"') < html.index('id="td-tab-people"')
     assert html.index('id="td-tab-people"') < html.index('id="td-tab-you"')
@@ -377,7 +377,8 @@ def test_trip_detail_hub_keeps_pending_invitee_view_only_and_sticky_rsvp(client)
     assert 'class="page-container td-hub-page page-container-with-sticky' in html
     assert 'class="sticky-action-container visible"' in html
     assert 'id="td-attention-heading"' not in html
-    assert 'id="td-planning-heading"' not in html
+    assert 'id="td-planning-heading"' in html
+    assert 'class="td-planning-compose-row"' not in html
     assert 'id="td-edit-toggle-btn"' not in html
     assert 'onclick="openParticipantDateSheet()"' not in html
     assert 'id="td-self-rsvp"' not in html

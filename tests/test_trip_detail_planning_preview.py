@@ -56,16 +56,19 @@ def test_active_planning_viewers_see_preview_and_composer(client, preview_setup,
     assert 'class="td-hub-planning td-hub-section"' in html
     assert "Share an idea or link" in html
     assert 'id="td-planning-sheet"' in html
-    assert "View all posts" in html
+    assert "All ideas" in html
 
 
-def test_pending_and_nonmembers_do_not_receive_planning_preview(client, preview_setup):
+def test_pending_invitees_receive_read_only_preview_and_nonmembers_remain_blocked(
+    client, preview_setup
+):
     pending_html = _detail_html(
         client, preview_setup["pending_id"], preview_setup["trip_id"]
     )
-    assert 'class="td-hub-planning td-hub-section"' not in pending_html
+    assert 'class="td-hub-planning td-hub-section"' in pending_html
     assert 'id="td-planning-sheet"' not in pending_html
-    assert "View all posts" not in pending_html
+    assert "All ideas" not in pending_html
+    assert 'class="td-planning-compose-row"' not in pending_html
 
     _login(client, preview_setup["outsider_id"])
     assert client.get(f"/trips/{preview_setup['trip_id']}").status_code == 404
@@ -92,7 +95,7 @@ def test_preview_is_newest_first_limited_to_two_and_keeps_total_count(
         client, preview_setup["owner_id"], preview_setup["trip_id"]
     )
 
-    assert "4 posts" in html
+    assert "4 shared" in html
     assert "oldest" not in html
     assert html.index(">newest</p>") < html.index(">middle</p>")
     assert ">older</p>" not in html
@@ -134,9 +137,9 @@ def test_empty_preview_keeps_compose_entry_and_full_board_link(client, preview_s
         client, preview_setup["owner_id"], preview_setup["trip_id"]
     )
 
-    assert "No posts yet" in html
+    assert "0 shared" in html
     assert "Share ideas and links with everyone going." in html
-    assert "View all posts" in html
+    assert "All ideas" in html
     assert 'href="/trips/{}/planning"'.format(preview_setup["trip_id"]) in html
 
 
@@ -191,7 +194,7 @@ def test_create_returns_canonical_one_request_presentation(client, preview_setup
     assert presentation["version"] == 1
     assert presentation["attention_action"] == "remove-planning"
     assert 'data-td-region="planning"' in html
-    assert "1 post" in html
+    assert "1 shared" in html
     assert "Food &amp; Drink" in html
     assert "&lt;script&gt;alert" in html
     assert "<script>alert" not in html
@@ -213,7 +216,7 @@ def test_create_presentation_is_newest_first_limited_to_two(client, preview_setu
         assert response.status_code == 201
 
     html = response.get_json()["presentation"]["planning_html"]
-    assert "4 posts" in html
+    assert "4 shared" in html
     assert "first" not in html
     assert html.index(">fourth</p>") < html.index(">third</p>")
     assert "second" not in html

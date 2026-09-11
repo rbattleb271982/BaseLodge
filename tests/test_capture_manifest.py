@@ -10,8 +10,8 @@ from capture_harness.manifest import (
 
 def test_manifest_shape_and_count():
     validate_manifest()
-    assert len(MANIFEST) == 104
-    assert len({r["capture_id"] for r in MANIFEST}) == 104
+    assert len(MANIFEST) == 106
+    assert len({r["capture_id"] for r in MANIFEST}) == 106
     required = {"capture_id", "product_area", "screen", "route_template", "persona",
                 "state", "viewport", "segment", "logical_route_bindings", "preconditions",
                 "interaction", "deterministic_wait_condition", "output_path", "rationale"}

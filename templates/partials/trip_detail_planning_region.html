@@ -1,12 +1,9 @@
 <section class="td-hub-planning td-hub-section" aria-labelledby="td-planning-heading" data-td-region="planning">
-    <p class="td-section-label" id="td-planning-heading">Trip planning</p>
+    <div class="td-section-heading">
+    <p class="td-section-label" id="td-planning-heading">Trip planning <span>{{ planning_post_count }} shared</span></p>
+    {% if can_plan %}<a class="td-planning-view-all" href="{{ url_for('trip_planning', trip_id=trip.id) }}">All ideas ›</a>{% endif %}
+    </div>
     <div class="td-planning-card">
-        <button type="button" class="td-planning-compose-row" onclick="openTripPlanningSheet()" aria-controls="td-planning-sheet">
-            <span class="td-planning-compose-icon" aria-hidden="true">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            </span>
-            <span>Share an idea or link…</span>
-        </button>
         {% if planning_preview_posts %}
         <div class="td-planning-preview-list">
             {% for post in planning_preview_posts %}
@@ -27,9 +24,11 @@
         {% else %}
         <p class="td-planning-empty">Share ideas and links with everyone going.</p>
         {% endif %}
-        <div class="td-planning-footer">
-            <p class="td-planning-count">{% if planning_post_count > 0 %}{{ planning_post_count }} post{{ 's' if planning_post_count != 1 else '' }}{% else %}No posts yet{% endif %}</p>
-            <a class="td-planning-view-all" href="{{ url_for('trip_planning', trip_id=trip.id) }}">View all posts <span aria-hidden="true">›</span></a>
-        </div>
+        {% if can_plan %}<button type="button" class="td-planning-compose-row" onclick="openTripPlanningSheet()" aria-controls="td-planning-sheet">
+            <span class="td-planning-compose-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </span>
+            <span>Share an idea or link</span>
+        </button>{% endif %}
     </div>
 </section>

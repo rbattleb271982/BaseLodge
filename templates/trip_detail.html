@@ -3,6 +3,7 @@
 {% block title %}BaseLodge — Trip{% endblock %}
 {% block topbar_left %}<a href="{{ url_for('my_trips') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
 {% block topbar_title %}Trips{% endblock %}
+{% block topbar_right %}{% endblock %}
 {% block head %}
 <style>
         /* ── Nav ── */
@@ -1863,6 +1864,80 @@
             font-size: 14px;
             font-weight: 650;
         }
+        /* ── Batch 1 synthesis: compact ledger treatment ── */
+        .td-hub-page { max-width: 430px; padding-top: 0; }
+        .td-header { margin: 0 0 0; padding: 14px 0 0; }
+        .td-mountain-name { font-family: var(--bl-font-serif); font-size: 26px; line-height: 1.05; color: #27231f; margin: 0; }
+        .td-mountain-header { margin-bottom: 2px; }
+        .td-location-label { margin: 0 0 10px; font-size: 11px; color: var(--bl-color-text-muted); }
+        .td-edit-link { min-height: 32px; font-size: 11px; padding-left: 12px; }
+        .td-header-dates { font-size: 16px; font-weight: 650; line-height: 1.3; margin: 0; }
+        .td-header-context { margin: 7px 0 14px; font-size: 10px; }
+        .td-header-context strong { font-size: 9px; }
+        .td-detail-tabs { margin: 0 -16px; padding: 0 16px; height: 42px; border-top: 0; border-bottom: 1px solid #e5dfd0; }
+        .td-detail-tab { height: 42px; padding: 0 0; margin-right: 24px; font-size: 12px; }
+        .td-hub-section { margin: 0; }
+        .td-section-label { margin: 16px 0 8px; font-size: 10px; letter-spacing: .12em; }
+        .td-hub-planning { margin: 0; }
+        .td-planning-card { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+        .td-planning-preview-list { border-top: 1px solid #e5dfd0; }
+        .td-planning-preview { padding: 9px 0 10px; border-bottom: 1px solid #e5dfd0; }
+        .td-planning-preview-meta { margin-bottom: 3px; font-size: 9px; }
+        .td-planning-preview-body { font-size: 13px; line-height: 1.3; }
+        .td-planning-preview-author { margin-top: 3px; font-size: 10px; }
+        .td-planning-compose-row { padding: 10px 0; border-bottom: 1px solid #e5dfd0; font-size: 12px; }
+        .td-planning-compose-icon { width: 18px; height: 18px; border-radius: 4px; }
+        .td-planning-footer { padding: 8px 0; border-top: 0; }
+        .td-planning-count { font-size: 10px; }
+        .td-planning-view-all { font-size: 11px; }
+        .td-planning-empty { padding: 8px 0; border-top: 1px solid #e5dfd0; font-size: 11px; }
+        [data-td-region="attention"], .td-hub-attention { display: none !important; }
+        .td-this-mountain { margin-top: 8px; }
+        .td-this-mountain .td-section-label { border-top: 1px solid #e5dfd0; padding-top: 14px; }
+        .td-this-mountain-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid #e5dfd0; text-decoration:none; color:inherit; }
+        .td-this-mountain-row strong { display:block; font-size:13px; font-weight:600; }
+        .td-this-mountain-row span { display:block; margin-top:2px; font-size:10px; color:var(--bl-color-text-muted); }
+        .td-this-mountain-row b { color:#a9a095; font-size:18px; font-weight:400; }
+        .td-cancel-trip-wrap { padding: 22px 0 26px; border-top: 0; }
+        .td-cancel-trip-note { margin-top: 7px; font-size: 10px; }
+        .td-profile-facts { gap: 12px; margin-bottom: 18px; }
+        .td-you-context, .td-people-supporting { margin-bottom: 10px; font-size: 11px; }
+        .td-profile-fact-label { margin-bottom: 3px; font-size: 9px; }
+        .td-profile-fact-value { font-size: 13px; }
+        .td-for-trip-label { margin-top: 2px; }
+        .td-setup-heading { margin: 16px 0 6px; font-size: 10px; text-transform: uppercase; letter-spacing:.12em; }
+        .td-setup-card { border: 0; border-radius: 0; background: transparent; margin-bottom: 0; }
+        .td-setup-row { min-height: 40px; padding: 8px 0; border-bottom: 1px solid #e5dfd0; background: transparent; }
+        .td-setup-row-label { flex-basis: 78px; font-size: 9px; }
+        .td-setup-row-value { font-size: 12px; }
+        .td-setup-icon, .td-swg-icon { display:none; }
+        .td-swg-card { border:0; border-radius:0; background:transparent; }
+        .td-availability { padding: 0 0 12px; border-bottom: 1px solid #e5dfd0; }
+        .td-day-strip { margin: 8px 0 8px; gap: 4px; }
+        .td-day-cell strong { margin: 2px 0 4px; font-size: 14px; }
+        .td-day-cell i { height: 4px; border-radius: 3px; }
+        .td-people-sentence { margin: 16px 0 4px; font-family:var(--bl-font-serif); font-size:20px; line-height:1.2; }
+        .td-participation-bar { height: 6px; margin-bottom: 8px; border-radius:0; }
+        .td-participation-legend { margin: 0 0 16px; gap: 6px 14px; font-size:10px; }
+        .td-section-heading { display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+        .td-section-heading .td-section-label { margin-bottom:8px; }
+        .td-section-heading .td-planning-view-all { margin-top:0; }
+        .td-section-label span { margin-left:6px; color:var(--bl-color-text-muted); font-weight:500; letter-spacing:0; text-transform:none; }
+        .td-pass-share { margin: 0 0 12px; }
+        .td-pass-share .td-group-heading { margin-bottom:2px; }
+        .td-pass-share-note { color:var(--bl-color-text-muted); font-size:10px; }
+        .td-pass-share-row { display:grid; grid-template-columns:42px 1fr 18px; align-items:center; gap:8px; margin:5px 0; color:var(--bl-color-text-muted); font-size:9px; letter-spacing:.08em; }
+        .td-pass-share-row i { display:block; height:6px; border-radius:2px; background:#e9e4db; overflow:hidden; }
+        .td-pass-fill { display:block; height:100%; background:#57524b; }
+        .td-pass-fill--none { background:#c7c0b7; }
+        .td-pass-share-row strong { color:#57524b; font-size:11px; font-weight:500; text-align:right; letter-spacing:0; }
+        .td-join-request-list { margin-bottom: 16px; border-radius:9px; }
+        .td-group-heading button { padding: 5px 0; font-size:11px; }
+        .td-person-status-heading { margin: 12px 0 2px; font-size:9px; }
+        .td-person-row { min-height: 34px; padding: 5px 0; border-bottom: 1px dashed #d9d1c6; }
+        .td-person-name { font-size:12px; }
+        .td-person-meta { font-size:10px; }
+        .td-roster-more { padding: 7px 0; font-size:11px; }
     </style>
 {% endblock %}
 
@@ -2028,32 +2103,24 @@
         </nav>
 
         <div data-td-region="trip" id="td-panel-trip" role="tabpanel" aria-labelledby="td-tab-trip">
-        {% if can_plan %}
+        {% if can_view_planning %}
         {% include "partials/trip_detail_planning_region.html" %}
         {% endif %}
 
-        <div data-td-region="attention">
-        {% if attention_items %}
-        <section class="td-hub-attention td-hub-section" aria-labelledby="td-attention-heading">
-            <p class="td-section-label">What needs attention</p>
-            <div class="td-attention-card">
-                <div class="td-attention-header">
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                    <h2 id="td-attention-heading">A few things to review</h2>
-                </div>
-                {% for item in attention_items %}
-                <a class="td-attention-item" href="{{ item.target }}"{% if item.kind %} data-td-attention="{{ item.kind }}"{% endif %}>
-                    <span class="td-attention-copy">
-                        <span class="td-attention-title">{{ item.title }}</span>
-                        <span class="td-attention-detail">{{ item.detail }}</span>
-                    </span>
-                    <span class="td-attention-chevron" aria-hidden="true">›</span>
-                </a>
-                {% endfor %}
+        <section class="td-this-mountain" aria-labelledby="td-this-mountain-heading">
+            <p class="td-section-label" id="td-this-mountain-heading">This mountain</p>
+            {% if trip_friend_overlaps %}
+            {% for item in trip_friend_overlaps %}
+            {% if item.friend_trip_linkable %}<a class="td-this-mountain-row" href="{{ url_for('friend_trip_details', trip_id=item.friend_trip_id) }}">{% else %}<div class="td-this-mountain-row">{% endif %}
+                <span><strong>{{ item.friend_name }} has a trip planned here</strong><span>{{ item.friend_trip_dates }}</span></span><b aria-hidden="true">›</b>
+            {% if item.friend_trip_linkable %}</a>{% else %}</div>{% endif %}
+            {% endfor %}
+            {% else %}
+            <div class="td-this-mountain-row td-this-mountain-row--empty">
+                <span><strong>No visible friend trips overlap these dates</strong><span>Your trip’s mountain and dates are still saved here.</span></span>
             </div>
+            {% endif %}
         </section>
-        {% endif %}
-        </div>
         {% if is_owner and not is_terminal %}
         <div class="td-cancel-trip-wrap">
             <button type="button" class="td-cancel-trip-link" onclick="openCancelTripSheet()">
@@ -2276,6 +2343,22 @@
             {% if _invited_count %}<span class="td-participation-invited" style="width:{{ (_invited_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
         </div>
         <div class="td-participation-legend"><span>{{ _going_count }} going</span><span>{{ _interested_count }} interested</span><span>{{ _invited_count }} invited</span></div>
+        {% set _epic = namespace(value=0) %}{% set _ikon = namespace(value=0) %}{% set _nopass = namespace(value=0) %}
+        {% for _pass_person in (going_participants + interested_participants + pending_participants) %}
+            {% set _pv = (_pass_person.user.pass_type or '')|lower %}
+            {% if 'epic' in _pv %}{% set _epic.value = _epic.value + 1 %}{% elif 'ikon' in _pv %}{% set _ikon.value = _ikon.value + 1 %}{% else %}{% set _nopass.value = _nopass.value + 1 %}{% endif %}
+        {% endfor %}
+        {% set _pass_total = _epic.value + _ikon.value + _nopass.value %}
+        {% if _pass_total > 0 %}
+        <div class="td-pass-share" aria-label="Passes, everyone on the trip">
+            <div class="td-group-heading"><p class="td-section-label">Passes</p><span class="td-pass-share-note">everyone on the trip</span></div>
+            {% for _label, _count, _class in [('Epic', _epic.value, 'epic'), ('Ikon', _ikon.value, 'ikon'), ('No pass', _nopass.value, 'none')] %}
+            {% if _count %}
+            <div class="td-pass-share-row"><span>{{ _label|upper }}</span><i><b class="td-pass-fill td-pass-fill--{{ _class }}" style="width:{{ (_count * 100 / _pass_total)|round(2) }}%"></b></i><strong>{{ _count }}</strong></div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
         {% endif %}
 
         {% if is_owner and pending_requests %}

@@ -329,6 +329,7 @@ class CaptureRunner:
             elif row["screen"] == "trip-detail":
                 target_tab = {
                     "people": "#td-tab-people",
+                    "you": "#td-tab-you",
                     "hero": "#td-tab-trip",
                     "planning": "#td-tab-trip",
                 }.get(row["segment"])
@@ -406,8 +407,15 @@ class CaptureRunner:
                     row["segment"],
                 )
             page.screenshot(path=str(screenshot))
+            dimensions = page.evaluate("""() => ({
+              scroll_width: document.documentElement.scrollWidth,
+              viewport_width: window.innerWidth
+            })""")
             metadata = {"capture_id": row["capture_id"], "url": page.url, "console_errors": errors,
                         "failed_requests": failed_requests, "screenshot": str(screenshot),
+                        "scroll_width": dimensions["scroll_width"],
+                        "viewport_width": dimensions["viewport_width"],
+                        "horizontal_overflow": dimensions["scroll_width"] > dimensions["viewport_width"],
                         "captured_at": datetime.now(timezone.utc).isoformat()}
             self._metadata.append(metadata)
             (self.output_dir / "run-metadata.json").write_text(json.dumps({"captures": self._metadata}, indent=2))
