@@ -1,0 +1,351 @@
+TRIPS REDESIGN — PRE-IMPLEMENTATION READINESS AUDIT
+
+Agent level: PLAN
+Estimated scope: ~10% of the eventual Trips redesign batch
+
+We have completed the design synthesis for the BaseLodge Trips screen. Before implementation, investigate the CURRENT codebase and answer the questions below.
+
+THIS IS READ-ONLY.
+
+Do not modify code.
+Do not modify tests or fixtures.
+Do not create migrations.
+Do not deploy or publish.
+Do not push Git.
+Do not “fix” anything you discover.
+
+The goal is to establish exactly what the existing data and behavior support so the implementation can be broken into safe batches.
+
+==================================================
+LOCKED PRODUCT STRUCTURE
+==================================================
+
+The redesigned Trips screen will eventually have three views:
+
+MINE
+“What am I doing?”
+
+- My organizing trips
+- My going trips
+- My interested trips
+- Pending trip invitations requiring my response
+- Invitations are actionable inline
+- Invitations do not appear in Both or Friends’
+
+BOTH
+“Where do my season and my friends’ season intersect?”
+
+- My actual trips
+- Relevant friend activity/opportunities
+- Must reuse/share the same underlying relevance logic as Home Ideas
+- Same-mountain/date overlap should generally annotate my trip rather than duplicate it
+- No pending invitations
+- Do not assume wishlist, availability, or friend attendance alone is sufficient relevance unless the existing Home Ideas logic says it is
+
+FRIENDS’
+“What are my friends doing?”
+
+- Visible friend trips
+- No invitations
+- Same mountain + exact same date range should consolidate into a single trip-centric row
+- Different date ranges remain separate
+- Consolidation must preserve participant/status information correctly
+
+All three views:
+- always grouped by month
+- no mountain filter
+- mountain-led rows
+- date right aligned
+- no duplicated status labels
+
+This audit does NOT implement any of this.
+
+==================================================
+AUDIT 1 — HEADCOUNT SEMANTICS
+==================================================
+
+Trace every count currently displayed for a trip on:
+
+- Trips / My Trips
+- Friends’ Trips
+- Home Ideas where applicable
+- Trip Detail where relevant
+
+Answer:
+
+1. When a current row says something such as “8 going,” does 8 include the current viewer?
+2. Does it include the organizer?
+3. If the viewer is the organizer, are they included in the same count?
+4. Which participant statuses contribute?
+5. Are pending invitations included?
+6. Are pending join requests included?
+7. Is the source a stored count or calculated projection?
+8. Is the semantic consistent across Trips, Home, and Trip Detail?
+
+Then determine the correct future grammar for:
+
+“+N others”
+
+Do NOT change the grammar yet.
+
+==================================================
+AUDIT 2 — PLANNING / GOING / INTERESTED SEMANTICS
+==================================================
+
+The current Trips UI apparently renders values including:
+
+GOING
+PLANNING
+YOU’RE A GUEST
+
+The proposed design uses concepts including:
+
+ORGANIZING
+GOING
+INTERESTED
+INVITED
+
+Trace the actual underlying data.
+
+For PLANNING specifically determine:
+
+1. Is PLANNING a stored status, derived presentation label, organizer state, or something else?
+2. What database/model field produces it?
+3. What actions transition a trip/user into or out of PLANNING?
+4. Is it semantically equivalent to Interested?
+5. Does Trip Detail represent the same person/state differently?
+6. Would mapping PLANNING → INTERESTED lose information or change meaning?
+7. What does YOU’RE A GUEST correspond to in the underlying participant model?
+
+Also identify exactly what a row such as:
+
+INTERESTED · 2 going
+
+would mean with the data currently available.
+
+Is “2”:
+- going participants,
+- interested participants,
+- all participants,
+- or something else?
+
+Do not recommend copy until the underlying semantics are established.
+
+==================================================
+AUDIT 3 — HOME IDEAS REUSE FOR BOTH
+==================================================
+
+This is particularly important.
+
+Trace the complete current Home Ideas implementation.
+
+Document:
+
+1. Where the candidate-generation logic lives.
+2. Where relevance/eligibility is determined.
+3. Every reason an Idea can be surfaced.
+4. How same-mountain/date overlap is detected.
+5. How availability is used.
+6. How wishlist data is used.
+7. How friend attendance is used.
+8. Privacy/visibility requirements.
+9. Reciprocal-friend requirements.
+10. Terminal/past trip exclusions.
+11. Deduplication rules.
+12. Dismissal behavior/state.
+13. Whether the reason/explanation is already represented as structured data or generated only for Home presentation.
+
+Then answer:
+
+Can Trips Both consume the SAME projection/service/helper without duplicating recommendation logic?
+
+If yes:
+- identify the reusable functions/services
+- identify what interface/output would need to be exposed to Trips
+- explain whether this requires refactoring versus simply calling existing logic
+
+If no:
+- explain precisely why
+
+Also specifically determine whether each of these, BY ITSELF, currently qualifies as a Home Idea:
+
+- Friend trip is on my wishlist
+- I am free during a friend trip
+- Multiple friends are going
+- Same mountain as one of my trips
+- Same mountain AND overlapping dates
+
+Do not invent new relevance rules.
+
+==================================================
+AUDIT 4 — INLINE INVITATION RSVP
+==================================================
+
+Mine will eventually show Accept / Decline directly on invitation rows.
+
+Trace the existing Trip Detail RSVP behavior.
+
+Determine:
+
+1. Existing endpoints/actions for Accept.
+2. Existing endpoints/actions for Decline.
+3. Authorization requirements.
+4. CSRF/form requirements.
+5. Invitation state transitions.
+6. Side effects.
+7. Notifications/history/audit effects.
+8. What happens to the trip after acceptance.
+9. What happens after decline.
+10. Whether the existing action can safely be reused from Trips without creating a second write path.
+
+Determine what the Trips page would need to do after either action:
+- reload,
+- redirect,
+- update projection,
+- etc.
+
+Do not add the controls.
+
+==================================================
+AUDIT 5 — FRIENDS’ TRIP CONSOLIDATION
+==================================================
+
+The future Friends’ view should consolidate rows when friends have:
+
+SAME normalized mountain/resort
+AND
+SAME exact trip date range
+
+Example:
+
+Dana: Indy Basin, Jan 12–15, Going
+Theo: Indy Basin, Jan 12–15, Going
+Marcus: Indy Basin, Jan 12–15, Going
+
+becomes one display row.
+
+Investigate whether the current query/data shape supports this safely.
+
+Determine:
+
+1. Current Friends’ Trips query/projection.
+2. Visibility/privacy filtering.
+3. Resort normalization.
+4. Date normalization.
+5. Duplicate handling.
+6. Whether multiple friends can point to the same underlying Trip versus separate trips with identical dates/resort.
+7. Whether grouping those two cases together would be semantically safe.
+
+IMPORTANT: investigate mixed participation states.
+
+Example:
+
+Dana — Going
+Theo — Interested
+Marcus — Going
+
+Same mountain and exact dates.
+
+Do NOT simply label the consolidated row “going.”
+
+Report what status information exists and propose safe display-projection options that preserve the underlying meaning.
+
+Also investigate organizer information and whether that matters to consolidation.
+
+==================================================
+AUDIT 6 — FRIENDS’ POPULATED STATE
+==================================================
+
+Claude noted that the design corpus did not contain a verified populated Friends’ Trips screen; one heavy capture remained at “Loading friends’ trips…”
+
+Investigate the actual application.
+
+Determine:
+
+1. Whether Friends’ Trips currently works with populated real/fixture data.
+2. Why the prior capture may have remained in Loading.
+3. Whether there is an actual loading/error defect.
+4. What the real rendered row contains today.
+5. What data is available to the redesign that was not visible in the design corpus.
+
+Do not fix any loading issue discovered.
+
+==================================================
+AUDIT 7 — IMPLEMENTATION DELTA
+==================================================
+
+After completing the investigation, classify every part of the locked redesign as:
+
+ALREADY SUPPORTED
+PRESENTATION ONLY
+PROJECTION / QUERY WORK
+SHARED-LOGIC REFACTOR
+NEW WRITE-SURFACE USING EXISTING ACTION
+NEW BACKEND BEHAVIOR
+MIGRATION REQUIRED
+
+Explicitly cover:
+
+- Mine projection
+- Both projection
+- Friends’ projection
+- month grouping
+- row headcounts
+- +N others grammar
+- organizing/going/interested labels
+- invitations in Mine
+- inline Accept/Decline
+- Friends’ consolidation
+- mixed-status consolidation
+- overlap annotations
+- Home Ideas reuse
+- Season Snapshot link
+- Plan a trip
+- removal of mountain filter
+- Earlier this season
+- empty states
+- terminal trips
+
+==================================================
+FINAL REPORT
+==================================================
+
+Return:
+
+1. EXECUTIVE SUMMARY
+
+2. VERIFIED DATA SEMANTICS
+A concise table for:
+- organizer
+- going
+- interested
+- planning
+- invited
+- guest
+- headcount
+- +N others
+
+3. HOME IDEAS → BOTH REUSE MAP
+
+4. INLINE RSVP REUSE MAP
+
+5. FRIENDS’ CONSOLIDATION FINDINGS
+
+6. FRIENDS’ CURRENT-STATE FINDINGS
+
+7. IMPLEMENTATION DELTA TABLE
+Include:
+Feature | Current support | Required work | Risk | Dependencies
+
+8. MIGRATION VERDICT
+Explicitly say whether any database migration is required.
+
+9. RECOMMENDED IMPLEMENTATION BATCHES
+Break the work into the smallest sensible ordered batches with dependencies.
+
+10. BLOCKERS / PRODUCT DECISIONS
+ONLY list questions that genuinely cannot be answered from the current codebase.
+
+Include exact file paths, functions, routes, model fields, and relevant line ranges as evidence.
+
+Again: investigation only. Make no changes.
