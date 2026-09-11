@@ -442,7 +442,7 @@ def test_trip_detail_people_uses_product_labels_counts_and_alpha_groups(client):
     assert "2 going" in people_panel
     assert "0 interested" in people_panel
     assert "1 invited" in people_panel
-    assert 'aria-label="2 Going, 1 Interested, 1 Invited"' in people_panel
+    assert 'aria-label="1 organizing, 2 going, 0 interested, 1 invited"' in people_panel
     assert 'aria-controls="td-rsvp-details"' not in people_panel
     assert 'id="td-rsvp-details"' not in html
 
@@ -464,7 +464,7 @@ def test_trip_detail_people_hides_zero_declined_count(client):
         "</section><!-- /td-hub-people -->", 1
     )[0]
 
-    assert "1 Interested" in people_panel
+    assert "1 Organizing" in people_panel
     assert "Declined" not in people_panel
 
 

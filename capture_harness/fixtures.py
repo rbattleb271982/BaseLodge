@@ -306,6 +306,19 @@ def seed_all(database=None):
             invite_type=InviteType.REQUEST,
             status="pending",
         ))
+    # HT04 also supplies deterministic populated This Mountain rows.  These
+    # reciprocal-friend signals intentionally do not alter HEAVY's own
+    # 15-trip fixture contract.
+    _trip(
+        friends[4],
+        resorts["indy-basin"],
+        FROZEN_TODAY + timedelta(days=8),
+        FROZEN_TODAY + timedelta(days=10),
+        "planning",
+        True,
+    )
+    friends[2].visited_resort_ids = [resorts["indy-basin"].id]
+    friends[3].wish_list_resorts = [resorts["indy-basin"].id]
     posts = []
     for index, (trip, author) in enumerate(
         ((trips[3], heavy), (trips[6], friends[0]), (trips[7], friends[1])), 1

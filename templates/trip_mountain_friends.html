@@ -1,0 +1,30 @@
+{% extends "base_app.html" %}
+{% block title %}BaseLodge — {{ title }}{% endblock %}
+{% block topbar_left %}<a href="{{ url_for('trip_detail', trip_id=trip.id) }}" class="bl-top-bar-back" aria-label="Back to trip">‹</a>{% endblock %}
+{% block topbar_title %}Trip friends{% endblock %}
+{% block topbar_right %}<span></span>{% endblock %}
+{% block head %}
+<style>
+    .tmf-heading { margin: 2px 0 4px; color:#27231f; font-family:var(--bl-font-serif); font-size:26px; font-weight:400; line-height:1.18; }
+    .tmf-context { margin:0 0 20px; color:var(--bl-color-text-muted); font-size:14px; line-height:1.4; }
+    .tmf-list { border-top:1px solid #E5DFD0; }
+    .tmf-row { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:52px; padding:11px 0; border-bottom:1px solid #E5DFD0; color:inherit; text-decoration:none; }
+    .tmf-name { margin:0; color:#27231f; font-size:16px; font-weight:600; line-height:1.3; }
+    .tmf-meta { margin:3px 0 0; color:var(--bl-color-text-muted); font-size:12px; line-height:1.35; }
+    .tmf-chevron { color:#a9a095; font-size:18px; font-weight:400; }
+</style>
+{% endblock %}
+{% block content %}
+<main class="page-container">
+    <h1 class="tmf-heading">{{ title }}</h1>
+    <p class="tmf-context">{{ trip.resort | resort_display if trip.resort else trip.mountain }}</p>
+    <div class="tmf-list" data-mountain-signal="{{ signal }}" data-matching-count="{{ matching_friends|length }}">
+        {% for friend in matching_friends %}
+        <a class="tmf-row" data-friend-id="{{ friend.id }}" href="{{ url_for('friend_profile', friend_id=friend.id) }}">
+            <span><strong class="tmf-name">{{ friend | display_name(current_user.id) }}</strong><span class="tmf-meta">{{ friend | identity_line }}</span></span>
+            <b class="tmf-chevron" aria-hidden="true">›</b>
+        </a>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}

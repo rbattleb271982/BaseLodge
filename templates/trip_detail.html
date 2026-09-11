@@ -1876,6 +1876,8 @@
         .td-detail-tabs { margin: 0; padding: 0; height: 44px; border-top: 0; border-bottom: 1px solid #E5DFD0; }
         .td-detail-tab { flex: 0 0 auto; height: 44px; min-height: 0; padding: 0; margin-right: 28px; border-bottom: 2px solid transparent; box-sizing: border-box; font-size: 14px; }
         .td-detail-tab[aria-selected="true"] { border-bottom-color: #5C1219; }
+        .td-detail-tab-count { margin-left: 4px; font-variant-numeric: tabular-nums; }
+        .td-detail-tab-attention { display:inline-flex; align-items:center; justify-content:center; min-width:16px; height:16px; margin-left:5px; padding:0 4px; border-radius:99px; background:#5C1219; color:#fff; font-size:10px; font-weight:700; line-height:1; vertical-align:1px; font-variant-numeric:tabular-nums; }
         .td-hub-section { margin: 0; }
         .td-section-label { margin: 20px 0 8px; padding-bottom: 0; border-bottom: 0; font-size: 11px; line-height: 1.3; letter-spacing: .1em; }
         .td-hub-planning { margin: 0; }
@@ -1927,9 +1929,10 @@
         .td-pass-share { margin: 0 0 16px; }
         .td-pass-share .td-group-heading { margin-bottom:4px; }
         .td-pass-share-note { color:var(--bl-color-text-muted); font-size:11px; }
-        .td-pass-share-row { display:grid; grid-template-columns:48px 1fr 20px; align-items:center; gap:8px; margin:6px 0; color:var(--bl-color-text-muted); font-size:11px; letter-spacing:.06em; }
+        .td-pass-share-row { display:grid; grid-template-columns:minmax(48px, max-content) minmax(0, 1fr) 20px; align-items:center; gap:8px; margin:6px 0; color:var(--bl-color-text-muted); font-size:11px; letter-spacing:.06em; }
         .td-pass-share-row i { display:block; height:6px; border-radius:2px; background:#e9e4db; overflow:hidden; }
         .td-pass-fill { display:block; height:100%; background:#57524b; }
+        .td-pass-fill--other { background:#8a857a; }
         .td-pass-fill--none { background:#c7c0b7; }
         .td-pass-share-row strong { color:#57524b; font-size:12px; font-weight:500; text-align:right; letter-spacing:0; }
         .td-join-request-list { margin-bottom: 20px; border-radius:9px; }
@@ -2007,12 +2010,6 @@
                 <strong>{% if is_owner %}Organizing{% elif is_invited %}Invited{% elif current_user_participant and current_user_participant.status.value == 'going' %}Going{% elif current_user_participant %}Interested{% else %}Trip member{% endif %}</strong>
                 · {% if trip.is_public %}Visible to friends{% else %}Private{% endif %}
             </p>
-            {% if false and friends_wishlist_count > 0 %}
-            <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(92,18,25,0.07);border-radius:20px;padding:5px 12px;margin:6px 0 0;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5C1219" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                <span style="font-size:13px;color:#5C1219;font-weight:500;">On {{ friends_wishlist_count }} friend{{ 's' if friends_wishlist_count != 1 else '' }}' wishlists</span>
-            </div>
-            {% endif %}
             {% if false %}<div class="td-meta-badges">
                 <div class="td-meta-badge" id="td-vis-badge">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -2099,7 +2096,7 @@
 
         <nav class="td-detail-tabs" aria-label="Trip detail sections" role="tablist">
             <button type="button" class="td-detail-tab" id="td-tab-trip" role="tab" aria-selected="true" aria-controls="td-panel-trip" onclick="selectTripDetailTab('trip')">Trip</button>
-            <button type="button" class="td-detail-tab" id="td-tab-people" role="tab" aria-selected="false" aria-controls="td-panel-people" onclick="selectTripDetailTab('people')">People</button>
+            <button type="button" class="td-detail-tab" id="td-tab-people" role="tab" aria-selected="false" aria-controls="td-panel-people" onclick="selectTripDetailTab('people')" aria-label="People, {{ people_projection.total }} associated people{% if pending_join_request_count %}, {{ pending_join_request_count }} join request{{ 's' if pending_join_request_count != 1 else '' }} waiting{% endif %}">People <span class="td-detail-tab-count">{{ people_projection.total }}</span>{% if pending_join_request_count %}<span class="td-detail-tab-attention" aria-hidden="true">{{ pending_join_request_count }}</span>{% endif %}</button>
             <button type="button" class="td-detail-tab" id="td-tab-you" role="tab" aria-selected="false" aria-controls="td-panel-you" onclick="selectTripDetailTab('you')">You</button>
         </nav>
 
@@ -2110,15 +2107,28 @@
 
         <section class="td-this-mountain" aria-labelledby="td-this-mountain-heading">
             <p class="td-section-label" id="td-this-mountain-heading">This mountain</p>
-            {% if trip_friend_overlaps %}
-            {% for item in trip_friend_overlaps %}
-            {% if item.friend_trip_linkable %}<a class="td-this-mountain-row" href="{{ url_for('friend_trip_details', trip_id=item.friend_trip_id) }}">{% else %}<div class="td-this-mountain-row">{% endif %}
-                <span><strong>{{ item.friend_name }} has a trip planned here</strong><span>{{ item.friend_trip_dates }}</span></span><b aria-hidden="true">›</b>
-            {% if item.friend_trip_linkable %}</a>{% else %}</div>{% endif %}
-            {% endfor %}
+            {% set upcoming_friends = mountain_social_friends.upcoming %}
+            {% set visited_friends = mountain_social_friends.visited %}
+            {% set wishlist_friends = mountain_social_friends.wishlist %}
+            {% if upcoming_friends or visited_friends or wishlist_friends %}
+            {% if upcoming_friends %}
+            <a class="td-this-mountain-row" data-mountain-signal="upcoming" href="{{ url_for('trip_mountain_friends', trip_id=trip.id, signal='upcoming') }}">
+                <span><strong>{{ upcoming_friends|length }} friend{{ ' has' if upcoming_friends|length == 1 else 's have' }} {{ mountain_name }} trip{{ '' if upcoming_friends|length == 1 else 's' }} planned</strong><span>Dates that could overlap with yours</span></span><b aria-hidden="true">›</b>
+            </a>
+            {% endif %}
+            {% if visited_friends %}
+            <a class="td-this-mountain-row" data-mountain-signal="visited" href="{{ url_for('trip_mountain_friends', trip_id=trip.id, signal='visited') }}">
+                <span><strong>{{ visited_friends|length }} friend{{ ' has' if visited_friends|length == 1 else 's have' }} visited {{ mountain_name }}</strong><span>People to ask about the mountain</span></span><b aria-hidden="true">›</b>
+            </a>
+            {% endif %}
+            {% if wishlist_friends %}
+            <a class="td-this-mountain-row" data-mountain-signal="wishlist" href="{{ url_for('trip_mountain_friends', trip_id=trip.id, signal='wishlist') }}">
+                <span><strong>{{ wishlist_friends|length }} friend{{ ' wants' if wishlist_friends|length == 1 else 's want' }} to ski {{ mountain_name }}</strong><span>People worth inviting</span></span><b aria-hidden="true">›</b>
+            </a>
+            {% endif %}
             {% else %}
             <div class="td-this-mountain-row td-this-mountain-row--empty">
-                <span><strong>No visible friend trips overlap these dates</strong><span>Your trip’s mountain and dates are still saved here.</span></span>
+                <span><strong>No friend signals for this mountain yet</strong><span>Your trip’s mountain and dates are still saved here.</span></span>
             </div>
             {% endif %}
         </section>
@@ -2324,46 +2334,32 @@
         </section><!-- /td-hub-your-trip -->
 
         <!-- People -->
-        <section class="td-hub-people td-hub-section" aria-label="Trip participants" data-td-region="people" id="td-panel-people" role="tabpanel" aria-labelledby="td-tab-people">
+        <section class="td-hub-people td-hub-section" aria-label="Trip participants" data-td-region="people" data-people-total="{{ people_projection.total }}" id="td-panel-people" role="tabpanel" aria-labelledby="td-tab-people">
         <!-- RSVP summary and groups -->
-        {% if going_participants or interested_participants or pending_participants or declined_participants %}
-        {% set _going_count = going_participants|length %}
-        {% set _owner_interested_ns = namespace(value=0) %}
-        {% for _person in interested_participants %}{% if _person.role and _person.role.value == 'owner' %}{% set _owner_interested_ns.value = 1 %}{% endif %}{% endfor %}
-        {% set _owner_interested = _owner_interested_ns.value %}
-        {% set _interested_count = interested_participants|length - _owner_interested %}
-        {% set _invited_count = pending_participants|length %}
-        {% set _people_count = _going_count + _interested_count + _invited_count %}
-        <p class="td-people-sentence">{{ _going_count }} of you {{ 'is' if _going_count == 1 else 'are' }} going.</p>
-        <p class="td-people-supporting">{% set _support = [] %}{% if _interested_count %}{% set _ = _support.append(_interested_count ~ ' interested') %}{% endif %}{% if _invited_count %}{% set _ = _support.append(_invited_count ~ ' invited, no reply yet') %}{% endif %}{% if pending_requests %}{% set _ = _support.append(pending_requests|length ~ ' asked to join') %}{% endif %}{{ _support|join(' · ') }}</p>
-        {% if _people_count %}
+        {% if people_projection.total %}
+        <p class="td-people-sentence">{{ people_projection.going_count }} of you {{ 'is' if people_projection.going_count == 1 else 'are' }} going.</p>
+        <p class="td-people-supporting">{% set _support = [] %}{% if people_projection.organizer_count %}{% set _ = _support.append(people_projection.organizer_count ~ ' organizing') %}{% endif %}{% if people_projection.interested_count %}{% set _ = _support.append(people_projection.interested_count ~ ' interested') %}{% endif %}{% if people_projection.invited_count %}{% set _ = _support.append(people_projection.invited_count ~ ' invited, no reply yet') %}{% endif %}{% if pending_join_request_count %}{% set _ = _support.append(pending_join_request_count ~ ' asked to join') %}{% endif %}{{ _support|join(' · ') }}</p>
+        {% if people_projection.total %}
         <p class="td-section-label">Participation</p>
-        <div class="td-participation-bar" aria-label="{{ _going_count }} going, {{ _interested_count }} interested, {{ _invited_count }} invited">
-            {% if _going_count %}<span class="td-participation-going" style="width:{{ (_going_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
-            {% if _interested_count %}<span class="td-participation-interested" style="width:{{ (_interested_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
-            {% if _invited_count %}<span class="td-participation-invited" style="width:{{ (_invited_count * 100 / _people_count)|round(2) }}%"></span>{% endif %}
+        <div class="td-participation-bar" aria-label="{{ people_projection.organizer_count }} organizing, {{ people_projection.going_count }} going, {{ people_projection.interested_count }} interested, {{ people_projection.invited_count }} invited">
+            {% if people_projection.organizer_count %}<span class="td-participation-going" style="width:{{ (people_projection.organizer_count * 100 / people_projection.total)|round(2) }}%"></span>{% endif %}
+            {% if people_projection.going_count %}<span class="td-participation-going" style="width:{{ (people_projection.going_count * 100 / people_projection.total)|round(2) }}%"></span>{% endif %}
+            {% if people_projection.interested_count %}<span class="td-participation-interested" style="width:{{ (people_projection.interested_count * 100 / people_projection.total)|round(2) }}%"></span>{% endif %}
+            {% if people_projection.invited_count %}<span class="td-participation-invited" style="width:{{ (people_projection.invited_count * 100 / people_projection.total)|round(2) }}%"></span>{% endif %}
         </div>
-        <div class="td-participation-legend"><span>{{ _going_count }} going</span><span>{{ _interested_count }} interested</span><span>{{ _invited_count }} invited</span></div>
-        {% set _epic = namespace(value=0) %}{% set _ikon = namespace(value=0) %}{% set _nopass = namespace(value=0) %}
-        {% for _pass_person in (going_participants + interested_participants + pending_participants) %}
-            {% set _pv = (_pass_person.user.pass_type or '')|lower %}
-            {% if 'epic' in _pv %}{% set _epic.value = _epic.value + 1 %}{% elif 'ikon' in _pv %}{% set _ikon.value = _ikon.value + 1 %}{% else %}{% set _nopass.value = _nopass.value + 1 %}{% endif %}
-        {% endfor %}
-        {% set _pass_total = _epic.value + _ikon.value + _nopass.value %}
-        {% if _pass_total > 0 %}
+        <div class="td-participation-legend"><span>{{ people_projection.organizer_count }} organizing</span><span>{{ people_projection.going_count }} going</span><span>{{ people_projection.interested_count }} interested</span><span>{{ people_projection.invited_count }} invited</span></div>
+        {% if people_projection.pass_distribution %}
         <div class="td-pass-share" aria-label="Passes, everyone on the trip">
             <div class="td-group-heading"><p class="td-section-label">Passes</p><span class="td-pass-share-note">everyone on the trip</span></div>
-            {% for _label, _count, _class in [('Epic', _epic.value, 'epic'), ('Ikon', _ikon.value, 'ikon'), ('No pass', _nopass.value, 'none')] %}
-            {% if _count %}
-            <div class="td-pass-share-row"><span>{{ _label|upper }}</span><i><b class="td-pass-fill td-pass-fill--{{ _class }}" style="width:{{ (_count * 100 / _pass_total)|round(2) }}%"></b></i><strong>{{ _count }}</strong></div>
-            {% endif %}
+            {% for pass_bucket in people_projection.pass_distribution %}
+            <div class="td-pass-share-row" data-pass-bucket="{{ pass_bucket.slug }}" data-pass-count="{{ pass_bucket.count }}" data-pass-share="{{ pass_bucket.share }}"><span>{{ pass_bucket.label|upper }}</span><i><b class="td-pass-fill td-pass-fill--{{ pass_bucket.css_class }}" style="width:{{ pass_bucket.share }}%"></b></i><strong>{{ pass_bucket.count }}</strong></div>
             {% endfor %}
         </div>
         {% endif %}
         {% endif %}
 
         {% if is_owner and pending_requests %}
-        <p class="td-section-label" id="td-join-requests">Requests <span>{{ pending_requests|length }} asked to join</span></p>
+        <p class="td-section-label" id="td-join-requests">Requests <span>{{ pending_join_request_count }} asked to join</span></p>
         <div class="td-join-request-list">
             {% for req in pending_requests %}
             <div class="td-person-row td-join-request-row">
@@ -2381,17 +2377,17 @@
         {% endif %}
 
         <div class="td-group-heading">
-            <p class="td-section-label">The group <span>{{ _people_count }} people</span></p>
+            <p class="td-section-label">The group <span>{{ people_projection.total }} people</span></p>
             {% if is_owner and not is_terminal %}<button type="button" onclick="openInviteModal()">Invite ›</button>{% endif %}
         </div>
-        {% set _rsvp_total = (going_participants|length) + (interested_participants|length) + (pending_participants|length) %}
         {% set _rsvp_count_parts = [] %}
-        {% if going_participants %}{% set _ = _rsvp_count_parts.append(going_participants|length ~ ' Going') %}{% endif %}
-        {% if interested_participants %}{% set _ = _rsvp_count_parts.append(interested_participants|length ~ ' Interested') %}{% endif %}
-        {% if pending_participants %}{% set _ = _rsvp_count_parts.append(pending_participants|length ~ ' Invited') %}{% endif %}
+        {% if people_projection.organizer_count %}{% set _ = _rsvp_count_parts.append(people_projection.organizer_count ~ ' Organizing') %}{% endif %}
+        {% if people_projection.going_count %}{% set _ = _rsvp_count_parts.append(people_projection.going_count ~ ' Going') %}{% endif %}
+        {% if people_projection.interested_count %}{% set _ = _rsvp_count_parts.append(people_projection.interested_count ~ ' Interested') %}{% endif %}
+        {% if people_projection.invited_count %}{% set _ = _rsvp_count_parts.append(people_projection.invited_count ~ ' Invited') %}{% endif %}
         <div class="td-roster" id="td-rsvp-section" aria-label="{{ _rsvp_count_parts|join(', ') }}">
 
-        {% for label, people in [('Organizing', interested_participants|selectattr('role.value', 'equalto', 'owner')|list), ('Going', going_participants), ('Interested', interested_participants|rejectattr('role.value', 'equalto', 'owner')|list), ('Invited', pending_participants)] %}
+        {% for label, people in [('Organizing', people_projection.organizer), ('Going', people_projection.going), ('Interested', people_projection.interested), ('Invited', people_projection.invited)] %}
             {% if people %}
             <p class="td-person-status-tag td-person-status-heading">{{ label }}</p>
             {% for p in people[:4] %}

@@ -1,0 +1,468 @@
+# Trip Detail Batch 2 — Social + People Projections
+
+Implement ONLY the remaining Batch 2 scope identified by the completed delta audit.
+
+Batch 1 presentation is visually locked.
+
+Do not redesign Trip Detail.
+Do not change the approved scale, typography, gutters, rules, spacing, or architecture.
+Do not redo features already completed in Batch 1.
+
+## Goal
+
+Complete the read/projection layer needed for the locked People and This Mountain designs using existing BaseLodge data and privacy rules.
+
+No schema migration is required or permitted.
+
+## 1. CANONICAL PEOPLE PROJECTION
+
+Replace the remaining template-local People counting logic with one canonical server-side display projection.
+
+The projection must provide a consistent source of truth for:
+
+- total associated people
+- organizer
+- Going
+- Interested
+- Invited
+- participation denominator
+- pass distribution
+
+### Counting rules
+
+The organizer must be represented exactly ONCE.
+
+Do not solve double-counting by simply removing the organizer from one arbitrary status group in the template.
+
+Exclude:
+
+- Declined
+- removed/deleted participation identities
+- terminal/non-associated records that should not appear in the active People presentation
+
+Preserve current privacy and visibility filtering.
+
+Use this same canonical projection to drive:
+
+- People tab inventory count
+- sentence-style participation summary
+- Participation graphic
+- `THE GROUP · N people`
+- Passes denominator
+
+Do not allow these surfaces to independently calculate slightly different totals.
+
+### People tab
+
+Render the approved inventory count treatment.
+
+Conceptually:
+
+People 13
+
+The inventory count is not an attention badge.
+
+Use the locked visual treatment from the synthesis.
+
+## 2. NORMALIZED PASS DISTRIBUTION
+
+Replace the current template substring-counting logic with a canonical normalized pass projection.
+
+Use the existing BaseLodge pass data and compatibility rules already established elsewhere in the application.
+
+Investigate and document the correct precedence between:
+
+- participant snapshot values, if applicable
+- current profile pass value
+
+Do not silently choose precedence without checking existing product behavior.
+
+Support all currently valid representations, including:
+
+- Epic
+- Ikon
+- No pass
+- compatible legacy values
+- existing multiple/multi-pass representations where supported
+
+Do NOT add:
+
+- mountain-access compatibility
+- "N of N have access"
+- Buddy Passes
+- new pass types
+- schema changes
+
+The approved Passes graphic represents distribution across the entire associated group.
+
+Example:
+
+PASSES
+
+Epic       6
+[bar]
+
+Ikon       5
+[bar]
+
+No pass    2
+[bar]
+
+Each bar is a share of the TOTAL associated group, not scaled to the largest pass category.
+
+The total denominator must come from the canonical People projection.
+
+Ensure the organizer is counted once.
+
+Ensure invited users are handled consistently with the existing data model.
+
+## 3. PEOPLE REQUEST ATTENTION BADGE
+
+Create one canonical owner-only pending join-request count.
+
+Use the same underlying authorized request population for:
+
+- People tab attention badge
+- Requests section
+
+Do not calculate them independently.
+
+Target semantics:
+
+- plain People number = inventory
+- filled attention badge = organizer work requiring attention
+
+Examples conceptually:
+
+People 13 ③
+
+where:
+
+13 = associated people
+3 = pending join requests
+
+Only the organizer may receive the join-request attention count.
+
+Non-organizers must not receive or infer it.
+
+Terminal trips must not show an actionable request queue/badge.
+
+Preserve existing join-request Accept/Decline behavior exactly.
+
+Do not change lifecycle or notification behavior.
+
+## 4. THIS MOUNTAIN — UPCOMING FRIEND TRIPS
+
+Add the approved count-based signal for reciprocal friends who have an UPCOMING, NONTERMINAL trip at the same resort.
+
+This is NOT limited to date overlap.
+
+Example:
+
+2 friends have Northstar trips planned
+
+Supporting copy:
+
+Dates that could overlap with yours
+
+Requirements:
+
+- reciprocal friends only
+- same resort
+- upcoming/nonterminal trips only
+- respect existing trip visibility/privacy
+- exclude private trips the viewer cannot see
+- deduplicate by FRIEND, not by trip
+- a friend with multiple qualifying trips counts once
+- do not require date overlap
+- deterministic output
+
+Do not replace or weaken current privacy checks merely to produce the count.
+
+## 5. THIS MOUNTAIN — FRIENDS VISITED
+
+Add the approved inverse friend signal using existing normalized visited-resort data.
+
+Use the wording:
+
+visited
+
+NOT:
+
+skied
+
+unless the underlying data specifically proves a ski day, which this feature does not require.
+
+Example:
+
+6 friends have visited Northstar
+
+Supporting copy:
+
+People to ask about the mountain
+
+Requirements:
+
+- reciprocal friends only
+- use canonical normalized visited-resort data
+- support existing legacy compatibility where necessary
+- deduplicate identities
+- respect existing visibility/privacy rules
+- do not substitute SkiDay data
+- do not imply that "visited" proves skiing
+
+## 6. THIS MOUNTAIN — FRIEND WISHLISTS
+
+Activate/complete the existing reciprocal-friend wishlist signal using the already-computed normalized wishlist relationship where safe.
+
+Example:
+
+4 friends want to ski Northstar
+
+Supporting copy:
+
+People worth inviting
+
+Requirements:
+
+- reciprocal friends only
+- canonical normalized wishlist IDs
+- deduplicate identities
+- count and destination must use the SAME scoped population
+- handle inactive/region/nonstandard resort records according to existing normalization rules
+- no migration
+
+Replace the currently disabled Trip Detail presentation with the approved This Mountain row.
+
+## 7. SAFE INVERSE NAVIGATION
+
+For each supported This Mountain signal, provide a safe way to see the matching friends where current authorization permits it.
+
+Signals:
+
+1. upcoming friend trips at this mountain
+2. friends who visited this mountain
+3. friends with this mountain on their wishlist
+
+Critical rule:
+
+THE COUNT AND DESTINATION MUST BE DERIVED FROM THE SAME PRIVACY-SCOPED POPULATION.
+
+Do not show:
+
+"4 friends..."
+
+and then navigate to a destination containing a different population.
+
+### Privacy
+
+Navigation must never reveal:
+
+- non-friends
+- one-way/non-reciprocal relationships where current privacy rules disallow them
+- private trip context
+- unauthorized participant identities
+- hidden locations/trips
+- data the current viewer could not otherwise access
+
+If a safe destination cannot be provided for a particular signal using current authorization:
+
+render the count safely WITHOUT a navigation affordance.
+
+Do not create an unsafe route simply because the mockup contains a chevron.
+
+### Destination design
+
+Prefer reusing an existing BaseLodge list/profile surface where coherent.
+
+If no inverse-by-mountain destination exists, implement the smallest coherent matching-friends destination necessary.
+
+Do NOT redesign Friends, Mountains, or another major screen as part of this task.
+
+Keep any new destination simple and consistent with existing BaseLodge list patterns.
+
+## 8. DO NOT TOUCH COMPLETED BATCH 1/2 ITEMS
+
+The delta audit established these are DONE:
+
+- deterministic roster ordering/projection
+- availability visual
+
+Do not refactor them merely because you are working nearby.
+
+Also preserve:
+
+- Hybrid C header
+- Trip / People / You
+- Trip default
+- Trip Planning
+- Stay removal
+- compact roster presentation
+- roster expansion
+- Join Request inline actions
+- Invite flow
+- You profile section
+- status controls
+- Equipment
+- Lessons
+- Cancel
+- Leave
+- past/cancelled treatment
+- current visual scale/rules/gutters
+
+## 9. EXPLICITLY OUT OF SCOPE
+
+Do NOT implement:
+
+- invited-user read-only Trip Planning
+- reduced non-participant friend Trip Detail
+- new lightweight Interested behavior
+- Interested + Request-to-Join product-state changes
+- Lessons unanswered-state migration
+- You incomplete badge
+- profile visibility expansion
+- raw availability for other users
+- new availability editor architecture
+- pass compatibility
+- Buddy Passes
+- Planning → Confirmed lifecycle
+- planning-title schema changes
+- schema migrations
+- unrelated visual changes
+
+If any Batch 2 requirement unexpectedly depends on one of these:
+
+STOP and report the dependency rather than expanding scope.
+
+## 10. TESTS
+
+Add/update regression coverage for the new projection/query work.
+
+At minimum:
+
+### People projection
+
+- organizer-only trip = 1 person
+- organizer counted once
+- organizer also represented in participation data does not double-count
+- mixed Going / Interested / Invited
+- Declined excluded
+- removed identities excluded
+- dense 13-person fixture
+- all People surfaces use the same total
+
+### Passes
+
+- Epic
+- Ikon
+- No pass
+- legacy pass value
+- compatible multiple/multi-pass representation
+- invited participant
+- organizer counted once
+- correct denominator
+- correct percentages/share widths
+- no pass compatibility output
+
+### Request badge
+
+- organizer with 0 requests
+- organizer with 1 request
+- organizer with 3 requests
+- non-organizer receives no owner request count
+- terminal trip receives no actionable badge
+- badge count equals Requests population
+
+### Upcoming friend trips
+
+- reciprocal friend
+- non-reciprocal relationship excluded
+- same resort
+- different resort excluded
+- upcoming trip
+- past/terminal excluded
+- private unauthorized trip excluded
+- friend with multiple qualifying trips counted once
+- qualifying trip without date overlap still counted
+
+### Visited
+
+- normalized visited resort
+- legacy compatibility
+- reciprocal friend only
+- duplicate prevention
+- empty result
+- copy uses `visited`, not `skied`
+
+### Wishlist
+
+- normalized wishlist
+- duplicate IDs
+- reciprocal friend only
+- empty result
+- inactive/region edge cases according to existing canonical behavior
+
+### Navigation/privacy
+
+- count population equals destination population
+- authorized link
+- safe no-link fallback
+- non-friend denial
+- private-trip exclusion
+- empty result
+- no identity leakage
+
+Preserve existing query-budget coverage.
+
+Avoid N+1 query patterns.
+
+## 11. VERIFICATION
+
+Run:
+
+- targeted new Batch 2 tests
+- full Trip Detail suite
+- relevant visibility/friendship tests
+- relevant mountain/wishlist/visited tests
+- capture harness
+- query-budget tests
+- Python compilation
+- git diff --check
+
+Verify at:
+
+- 390px organizer normal
+- 390px People populated
+- 360px dense People
+- This Mountain with populated signals
+- This Mountain empty state
+
+Confirm:
+
+- no horizontal overflow
+- no console errors
+- no visual regression to locked Batch 1
+- no unauthorized identity exposure
+
+## 12. FINAL RESPONSE
+
+Report:
+
+1. What was implemented
+2. Canonical People counting rule
+3. Pass normalization/preference rule used
+4. Exact This Mountain privacy rules
+5. Navigation destinations created/reused
+6. Files changed
+7. Tests added/updated
+8. Exact test results
+9. Query-budget result
+10. Any safe non-link fallbacks
+11. Anything deferred
+12. Any blockers
+
+Do not deploy.
+Do not publish.
+Do not push Git.
+
+Stop after implementation and verification so I can review the resulting screens.

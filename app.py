@@ -1162,6 +1162,233 @@ def _trip_participant_display_sort_key(participant):
     )
 
 
+def build_trip_detail_people_projection(participant_rows, owner, *, is_terminal):
+    """Build the single People presentation model for a Trip Detail request.
+
+    The organizer is a distinct display role even though its canonical
+    participant row is initialized as ``interested``.  Keeping the organizer
+    in a separate bucket prevents the template from solving duplicate counts
+    differently in its tab, summary, roster, and pass graphic.
+    """
+    organizer_rows = []
+    status_rows = {
+        "going": [],
+        "interested": [],
+        "invited": [],
+    }
+    associated_people = []
+    seen_user_ids = set()
+
+    owner_row = next(
+        (
+            row for row in participant_rows
+            if row.user_id == owner.id and row.user is not None
+        ),
+        None,
+    )
+    if owner_row is not None:
+        organizer_rows.append(owner_row)
+    associated_people.append((owner_row, owner))
+    seen_user_ids.add(owner.id)
+
+    for row in participant_rows:
+        if row.user is None or row.user_id in seen_user_ids:
+            continue
+        if row.status == GuestStatus.GOING:
+            bucket = "going"
+        elif row.status == GuestStatus.INTERESTED:
+            bucket = "interested"
+        elif row.status == GuestStatus.PENDING and not is_terminal:
+            # A pending invitation has no active association once the trip is
+            # terminal, so it must not remain in the active People inventory.
+            bucket = "invited"
+        else:
+            # Declined and removed rows are retained for audit/history but are
+            # not active People presentation identities.
+            continue
+
+        status_rows[bucket].append(row)
+        associated_people.append((row, row.user))
+        seen_user_ids.add(row.user_id)
+
+    for rows in status_rows.values():
+        rows.sort(key=_trip_participant_display_sort_key)
+
+    pass_counts = {}
+    for participant, user in associated_people:
+        snapshot = (
+            str(participant.pass_type).strip()
+            if participant is not None and participant.pass_type
+            else ""
+        )
+        profile_value = str(user.pass_type).strip() if user.pass_type else ""
+        normalized = normalize_pass_selection(snapshot or profile_value)
+        real_passes = [
+            slug for slug in normalized.split(",")
+            if slug and is_real_pass(slug)
+        ]
+        if real_passes:
+            for slug in real_passes:
+                pass_counts[slug] = pass_counts.get(slug, 0) + 1
+        else:
+            pass_counts["no_pass"] = pass_counts.get("no_pass", 0) + 1
+
+    total = len(associated_people)
+    pass_distribution = []
+    for slug in CANONICAL_PASS_ORDER:
+        if slug in {"no_pass", "no_pass_yet"}:
+            continue
+        count = pass_counts.get(slug, 0)
+        if count:
+            pass_distribution.append({
+                "slug": slug,
+                "label": display_pass_label(slug),
+                "count": count,
+                "share": round(count * 100 / total, 2) if total else 0,
+                "css_class": slug if slug in {"epic", "ikon"} else "other",
+            })
+    no_pass_count = pass_counts.get("no_pass", 0)
+    if no_pass_count:
+        pass_distribution.append({
+            "slug": "no_pass",
+            "label": "No pass",
+            "count": no_pass_count,
+            "share": round(no_pass_count * 100 / total, 2) if total else 0,
+            "css_class": "none",
+        })
+
+    return {
+        "total": total,
+        "organizer": organizer_rows,
+        "going": status_rows["going"],
+        "interested": status_rows["interested"],
+        "invited": status_rows["invited"],
+        "organizer_count": 1,
+        "going_count": len(status_rows["going"]),
+        "interested_count": len(status_rows["interested"]),
+        "invited_count": len(status_rows["invited"]),
+        "pass_distribution": pass_distribution,
+    }
+
+
+def _trip_detail_friend_visited_resort(friend, resort):
+    """Return whether a reciprocal friend has this resort in visited storage."""
+    normalized_ids = friend.visited_resort_ids or []
+    if normalized_ids:
+        return any(str(resort_id) == str(resort.id) for resort_id in normalized_ids)
+
+    # Normalized IDs are canonical.  Legacy display names are used only for
+    # users not yet backfilled, preserving the existing model fallback policy.
+    legacy_names = {
+        str(name).strip().casefold()
+        for name in (friend.mountains_visited or [])
+        if name
+    }
+    return (resort.name or "").strip().casefold() in legacy_names
+
+
+def _trip_detail_social_friend_sort_key(friend):
+    return (
+        (friend.first_name or "").casefold(),
+        (friend.last_name or "").casefold(),
+        friend.id,
+    )
+
+
+def build_trip_detail_mountain_social_projection(
+    trip,
+    *,
+    today=None,
+    friend_ids=None,
+    friend_users=None,
+):
+    """Return the privacy-scoped matching-friend populations for one mountain.
+
+    Each signal exposes the exact list used for its count.  The Trip Detail
+    route and its matching-friends destination both call this helper, so a
+    displayed count cannot navigate to a different friend population.
+    """
+    today = today or date.today()
+    friend_ids = set(friend_ids or [])
+    friend_users = {
+        user_id: user
+        for user_id, user in (friend_users or {}).items()
+        if user_id in friend_ids
+    }
+    if (
+        not friend_users
+        or not trip.resort_id
+        or trip.resort is None
+        or not trip.resort.is_active
+        or trip.resort.is_region
+    ):
+        return {
+            "upcoming": [],
+            "visited": [],
+            "wishlist": [],
+        }
+
+    candidate_trips = (
+        SkiTrip.query
+        .filter(
+            SkiTrip.id != trip.id,
+            SkiTrip.resort_id == trip.resort_id,
+            SkiTrip.is_public.is_(True),
+            active_or_legacy_trip_predicate(),
+            SkiTrip.start_date.isnot(None),
+            SkiTrip.end_date.isnot(None),
+            SkiTrip.end_date >= today,
+        )
+        .all()
+    )
+    candidate_ids = [candidate.id for candidate in candidate_trips]
+    upcoming_friend_ids = {
+        candidate.user_id
+        for candidate in candidate_trips
+        if candidate.user_id in friend_users
+    }
+    if candidate_ids:
+        upcoming_friend_ids.update(
+            user_id
+            for (user_id,) in (
+                db.session.query(SkiTripParticipant.user_id)
+                .filter(
+                    SkiTripParticipant.trip_id.in_(candidate_ids),
+                    SkiTripParticipant.user_id.in_(friend_users),
+                    SkiTripParticipant.status == GuestStatus.GOING,
+                )
+                .distinct()
+                .all()
+            )
+        )
+
+    visited_friend_ids = {
+        friend.id
+        for friend in friend_users.values()
+        if _trip_detail_friend_visited_resort(friend, trip.resort)
+    }
+    wishlist_friend_ids = {
+        friend.id
+        for friend in friend_users.values()
+        if trip.resort_id in normalize_wishlist_resort_ids(
+            friend.wish_list_resorts,
+            strict=False,
+        )
+    }
+
+    def people_for(ids):
+        return sorted(
+            (friend_users[friend_id] for friend_id in ids if friend_id in friend_users),
+            key=_trip_detail_social_friend_sort_key,
+        )
+
+    return {
+        "upcoming": people_for(upcoming_friend_ids),
+        "visited": people_for(visited_friend_ids),
+        "wishlist": people_for(wishlist_friend_ids),
+    }
+
+
 def format_passes_display(pass_type):
     """
     Format a pass_type string for user-facing display.
@@ -15355,6 +15582,11 @@ def trip_detail(trip_id):
 
     # Get trip owner info
     owner = db.session.get(User, trip.user_id)
+    people_projection = build_trip_detail_people_projection(
+        participant_rows,
+        owner,
+        is_terminal=is_terminal,
+    )
     
     # Get group signals for aggregated view
     group_signals = trip.get_group_signals(
@@ -15378,6 +15610,7 @@ def trip_detail(trip_id):
             invite_type=InviteType.REQUEST,
             status='pending'
         ).all()
+    pending_join_request_count = len(pending_requests)
     
     # Get current user's participant record for inline editing
     current_user_participant = participant
@@ -15455,21 +15688,20 @@ def trip_detail(trip_id):
             friend_users=friend_users,
         )
 
-    # Count how many of the user's friends have this resort on their wishlist
-    friends_wishlist_count = 0
-    if (
-        trip.resort_id
-        and trip.resort
-        and trip.resort.is_active
-        and not trip.resort.is_region
-    ):
-        if friend_users:
-            friends_wishlist_count = sum(
-                1 for u in friend_users.values()
-                if trip.resort_id in normalize_wishlist_resort_ids(
-                    u.wish_list_resorts, strict=False
-                )
-            )
+    # Mountain social signals use reciprocal-only populations. Pending invitees
+    # retain their established RSVP-only view and do not receive this context.
+    mountain_social_friends = {
+        "upcoming": [],
+        "visited": [],
+        "wishlist": [],
+    }
+    if is_owner or is_guest:
+        mountain_social_friends = build_trip_detail_mountain_social_projection(
+            trip,
+            today=today,
+            friend_ids=friend_ids,
+            friend_users=friend_users,
+        )
 
     resorts_json = get_resorts_for_trip_form() if is_owner else []
 
@@ -15586,6 +15818,7 @@ def trip_detail(trip_id):
         interested_participants=interested_participants,
         pending_participants=pending_participants,
         declined_participants=declined_participants,
+        people_projection=people_projection,
         invite_count=len(pending_participants),
         trip_invite_url=trip_invite_url,
         group_signals=group_signals,
@@ -15594,7 +15827,8 @@ def trip_detail(trip_id):
         participant_overlaps=participant_overlaps,
         trip_friend_overlaps=trip_friend_overlaps,
         pending_requests=pending_requests,
-        friends_wishlist_count=friends_wishlist_count,
+        pending_join_request_count=pending_join_request_count,
+        mountain_social_friends=mountain_social_friends,
         today=date.today(),
         resorts_json=resorts_json,
         can_plan=can_plan,
@@ -15616,6 +15850,64 @@ def trip_detail(trip_id):
             and trip.end_date
             and trip.end_date < today
         ),
+    )
+
+
+@app.route("/trips/<int:trip_id>/mountain-friends/<signal>")
+@login_required
+def trip_mountain_friends(trip_id, signal):
+    """Show the exact reciprocal-friend population behind a mountain signal."""
+    if signal not in {"upcoming", "visited", "wishlist"}:
+        abort(404)
+
+    trip = (
+        SkiTrip.query
+        .options(joinedload(SkiTrip.resort))
+        .filter_by(id=trip_id)
+        .first_or_404()
+    )
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip_id,
+        user_id=current_user.id,
+    ).first()
+    capability = trip_view_capability(
+        trip,
+        current_user.id,
+        participant=participant,
+    )
+    if not capability.allowed or not (
+        capability.organizer or capability.active_participant
+    ):
+        abort(404)
+
+    friend_ids = reciprocal_friend_ids(current_user.id)
+    friend_users = {
+        user.id: user
+        for user in (
+            User.query.filter(User.id.in_(friend_ids)).all()
+            if friend_ids else []
+        )
+    }
+    mountain_social_friends = build_trip_detail_mountain_social_projection(
+        trip,
+        friend_ids=friend_ids,
+        friend_users=friend_users,
+    )
+    matching_friends = mountain_social_friends[signal]
+    if not matching_friends:
+        abort(404)
+
+    titles = {
+        "upcoming": "Trips planned",
+        "visited": "Friends who visited",
+        "wishlist": "Friends who want to go",
+    }
+    return render_template(
+        "trip_mountain_friends.html",
+        trip=trip,
+        signal=signal,
+        matching_friends=matching_friends,
+        title=titles[signal],
     )
 
 
