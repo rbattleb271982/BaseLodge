@@ -6,6 +6,8 @@
  <div class="fr-sugg-info"><button type="button" class="fr-sugg-name" onclick="frSuggOpenPreview(this)" aria-label="Preview {{ _preview_name }}">{{ _preview_name }}{% if _preview_state %} - {{ _preview_state }}{% endif %}</button><p class="fr-sugg-by">{{ s.attribution }}</p></div>
  <div class="fr-sugg-actions">
  {% if s.has_inbound_request %}<button class="fr-sugg-accept" data-sugg-action-for="{{ s.user.id }}" data-sugg-action="accept" data-sugg-invitation-id="{{ s.inbound_invitation_id }}" onclick="frSuggRunAction(this)">Accept</button>
+ {% elif s.has_outgoing_request %}<button class="fr-sugg-requested" data-sugg-action-for="{{ s.user.id }}" data-sugg-action="requested" data-sugg-invitation-id="{{ s.outgoing_invitation_id }}" onclick="frSuggRunAction(this)">Requested</button>
+ {% elif s.is_in_cooldown %}<button class="fr-sugg-requested" data-sugg-action-for="{{ s.user.id }}" data-sugg-action="cooldown" disabled>Request withdrawn</button>
  {% else %}<button class="fr-sugg-connect" data-sugg-action-for="{{ s.user.id }}" data-sugg-action="connect" onclick="frSuggRunAction(this)">Connect</button>{% endif %}
  <button class="fr-sugg-dismiss" onclick="frSuggDismiss({{ s.user.id }}, this)" aria-label="Dismiss {{ _preview_name }}">×</button>
  </div>

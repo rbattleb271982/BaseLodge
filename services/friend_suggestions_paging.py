@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import sqlalchemy as sa
 from itsdangerous import BadData, URLSafeSerializer
-from models import FriendSuggestion, Invitation, User, db
+from models import FriendCooldown, FriendSuggestion, Invitation, User, db
 from services.visibility import reciprocal_friend_predicate
 
 SUGGESTIONS_PAGE_SIZE = 20
@@ -128,6 +128,37 @@ def load_suggestions_page(viewer_id, cursor_value=None):
         Invitation.status == "pending",
     ).group_by(Invitation.sender_id).all()
     inbound_by_sender = {row.sender_id: row.invitation_id for row in inbound_rows}
+    outgoing_rows = db.session.query(
+        Invitation.receiver_id, sa.func.min(Invitation.id).label("invitation_id")
+    ).filter(
+        Invitation.sender_id == viewer_id,
+        Invitation.receiver_id.in_(ids),
+        Invitation.trip_id.is_(None),
+        Invitation.status == "pending",
+    ).group_by(Invitation.receiver_id).all()
+    outgoing_by_receiver = {
+        row.receiver_id: row.invitation_id for row in outgoing_rows
+    }
+    cooldown_ids = set()
+    cooldown_rows = FriendCooldown.query.filter(
+        FriendCooldown.expires_at > now,
+        sa.or_(
+            sa.and_(
+                FriendCooldown.user_a_id == viewer_id,
+                FriendCooldown.user_b_id.in_(ids),
+            ),
+            sa.and_(
+                FriendCooldown.user_b_id == viewer_id,
+                FriendCooldown.user_a_id.in_(ids),
+            ),
+        ),
+    ).all()
+    for cooldown in cooldown_rows:
+        cooldown_ids.add(
+            cooldown.user_b_id
+            if cooldown.user_a_id == viewer_id
+            else cooldown.user_a_id
+        )
     result = []
     for group in groups:
         user = by_id.get(group.suggested_user_id)
@@ -139,6 +170,11 @@ def load_suggestions_page(viewer_id, cursor_value=None):
             "suggester_count": attribution[group.suggested_user_id]["total"],
             "has_inbound_request": group.suggested_user_id in inbound_by_sender,
             "inbound_invitation_id": inbound_by_sender.get(group.suggested_user_id),
+            "has_outgoing_request": group.suggested_user_id in outgoing_by_receiver,
+            "outgoing_invitation_id": outgoing_by_receiver.get(
+                group.suggested_user_id
+            ),
+            "is_in_cooldown": group.suggested_user_id in cooldown_ids,
             "latest_at": group.latest_at,
         })
     last = groups[-1]

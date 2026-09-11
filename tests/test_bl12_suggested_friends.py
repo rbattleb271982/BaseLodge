@@ -25,9 +25,9 @@ from app import app as _app
 from models import (
     db as _db,
     User, Friend, Invitation, Activity,
-    FriendSuggestion, SuggestionPushCooldown,
+    FriendCooldown, FriendSuggestion, SuggestionPushCooldown,
 )
-from tests.conftest import _login, _TEST_CSRF, form_post, json_post
+from tests.conftest import _login, _TEST_CSRF, form_post, json_delete, json_post
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -508,7 +508,128 @@ class TestSuggestedFriendPreview:
         assert 'frSuggSetActionState(userId, ' in html
         assert 'data-sugg-action-for=' in html
         assert "data.code === 'OUTGOING_PENDING'" in html
-        assert "frSuggSetActionState(userId, 'requested')" in html
+        assert "frSuggSetActionState(userId, 'requested'," in html
+        assert "frSuggCancelRequest(" in html
+        assert "method: 'DELETE'" in html
+        assert "window.frRefreshRegions(['suggestions'])" in html
+
+    def test_outgoing_request_renders_actionable_requested_state(self, client):
+        with _app.app_context():
+            richard = _make_user('RichardOutgoing')
+            charles = _make_user('CharlesOutgoing')
+            eric = _make_user('EricOutgoing')
+            _make_friend(richard.id, charles.id)
+            _make_friend(richard.id, eric.id)
+            suggestion = _make_suggestion(
+                suggester_id=richard.id,
+                recipient_id=charles.id,
+                suggested_user_id=eric.id,
+            )
+            invitation = Invitation(
+                sender_id=charles.id,
+                receiver_id=eric.id,
+                status='pending',
+            )
+            _db.session.add(invitation)
+            _db.session.commit()
+            rid, cid, eid, invitation_id = (
+                richard.id, charles.id, eric.id, invitation.id
+            )
+            suggestion_id = suggestion.id
+
+        _login(client, cid)
+        body = client.get('/api/friends/suggestions/page').get_json()['html']
+
+        assert f'data-sugg-action-for="{eid}"' in body
+        assert 'data-sugg-action="requested"' in body
+        assert f'data-sugg-invitation-id="{invitation_id}"' in body
+        assert 'onclick="frSuggRunAction(this)">Requested</button>' in body
+        assert 'disabled>Requested</button>' not in body
+
+        with _app.app_context():
+            suggestion = _db.session.get(FriendSuggestion, suggestion_id)
+            assert suggestion.suggester_id == rid
+            assert suggestion.dismissed_at is None
+
+    def test_withdrawal_preserves_suggestion_and_projects_cooldown(self, client):
+        with _app.app_context():
+            richard = _make_user('RichardWithdraw')
+            charles = _make_user('CharlesWithdraw')
+            eric = _make_user('EricWithdraw')
+            _make_friend(richard.id, charles.id)
+            _make_friend(richard.id, eric.id)
+            suggestion = _make_suggestion(
+                suggester_id=richard.id,
+                recipient_id=charles.id,
+                suggested_user_id=eric.id,
+            )
+            _db.session.commit()
+            rid, cid, eid = richard.id, charles.id, eric.id
+            suggestion_id = suggestion.id
+
+        _login(client, cid)
+        connected = json_post(
+            client, '/api/friends/suggestions/connect', {'user_id': eid}
+        )
+        assert connected.status_code == 201
+        invitation_id = connected.get_json()['invitation_id']
+
+        requested_html = client.get(
+            '/api/friends/suggestions/page'
+        ).get_json()['html']
+        assert f'data-sugg-invitation-id="{invitation_id}"' in requested_html
+        assert '>Requested</button>' in requested_html
+
+        withdrawn = json_delete(
+            client, f'/api/friends/invite/{invitation_id}'
+        )
+        assert withdrawn.status_code == 200
+
+        cooldown_html = client.get(
+            '/api/friends/suggestions/page'
+        ).get_json()['html']
+        assert f'id="fr-sugg-row-{eid}"' in cooldown_html
+        assert '>Request withdrawn</button>' in cooldown_html
+        assert 'data-sugg-action="connect"' not in cooldown_html
+        assert 'data-sugg-action="requested"' not in cooldown_html
+
+        with _app.app_context():
+            invitation = _db.session.get(Invitation, invitation_id)
+            suggestion = _db.session.get(FriendSuggestion, suggestion_id)
+            cooldown = FriendCooldown.query.filter_by(
+                user_a_id=min(cid, eid), user_b_id=max(cid, eid)
+            ).one()
+            assert invitation.status == 'cancelled'
+            assert suggestion.suggester_id == rid
+            assert suggestion.recipient_id == cid
+            assert suggestion.suggested_user_id == eid
+            assert suggestion.dismissed_at is None
+            assert cooldown.expires_at > datetime.utcnow()
+            assert Friend.query.filter_by(
+                user_id=cid, friend_id=eid
+            ).first() is None
+            assert Friend.query.filter_by(
+                user_id=eid, friend_id=cid
+            ).first() is None
+
+        _login(client, eid)
+        notifications = client.get('/notifications').get_data(as_text=True)
+        home = client.get('/').get_data(as_text=True)
+        assert f'connect-row-{invitation_id}' not in notifications
+        assert f'acceptConnectInvite({invitation_id})' not in home
+
+        stale_accept = json_post(
+            client, f'/api/friends/invite/{invitation_id}/accept'
+        )
+        assert stale_accept.status_code == 409
+
+        with _app.app_context():
+            assert Friend.query.filter_by(
+                user_id=cid, friend_id=eid
+            ).first() is None
+            assert Friend.query.filter_by(
+                user_id=eid, friend_id=cid
+            ).first() is None
 
 
 # ---------------------------------------------------------------------------

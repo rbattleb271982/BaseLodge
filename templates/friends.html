@@ -638,7 +638,8 @@
             flex-shrink: 0;
         }
         .fr-sugg-connect,
-        .fr-sugg-accept {
+        .fr-sugg-accept,
+        .fr-sugg-requested {
             background: var(--bl-color-primary, #5C1219);
             color: #fff;
             border: none;
@@ -651,7 +652,8 @@
             -webkit-tap-highlight-color: transparent;
         }
         .fr-sugg-connect:active,
-        .fr-sugg-accept:active { opacity: 0.8; }
+        .fr-sugg-accept:active,
+        .fr-sugg-requested:active { opacity: 0.8; }
         .fr-sugg-dismiss {
             background: none;
             border: none;
@@ -2292,6 +2294,18 @@
         } else if (action === 'requested') {
             btn.textContent = 'Requested';
             btn.classList.add('fr-sugg-requested');
+            btn.disabled = false;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        } else if (action === 'cancelling') {
+            btn.textContent = 'Cancelling…';
+            btn.classList.add('fr-sugg-requested');
+            btn.disabled = true;
+            btn.style.background = '';
+            btn.style.opacity = '1';
+        } else if (action === 'cooldown') {
+            btn.textContent = 'Request withdrawn';
+            btn.classList.add('fr-sugg-requested');
             btn.disabled = true;
             btn.style.background = '';
             btn.style.opacity = '1';
@@ -2380,6 +2394,10 @@
         if (!userId || btn.disabled) return;
         if (btn.dataset.suggAction === 'accept') {
             frSuggAccept(btn.dataset.suggInvitationId, userId, btn);
+        } else if (btn.dataset.suggAction === 'requested') {
+            frSuggCancelRequest(
+                btn.dataset.suggInvitationId, userId
+            );
         } else {
             frSuggConnect(userId, btn);
         }
@@ -2460,9 +2478,9 @@
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.success) {
-                frSuggSetActionState(userId, 'requested');
+                frSuggSetActionState(userId, 'requested', data.invitation_id);
             } else if (data.code === 'OUTGOING_PENDING') {
-                frSuggSetActionState(userId, 'requested');
+                frSuggSetActionState(userId, 'requested', data.invitation_id);
             } else if (data.code === 'INCOMING_PENDING') {
                 // They already sent us a request — show Accept
                 frSuggSetActionState(userId, 'accept', data.invitation_id);
@@ -2474,6 +2492,30 @@
         })
         .catch(function() {
             frSuggSetActionState(userId, 'connect');
+        });
+    }
+
+    function frSuggCancelRequest(invitationId, suggestedUserId) {
+        if (!invitationId || !confirm('Cancel this connection request?')) return;
+        frSuggSetActionState(suggestedUserId, 'cancelling', invitationId);
+        fetch('/api/friends/invite/' + invitationId, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': _frCsrf }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                frSuggSetActionState(suggestedUserId, 'cooldown');
+            } else {
+                window.frRefreshRegions(['suggestions']).catch(function() {
+                    frSuggSetActionState(
+                        suggestedUserId, 'requested', invitationId
+                    );
+                });
+            }
+        })
+        .catch(function() {
+            frSuggSetActionState(suggestedUserId, 'requested', invitationId);
         });
     }
 

@@ -254,6 +254,37 @@ class TestCancelFriendInvite:
         rv = json_delete(client, f'/api/friends/invite/{inv_id}')
         assert rv.status_code == 403
 
+    def test_cancel_by_unrelated_user_rejected(self, client, users):
+        with app.app_context():
+            inv_id = self._make_pending_invite(users['A'], users['B'])
+
+        _login(client, users['C'])
+        rv = json_delete(client, f'/api/friends/invite/{inv_id}')
+        assert rv.status_code == 403
+
+    def test_repeated_cancel_uses_existing_conflict_convention(
+        self, client, users
+    ):
+        with app.app_context():
+            inv_id = self._make_pending_invite(users['A'], users['B'])
+
+        _login(client, users['A'])
+        assert json_delete(
+            client, f'/api/friends/invite/{inv_id}'
+        ).status_code == 200
+        assert json_delete(
+            client, f'/api/friends/invite/{inv_id}'
+        ).status_code == 409
+
+        with app.app_context():
+            invitation = db.session.get(Invitation, inv_id)
+            cooldowns = FriendCooldown.query.filter_by(
+                user_a_id=min(users['A'], users['B']),
+                user_b_id=max(users['A'], users['B']),
+            ).all()
+            assert invitation.status == 'cancelled'
+            assert len(cooldowns) == 1
+
     def test_cancel_requires_auth(self, client, users):
         with app.app_context():
             inv_id = self._make_pending_invite(users['A'], users['B'])

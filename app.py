@@ -8028,7 +8028,12 @@ def suggestions_connect():
     if code == 'ALREADY_FRIENDS':
         return jsonify({'success': False, 'error': 'Already connected', 'code': code}), 409
     if code == 'OUTGOING_PENDING':
-        return jsonify({'success': False, 'error': 'Request already sent', 'code': code}), 409
+        return jsonify({
+            'success': False,
+            'error': 'Request already sent',
+            'code': code,
+            'invitation_id': result['invitation_id'],
+        }), 409
     if code == 'INCOMING_PENDING':
         return jsonify({
             'success': False,
