@@ -1,0 +1,21 @@
+**1 · Files** — all in `13-trips/05-final-synthesis/`
+
+`FINAL-MINE-normal.png` · `FINAL-MINE-heavy.png` · `FINAL-BOTH-normal.png` · `FINAL-BOTH-heavy.png` · `FINAL-FRIENDS-normal.png` · `FINAL-FRIENDS-heavy.png` · `FINAL-three-tabs-comparison.png` · `FINAL-first-viewport.png` · `FINAL-TRIPS-SPEC.md` · `_source/`
+
+Same account throughout: 9 of my trips, 3 invitations, 3 already skied, 18 friends' trips across 9 friends. Heights at 390px — Mine 746/1,214, Both 726/1,094, Friends' 610/1,192. Consolidation is demonstrated adjacently in Friends': Telluride 24–Mar 1 (Elena, Jonah) is one row, Telluride 26–Mar 1 (Priya) is a separate one.
+
+**2 · Where the locked decisions conflict with current behaviour**
+
+- **`PLANNING` has no target equivalent.** Trips renders `GOING`, `PLANNING` and `YOU'RE A GUEST` today. The locked vocabulary has four values and none of them is `Planning`. Either it maps to `Interested` or it's a distinct stored state the Trip Detail lock doesn't cover — a data question, not a copy one.
+- **Removing the mountain filter removes shipped functionality.** It exists today on Friends' Trips. Deliberate per your decision, but it is a deletion.
+- **Invitations on Trips are inert today** — no controls at all. Making them actionable inline is a new write path on this screen; the RSVP write exists on Trip Detail but not as a list-level action.
+- **Friends' Trips is person-centric today**, one row per friend-trip. Consolidation needs a new projection.
+- **Both needs Home's Ideas output exposed to Trips.** Ideas is Home-only and card-shaped; Trips needs it date-ordered and row-shaped, carrying its reason string. This is the one piece I'd insist on sharing rather than reimplementing.
+- **Friends' Trips still has no verified populated state anywhere in the corpus** — the capture named "heavy" never resolves past `Loading friends' trips…`. Everything drawn for that view is reconstructed from the filter-sheet capture. Confirm against the real screen before building.
+
+**3 · Decisions I need before implementation**
+
+- **Does the headcount include me?** Today's row says `8 going`. If that 8 includes the viewer, `+7 others` is right as drawn. If it excludes the viewer, every `+N others` in these screens is off by one. Highest-risk assumption in the whole spec.
+- **Is there an interested-count, and does `PLANNING` map to `Interested`?** `INTERESTED · 2 going` currently reads the 2 as people *going*; if the available count is actually interested-people, the line changes meaning.
+- **Season line — counts or no counts?** I read "stripped-down without the season graphic" as the counts line plus the link, because `+ Plan a trip` needs a secondary position to occupy. If you meant no counts at all, that row becomes `+ Plan a trip` alone on an otherwise empty line, which looks unbalanced. Worth one look.
+- **Does Both inherit Ideas dismissal?** Home's idea cards carry an `×`. Both's standalone rows don't. If they should, the row needs a third affordance and the dismissal becomes shared state with Home.
