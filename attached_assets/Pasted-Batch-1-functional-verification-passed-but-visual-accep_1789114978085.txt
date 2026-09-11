@@ -1,0 +1,132 @@
+Batch 1 functional verification passed, but visual acceptance has NOT passed.
+
+Do not begin Batch 2.
+
+Perform a visual-conformance correction of Batch 1 against the uploaded approved synthesis assets. The synthesis assets are the source of truth. Do not reinterpret or redesign them.
+
+The current implementation materially diverges from the approved references.
+
+Required corrections:
+
+1. TRIP TAB
+
+The current Trip tab still contains legacy card architecture that the approved synthesis explicitly removed.
+
+Remove the rendered:
+- large rounded Trip Planning card/container treatment
+- "WHAT NEEDS ATTENTION" section
+- "A few things to review" attention card
+- "Start planning together" attention row
+
+Trip Planning must follow the approved synthesis:
+- section header: TRIP PLANNING + shared count + All ideas
+- planning items rendered directly as flat rows
+- + Share an idea or link
+- no summary/attention module between Planning and This Mountain
+
+Then render THIS MOUNTAIN using the approved synthesis treatment and only data that is currently safe/implemented. Do not fabricate unsupported counts.
+
+Cancel trip remains at the bottom using the approved treatment.
+
+2. GLOBAL HEADER
+
+Conform the header to approved Hybrid C.
+
+The current implementation is materially taller/looser than the reference.
+
+Match the reference hierarchy and density:
+- mountain
+- state/location
+- date + nights
+- relationship token + visibility
+- tabs immediately below
+
+Use the uploaded Hybrid C comparison and organizer-normal synthesis as the visual source of truth.
+
+The circular TT/RB account chip must not appear on Trip Detail. The synthesis explicitly removes this chip from this screen.
+
+Do not change global account behavior elsewhere.
+
+3. PEOPLE TAB
+
+Do not judge People visual conformance using this empty Vail fixture.
+
+Use the existing capture/test fixture to render the approved populated states, including:
+- organizer normal
+- organizer dense / 13 people
+- join requests where applicable
+
+Verify visually against:
+- PEOPLE-organizer-dense-13.png
+- SHEET-three-tabs-organizer-normal.png
+- SHEET-states.png
+
+The populated People state must include the approved:
+- sentence
+- participation segmented graphic
+- passes share-of-group graphic
+- request treatment
+- grouped roster
+- four-person initial cap / in-place expansion
+- inventory and attention counts where applicable
+
+Do not add graphics to an empty group merely to fill space.
+
+4. YOU TAB
+
+Conform You to the uploaded approved synthesis.
+
+Preserve:
+- FROM YOUR PROFILE first
+- Riding + level
+- Pass
+- FOR THIS TRIP
+- status
+- availability day strip
+- equipment
+- lessons
+
+But the current Equipment/Lessons presentation has retained the old large rounded dropdown container and does not match the approved synthesis.
+
+Use the approved trip-specific choice treatment shown in the synthesis assets.
+
+Do not redesign the interaction. Preserve existing safe update behavior while matching the approved presentation.
+
+Use SPEC-availability-three-states.png for availability visual/state behavior.
+
+5. DENSITY / RESPONSIVE CONFORMANCE
+
+The current implementation is substantially more vertically spacious than the approved 390px synthesis.
+
+Compare directly against the supplied references at:
+- 360px
+- 390px
+
+Correct typography, section spacing, row height, borders, padding, and container treatment so the implementation follows the approved synthesis rather than the previous Trip Detail visual system.
+
+Do not blindly hardcode screenshot dimensions. Preserve responsive behavior.
+
+6. VERIFICATION
+
+After correction:
+- rerun the existing Trip Detail tests
+- rerun capture tests
+- run git diff --check
+- verify no horizontal overflow at 360px and 390px
+- verify no console errors
+
+Then provide browser captures for:
+A. Trip — organizer normal with planning content
+B. People — organizer normal populated
+C. People — organizer dense 13-person state with requests
+D. You — organizer with availability + trip choices
+E. invited state
+F. past-trip state
+
+Do not begin Batch 2.
+Do not deploy.
+Do not publish.
+Do not push Git.
+Do not alter backend behavior unless required to restore behavior already approved for Batch 1.
+
+Stop after visual-conformance verification.
