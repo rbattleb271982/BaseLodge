@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from app import app
+from app import _build_home_pass_rows, app
 from models import db, Friend
 from services.pass_utils import (
     CANONICAL_PASS_ORDER,
@@ -64,9 +64,33 @@ def test_other_group_is_derived_from_canonical_passes():
     ]
 
 
-def test_home_always_renders_zero_count_card(client):
+def test_exact_home_pass_rows_count_each_pass_independently():
+    rows, friends_with_pass = _build_home_pass_rows(
+        "epic,indy,mountain_collective",
+        _friends(
+            "epic,indy",
+            "epic,mountain_collective",
+            "mountain_collective",
+            "no_pass",
+        ),
+    )
+
+    assert rows == [
+        {"slug": "epic", "label": "Epic", "friend_count": 2},
+        {"slug": "indy", "label": "Indy Pass", "friend_count": 1},
+        {
+            "slug": "mountain_collective",
+            "label": "Mountain Collective",
+            "friend_count": 2,
+        },
+    ]
+    assert friends_with_pass == 3
+
+
+def test_home_no_pass_state_renders_zero_friend_context(client):
     with app.app_context():
         me = _make_user("home-zero-passes")
+        me.pass_type = "no_pass"
         db.session.commit()
         me_id = me.id
 
@@ -75,20 +99,20 @@ def test_home_always_renders_zero_count_card(client):
 
     assert response.status_code == 200
     html = response.data.decode()
-    assert "Friends' Passes" in html
+    assert "PASSES" in html
+    assert "No pass added" in html
+    assert "0 friends have one" in html
     assert 'href="/friends"' in html
-    assert 'aria-label="Show 0 friends"' in html
-    assert '<details id="friends-passes"' in html
-    assert 'open' not in html.split('<details id="friends-passes"', 1)[1].split(">", 1)[0]
-    assert "0 friends" in html
-    assert html.count('class="home-friends-passes__count">0</span>') == 3
-    assert html.index(">Epic</span>") < html.index(">Ikon</span>") < html.index(">Other</span>")
+    assert 'href="/select-pass"' in html
+    assert "0 <span>on BaseLodge</span>" in html
 
 
-def test_home_renders_singular_friend_total(client):
+def test_home_no_pass_state_counts_friends_who_have_a_real_pass(client):
     with app.app_context():
         me = _make_user("home-one-friend")
+        me.pass_type = "no_pass"
         friend = _make_user("home-one-friend-target")
+        friend.pass_type = "epic"
         db.session.add_all([
             Friend(user_id=me.id, friend_id=friend.id),
             Friend(user_id=friend.id, friend_id=me.id),
@@ -102,14 +126,15 @@ def test_home_renders_singular_friend_total(client):
     assert response.status_code == 200
     html = response.data.decode()
     assert 'href="/friends"' in html
-    assert 'aria-label="Show 1 friend"' in html
-    assert '<details id="friends-passes"' in html
-    assert "1 friend" in html
+    assert "No pass added" in html
+    assert "1 friend has one" in html
+    assert "1 <span>on BaseLodge</span>" in html
 
 
 def test_home_renders_multi_pass_counts_and_filter_links(client):
     with app.app_context():
         me = _make_user("home-pass-owner")
+        me.pass_type = "epic,ikon,indy"
         epic_ikon = _make_user("home-pass-epic-ikon")
         epic_ikon.pass_type = "epic,ikon"
         epic_indy = _make_user("home-pass-epic-indy")
@@ -129,10 +154,11 @@ def test_home_renders_multi_pass_counts_and_filter_links(client):
     html = response.data.decode()
     assert 'href="/friends?pass=epic"' in html
     assert 'href="/friends?pass=ikon"' in html
-    assert "pass=indy%2Cmountain_collective%2Cpowder_alliance%2Cfreedom%2Cski_california%2Cother" in html
-    assert 'aria-label="Show 2 Epic pass friends"' in html
-    assert 'aria-label="Show 1 Ikon pass friends"' in html
-    assert 'aria-label="Show 2 friends with other passes"' in html
+    assert 'href="/friends?pass=indy"' in html
+    assert "Epic" in html
+    assert "Ikon" in html
+    assert "Indy Pass" in html
+    assert "2 friends" in html
+    assert "1 friend" in html
     assert 'href="/friends"' in html
-    assert 'aria-label="Show 3 friends"' in html
-    assert "3 friends" in html
+    assert "3 <span>on BaseLodge</span>" in html

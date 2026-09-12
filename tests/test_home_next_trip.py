@@ -188,8 +188,9 @@ def test_private_guest_trip_uses_effective_attendance_window_and_connected_owner
     assert "Private Peak" in html
     assert f"{guest_start.strftime('%b %-d')}–{guest_end.strftime('%-d')}" in html
     assert "2 nights" in html
-    assert "1 friend going" in html
-    assert "Trip in 10 days" in html
+    assert "+1 other" in html
+    assert "In 10 days" in html
+    assert "GOING" in html
     assert f'href="/trips/{trip_id}"' in html
     assert "Actions to take" not in html
 
@@ -223,10 +224,10 @@ def test_compact_date_ranges(start, end, expected):
 @pytest.mark.parametrize(
     ("days_until", "expected"),
     [
-        (12, "Trip in 12 days"),
-        (1, "Trip tomorrow"),
-        (0, "Trip today"),
-        (-2, "Trip today"),
+        (12, "In 12 days"),
+        (1, "Tomorrow"),
+        (0, "Starts today"),
+        (-2, "Starts today"),
     ],
 )
 def test_countdown_states(days_until, expected):
@@ -248,7 +249,7 @@ def test_night_and_friend_count_grammar():
     )
     assert "Day trip" in html
     assert "1 night" not in html
-    assert "0 friends going" in html
+    assert "+0 others" in html
 
     html = _render_next_trip(
         date(2027, 1, 10),
@@ -257,7 +258,7 @@ def test_night_and_friend_count_grammar():
         friends=1,
     )
     assert "1 night" in html
-    assert "1 friend going" in html
+    assert "+1 other" in html
 
     html = _render_next_trip(
         date(2027, 1, 10),
@@ -266,14 +267,14 @@ def test_night_and_friend_count_grammar():
         friends=3,
     )
     assert "4 nights" in html
-    assert "3 friends going" in html
+    assert "+3 others" in html
 
 
 @pytest.mark.parametrize(
     ("start", "end", "expected_countdown"),
     [
         (None, date(2027, 1, 11), None),
-        (date(2027, 1, 10), None, "Trip in 9 days"),
+        (date(2027, 1, 10), None, "In 9 days"),
     ],
 )
 def test_incomplete_dates_render_neutral_copy_without_fabricated_duration(
@@ -289,11 +290,11 @@ def test_incomplete_dates_render_neutral_copy_without_fabricated_duration(
     assert "Dates TBD" in html
     assert "night" not in html
     assert "Day trip" not in html
-    assert "2 friends going" in html
+    assert "+2 others" in html
     assert 'href="/trips/41"' in html
     if expected_countdown:
         assert expected_countdown in html
     else:
-        assert "Trip today" not in html
-        assert "Trip tomorrow" not in html
-        assert "Trip in " not in html
+        assert "Starts today" not in html
+        assert "Tomorrow" not in html
+        assert "In " not in html

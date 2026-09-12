@@ -1,18 +1,11 @@
-from datetime import datetime, timedelta
-import json
-from pathlib import Path
-import re
-import subprocess
-from unittest.mock import patch
+"""Task 539 regressions for the compact Round 11 G Gear row."""
 
-import pytest
+from datetime import datetime
+from unittest.mock import patch
 
 from app import app
 from conftest import _login, _make_trip, _make_user
 from models import EquipmentDiscipline, EquipmentSetup, db
-
-
-EQUIPMENT_TEMPLATE = Path("templates/settings_equipment.html").read_text()
 
 
 def _home_html(client, user_id):
@@ -39,366 +32,109 @@ def _make_home_user(label, rider_types=None, **extra):
     return user
 
 
-def _setup(user, discipline, *, primary=False, created_at=None, label=None, brand=None, model=None):
+def _setup(user, discipline, *, primary=False, label=None):
     setup = EquipmentSetup(
         user_id=user.id,
         discipline=discipline,
         is_primary=primary,
-        created_at=created_at or datetime.utcnow(),
+        created_at=datetime.utcnow(),
         label=label,
-        brand=brand,
-        model=model,
     )
     db.session.add(setup)
     db.session.flush()
     return setup
 
 
-@pytest.mark.parametrize(
-    ("rider_types", "discipline", "label", "brand", "model", "expected_label"),
-    [
-        (["Skier"], EquipmentDiscipline.SKIER, None, "Salomon", "QST 92", "Skis"),
-        (["Snowboarder"], EquipmentDiscipline.SNOWBOARDER, None, "Burton", "Custom", "Snowboard"),
-    ],
-)
-def test_home_shows_matching_single_discipline_setup(
-    client, rider_types, discipline, label, brand, model, expected_label
-):
+def test_home_gear_row_shows_rider_skill_and_single_setup(client):
     with app.app_context():
-        user = _make_home_user("gear", rider_types=rider_types)
-        setup = _setup(user, discipline, primary=True, label=label, brand=brand, model=model)
-        user_id, setup_id = user.id, setup.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert f"{expected_label}:" in html
-    assert f"{brand} {model}" in html
-    assert f'/settings/equipment#setup-{setup_id}' in html
-
-
-def test_home_shows_both_disciplines_and_missing_specific_add_state(client):
-    with app.app_context():
-        user = _make_home_user("both", rider_types=["Skier", "Snowboarder"])
-        ski_setup = _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            primary=True,
-            brand="Salomon",
-            model="QST 92",
-        )
-        user_id, ski_setup_id = user.id, ski_setup.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert f'/settings/equipment#setup-{ski_setup_id}' in html
-    assert "Skis:" in html
-    assert "Add your snowboard gear" in html
-
-
-def test_home_shows_single_snowboarder_add_state_when_no_setup_exists(client):
-    with app.app_context():
-        user = _make_home_user("empty-board", rider_types=["Snowboarder"])
+        user = _make_home_user("gear-one", rider_types=["Skier"])
+        user.skill_level = "Advanced"
+        _setup(user, EquipmentDiscipline.SKIER, primary=True)
         user_id = user.id
         db.session.commit()
 
     html = _home_html(client, user_id)
 
-    assert "Add your gear" in html
-    assert "Add your snowboard gear" not in html
-    assert "Snowboard:" in html
+    assert "Skier · Advanced" in html
+    assert "1 setup" in html
+    assert 'href="/settings/equipment"' in html
 
 
-def test_home_shows_snowboard_setup_and_ski_add_state_for_dual_profile(client):
+def test_home_gear_row_counts_all_matching_saved_setups(client):
     with app.app_context():
-        user = _make_home_user("board-only", rider_types=["Skier", "Snowboarder"])
-        setup = _setup(
-            user,
-            EquipmentDiscipline.SNOWBOARDER,
-            primary=True,
-            brand="Jones",
-            model="Mountain Twin",
-        )
-        user_id, setup_id = user.id, setup.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert "Add your ski gear" in html
-    assert "Jones Mountain Twin" in html
-    assert f'/settings/equipment#setup-{setup_id}' in html
-
-
-def test_home_excludes_mismatched_setup_and_uses_add_state(client):
-    with app.app_context():
-        user = _make_home_user("mismatch", rider_types=["Skier"])
-        _setup(
-            user,
-            EquipmentDiscipline.SNOWBOARDER,
-            primary=True,
-            brand="Burton",
-            model="Custom",
-        )
+        user = _make_home_user("gear-multi", rider_types=["Skier"])
+        user.skill_level = "Advanced"
+        _setup(user, EquipmentDiscipline.SKIER, primary=True)
+        _setup(user, EquipmentDiscipline.SKIER)
         user_id = user.id
         db.session.commit()
 
     html = _home_html(client, user_id)
 
-    assert "Add your gear" in html
-    assert "Burton Custom" not in html
-    assert "Snowboard:" not in html
+    assert "Skier · Advanced" in html
+    assert "2 setups" in html
 
 
-def test_home_prefers_matching_global_primary_and_keeps_primary_flags_unchanged(client):
+def test_home_gear_row_ignores_setup_for_unselected_discipline(client):
     with app.app_context():
-        user = _make_home_user("primary", rider_types=["Skier", "Snowboarder"])
-        old_ski = _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            brand="Rossignol",
-            model="Experience",
-            created_at=datetime.utcnow() - timedelta(days=2),
-        )
-        primary_ski = _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            primary=True,
-            brand="Salomon",
-            model="QST 92",
-            created_at=datetime.utcnow() - timedelta(days=1),
-        )
-        board = _setup(
-            user,
-            EquipmentDiscipline.SNOWBOARDER,
-            brand="Burton",
-            model="Custom",
-        )
+        user = _make_home_user("gear-mismatch", rider_types=["Skier"])
+        user.skill_level = "Intermediate"
+        _setup(user, EquipmentDiscipline.SNOWBOARDER, primary=True)
         user_id = user.id
-        old_ski_id, primary_ski_id, board_id = old_ski.id, primary_ski.id, board.id
         db.session.commit()
 
     html = _home_html(client, user_id)
 
-    assert f'/settings/equipment#setup-{primary_ski_id}' in html
-    assert f'/settings/equipment#setup-{board_id}' in html
-    assert f'/settings/equipment#setup-{old_ski_id}' not in html
-    with app.app_context():
-        assert EquipmentSetup.query.get(primary_ski_id).is_primary is True
-        assert EquipmentSetup.query.get(old_ski_id).is_primary is False
-        assert EquipmentSetup.query.get(board_id).is_primary is False
+    assert "Skier · Intermediate" in html
+    assert "No setup saved" in html
 
 
-def test_home_uses_oldest_matching_setup_when_global_primary_is_other_discipline(client):
-    with app.app_context():
-        user = _make_home_user("fallback", rider_types=["Skier", "Snowboarder"])
-        oldest_ski = _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            brand="Atomic",
-            model="Maverick",
-            created_at=datetime.utcnow() - timedelta(days=3),
-        )
-        _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            brand="Salomon",
-            model="Stance",
-            created_at=datetime.utcnow() - timedelta(days=2),
-        )
-        primary_board = _setup(
-            user,
-            EquipmentDiscipline.SNOWBOARDER,
-            primary=True,
-            brand="Jones",
-            model="Mountain Twin",
-        )
-        user_id = user.id
-        oldest_ski_id, primary_board_id = oldest_ski.id, primary_board.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert f'/settings/equipment#setup-{oldest_ski_id}' in html
-    assert f'/settings/equipment#setup-{primary_board_id}' in html
-
-
-def test_home_treats_blank_detail_setup_as_saved_gear(client):
-    with app.app_context():
-        user = _make_home_user("blank", rider_types=["Skier"])
-        setup = _setup(user, EquipmentDiscipline.SKIER, primary=True)
-        user_id, setup_id = user.id, setup.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert "Skis setup" in html
-    assert f'/settings/equipment#setup-{setup_id}' in html
-    assert "Add your gear" not in html
-
-
-def test_home_preserves_rental_state_over_saved_setup(client):
+def test_home_gear_row_preserves_rental_state(client):
     with app.app_context():
         user = _make_home_user(
-            "rental",
+            "gear-rental",
             rider_types=["Skier"],
             equipment_status="needs_rentals",
         )
-        _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            primary=True,
-            brand="Salomon",
-            model="QST 92",
-        )
+        _setup(user, EquipmentDiscipline.SKIER, primary=True)
         user_id = user.id
         db.session.commit()
 
     html = _home_html(client, user_id)
 
     assert "Rental gear" in html
-    assert "Salomon QST 92" not in html
-    assert "Add your gear" not in html
+    assert "1 setup" not in html
 
 
-def test_home_uses_legacy_rider_profile_for_matching_gear(client):
+def test_home_gear_row_uses_legacy_rider_profile(client):
     with app.app_context():
         user = _make_home_user(
-            "legacy",
+            "gear-legacy",
             rider_types=[],
             primary_rider_type="Snowboarder",
         )
-        setup = _setup(
-            user,
-            EquipmentDiscipline.SNOWBOARDER,
-            primary=True,
-            label="Pow board",
-        )
-        user_id, setup_id = user.id, setup.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert "Pow board" in html
-    assert f'/settings/equipment#setup-{setup_id}' in html
-
-
-def test_home_gear_summary_renders_in_populated_header(client):
-    with app.app_context():
-        user = _make_home_user("trip", rider_types=["Skier"])
-        setup = _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            primary=True,
-            brand="K2",
-            model="Mindbender",
-        )
-        _make_trip(user)
-        user_id, setup_id = user.id, setup.id
-        db.session.commit()
-
-    html = _home_html(client, user_id)
-
-    assert "K2 Mindbender" in html
-    assert f'/settings/equipment#setup-{setup_id}' in html
-
-
-def test_home_about_you_gear_disclosure_uses_profile_values_and_gear_details(client):
-    with app.app_context():
-        user = _make_home_user("about", rider_types=["Skier"])
-        user.skill_level = "Advanced"
-        user.pass_type = "epic"
-        setup = _setup(
-            user,
-            EquipmentDiscipline.SKIER,
-            primary=True,
-            brand="K2",
-            model="Mindbender",
-        )
-        setup.boot_brand = "Dalbello"
-        setup.boot_model = "Lupo"
-        setup.binding_brand = "Marker"
-        setup.binding_model = "Griffon"
+        user.skill_level = "Beginner"
+        _setup(user, EquipmentDiscipline.SNOWBOARDER, primary=True)
         user_id = user.id
         db.session.commit()
 
     html = _home_html(client, user_id)
 
-    disclosure = html[html.index('<details id="about-you-gear"'):html.index("</details>", html.index('<details id="about-you-gear"'))]
-    assert 'class="home-disclosure home-about-you-gear"' in disclosure
-    assert "open" not in disclosure.split(">", 1)[0]
-    assert "About You &amp; Your Gear" in disclosure
-    assert "Skier · Advanced · Epic" in disclosure
-    assert "Rider Type:" in disclosure
-    assert "Skill Level:" in disclosure
-    assert "Pass:" in disclosure
-    assert "Skis:" in disclosure
-    assert "K2 Mindbender" in disclosure
-    assert "Boots:" in disclosure
-    assert "Dalbello Lupo" in disclosure
-    assert "Bindings:" in disclosure
-    assert "Marker Griffon" in disclosure
+    assert "Snowboarder · Beginner" in html
+    assert "1 setup" in html
 
 
-def test_home_about_you_gear_disclosure_handles_missing_pass_and_gear():
-    home_summary = {
-        "about_you": {
-            "display_rider_type": "Skier",
-            "skill_level": "Intermediate",
-            "pass_type": None,
-            "rider_disciplines": ["skier"],
-            "gear_by_discipline": {},
-            "is_renting": False,
-        },
-    }
-    with app.test_request_context():
-        html = app.jinja_env.get_template(
-            "partials/home/_about_you_gear.html"
-        ).render(home_summary=home_summary)
+def test_home_gear_row_is_identical_when_next_trip_exists(client):
+    with app.app_context():
+        user = _make_home_user("gear-trip", rider_types=["Skier"])
+        user.skill_level = "Advanced"
+        _setup(user, EquipmentDiscipline.SKIER, primary=True)
+        _make_trip(user)
+        user_id = user.id
+        db.session.commit()
 
-    assert "Skier · Intermediate · No pass added" in html
-    assert "Skis:" in html
-    assert "Add your gear" in html
-    assert "Boots:" in html
-    assert "Not added" in html
-    assert "Bindings:" in html
+    html = _home_html(client, user_id)
 
-
-def test_gear_page_hash_contract_reuses_existing_edit_form_safely():
-    function_match = re.search(
-        r"function openSetupFromHash\(\) \{.*?\n\}",
-        EQUIPMENT_TEMPLATE,
-        flags=re.DOTALL,
-    )
-    assert function_match
-    function_source = function_match.group(0)
-
-    cases = [
-        ("#setup-42", 42, True),
-        ("", None, False),
-        ("#setup-invalid", None, False),
-        ("#setup-99", None, False),
-    ]
-    for hash_value, expected_id, card_exists in cases:
-        script = f"""
-const calls = [];
-const renderedCardId = {json.dumps('eq-card-42' if card_exists else '')};
-const window = {{ location: {{ hash: {json.dumps(hash_value)} }} }};
-const document = {{
-  getElementById: (id) => id === renderedCardId ? {{}} : null
-}};
-const openEditForm = (id) => calls.push(id);
-{function_source}
-openSetupFromHash();
-const expected = {json.dumps([] if expected_id is None else [expected_id])};
-if (JSON.stringify(calls) !== JSON.stringify(expected)) {{
-  throw new Error(JSON.stringify({{ hash: window.location.hash, calls, expected }}));
-}}
-"""
-        result = subprocess.run(
-            ["node", "-e", script],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 0, result.stderr or result.stdout
+    assert "Skier · Advanced" in html
+    assert "1 setup" in html
+    assert 'id="your-next-trip"' in html

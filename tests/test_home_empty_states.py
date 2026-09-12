@@ -208,6 +208,8 @@ def test_home_summary_assembler_uses_only_resolved_values():
             "rider_disciplines": ["skier"],
             "gear_by_discipline": gear,
             "is_renting": False,
+            "setup_count": 0,
+            "pass_rows": [],
         },
         "activity": {
             "upcoming_trip_count": 1,
@@ -221,6 +223,7 @@ def test_home_summary_assembler_uses_only_resolved_values():
                 "indy,mountain_collective,powder_alliance,"
                 "freedom,ski_california,other"
             ),
+            "friends_with_pass_count": 0,
         },
         "next_trip": {
             "trip": next_trip,
@@ -263,7 +266,7 @@ def test_home_summary_matches_flat_values_and_reuses_loaded_trips(client):
     assert summary["next_trip"]["is_owner"] is True
 
 
-def test_home_renders_your_activity_from_shared_summary(client):
+def test_home_renders_skiing_stats_from_shared_summary(client):
     with app.app_context():
         viewer = _make_user(
             "activity-disclosure",
@@ -277,11 +280,13 @@ def test_home_renders_your_activity_from_shared_summary(client):
 
     html = _get_home(client, viewer_id)
 
-    assert html.count('id="your-activity"') == 1
-    assert "1 trip · 2 mountains visited · 1 wishlist mountain" in html
+    assert html.count('class="home-stat-band"') == 1
+    assert "Upcoming" in html
     assert "Trips" in html
-    assert "Mountains Visited" in html
-    assert "Wishlist Mountain" in html
+    assert "Mountains" in html
+    assert "Visited" in html
+    assert "Wish" in html
+    assert "List" in html
 
 
 def test_empty_home_summary_matches_existing_zero_values(client):
@@ -370,7 +375,7 @@ def test_home_shows_both_activity_sections_when_both_have_content(client):
     assert 'id="section-opportunities"' in html
     assert 'id="pill-ideas"' in html
     assert "hidden" in _fallback_tag(html)
-    assert html.index('id="friends-passes"') < html.index('id="section-happening"')
+    assert html.index('class="hc-card home-foundation-card"') < html.index('id="section-happening"')
     assert html.index('id="section-happening"') < html.index('id="section-opportunities"')
     assert html.index('id="section-opportunities"') < html.index('id="section-pills"')
 
@@ -513,25 +518,23 @@ def test_suggested_connection_query_failure_preserves_trip_happening(client):
     assert "Test Peak" in html
 
 
-def test_home_header_variants_use_about_you_and_activity_disclosures():
-    for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
-        assert "partials/home/_about_you_gear.html" in header_template
-        assert "partials/home/_activity.html" in header_template
-        assert 'class="hc-identity-line"' not in header_template
-        assert "partials/home/_gear_summary.html" not in header_template
-        assert "hc-stat-band" not in header_template
-
-    assert "stat_trips_url" in ACTIVITY_TEMPLATE
-    assert "stat_mountains_url" in ACTIVITY_TEMPLATE
-    assert "stat_wishlist_url" in ACTIVITY_TEMPLATE
+def test_home_header_variants_use_round_11_g_foundation():
+    assert "home-welcome-row" in POPULATED_HEADER_TEMPLATE
+    assert "home-foundation-card" in POPULATED_HEADER_TEMPLATE
+    assert "home-stat-band" in POPULATED_HEADER_TEMPLATE
+    assert "home-pass-row" in POPULATED_HEADER_TEMPLATE
+    assert "home-friends-row" in POPULATED_HEADER_TEMPLATE
+    assert "partials/home/_header.html" in EMPTY_HEADER_TEMPLATE
 
 
-def test_home_header_variants_include_editable_gear_summary_and_pass_summary():
-    for header_template in (POPULATED_HEADER_TEMPLATE, EMPTY_HEADER_TEMPLATE):
-        assert "partials/home/_section_friend_passes.html" in header_template
-        assert "partials/home/_about_you_gear.html" in header_template
-        assert "Boots:" not in header_template
-        assert "Bindings:" not in header_template
+def test_home_foundation_routes_to_existing_profile_surfaces():
+    assert "url_for('profile')" in POPULATED_HEADER_TEMPLATE
+    assert "url_for('settings_equipment')" in POPULATED_HEADER_TEMPLATE
+    assert "url_for('select_pass')" in POPULATED_HEADER_TEMPLATE
+    assert "url_for('friends')" in POPULATED_HEADER_TEMPLATE
+    assert "stat_trips_url" in POPULATED_HEADER_TEMPLATE
+    assert "stat_mountains_url" in POPULATED_HEADER_TEMPLATE
+    assert "stat_wishlist_url" in POPULATED_HEADER_TEMPLATE
 
 
 def test_home_about_you_gear_uses_stacked_single_column_layout():

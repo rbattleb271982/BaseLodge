@@ -14,13 +14,49 @@ Inputs:
   stat_wishlist_url   string | None
 -->
 
-<div class="hc-card">
-
-
-    {% include 'partials/home/_about_you_gear.html' %}
-
-    {% include 'partials/home/_activity.html' %}
-
-    {% include 'partials/home/_section_friend_passes.html' %}
-
+{% set _about = home_summary.about_you %}
+{% set _rt = _about.display_rider_type or 'Add rider type' %}
+{% set _skill = _about.skill_level or 'Add skill level' %}
+{% set _setup_count = _about.setup_count %}
+{% set _pass_rows = _about.pass_rows %}
+<div class="home-welcome-row">
+    <h1 class="home-welcome">Welcome, <span class="home-welcome-name">{{ current_user.first_name | format_name }}.</span></h1>
+    <a class="home-profile-link" href="{{ url_for('profile') }}">Profile</a>
 </div>
+<section class="hc-card home-foundation-card" aria-label="Your ski profile">
+    <div class="home-foundation-section">
+        <p class="home-foundation-label">GEAR</p>
+        <a class="home-gear-line" href="{{ url_for('settings_equipment') }}">
+            <span>{{ _rt }} · {{ _skill }} <span class="home-gear-muted">· {% if _about.is_renting %}Rental gear{% elif _setup_count %}{{ _setup_count }} {{ 'setup' if _setup_count == 1 else 'setups' }}{% else %}No setup saved{% endif %}</span></span>
+            <span class="home-chevron" aria-hidden="true">›</span>
+        </a>
+    </div>
+    <div class="home-foundation-section home-passes-section">
+        <p class="home-foundation-label">PASSES</p>
+        <div class="home-pass-list">
+        {% for pass_row in _pass_rows %}
+            <a class="home-pass-row" href="{{ url_for('friends') }}?pass={{ pass_row.slug | urlencode }}">
+                <span class="home-pass-name">{{ pass_row.label }}</span>
+                <span class="home-pass-friends">{{ pass_row.friend_count }} {{ 'friend' if pass_row.friend_count == 1 else 'friends' }}</span>
+            </a>
+        {% else %}
+            <a class="home-pass-row home-pass-row--empty" href="{{ url_for('select_pass') }}">
+                <span class="home-pass-empty">No pass added</span>
+                <span class="home-pass-friends">{{ home_summary.friends_passes.friends_with_pass_count }} {{ 'friend has' if home_summary.friends_passes.friends_with_pass_count == 1 else 'friends have' }} one</span>
+            </a>
+        {% endfor %}
+        </div>
+        <a class="home-passes-chevron" href="{{ url_for('select_pass') }}" aria-label="Edit passes">
+            <span class="home-chevron" aria-hidden="true">›</span>
+        </a>
+    </div>
+    <div class="home-stat-band">
+        <a class="home-stat" href="{{ stat_trips_url }}"><span class="home-stat-value">{{ home_summary.activity.upcoming_trip_count }}</span><span class="home-stat-label">Upcoming<br>Trips</span></a>
+        <a class="home-stat" href="{{ stat_mountains_url }}"><span class="home-stat-value">{{ home_summary.activity.mountains_visited_count }}</span><span class="home-stat-label">Mountains<br>Visited</span></a>
+        <a class="home-stat" href="{{ stat_wishlist_url }}"><span class="home-stat-value">{{ home_summary.activity.wishlist_count }}</span><span class="home-stat-label">Wish<br>List</span></a>
+    </div>
+    <a class="home-foundation-section home-friends-row home-gear-line" href="{{ url_for('friends') }}">
+        <span><span class="home-foundation-label home-friends-label">FRIENDS</span><span class="home-friends-count">{{ home_summary.friends_passes.friend_count }} <span>on BaseLodge</span></span></span>
+        <span class="home-chevron" aria-hidden="true">›</span>
+    </a>
+</section>

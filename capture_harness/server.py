@@ -147,8 +147,12 @@ def create_capture_application() -> tuple[Any, dict[str, Any]]:
         capture_id = str(payload.get("capture_id", ""))
         _set_both_capture_state(registry, capture_id)
         _set_friends_capture_state(registry, capture_id)
-        pending = registry["state_trips"]["HOME_PENDING"]
-        participant = registry["state_trips"]["HOME_PARTICIPANT"]
+        pending = application.db.session.get(
+            SkiTrip, registry["state_trip_ids"]["HOME_PENDING"]
+        )
+        participant = application.db.session.get(
+            SkiTrip, registry["state_trip_ids"]["HOME_PARTICIPANT"]
+        )
         pending.lifecycle_state = (
             "active" if "pending-invite" in capture_id or "pending-invites" in capture_id
             else "cancelled"

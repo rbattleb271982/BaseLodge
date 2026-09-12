@@ -12125,6 +12125,9 @@ def _build_home_summary(
     all_upcoming=None,
     wishlist_count=None,
     next_trip_actions=None,
+    home_pass_rows=None,
+    friends_with_pass_count=0,
+    home_setup_count=0,
 ):
     """Assemble Home summary data exclusively from already-resolved values."""
     summary_user = (
@@ -12146,6 +12149,8 @@ def _build_home_summary(
             "rider_disciplines": home_rider_disciplines,
             "gear_by_discipline": home_gear_by_discipline,
             "is_renting": home_is_renting,
+            "setup_count": home_setup_count,
+            "pass_rows": list(home_pass_rows or []),
         },
         "activity": {
             "upcoming_trip_count": upcoming_trip_count,
@@ -12156,6 +12161,7 @@ def _build_home_summary(
             "friend_count": len(friend_ids),
             "counts": friend_pass_counts,
             "other_pass_slugs_url": OTHER_PASS_SLUGS_URL,
+            "friends_with_pass_count": friends_with_pass_count,
         },
         "next_trip": (
             {
@@ -12169,6 +12175,42 @@ def _build_home_summary(
             else None
         ),
     }
+
+
+def _build_home_pass_rows(user_pass_type, friends):
+    """Build exact user-pass rows and friend matches from already-loaded users."""
+    normalized_user_passes = normalize_pass_selection(user_pass_type)
+    user_slugs = [
+        slug
+        for slug in normalized_user_passes.split(",")
+        if slug and slug not in {"no_pass", "no_pass_yet"}
+    ]
+
+    friend_pass_sets = []
+    for friend in friends or []:
+        normalized_friend_passes = normalize_pass_selection(
+            getattr(friend, "pass_type", None)
+        )
+        friend_pass_sets.append({
+            slug
+            for slug in normalized_friend_passes.split(",")
+            if slug and slug not in {"no_pass", "no_pass_yet"}
+        })
+
+    rows = [
+        {
+            "slug": slug,
+            "label": (
+                "Indy Pass"
+                if slug == "indy"
+                else display_pass_label(slug)
+            ),
+            "friend_count": sum(slug in pass_set for pass_set in friend_pass_sets),
+        }
+        for slug in user_slugs
+    ]
+    friends_with_pass_count = sum(bool(pass_set) for pass_set in friend_pass_sets)
+    return rows, friends_with_pass_count
 
 
 HOME_NEXT_TRIP_ACTION_PRIORITIES = {
@@ -12480,6 +12522,10 @@ def home():
         friend_ids = []
         all_friends = []
     friend_pass_counts = count_friends_by_pass_group(all_friends)
+    home_pass_rows, friends_with_pass_count = _build_home_pass_rows(
+        user.pass_type,
+        all_friends,
+    )
     next_trip_friends_going_count = _count_home_next_trip_friends_going(
         next_trip, friend_ids, user.id
     )
@@ -12795,6 +12841,7 @@ def home():
     home_rider_disciplines = _home_gear_disciplines(user)
     home_is_renting = user.equipment_status == EquipmentStatus.NEEDS_RENTALS.value
     home_gear_by_discipline = {}
+    home_setup_count = 0
     if home_rider_disciplines and not home_is_renting:
         home_setup_rows = (
             EquipmentSetup.query
@@ -12809,6 +12856,7 @@ def home():
             )
             .all()
         )
+        home_setup_count = len(home_setup_rows)
         for setup in home_setup_rows:
             if setup.discipline and setup.discipline.value not in home_gear_by_discipline:
                 home_gear_by_discipline[setup.discipline.value] = setup
@@ -12828,6 +12876,9 @@ def home():
         home_rider_disciplines=home_rider_disciplines,
         home_gear_by_discipline=home_gear_by_discipline,
         home_is_renting=home_is_renting,
+        home_setup_count=home_setup_count,
+        home_pass_rows=home_pass_rows,
+        friends_with_pass_count=friends_with_pass_count,
         wishlist_count=len(home_wishlist_ids),
         next_trip_actions=next_trip_actions,
     )

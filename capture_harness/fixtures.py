@@ -36,8 +36,14 @@ def _specs():
         "EMPTY": ("empty", "Empty", "Capture", "Social", None),
         "LIGHT": ("light", "Light", "Capture", "Epic", "Beginner"),
         "TYPICAL": ("typical", "Typical", "Capture", "Ikon", "Intermediate"),
-        "HEAVY": ("heavy", "Heavy", "Capture", "Epic", "Advanced"),
-        "EXTREME": ("extreme", "Extreme", "Capture", "Ikon", "Expert"),
+        "HEAVY": ("heavy", "Heavy", "Capture", "epic,indy", "Advanced"),
+        "EXTREME": (
+            "extreme",
+            "Extreme",
+            "Capture",
+            "mountain_collective,ikon",
+            "Expert",
+        ),
         "EDGE": ("edge", "Edge", "Capture", "Indy", "Intermediate"),
     }
 
@@ -90,6 +96,22 @@ def _resorts():
         )
         db.session.add(r)
         result[slug.removeprefix("capture-")] = r
+    kicking_horse = Resort(
+        name="Kicking Horse Mountain Resort",
+        slug="capture-kicking-horse",
+        state="British Columbia",
+        state_code="BC",
+        country="CA",
+        country_code="CA",
+        country_name="Canada",
+        is_active=True,
+        is_region=False,
+        brand="Mountain Collective",
+        pass_brands="Mountain Collective",
+        pass_brands_json=["Mountain Collective"],
+    )
+    db.session.add(kicking_horse)
+    result["kicking-horse"] = kicking_horse
     return result
 
 
@@ -149,10 +171,19 @@ def seed_all(database=None):
         u.wish_list_resorts = [r.id for r in resort_values[-wishlist_count:]]
         persona_trips = []
         for number in range(trip_count):
-            start = FROZEN_TODAY + timedelta(days=number * 21 + 2)
+            is_extreme_wrap_trip = label == "EXTREME" and number == 0
+            start = FROZEN_TODAY + timedelta(
+                days=12 if is_extreme_wrap_trip else number * 21 + 2
+            )
+            resort = (
+                resorts["kicking-horse"]
+                if is_extreme_wrap_trip
+                else resort_values[(number + 2) % len(resort_values)]
+            )
             persona_trips.append(_trip(
-                u, resort_values[(number + 2) % len(resort_values)], start,
-                start + timedelta(days=2), "planning" if number % 2 else "going",
+                u, resort, start,
+                start + timedelta(days=5 if is_extreme_wrap_trip else 2),
+                "planning" if number % 2 else "going",
                 public=(number % 2 == 0), pass_type=u.pass_type,
             ))
         registry["personas"][label]["trips"] = persona_trips
@@ -200,6 +231,9 @@ def seed_all(database=None):
     )
     _participant(state_trips["HOME_PARTICIPANT"], users["TYPICAL"], GuestStatus.GOING)
     registry["state_trips"] = state_trips
+    registry["state_trip_ids"] = {
+        logical_id: trip.id for logical_id, trip in state_trips.items()
+    }
     pending_friend_request = Invitation(
         sender_id=users["EDGE"].id,
         receiver_id=users["TYPICAL"].id,

@@ -17,16 +17,23 @@ Inputs:
 {% if _has_date_range %}{% set _night_count = (_end - _start).days %}{% endif %}
 {% set _friend_count = _next.friends_going_count %}
 {% if _start %}{% set _days_until = (_start - home_today).days %}{% endif %}
-{% set _actions = _next.actions | default([], true) %}
+{% set _relationship = 'ORGANIZING' if _next.is_owner else 'GOING' %}
+{% if _trip.resort %}
+    {% set _region_code = _trip.resort.state_code or _trip.resort.state or '' %}
+    {% set _region = _region_code if (_trip.resort.country_code or 'US') == 'US' else (_trip.resort.state_name or (_region_code | state_name)) %}
+{% else %}
+    {% set _region = '' %}
+{% endif %}
 
 <section id="your-next-trip" class="home-next-trip" aria-labelledby="your-next-trip-title">
     <div class="home-next-trip__header">
-        <h2 id="your-next-trip-title" class="home-next-trip__eyebrow">Your Next Trip</h2>
-        <a class="home-next-trip__action" href="{{ url_for('trip_detail', trip_id=_trip.id) }}">
-            View trip &gt;
-        </a>
+        <h2 id="your-next-trip-title" class="home-next-trip__eyebrow">Next Trip</h2>
+        <span class="home-next-trip__countdown">{% if _days_until is defined and _days_until <= 0 %}Starts today{% elif _days_until is defined and _days_until == 1 %}Tomorrow{% elif _days_until is defined and _days_until >= 14 and _days_until % 7 == 0 %}In {{ _days_until // 7 }} weeks{% elif _days_until is defined %}In {{ _days_until }} days{% else %}Upcoming{% endif %}</span>
     </div>
-    <p class="home-next-trip__mountain">{{ _mountain }}</p>
+    <a class="home-next-trip__body" href="{{ url_for('trip_detail', trip_id=_trip.id) }}">
+        <span class="home-next-trip__mountain">{{ _mountain }}{% if _region %}<span class="home-next-trip__region">, {{ _region }}</span>{% endif %}</span>
+        <span class="home-chevron" aria-hidden="true">›</span>
+    </a>
     <p class="home-next-trip__meta">
         {% if _has_date_range %}
         {{ format_trip_dates(_trip, _start, _end) }} ·
@@ -34,27 +41,6 @@ Inputs:
         {% else %}
         Dates TBD
         {% endif %}
+        · <strong>{{ _relationship }}</strong> · +{{ _friend_count }} {{ 'other' if _friend_count == 1 else 'others' }}
     </p>
-    <p class="home-next-trip__meta">
-        {{ _friend_count }} {{ 'friend' if _friend_count == 1 else 'friends' }} going{% if _start %} ·
-        {% if _days_until <= 0 %}Trip today{% elif _days_until == 1 %}Trip tomorrow{% else %}Trip in {{ _days_until }} days{% endif %}
-        {% endif %}
-    </p>
-    {% if _next.action_count | default(0, true) > 0 %}
-    {% from 'macros/home_disclosure.html' import home_disclosure %}
-    {% call home_disclosure(
-        'next-trip-actions',
-        'Actions to take · ' ~ _next.action_count,
-        '',
-        class_name='home-next-trip__actions',
-        content_class='home-next-trip__action-list',
-        indicator='down-arrow'
-    ) %}
-        {% for action in _actions %}
-        <a class="home-next-trip__action-link" href="{{ action.destination }}">
-            {{ action.label }}
-        </a>
-        {% endfor %}
-    {% endcall %}
-    {% endif %}
 </section>
