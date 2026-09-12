@@ -421,6 +421,7 @@ class CaptureRunner:
                     actions = page.locator(".home-next-trip__actions")
                     if actions.count() and actions.first.get_attribute("open") is not None:
                         actions.locator("summary").click()
+                    page.locator("#section-opportunities").scroll_into_view_if_needed()
             elif row["screen"] == "trips":
                 if row["state"] in {
                     "filter-sheet", "no-filter-results",

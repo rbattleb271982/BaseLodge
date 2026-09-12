@@ -24,14 +24,29 @@ Inputs:
   user_avail_overflow int — number of ranges beyond the 3 shown
 -->
 
-{% if dest_feed %}
-<div class="bl-section" id="section-opportunities">
+{# Only the three explainable Ideas signals belong in this section. Keep the
+   fallback below independent: it is still revealed by the existing activity
+   sync after the last visible card is dismissed. #}
+{% set supported_ideas = [] %}
+{% for candidate in dest_feed %}
+    {% if candidate.idea_type == 'friend_trip' and ((candidate.going_count or 0) > 0 or (candidate.considering_count or 0) > 0) %}
+        {% set _ = supported_ideas.append(candidate) %}
+    {% elif candidate.idea_type in ('availability_overlap', 'wishlist_overlap') %}
+        {% set _ = supported_ideas.append(candidate) %}
+    {% endif %}
+{% endfor %}
 
-    <div class="bl-section-header">
-        <span class="bl-section-title">Ideas</span>
+{% if supported_ideas %}
+<div class="bl-section bl-ideas-section" id="section-opportunities">
+
+    <div class="bl-section-header bl-ideas-header">
+        <div class="bl-section-heading">
+            <span class="bl-section-title">IDEAS</span>
+            <span class="bl-section-subtitle">Where you could go next</span>
+        </div>
     </div>
 
-    {% for row in dest_feed %}
+    {% for row in supported_ideas %}
         {#
             For resort-pinned cards: link to mountain detail page.
             For availability_overlap cards with no resort (resort=None): link to /add_trip.
@@ -47,38 +62,50 @@ Inputs:
         {%- set _card_key = row._card_key -%}
         {%- set _elem_id = 'opp-row-' + loop.index | string -%}
 
-        {# ── Signal label ── #}
-        {%- if row.idea_type == 'friend_trip' -%}
-            {%- set _signal_lbl = 'Friend trip' -%}
+        {# ── Explainable WHY chip ── #}
+        {%- if row.idea_type == 'friend_trip' and (row.going_count or 0) > 0 -%}
+            {%- set _signal_lbl = (row.going_count | string) + ' FRIENDS GOING' -%}
+        {%- elif row.idea_type == 'friend_trip' and (row.considering_count or 0) == 1 -%}
+            {%- set _signal_lbl = 'FRIEND CONSIDERING' -%}
+        {%- elif row.idea_type == 'friend_trip' -%}
+            {%- set _signal_lbl = (row.considering_count | string) + ' FRIENDS CONSIDERING' -%}
         {%- elif row.idea_type == 'availability_overlap' -%}
-            {%- set _signal_lbl = 'Dates align' -%}
+            {%- set _signal_lbl = 'DATES ALIGN' -%}
         {%- else -%}
-            {%- set _signal_lbl = 'Wishlist' -%}
+            {%- set _signal_lbl = 'WISHLIST OVERLAP' -%}
         {%- endif -%}
 
         <div class="bl-opp-row" id="{{ _elem_id }}">
             <a href="{{ _detail_url }}" class="bl-opp-link">
                 <div class="bl-opp-body">
                     <span class="bl-opp-signal">{{ _signal_lbl }}</span>
-                    {% if row.idea_type != 'availability_overlap' %}
-                    <p class="bl-opp-primary">{{ _primary_text }}{% if _state_str %}, {{ _state_str }}{% endif %}</p>
-                    {% endif %}
+                    <div class="bl-opp-title-line">
+                        <p class="bl-opp-primary">{{ _primary_text }}{% if _state_str %}, {{ _state_str }}{% endif %}</p>
+                        {% if row.date_range %}
+                        <span class="bl-opp-date">{{ row.date_range }}</span>
+                        {% endif %}
+                    </div>
                     {% if row.line2 %}
-                    {% if row.idea_type == 'availability_overlap' %}
-                    <p class="bl-opp-primary">{{ row.line2 }}</p>
-                    {% else %}
-                    <p class="bl-opp-secondary">{{ row.line2 }}{% if row.date_range %} · {{ row.date_range }}{% endif %}</p>
-                    {% endif %}
-                    {% elif row.date_range %}
-                    <p class="bl-opp-secondary">{{ row.date_range }}</p>
+                    <p class="bl-opp-secondary">{{ row.line2 }}</p>
                     {% endif %}
                 </div>
             </a>
             <button class="bl-opp-dismiss" type="button" aria-label="Dismiss"
-                    onclick="dismissInsightCard('opportunity','{{ _card_key }}','{{ _elem_id }}')">×</button>
+                    onclick="dismissIdeaCard('{{ _card_key }}','{{ _elem_id }}')">×</button>
         </div>
 
     {% endfor %}
+
+    <div class="bl-opp-footer">
+        {% if has_availability %}
+            {% set _window_count = user_avail_ranges | length + (user_avail_overflow or 0) %}
+            <span>Matched to your <strong>{{ _window_count }}</strong> free window{% if _window_count != 1 %}s{% endif %}</span>
+            <a href="{{ url_for('add_open_dates') }}">Edit availability</a>
+        {% else %}
+            <span>Add free dates to make Ideas more relevant</span>
+            <a href="{{ url_for('add_open_dates') }}">Add availability</a>
+        {% endif %}
+    </div>
 
 </div>
 {% endif %}

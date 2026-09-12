@@ -13198,23 +13198,25 @@ def dismiss_insight_card():
     validate_csrf_request()
     card_type = request.form.get("card_type", "").strip()
     card_key = request.form.get("card_key", "").strip()
-    if card_type and card_key:
-        try:
-            existing = DismissedInsightCard.query.filter_by(
+    if not card_type or not card_key:
+        return ('', 400)
+    try:
+        existing = DismissedInsightCard.query.filter_by(
+            user_id=current_user.id,
+            card_type=card_type,
+            card_key=card_key,
+        ).first()
+        if not existing:
+            dismissal = DismissedInsightCard(
                 user_id=current_user.id,
                 card_type=card_type,
                 card_key=card_key,
-            ).first()
-            if not existing:
-                dismissal = DismissedInsightCard(
-                    user_id=current_user.id,
-                    card_type=card_type,
-                    card_key=card_key,
-                )
-                db.session.add(dismissal)
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
+            )
+            db.session.add(dismissal)
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return ('', 500)
     return ('', 204)
 
 

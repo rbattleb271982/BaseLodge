@@ -465,6 +465,19 @@ def test_home_dismissal_is_idempotent_for_happening_and_opportunity(client):
             ).count() == 1
 
 
+def test_home_dismissal_rejects_missing_card_identity(client):
+    with app.app_context():
+        viewer_id, _friend_id = _setup_viewer_and_friend()
+
+    _login(client, viewer_id)
+    response = client.post(
+        "/dismiss-insight-card",
+        data={"csrf_token": "test-csrf-fixed-value-baselodge-regression"},
+    )
+
+    assert response.status_code == 400
+
+
 def test_suggested_connections_share_the_existing_happening_cap(client):
     with app.app_context():
         viewer_id, friend_id = _setup_viewer_and_friend()
