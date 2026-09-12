@@ -1,0 +1,410 @@
+# Task — Build Home Activity Digest
+
+Tasks #539, #544, and #545 are complete and verified.
+
+The current Home now has:
+- Round 11 G personal foundation
+- Next Trip
+- expandable Actions to Take
+- Needs You with canonical inline actions
+- J Ideas with WHY chips
+
+This next task should modify ONLY the Home Happening section.
+
+Do not modify:
+- personal context
+- passes
+- skiing statistics
+- Friends context
+- Next Trip
+- Actions to Take
+- Needs You
+- Ideas
+- bottom navigation
+
+THIS IS PLAN / READ-ONLY FIRST.
+
+Do not modify code yet.
+Do not modify tests yet.
+Do not modify fixtures yet.
+Do not deploy.
+Do not publish.
+Do not push Git.
+Do not create migrations.
+
+Use the attached `HOME-J-M-heavy.png` and `HOME-J-M-heavy-360.png` as the visual source of truth.
+
+The selected treatment is:
+
+**M — THE DIGEST**
+
+Do not implement N or O.
+
+==================================================
+LOCKED HAPPENING PRODUCT PURPOSE
+==================================================
+
+Happening answers:
+
+**What changed that I should know about?**
+
+It is NOT:
+- a generic reverse-chronological activity feed
+- a notification center
+- a social-media feed
+- Needs You
+- Ideas
+- the parked O “where your network is gathering” concept
+
+The selected M direction is a compact summary of meaningful change over a recent period.
+
+==================================================
+SELECTED M STRUCTURE
+==================================================
+
+Use the three-part hierarchy:
+
+### ON YOUR TRIPS
+Meaningful changes to trips involving the viewer.
+
+### TRIPS FORMING
+Meaningful network trip formation/activity.
+
+### YOUR PEOPLE
+Rolled-up meaningful people/network signals.
+
+The section should preserve M’s compact digest behavior rather than rendering every underlying event as a full row.
+
+Chronology is secondary.
+
+The point is consequence and relevance.
+
+==================================================
+IMPORTANT IMPLEMENTATION RULE
+==================================================
+
+Do NOT implement exploration examples unless the current BaseLodge data model or existing durable activity/history records actually support them.
+
+Audit current authoritative sources first.
+
+If an exploration example has no durable evidence, omit it rather than infer or synthesize it.
+
+This especially applies to:
+- date changes
+- response-progress changes
+- planning changes
+- availability changes
+- ski-day activity
+- connection events
+
+Only render what the app can support correctly.
+
+==================================================
+CURRENT HAPPENING AUDIT
+==================================================
+
+Trace the existing Happening implementation end to end.
+
+Determine:
+
+- current data source
+- current supported event/activity types
+- current visibility/privacy rules
+- friendship requirements
+- public/private trip rules
+- active lifecycle requirements
+- dismissal behavior
+- ordering
+- result limits
+- current query count
+- whether activity history is durable or reconstructed
+- which events carry trip, resort, friend, or timestamp context
+
+Identify exact functions, services, routes, models, and templates.
+
+==================================================
+M CATEGORY MAPPING
+==================================================
+
+For every currently supported activity/event type, classify it into one of:
+
+- ON YOUR TRIPS
+- TRIPS FORMING
+- YOUR PEOPLE
+- OMIT FROM HOME DIGEST
+
+Do not force every existing activity type into M.
+
+For each supported type, state:
+- why it belongs
+- what data proves it
+- whether it is rendered individually or rolled up
+- whether timestamp is retained
+- what destination/context it needs
+- privacy requirements
+
+==================================================
+ON YOUR TRIPS
+==================================================
+
+This is the highest-priority Happening class.
+
+Audit whether current durable data can support meaningful changes such as:
+
+- person joined
+- RSVP changes
+- join-request outcomes
+- trip-date changes
+- response-progress changes
+- planning updates
+
+Do not assume all of these are available.
+
+If only a subset is authoritative, implement only that subset.
+
+Do not duplicate Needs You:
+- unresolved requests belong in Needs You
+- completed/relevant changes may qualify for Happening if durable evidence exists
+
+==================================================
+TRIPS FORMING
+==================================================
+
+Audit existing friend/network trip activity.
+
+Potential supported examples may include:
+- friend started a trip
+- friend added people
+- friend set dates
+- public active trip activity
+
+Verify actual current semantics.
+
+Preserve reciprocal friendship and visibility rules.
+
+Do not expose private trips or unauthorized participant identities.
+
+==================================================
+YOUR PEOPLE
+==================================================
+
+This is intended to be the most compressed layer.
+
+Potential signals may include:
+- friends free during viewer windows
+- wishlist activity
+- new connections
+- other durable network signals
+
+But only use signals already safely derivable.
+
+Do not expose raw friend availability.
+
+Do not invent “days on snow” or other activity if no authoritative data supports it.
+
+Prefer compact rollups where appropriate.
+
+==================================================
+DIGEST / ROLLUP BEHAVIOR
+==================================================
+
+Plan M as a bounded digest.
+
+Requirements:
+- compact
+- fixed category order
+- bounded output
+- deterministic
+- no N+1 queries
+- should not grow linearly with every event
+- meaningful events may render individually
+- ambient network activity should roll up
+
+Audit whether M should use:
+- a recent time window
+- fixed per-category caps
+- explicit “N more” affordances
+- existing dismissal behavior
+
+Do not create a raw infinite feed.
+
+==================================================
+DISMISSAL
+==================================================
+
+Audit current Happening dismissal semantics.
+
+Preserve current user-scoped behavior unless correctness requires otherwise.
+
+Determine:
+- what is dismissible
+- storage scope
+- idempotency
+- whether rollups can be dismissed or only underlying events
+- whether dismissal survives regrouping
+
+Do not invent a new notification-read model.
+
+==================================================
+RESPONSIVE REQUIREMENTS
+==================================================
+
+Match the attached M references at:
+
+- true 390px
+- true 360px
+
+Test long real strings such as:
+- Kicking Horse Mountain Resort, British Columbia
+- Chamonix-Mont-Blanc, Auvergne-Rhône-Alpes
+- long friend names
+- long trip names
+
+Meaningful content should wrap.
+
+No horizontal overflow.
+
+No meaningful truncation unless the selected M reference explicitly uses bounded summarization.
+
+==================================================
+QUERY / PERFORMANCE REQUIREMENTS
+==================================================
+
+The digest must remain bounded.
+
+Audit:
+- current query count
+- current event result caps
+- whether category grouping requires new reads
+- whether user/trip/resort metadata can be batched
+- whether aggregate counts can be derived without per-row lookups
+
+Add query-budget coverage for:
+- empty
+- typical
+- heavy/dense states
+
+No N+1 behavior.
+
+==================================================
+EMPTY / SPARSE STATES
+==================================================
+
+Plan behavior for:
+- no Happening activity
+- only one category populated
+- only one item total
+- no friend activity
+- no viewer-trip activity
+- all current items dismissed
+
+Do not add filler just to preserve section height.
+
+==================================================
+REGRESSION BOUNDARIES
+==================================================
+
+Preserve unchanged:
+- Task #539 personal foundation
+- Task #544 Actions and Needs You
+- Task #545 Ideas
+- Next Trip selection
+- Trips → Both
+- navigation
+- privacy rules outside Happening
+
+Do not alter Ideas or Needs You to make M easier to build.
+
+==================================================
+TEST REQUIREMENTS
+==================================================
+
+Plan focused coverage for:
+
+### Category mapping
+- each supported event → correct M category
+- unsupported event omitted
+- category order fixed
+
+### Privacy
+- reciprocal friendship
+- public/active trip rules
+- unauthorized identities excluded
+
+### Digest behavior
+- bounded output
+- rollups
+- deterministic ordering
+- category caps
+- “more” behavior if used
+- dismissal interaction
+
+### Responsive presentation
+- 390px
+- 360px
+- long trip names
+- long regions
+- long friend names
+
+### Regression
+- Tasks #539/#544/#545 unchanged
+- no query-budget regression
+- no migration
+- no Ideas/Needs You semantic drift
+
+==================================================
+ACCEPTANCE CAPTURES
+==================================================
+
+Plan deterministic captures for at least:
+
+- typical M 390px
+- heavy M 390px
+- heavy M 360px
+- long names
+- only On Your Trips
+- only Trips Forming
+- only Your People
+- sparse state
+- empty state
+
+Verify:
+- correct category labels
+- correct grouping
+- no unsupported event claims
+- no horizontal overflow
+- no meaningful clipping
+- no console errors
+- no failed application requests
+
+==================================================
+DELIVERABLE
+==================================================
+
+Return one concise:
+
+# Home Happening Implementation Plan
+
+Include:
+
+1. Current Happening pipeline findings
+2. Verified durable event/signal types
+3. M category mapping
+4. Unsupported exploration examples
+5. Digest/rollup design
+6. Dismissal behavior
+7. Privacy implications
+8. Query-budget implications
+9. Exact files/functions/routes involved
+10. Frontend changes
+11. Focused test plan
+12. Acceptance capture plan
+13. Migration verdict
+14. Genuine blockers only
+
+Then stop.
+
+Do NOT implement yet.
+Do NOT deploy.
+Do NOT publish.
+Do NOT push Git.
