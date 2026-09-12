@@ -1,0 +1,324 @@
+# Task #540 — Add Home Response Actions
+
+Task #539 is complete and verified.
+
+The Home personal foundation is now implemented:
+- Round 11 G top architecture
+- Personal context
+- Pass rows
+- Skiing statistics
+- Friends context
+- Next Trip
+- Responsive 390px / 360px behavior
+- Long-name wrapping
+
+This next task should add ONLY:
+
+1. Actions to Take
+2. Needs You
+3. Their inline response interactions
+
+Do not touch Ideas or Happening yet.
+
+THIS IS PLAN / READ-ONLY FIRST.
+
+Do not modify code yet.
+Do not modify tests yet.
+Do not modify fixtures yet.
+Do not deploy.
+Do not publish.
+Do not push Git.
+Do not create migrations.
+
+The goal is to inspect the current app after #539, verify the exact read/write paths, and produce the implementation plan for #540.
+
+==================================================
+LOCKED PRODUCT SEMANTICS
+==================================================
+
+## Actions to Take
+
+Actions to Take belongs structurally WITH Your Next Trip.
+
+It is the viewer's own trip-planning work.
+
+It is NOT:
+- Needs You
+- a social request
+- a separate task manager
+- a blush state
+- a checkbox/to-do system
+
+Locked behavior:
+
+- Actions to Take is attached to the Next Trip module.
+- It is expandable/collapsible.
+- Default state is OPEN / expanded.
+- Collapsed state must still show:
+  - that unresolved actions exist
+  - the unresolved count
+- Expanded state shows the individual actions inline.
+- Existing action semantics and write behavior must be reused.
+- Blush must NOT be used for Actions to Take.
+- Use a quiet contained/divided treatment consistent with the selected J trip module direction.
+
+The selected visual direction from exploration was:
+- one Next Trip surface
+- Actions to Take as a second internal zone
+- divider between trip summary and actions
+- no blush
+- no checkbox decoration
+- no MINE/THEM language
+- no OPEN task register
+
+==================================================
+NEEDS YOU
+==================================================
+
+Needs You is a separate Home section immediately below Next Trip / Actions.
+
+Semantic contract:
+
+**Blush means another human is waiting for the viewer's response.**
+
+Needs You should include currently supported response types such as:
+
+- trip invitations
+- trip join requests
+- friend requests
+
+Do not invent new request categories.
+
+The section must support multiple simultaneous requests.
+
+Each row should show the supported context needed to understand the request, such as:
+- destination or person
+- date where relevant
+- request type
+- requester/inviter
+- people context where currently supported
+
+==================================================
+WRITE-PATH REQUIREMENT
+==================================================
+
+Home must reuse existing canonical transitions.
+
+Do NOT add direct database state mutation in the Home implementation.
+
+Audit and map the existing canonical actions for:
+
+### Trip invitation
+Expected current route:
+`POST /trips/<trip_id>/respond`
+
+### Join request
+Expected current route:
+`POST /trips/requests/<request_id>/respond`
+
+### Friend request
+Expected current routes:
+`POST /api/friends/invite/<id>/accept`
+`POST /api/friends/invite/<id>/decline`
+
+Confirm the actual code rather than relying only on these route names.
+
+For each write path inspect:
+
+- authorization
+- receiver/owner checks
+- pending-state enforcement
+- CSRF
+- locking / duplicate-submit behavior
+- canonical transition/service used
+- history/audit behavior
+- notifications/side effects
+- response/navigation behavior
+- stale/repeated-click behavior
+
+Home should act as a new write SURFACE, not a new write SYSTEM.
+
+==================================================
+ACTIONS TO TAKE AUDIT
+==================================================
+
+Trace the current Home "Actions to take · N" behavior after #539.
+
+Determine exactly:
+
+- where the action list comes from
+- how unresolved count is computed
+- what action types currently exist
+- which actions are interactive
+- which routes/actions they use
+- whether completion/update is synchronous or navigation-based
+- whether any action requires Trip Detail
+- whether the existing disclosure state can be reused or should be reimplemented in the new Next Trip surface
+- whether the current behavior survives the #539 Next Trip recompose
+
+Do not invent new planning actions.
+
+==================================================
+NEEDS YOU READ PROJECTION
+==================================================
+
+Audit how Home should read:
+
+### Trip invitations
+- source/model
+- current Home availability
+- ordering
+- privacy
+- current count behavior
+
+### Join requests
+- source/model
+- current owner visibility rules
+- whether Home already queries them
+- safe bounded query shape
+- ordering
+- stale/pending filtering
+
+### Friend requests
+- source/model
+- reciprocal/pending rules
+- current Home behavior
+- current existing limits
+- safe bounded query shape
+
+Needs You should be bounded and must not introduce N+1 behavior.
+
+==================================================
+SELECTED VISUAL BEHAVIOR
+==================================================
+
+Do not redesign the rest of Home.
+
+Preserve #539 exactly except where Actions to Take must attach into Next Trip.
+
+For Needs You:
+
+- use blush only here
+- compact mobile rows
+- no card-within-card nesting
+- inline response controls where supported
+- readable at 390px and 360px
+- long names wrap
+- no meaningful text truncation
+- no horizontal overflow
+- buttons remain accessible
+
+Do not modify:
+- Personal context
+- Pass rows
+- Skiing stats
+- Friends context
+- Ideas
+- Happening
+- Bottom navigation
+
+==================================================
+POST-ACTION BEHAVIOR
+==================================================
+
+Plan how the Home UI should respond after a successful inline action.
+
+For each request type determine the safest current-compatible behavior:
+
+- remove row
+- update row state
+- refresh bounded Needs You projection
+- redirect
+- preserve scroll position where practical
+
+Do not invent optimistic state semantics that disagree with canonical backend state.
+
+Plan for:
+- stale requests
+- repeated taps
+- double-submit
+- already-responded requests
+- route error response
+- failed network response
+
+==================================================
+TEST / ACCEPTANCE REQUIREMENTS
+==================================================
+
+Plan focused coverage for:
+
+### Actions to Take
+- expanded default
+- collapsed state
+- unresolved count visible while collapsed
+- no blush
+- current action semantics preserved
+- 0 / 1 / multiple actions
+
+### Needs You
+- trip invitation
+- join request
+- friend request
+- multiple mixed request types
+- ordering
+- privacy/authorization
+- successful response
+- decline/reject
+- stale request
+- repeated click
+- empty state / section absence
+- no unsupported request categories
+
+### Regression
+- #539 top foundation unchanged
+- Next Trip selection unchanged
+- Ideas unchanged
+- Happening unchanged
+- no new migration
+- no query-budget regression
+
+### Browser acceptance
+At minimum:
+- typical 390px
+- heavy Needs You 390px
+- heavy Needs You 360px
+- Actions open
+- Actions collapsed
+- mixed request types
+- long person/destination names
+
+Verify:
+- no horizontal overflow
+- no meaningful clipping
+- no console errors
+- no failed application requests
+
+==================================================
+DELIVERABLE
+==================================================
+
+Return one concise:
+
+# Task #540 Implementation Plan
+
+Include:
+
+1. Actions to Take current-state findings
+2. Needs You read-projection design
+3. Canonical write-path reuse map
+4. Exact routes/functions/models involved
+5. Query-budget implications
+6. Frontend interaction plan
+7. Error/stale/double-submit handling
+8. Exact files likely to change
+9. Focused test plan
+10. Acceptance capture plan
+11. Migration verdict
+12. Genuine blockers only
+
+Then stop.
+
+Do NOT implement yet.
+Do NOT deploy.
+Do NOT publish.
+Do NOT push Git.
