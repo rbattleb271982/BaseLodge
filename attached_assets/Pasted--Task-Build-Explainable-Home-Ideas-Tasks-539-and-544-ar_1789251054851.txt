@@ -1,0 +1,329 @@
+# Task — Build Explainable Home Ideas
+
+Tasks #539 and #544 are complete and verified.
+
+The current Home now has:
+- Round 11 G personal foundation
+- Next Trip
+- expandable Actions to Take
+- Needs You with canonical inline response actions
+
+This next task should modify ONLY the Home Ideas section.
+
+Do not modify:
+- personal context
+- passes
+- skiing statistics
+- Friends context
+- Next Trip
+- Actions to Take
+- Needs You
+- Happening
+- bottom navigation
+
+THIS IS PLAN / READ-ONLY FIRST.
+
+Do not modify code yet.
+Do not modify tests yet.
+Do not modify fixtures yet.
+Do not deploy.
+Do not publish.
+Do not push Git.
+Do not create migrations.
+
+Use the attached `JKL-FOCUS-ideas.png` as the visual source of truth.
+
+The selected treatment is specifically:
+
+**J — WHY AS A CHIP**
+
+Do not implement K or L.
+
+==================================================
+LOCKED IDEAS PRODUCT PURPOSE
+==================================================
+
+Ideas answers:
+
+**Where could I go next?**
+
+Ideas is NOT:
+- a trip inventory
+- a generic mountain list
+- a social feed
+- Needs You
+- Happening
+
+The section should surface existing BaseLodge opportunities/recommendations and clearly explain WHY each one is relevant.
+
+==================================================
+SELECTED VISUAL TREATMENT — J
+==================================================
+
+Target structure:
+
+Header:
+- `IDEAS`
+- quiet explanatory copy such as `Where you could go next`
+
+Each Idea row should include:
+
+1. WHY chip above the destination
+   Examples only where current backend already supports them:
+   - `3 FRIENDS GOING`
+   - `WISHLIST OVERLAP`
+   - `FRIEND CONSIDERING`
+   - another existing canonical reason only if already supported
+
+2. Destination + region as the primary row title
+
+3. Date/date range when the existing Idea has one
+
+4. Supporting context beneath
+   Examples:
+   - friend names / friend count
+   - wishlist friend count
+   - existing reason detail already provided by the shared Ideas service
+
+5. Dismiss `×`
+
+6. Availability relationship/footer
+   Example:
+   - `Matched to the 3 windows you’re free`
+   - `Edit availability ›`
+
+The WHY chip must make the reason immediately scannable.
+
+Do not turn the chips into a general-purpose BaseLodge badge system.
+
+==================================================
+BACKEND / SHARED-LOGIC REQUIREMENT
+==================================================
+
+The current Home Ideas pipeline and Trips → Both already share underlying Ideas logic.
+
+Audit and preserve that architecture.
+
+Do not duplicate recommendation logic for Home.
+
+Confirm the exact supported Idea/reason types in the current code.
+
+Expected currently-supported categories from prior audit include:
+- friend trip
+- availability overlap
+- wishlist overlap
+
+Verify whether `friend considering` is actually supported by the current service before rendering it as a distinct chip.
+
+If a visual exploration example is not backed by the current code/data, omit it rather than inventing it.
+
+==================================================
+DISMISSAL SEMANTICS
+==================================================
+
+Preserve the current important rule:
+
+- Dismissing an Idea suppresses it from **Home**
+- It must NOT erase the underlying opportunity from **Trips → Both**
+
+Audit:
+- storage
+- scope
+- route/action
+- stale/double-submit behavior
+- whether dismissal is reversible
+- current response shape
+
+Add regression coverage proving Home dismissal does not remove the corresponding Both opportunity.
+
+Do not change dismissal semantics unless required for correctness.
+
+==================================================
+AVAILABILITY
+==================================================
+
+Availability remains an input to Ideas.
+
+Preserve:
+- privacy rules
+- current availability source
+- current edit destination
+
+Do not create duplicate availability controls elsewhere on Home.
+
+Plan one clear Ideas-related availability footer/control.
+
+Do not expose raw friend availability or unauthorized date data.
+
+==================================================
+IDEAS PROJECTION AUDIT
+==================================================
+
+Trace the current Home Ideas pipeline end to end:
+
+- candidate generation
+- eligibility
+- friendship/privacy rules
+- active/future trip filtering
+- wishlist overlap
+- availability overlap
+- ranking
+- deduplication
+- suppression
+- dismissal
+- explanation/reason output
+- result cap
+- deterministic ordering
+
+Identify exactly which existing output fields can directly drive:
+- chip text
+- destination
+- dates
+- support line
+- availability footer
+- dismissal control
+
+Do not introduce N+1 lookups.
+
+==================================================
+RESPONSIVE / CONTENT REQUIREMENTS
+==================================================
+
+The J Ideas treatment must work at:
+- true 390px
+- true 360px
+
+Test long real content, including:
+- Whistler Blackcomb, British Columbia
+- Courchevel, Auvergne-Rhône-Alpes
+- St. Moritz, Graubünden
+- long friend names
+- several friends in one reason
+
+Meaningful text should wrap rather than truncate.
+
+No horizontal scrolling.
+
+Dismiss target must remain accessible.
+
+Chips must not collide with dates or row actions.
+
+==================================================
+EMPTY / SPARSE STATES
+==================================================
+
+Plan behavior for:
+- zero Ideas
+- one Idea
+- multiple Ideas
+- no availability set
+- availability exists but no Ideas qualify
+- all current Ideas dismissed
+
+Do not add promotional filler merely to occupy space.
+
+==================================================
+QUERY / PERFORMANCE REQUIREMENTS
+==================================================
+
+Preserve bounded behavior.
+
+Audit:
+- current query count
+- current result cap
+- whether the J presentation requires any additional data
+- whether explanation strings can be generated without per-row database access
+
+Add query-budget coverage if presentation changes alter reads.
+
+==================================================
+TEST REQUIREMENTS
+==================================================
+
+Plan focused tests for:
+
+### Reason semantics
+- friend trip / friends going
+- wishlist overlap
+- availability overlap
+- any other actually-supported reason
+- unsupported reason never rendered
+
+### Presentation
+- J WHY chip appears
+- correct reason → correct chip copy
+- destination/region
+- dates when applicable
+- support line
+- dismissal
+- availability footer
+- long-name wrapping
+
+### Dismissal
+- dismiss from Home
+- persists according to existing scope
+- does not remove Trips → Both opportunity
+- stale/repeated dismissal safe
+
+### Privacy
+- unauthorized friend data not exposed
+- raw availability not exposed
+
+### Regression
+- Tasks #539 and #544 unchanged
+- Happening unchanged
+- Both logic unchanged except explicit regression coverage
+- no migration
+
+==================================================
+ACCEPTANCE CAPTURES
+==================================================
+
+Plan deterministic captures for at least:
+
+- typical Ideas 390px
+- heavy Ideas 390px
+- heavy Ideas 360px
+- long destination/region
+- several WHY types
+- no availability
+- zero Ideas
+- dismissed-Idea state
+
+Verify:
+- no overflow
+- no meaningful clipping
+- no console errors
+- no failed application requests
+- correct chip copy
+- Ideas visually distinct from Needs You and Happening
+
+==================================================
+DELIVERABLE
+==================================================
+
+Return one concise:
+
+# Home Ideas Implementation Plan
+
+Include:
+
+1. Current Ideas pipeline findings
+2. Verified supported reason types
+3. J visual/data mapping
+4. Dismissal semantics
+5. Availability behavior
+6. Query-budget implications
+7. Exact files/functions/routes involved
+8. Frontend changes
+9. Focused test plan
+10. Acceptance capture plan
+11. Migration verdict
+12. Genuine blockers only
+
+Then stop.
+
+Do NOT implement yet.
+Do NOT deploy.
+Do NOT publish.
+Do NOT push Git.
