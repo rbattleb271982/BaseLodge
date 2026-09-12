@@ -12,6 +12,7 @@ from models import (
     EquipmentDiscipline,
     EquipmentSetup,
     Friend,
+    FriendConnectionEvent,
     GuestStatus,
     InviteToken,
     Invitation,
@@ -22,6 +23,7 @@ from models import (
     SkiTrip,
     SkiTripPlanningPost,
     SkiTripParticipant,
+    SkiTripRsvpTransition,
     User,
     UserAvailability,
     db,
@@ -373,11 +375,30 @@ def seed_all(database=None):
     ):
         post = SkiTripPlanningPost(
             trip_id=trip.id, user_id=author.id, category="Lodging",
-            body=f"Deterministic lodging plan {index}", created_at=datetime(2027, 1, 2),
+            body=f"Deterministic lodging plan {index}",
+            created_at=datetime(2027, 1, 12 + index),
         )
         db.session.add(post)
         posts.append(post)
     registry["personas"]["HEAVY"]["planning_posts"] = posts
+    db.session.add_all([
+        SkiTripRsvpTransition(
+            trip_id=trips[3].id,
+            user_id=friends[0].id,
+            previous_status="pending",
+            new_status="going",
+            source="invite_response",
+            changed_at=datetime(2027, 1, 14, 9, 0),
+        ),
+        FriendConnectionEvent(
+            user_a_id=min(heavy.id, friends[0].id),
+            user_b_id=max(heavy.id, friends[0].id),
+            event_type="formed",
+            occurred_at=datetime(2027, 1, 13, 12, 0),
+            actor_user_id=heavy.id,
+            source="friend_request_accept",
+        ),
+    ])
     heavy.visited_resort_ids = [r.id for r in list(resorts.values())[:12]]
     heavy.wish_list_resorts = [r.id for r in list(resorts.values())[:15]]
     # Availability consists of three stable ranges.

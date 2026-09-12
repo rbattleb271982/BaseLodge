@@ -12752,145 +12752,30 @@ def home():
             for _fid in (_opp_row.get('friend_ids') or []):
                 _opp_friend_resort_pairs.add((_fid, _opp_rid))
 
-    # --- Happening signals (one row per friend, editorial format, max 5) ---
-    # Uses a dedicated bounded query; Ideas keeps its existing retrieval unchanged.
-    # Note: _opp_friend_resort_pairs suppression is intentionally deferred — the two
-    # sections serve different purposes (action vs ambient) and the user benefit is low.
-    from services.happening import (
-        HOME_HAPPENING_RENDER_CAP,
-        get_happening_candidates,
-        get_suggested_connection_candidates,
-    )
-    happening_signals = []
-    if friend_ids:
-        try:
-            _hp_t0 = time.perf_counter()
-            _happening_candidates = get_happening_candidates(
-                user_id=user.id,
-                friend_ids=friend_ids,
-                today=today,
-                limit=HOME_HAPPENING_RENDER_CAP,
+    # --- Happening: bounded, durable seven-day digest ---
+    from services.happening import get_home_happening_digest
+    happening_digest = []
+    try:
+        _hp_t0 = time.perf_counter()
+        happening_digest = get_home_happening_digest(
+            user_id=user.id,
+            friend_ids=friend_ids,
+            now=datetime.utcnow(),
+            today=today,
+        )
+        if app.debug:
+            print(
+                f"[HOME_PERF] happening_digest={time.perf_counter() - _hp_t0:.4f}s"
+                f" categories={len(happening_digest)}"
             )
-            try:
-                _suggested_connection_candidates = (
-                    get_suggested_connection_candidates(
-                        user_id=user.id,
-                        limit=HOME_HAPPENING_RENDER_CAP,
-                    )
-                )
-            except Exception:
-                db.session.rollback()
-                _suggested_connection_candidates = []
-            if app.debug:
-                print(
-                    f"[HOME_PERF] happening_query={time.perf_counter() - _hp_t0:.4f}s"
-                    f" returned={len(_happening_candidates)}"
-                )
-            _ft_users_map = {u.id: u for u in all_friends}
-            _diag_hap_bounded_rows = len(_happening_candidates)
-            _now = datetime.utcnow()
-            for ft in _happening_candidates:
-                ft_user = _ft_users_map.get(ft.attendance_user_id)
-                if not ft_user:
-                    continue
-                attendance_user_id = ft.attendance_user_id
-                ft_mountain = ft.resort_name or ft.mountain
-                status = ft.attendance_status
-                full_name = (
-                    f"{ft_user.first_name or ''} {ft_user.last_name or ''}".strip()
-                ) if ft_user else 'A friend'
-                # Line 1: person name only
-                person = full_name
-                # Line 2: action + mountain (state-based verb, never recency)
-                _mtn = ft_mountain or None
-                if _mtn:
-                    if status == 'going':
-                        action_line = f"Going to {_mtn}"
-                    elif status in ('confirmed', 'booked'):
-                        action_line = f"Heading to {_mtn}"
-                    else:
-                        action_line = f"Planning {_mtn}"
-                else:
-                    action_line = "Trip upcoming"
-                # Line 3: recency only — no state words
-                _activity_ts = ft.activity_timestamp
-                _was_updated = ft.updated_at is not None
-                _age = (_now - _activity_ts).total_seconds() if _activity_ts else None
-                if _age is None:
-                    recency_label = "Recently updated"
-                elif _age < 86400:
-                    recency_label = "Updated today" if _was_updated else "Added today"
-                elif _age < 7 * 86400:
-                    recency_label = "Updated this week" if _was_updated else "Added this week"
-                else:
-                    recency_label = "Recently updated"
-                # Expose verb and mountain separately so the template can render them
-                # on distinct lines without parsing action_line.  action_line is kept
-                # for backward compatibility in case anything else reads it.
-                if _mtn:
-                    if status == 'going':
-                        _action_verb = 'Going to'
-                    elif status in ('confirmed', 'booked'):
-                        _action_verb = 'Heading to'
-                    else:
-                        _action_verb = 'Planning'
-                else:
-                    _action_verb = None
-                happening_signals.append({
-                    'kind': 'trip',
-                    'person': person,
-                    'action_line': action_line,
-                    'action_verb': _action_verb,   # "Planning" / "Going to" / "Heading to" / None
-                    'mountain': _mtn,              # resort name string or None
-                    'friend_id': attendance_user_id,
-                    'recency_label': recency_label,
-                    'trip_id': ft.trip_id,
-                    '_card_key': ft.card_key,
-                    '_activity_timestamp': ft.activity_timestamp,
-                })
-            for connection in _suggested_connection_candidates:
-                recipient_name = connection.recipient_first_name or 'Someone'
-                suggested_name = connection.suggested_first_name or 'Someone'
-                happening_signals.append({
-                    'kind': 'suggested_connection',
-                    'headline': (
-                        f"{recipient_name} and {suggested_name} connected"
-                    ),
-                    'detail': "You suggested they knew each other.",
-                    '_card_key': connection.card_key,
-                    '_activity_timestamp': connection.activity_timestamp,
-                })
-            def _happening_sort_key(signal):
-                timestamp = signal.get('_activity_timestamp')
-                if timestamp is None:
-                    return (float('-inf'), 0)
-                if timestamp.tzinfo is None:
-                    timestamp = timestamp.replace(tzinfo=timezone.utc)
-                stable_id = signal.get('trip_id', 0)
-                if signal.get('kind') == 'suggested_connection':
-                    stable_id = int(signal['_card_key'].rsplit(':', 1)[-1])
-                return (timestamp.timestamp(), stable_id)
-
-            happening_signals.sort(
-                key=_happening_sort_key,
-                reverse=True,
-            )
-            happening_signals = happening_signals[
-                :HOME_HAPPENING_RENDER_CAP
-            ]
-            _diag_hap_candidates = len(happening_signals)
-        except Exception:
-            db.session.rollback()
-
-    print(
-        f"[HOME_DIAGNOSTICS] happening_friend_ids_count={len(friend_ids)}"
-        f" happening_bounded_rows_returned={_diag_hap_bounded_rows}"
-        f" happening_presentation_candidates={_diag_hap_candidates}"
-        f" happening_suppressed_by_opportunities={_diag_hap_opp_suppressed}"
-        f" happening_render_cap={HOME_HAPPENING_RENDER_CAP}"
-        f" happening_after_cap={len(happening_signals)}"
-        f" happening_rendered_count={len(happening_signals)}"
-    )
+    except Exception:
+        db.session.rollback()
+        happening_digest = []
+    happening_signals = [
+        item
+        for category in happening_digest
+        for item in category["items"]
+    ]
 
     ideas_count = len(dest_feed)
     home_activity_empty = not happening_signals and not dest_feed
@@ -12997,6 +12882,7 @@ def home():
         next_trip=next_trip,
         needs_you_rows=needs_you_rows,
         happening_signals=happening_signals,
+        happening_digest=happening_digest,
         dest_feed=dest_feed,
         home_activity_empty=home_activity_empty,
         ideas_count=ideas_count,
@@ -13214,6 +13100,43 @@ def dismiss_insight_card():
             )
             db.session.add(dismissal)
             db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return ('', 500)
+    return ('', 204)
+
+
+@app.route("/dismiss-happening-digest", methods=["POST"])
+@login_required
+def dismiss_happening_digest():
+    """Persist a bounded set of constituent Happening evidence keys."""
+    validate_csrf_request()
+    card_keys = list(dict.fromkeys(
+        key.strip()
+        for key in request.form.getlist("card_keys")
+        if key.strip()
+    ))
+    if not card_keys or len(card_keys) > 20:
+        return ('', 400)
+    try:
+        existing_keys = {
+            row.card_key
+            for row in DismissedInsightCard.query.filter(
+                DismissedInsightCard.user_id == current_user.id,
+                DismissedInsightCard.card_type == "happening",
+                DismissedInsightCard.card_key.in_(card_keys),
+            ).all()
+        }
+        db.session.add_all(
+            DismissedInsightCard(
+                user_id=current_user.id,
+                card_type="happening",
+                card_key=card_key,
+            )
+            for card_key in card_keys
+            if card_key not in existing_keys
+        )
+        db.session.commit()
     except Exception:
         db.session.rollback()
         return ('', 500)

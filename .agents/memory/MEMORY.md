@@ -36,3 +36,4 @@
 - [Capture transient UI controls](capture-transient-ui-controls.md) — drive transient states through browser-injected controls consumed by real components when managed request routing is unreliable.
 - [Capture semantic completeness](capture-semantic-completeness.md) — file counts and dimensions do not prove state accuracy; full runs require per-row semantic review or assertions.
 - [Capture fixture request lifecycle](capture-fixture-request-lifecycle.md) — cross-request capture state must use scalar IDs, not committed ORM objects that become detached.
+- [Home activity digest evidence](home-activity-digest-evidence.md) — seven-day Happening claims require durable event evidence; mutable trip updates and inferred social activity remain excluded.

@@ -483,7 +483,17 @@ def test_template_renders_approved_non_causal_copy_without_private_metadata(
     with app.test_request_context("/home"):
         html = render_template(
             "partials/home/_section_happening.html",
-            happening_signals=[signal],
+            happening_digest=[{
+                "key": "your_people",
+                "label": "YOUR PEOPLE",
+                "overflow": 0,
+                "items": [{
+                    "headline": signal["headline"],
+                    "detail": signal["detail"],
+                    "trip_id": None,
+                    "card_keys": [signal["_card_key"]],
+                }],
+            }],
         )
 
     assert "John and Sarah connected" in html

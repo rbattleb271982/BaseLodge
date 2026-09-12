@@ -1,65 +1,46 @@
-<!--
-Component: Happening Section
-Purpose: Quiet ambient awareness of friend ski activity. One row per friend,
-          compact horizontal cards with a two-line layout:
-          [Name — Activity] / [Resort · Recency].
-         Resort is never truncated; recency wraps below if the combined
-         Resort · Recency content cannot fit on a single line.
-Used on: Home screen (only when happening_signals is non-empty)
-
-Inputs:
-  happening_signals  list of dicts
-    [].person        string — full name only, e.g. "Mia Chen"
-    [].action_verb   string | None — "Planning" / "Going to" / "Heading to" / None
-    [].mountain      string | None — resort display name; None when trip has no mountain
-    [].action_line   string — legacy combined string (kept for compat), not rendered here
-    [].recency_label string — one of:
-                       "Added today"        (created < 1 day)
-                       "Updated today"      (updated_at < 1 day)
-                       "Added this week"    (created 1–7 days)
-                       "Updated this week"  (updated_at 1–7 days)
-                       "Recently updated"   (older or no timestamp)
-    [].friend_id     int | None — user_id; when present the row links to their profile
-    []._card_key     string — stable key for dismissal (format: "happening:{trip_id}")
--->
-
-<div class="bl-section" id="section-happening">
-    <div class="bl-section-header">
-        <span class="bl-section-title">Happening</span>
+<!-- Home Happening: M — The Digest. Only durable, authorized evidence is passed in. -->
+<div class="bl-section bl-happening-digest-section" id="section-happening">
+    <div class="bl-happening-digest-header">
+        <span class="bl-happening-digest-title">HAPPENING</span>
+        <span class="bl-happening-digest-window">Last 7 days</span>
     </div>
-    <div class="bl-happening-rows" role="region" aria-label="Happening updates">
-        {% for signal in happening_signals %}
-        {%- set _hap_id = 'hap-row-' ~ loop.index -%}
-        <div class="bl-happening-card" id="{{ _hap_id }}">
-            <button class="bl-happening-dismiss" type="button" aria-label="Dismiss"
-                    onclick="event.preventDefault();event.stopPropagation();dismissInsightCard('happening','{{ signal._card_key }}','{{ _hap_id }}')">×</button>
-            {% if signal.kind == 'suggested_connection' %}
-            <div class="bl-happening-link bl-happening-link--static">
-                <div class="bl-happening-body">
-                    <p class="bl-happening-name"><strong>{{ signal.headline }}</strong></p>
-                    <p class="bl-happening-resort">{{ signal.detail }}</p>
-                </div>
+    <div class="bl-happening-digest" aria-label="Happening activity digest">
+        {% for category in happening_digest %}
+        <section class="bl-digest-category bl-digest-category--{{ category.key }}">
+            <div class="bl-digest-category-header">
+                <span>{{ category.label }}</span>
+                <span class="bl-digest-category-count">{{ category["items"] | length + category.overflow }} <span aria-hidden="true">›</span></span>
             </div>
-            {% elif signal.friend_id %}
-            <a href="/friends/{{ signal.friend_id }}" class="bl-happening-link">
-                <div class="bl-happening-body">
-                    {# Line 1: Name (bold) — Verb (regular) #}
-                    <p class="bl-happening-name"><strong>{{ signal.person }}</strong>{% if signal.action_verb %} — {{ signal.action_verb }}{% endif %}</p>
-                    {# Line 2: Resort · Recency inline; recency wraps naturally if needed #}
-                    <p class="bl-happening-resort">{{ signal.mountain or 'Trip upcoming' }}{% if signal.recency_label %}<span class="bl-happening-recency-sep"> · </span><span class="bl-happening-recency-inline">{{ signal.recency_label }}</span>{% endif %}</p>
-                </div>
-            </a>
-            {% else %}
-            <div class="bl-happening-link bl-happening-link--static">
-                <div class="bl-happening-body">
-                    {# Line 1: Name (bold) — Verb (regular) #}
-                    <p class="bl-happening-name"><strong>{{ signal.person }}</strong>{% if signal.action_verb %} — {{ signal.action_verb }}{% endif %}</p>
-                    {# Line 2: Resort · Recency inline; recency wraps naturally if needed #}
-                    <p class="bl-happening-resort">{{ signal.mountain or 'Trip upcoming' }}{% if signal.recency_label %}<span class="bl-happening-recency-sep"> · </span><span class="bl-happening-recency-inline">{{ signal.recency_label }}</span>{% endif %}</p>
-                </div>
+            {% for item in category["items"] %}
+            {%- set _hap_id = 'hap-row-' ~ category.key ~ '-' ~ loop.index -%}
+            <div class="bl-digest-item" id="{{ _hap_id }}">
+                {% if item.trip_id %}
+                <a class="bl-digest-item-link" href="{{ url_for('trip_detail', trip_id=item.trip_id) }}">
+                {% else %}
+                <div class="bl-digest-item-link bl-digest-item-link--static">
+                {% endif %}
+                    <div class="bl-digest-item-copy">
+                        {% if item.resort_name %}
+                        <div class="bl-digest-item-topline">
+                            <strong>{{ item.resort_name }}</strong>
+                            {% if item.date_range %}<span>{{ item.date_range }}</span>{% endif %}
+                        </div>
+                        <p>{{ item.headline or item.detail }}</p>
+                        {% if item.headline and item.detail %}<p class="bl-digest-item-meta">{{ item.detail }}</p>{% endif %}
+                        {% else %}
+                        <p><strong>{{ item.headline }}</strong></p>
+                        {% if item.detail %}<p class="bl-digest-item-meta">{{ item.detail }}</p>{% endif %}
+                        {% endif %}
+                    </div>
+                {% if item.trip_id %}</a>{% else %}</div>{% endif %}
+                <button class="bl-digest-dismiss" type="button" aria-label="Dismiss update"
+                        onclick='dismissHappeningDigest({{ item.card_keys | tojson }}, "{{ _hap_id }}")'>×</button>
             </div>
+            {% endfor %}
+            {% if category.overflow %}
+            <div class="bl-digest-more">{{ category.overflow }} more</div>
             {% endif %}
-        </div>
+        </section>
         {% endfor %}
     </div>
 </div>

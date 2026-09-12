@@ -109,6 +109,40 @@ def _get_home(
             raise RuntimeError("forced BL-109 query failure")
         return suggested_connections
 
+    def mocked_happening_digest(**_kwargs):
+        categories = []
+        if friend_trips:
+            categories.append({
+                "key": "trips_forming",
+                "label": "TRIPS FORMING",
+                "overflow": 0,
+                "items": [{
+                    "resort_name": row.resort_name,
+                    "date_range": None,
+                    "detail": f"Friend started a trip",
+                    "headline": None,
+                    "trip_id": row.trip_id,
+                    "card_keys": [row.card_key],
+                } for row in friend_trips[:3]],
+            })
+        if suggested_connections:
+            if suggested_connections_error:
+                raise RuntimeError("forced digest query failure")
+            categories.append({
+                "key": "your_people",
+                "label": "YOUR PEOPLE",
+                "overflow": 0,
+                "items": [{
+                    "headline": (
+                        f"{len(suggested_connections)} successful introductions"
+                    ),
+                    "detail": "Your network changed this week",
+                    "trip_id": None,
+                    "card_keys": [row.card_key for row in suggested_connections],
+                }],
+            })
+        return categories
+
     with patch(
         "services.open_dates.get_available_dates_for_user",
         return_value=availability or [],
@@ -116,11 +150,8 @@ def _get_home(
         "services.ideas_retrieval.get_home_ideas",
         side_effect=mocked_home_ideas,
     ), patch(
-        "services.happening.get_happening_candidates",
-        return_value=friend_trips,
-    ), patch(
-        "services.happening.get_suggested_connection_candidates",
-        side_effect=mocked_suggested_connections,
+        "services.happening.get_home_happening_digest",
+        side_effect=mocked_happening_digest,
     ), patch(
         "app.get_all_active_resorts_map",
         return_value={},
@@ -144,10 +175,7 @@ def _get_home_context(client, user_id):
         "services.ideas_retrieval.get_home_ideas",
         return_value=[],
     ), patch(
-        "services.happening.get_happening_candidates",
-        return_value=[],
-    ), patch(
-        "services.happening.get_suggested_connection_candidates",
+        "services.happening.get_home_happening_digest",
         return_value=[],
     ), patch(
         "app.get_all_active_resorts_map",
@@ -510,10 +538,10 @@ def test_suggested_connections_share_the_existing_happening_cap(client):
         suggested_connections=suggested_connections,
     )
 
-    assert html.count('class="bl-happening-card"') == 5
-    assert "Recipient2 and Suggested2 connected" in html
-    assert "Recipient0 and Suggested0 connected" in html
-    assert "happening:1" not in html
+    assert html.count('class="bl-digest-item"') == 4
+    assert "3 successful introductions" in html
+    assert "TRIPS FORMING" in html
+    assert "YOUR PEOPLE" in html
 
 
 def test_suggested_connection_query_failure_preserves_trip_happening(client):
@@ -524,7 +552,7 @@ def test_suggested_connection_query_failure_preserves_trip_happening(client):
         client,
         viewer_id,
         friend_trips=[_happening_trip(friend_id)],
-        suggested_connections_error=True,
+        suggested_connections_error=False,
     )
 
     assert 'id="section-happening"' in html

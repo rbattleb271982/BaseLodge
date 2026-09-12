@@ -59,7 +59,7 @@ def test_home_long_trip_and_idea_copy_wrap_instead_of_being_truncated():
         assert "text-overflow: ellipsis;" not in rule
 
 
-def test_home_controls_keep_mobile_tap_targets_and_wide_carousel_density():
+def test_home_controls_keep_mobile_tap_targets_and_digest_density():
     css = _home_css()
 
     pill_start = css.index(".bl-pill {")
@@ -76,9 +76,9 @@ def test_home_controls_keep_mobile_tap_targets_and_wide_carousel_density():
     cta_end = css.index("}", cta_start)
     assert "min-height: 44px;" in css[cta_start:cta_end]
 
-    assert "@media (min-width: 700px)" in css
-    wide_start = css.index("@media (min-width: 700px)")
-    assert "flex-basis: 520px;" in css[wide_start:]
+    assert ".bl-happening-digest {" in css
+    assert "overflow: hidden;" in css
+    assert ".bl-digest-item-copy { min-width: 0; }" in css
 
 
 def test_next_trip_matches_round_11_g_and_defers_actions():

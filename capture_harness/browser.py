@@ -408,6 +408,27 @@ class CaptureRunner:
                     page.locator("#section-opportunities").scroll_into_view_if_needed()
                 elif row["state"] == "happening":
                     page.locator("#section-happening").scroll_into_view_if_needed()
+                elif row["state"].startswith("happening-"):
+                    if row["state"] == "happening-on-your-trips":
+                        page.evaluate("""document.querySelectorAll('.bl-digest-category:not(.bl-digest-category--on_your_trips)').forEach(el => el.remove())""")
+                    elif row["state"] == "happening-trips-forming":
+                        page.evaluate("""document.querySelectorAll('.bl-digest-category:not(.bl-digest-category--trips_forming)').forEach(el => el.remove())""")
+                    elif row["state"] == "happening-your-people":
+                        page.evaluate("""document.querySelectorAll('.bl-digest-category:not(.bl-digest-category--your_people)').forEach(el => el.remove())""")
+                    elif row["state"] == "happening-sparse-m":
+                        page.evaluate("""(() => {
+                          const section = document.querySelector('#section-happening');
+                          if (!section) return;
+                          const categories = [...section.querySelectorAll('.bl-digest-category')];
+                          categories.slice(1).forEach(el => el.remove());
+                          const items = [...section.querySelectorAll('.bl-digest-item')];
+                          items.slice(1).forEach(el => el.remove());
+                          const count = section.querySelector('.bl-digest-category-count');
+                          if (count) count.innerHTML = '1 <span aria-hidden=\"true\">›</span>';
+                          section.querySelectorAll('.bl-digest-more').forEach(el => el.remove());
+                        })()""")
+                    if row["state"] != "happening-empty-m":
+                        page.locator("#section-happening").scroll_into_view_if_needed()
                 elif row["state"] == "availability":
                     page.locator("#availability-sheet-trigger").click()
                     page.wait_for_selector("#availSheet.open", state="visible")

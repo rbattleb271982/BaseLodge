@@ -1057,102 +1057,118 @@
             letter-spacing: 0.3px;
         }
 
-        /* ── Happening carousel ── */
-        .bl-happening-rows {
+        /* ── Happening M digest ── */
+        .bl-happening-digest-section { margin-bottom: 24px; }
+        .bl-happening-digest-header {
             display: flex;
-            flex-direction: row;
-            gap: 12px;
-            min-width: 0;
-            width: 100%;
-            max-width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            padding: 2px 0 6px;
-            scroll-snap-type: x proximity;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            overscroll-behavior-x: contain;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 0 2px 7px;
         }
-        .bl-happening-rows::-webkit-scrollbar { display: none; }
-        .bl-happening-card {
-            position: relative;
-            flex: 0 0 78%;
-            min-width: 0;
-            background: #ffffff;
-            border: 1px solid rgba(92, 18, 25, 0.10);
-            border-radius: 16px;
-            box-shadow: 0 1px 0 rgba(92, 18, 25, 0.02);
+        .bl-happening-digest-title,
+        .bl-happening-digest-window,
+        .bl-digest-category-header {
+            font-size: 9px;
+            line-height: 1.2;
+        }
+        .bl-happening-digest-title,
+        .bl-digest-category-header {
+            color: var(--bl-color-text);
+            font-weight: 700;
+            letter-spacing: 1.1px;
+        }
+        .bl-happening-digest-window {
+            color: var(--bl-color-text-tertiary);
+        }
+        .bl-happening-digest {
             overflow: hidden;
-            scroll-snap-align: start;
+            border: 1px solid rgba(92, 18, 25, 0.11);
+            border-radius: 14px;
+            background: #FDFBF7;
         }
-        @media (min-width: 700px) {
-            .bl-happening-card {
-                flex-basis: 520px;
-            }
+        .bl-digest-category + .bl-digest-category {
+            border-top: 1px solid rgba(92, 18, 25, 0.1);
         }
-        .bl-happening-link {
-            flex: 1;
-            min-width: 0;
+        .bl-digest-category-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 10px;
-            padding: 10px 44px 10px 16px;
-            text-decoration: none;
-            color: inherit;
-            -webkit-tap-highlight-color: transparent;
+            min-height: 30px;
+            padding: 0 13px;
         }
-        .bl-happening-link:active { opacity: 0.88; transform: scale(0.99); }
-        .bl-happening-link--static {
-            padding: 10px 44px 10px 16px;
-        }
-        /* × button: visually subtle (13px) anchored top:0 right:0.
-           padding:18px → 13px char + 18px×2 = 49×49px tap target (meets iOS 44pt + Android 48dp). */
-        .bl-happening-dismiss {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 13px;
-            line-height: 1;
+        .bl-digest-category-count {
             color: var(--bl-color-text-tertiary);
+            font-weight: 500;
+            letter-spacing: 0;
+        }
+        .bl-digest-item {
+            position: relative;
+            display: flex;
+            min-width: 0;
+            border-top: 1px solid rgba(92, 18, 25, 0.07);
+        }
+        .bl-digest-item-link {
+            display: block;
+            flex: 1;
+            min-width: 0;
+            padding: 7px 42px 7px 13px;
+            color: inherit;
+            text-decoration: none;
+        }
+        .bl-digest-item-copy { min-width: 0; }
+        .bl-digest-item-topline {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            min-width: 0;
+            font-size: 12px;
+            line-height: 1.25;
+        }
+        .bl-digest-item-topline strong {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            font-weight: 600;
+        }
+        .bl-digest-item-topline span {
+            flex: 0 0 auto;
+            color: var(--bl-color-text-muted);
+            font-size: 10px;
+            white-space: nowrap;
+        }
+        .bl-digest-item p {
+            margin: 2px 0 0;
+            color: var(--bl-color-text-muted);
+            font-size: 10px;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+            white-space: normal;
+        }
+        .bl-digest-item p strong {
+            color: var(--bl-color-text);
+            font-weight: 600;
+        }
+        .bl-digest-item .bl-digest-item-meta {
+            color: var(--bl-color-text-tertiary);
+        }
+        .bl-digest-dismiss {
             position: absolute;
             top: 0;
             right: 0;
-            padding: 18px;      /* 13px char + 18px pad × 2 = 49px square tap target */
-            font-family: inherit;
-            -webkit-tap-highlight-color: transparent;
+            width: 40px;
+            min-height: 40px;
+            border: 0;
+            background: transparent;
+            color: var(--bl-color-text-tertiary);
+            cursor: pointer;
+            font: 12px/1 inherit;
         }
-        .bl-happening-dismiss:active { opacity: 0.75; }
-        .bl-happening-body {
-            flex: 1;
-            min-width: 0;
-        }
-        /* Line 1: Name (bold) — Verb (regular). Wraps on very long names rather than truncating. */
-        .bl-happening-name {
-            font-size: 16px;
-            font-weight: 400;
-            color: var(--bl-color-text);
-            margin: 0;
-            line-height: 1.25;
-        }
-        .bl-happening-name strong {
+        .bl-digest-more {
+            padding: 5px 13px 7px;
+            border-top: 1px solid rgba(92, 18, 25, 0.07);
+            color: var(--bl-color-primary);
+            font-size: 10px;
             font-weight: 600;
-        }
-        /* Line 2: Resort (stronger) · Recency (muted inline span).
-           white-space: normal — resort is NEVER truncated.
-           If Resort · Recency overflows one line the recency span wraps below. */
-        .bl-happening-resort {
-            font-size: 15px;
-            font-weight: 400;
-            color: var(--bl-color-text);
-            margin: 2px 0 0;
-            line-height: 1.3;
-        }
-        /* Separator dot and recency text are inline; they wrap as a unit below the resort. */
-        .bl-happening-recency-sep,
-        .bl-happening-recency-inline {
-            font-size: 13px;
-            color: var(--bl-color-text-muted);
         }
         /* ── Request rows ── */
         .bl-request-rows { display: flex; flex-direction: column; gap: 10px; }
@@ -2352,6 +2368,31 @@
         fd.append('card_type', cardType);
         fd.append('card_key', cardKey);
         fetch('/dismiss-insight-card', { method: 'POST', body: fd });
+    }
+
+    function dismissHappeningDigest(cardKeys, cardElementId) {
+        var row = document.getElementById(cardElementId);
+        if (!row || row.dataset.dismissing === '1') return;
+        row.dataset.dismissing = '1';
+        var button = row.querySelector('.bl-digest-dismiss');
+        if (button) button.disabled = true;
+        var fd = new FormData();
+        fd.append('csrf_token', homeCsrfToken);
+        cardKeys.slice(0, 20).forEach(function(cardKey) {
+            fd.append('card_keys', cardKey);
+        });
+        fetch('/dismiss-happening-digest', {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin'
+        }).then(function(response) {
+            if (!response.ok) throw new Error('dismiss_failed');
+            row.remove();
+            syncHomeActivityEmptyState();
+        }).catch(function() {
+            row.dataset.dismissing = '0';
+            if (button) button.disabled = false;
+        });
     }
 
     function dismissIdeaCard(cardKey, cardElementId) {
