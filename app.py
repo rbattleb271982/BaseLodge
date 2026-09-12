@@ -8081,18 +8081,22 @@ def accept_invitation(invitation_id):
 @login_required
 def decline_invitation(invitation_id):
     validate_csrf_request()
-    invitation = db.session.get(Invitation, invitation_id)
+    invitation = (
+        db.session.query(Invitation)
+        .filter(Invitation.id == invitation_id)
+        .with_for_update()
+        .one_or_none()
+    )
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
     if invitation.receiver_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
+    if invitation.trip_id is not None or invitation.invite_type != InviteType.OUTBOUND:
+        return jsonify({"success": False, "error": "Not a friend invitation"}), 400
     if invitation.status != 'pending':
         return jsonify({"success": True, "message": "Already resolved"}), 200
     invitation.status = 'declined'
-    # Only set a friend-pair cooldown for friend invitations (trip_id IS NULL).
-    # Trip join-request declines must not impose a social reconnect cooldown.
-    if invitation.trip_id is None:
-        _set_pair_cooldown(invitation.sender_id, current_user.id)
+    _set_pair_cooldown(invitation.sender_id, current_user.id)
     try:
         db.session.commit()
     except Exception:
@@ -12218,6 +12222,9 @@ HOME_NEXT_TRIP_ACTION_PRIORITIES = {
     "review_join_requests": 20,
 }
 
+HOME_NEEDS_YOU_FAMILY_CAP = 4
+HOME_NEEDS_YOU_RENDER_CAP = 12
+
 
 def _canonicalize_home_next_trip_actions(actions):
     """Deduplicate and order server-resolved Next Trip actions."""
@@ -12285,6 +12292,144 @@ def _build_home_next_trip_actions(*, next_trip, current_user_id, participant=Non
         })
 
     return _canonicalize_home_next_trip_actions(actions)
+
+
+def _build_home_needs_you(*, user_id, today):
+    """Return a bounded, viewer-authorized Home request projection."""
+    family_limit = HOME_NEEDS_YOU_FAMILY_CAP
+    trip_participations = (
+        SkiTripParticipant.query
+        .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
+        .options(
+            db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort)
+        )
+        .filter(
+            SkiTripParticipant.user_id == user_id,
+            SkiTripParticipant.status == GuestStatus.PENDING,
+            active_or_legacy_trip_predicate(),
+            SkiTrip.end_date >= today,
+        )
+        .order_by(
+            SkiTrip.start_date.asc().nulls_last(),
+            SkiTrip.id.asc(),
+            SkiTripParticipant.id.asc(),
+        )
+        .limit(family_limit)
+        .all()
+    )
+    join_requests = (
+        db.session.query(Invitation, SkiTrip)
+        .join(SkiTrip, SkiTrip.id == Invitation.trip_id)
+        .options(db.joinedload(SkiTrip.resort))
+        .filter(
+            SkiTrip.user_id == user_id,
+            Invitation.receiver_id == user_id,
+            Invitation.invite_type == InviteType.REQUEST,
+            Invitation.status == "pending",
+            active_or_legacy_trip_predicate(),
+            SkiTrip.end_date >= today,
+        )
+        .order_by(
+            SkiTrip.start_date.asc().nulls_last(),
+            Invitation.created_at.asc().nulls_last(),
+            Invitation.id.asc(),
+        )
+        .limit(family_limit)
+        .all()
+    )
+    friend_requests = (
+        Invitation.query
+        .filter(
+            Invitation.receiver_id == user_id,
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+            Invitation.status == "pending",
+        )
+        .order_by(
+            Invitation.created_at.desc().nullslast(),
+            Invitation.id.desc(),
+        )
+        .limit(family_limit)
+        .all()
+    )
+
+    person_ids = {
+        participation.trip.user_id
+        for participation in trip_participations
+        if participation.trip
+    }
+    person_ids.update(invitation.sender_id for invitation, _trip in join_requests)
+    person_ids.update(invitation.sender_id for invitation in friend_requests)
+    people = (
+        {
+            person.id: person
+            for person in User.query.filter(User.id.in_(person_ids)).all()
+        }
+        if person_ids
+        else {}
+    )
+
+    involved_trip_ids = {
+        participation.trip_id for participation in trip_participations
+    }
+    involved_trip_ids.update(trip.id for _invitation, trip in join_requests)
+    going_counts = {}
+    if involved_trip_ids:
+        going_counts = dict(
+            db.session.query(
+                SkiTripParticipant.trip_id,
+                func.count(func.distinct(SkiTripParticipant.user_id)),
+            )
+            .filter(
+                SkiTripParticipant.trip_id.in_(involved_trip_ids),
+                SkiTripParticipant.status == GuestStatus.GOING,
+            )
+            .group_by(SkiTripParticipant.trip_id)
+            .all()
+        )
+
+    def _person_name(person_id):
+        person = people.get(person_id)
+        if not person:
+            return "Someone"
+        return (
+            f"{person.first_name or ''} {person.last_name or ''}".strip()
+            or person.username
+            or "Someone"
+        )
+
+    rows = []
+    for participation in trip_participations:
+        trip = participation.trip
+        if not trip:
+            continue
+        rows.append({
+            "key": f"trip_invitation:{trip.id}",
+            "type": "trip_invitation",
+            "id": trip.id,
+            "trip": trip,
+            "resort": trip.resort,
+            "person_name": _person_name(trip.user_id),
+            "going_count": int(going_counts.get(trip.id, 0)),
+        })
+    for invitation, trip in join_requests:
+        rows.append({
+            "key": f"join_request:{invitation.id}",
+            "type": "join_request",
+            "id": invitation.id,
+            "trip": trip,
+            "resort": trip.resort,
+            "person_name": _person_name(invitation.sender_id),
+            "going_count": int(going_counts.get(trip.id, 0)),
+        })
+    for invitation in friend_requests:
+        rows.append({
+            "key": f"friend_request:{invitation.id}",
+            "type": "friend_request",
+            "id": invitation.id,
+            "person_name": _person_name(invitation.sender_id),
+        })
+    return rows[:HOME_NEEDS_YOU_RENDER_CAP]
 
 
 def _count_home_next_trip_friends_going(next_trip, friend_ids, current_user_id):
@@ -12539,70 +12684,19 @@ def home():
         ),
     )
 
-    # --- Trip Invite Banner (soonest active pending trip invite) ---
-    banner_invite = None
-    banner_invite_count = 0
-    trip_invites = []
+    # --- Needs You (bounded pending human responses) ---
+    needs_you_rows = []
     try:
         _hp_t0 = time.perf_counter()
-        invited_participations = (
-            SkiTripParticipant.query
-            .join(SkiTrip, SkiTrip.id == SkiTripParticipant.trip_id)
-            .options(db.joinedload(SkiTripParticipant.trip).joinedload(SkiTrip.resort))
-            .filter(
-                SkiTripParticipant.user_id == user.id,
-                SkiTripParticipant.status == GuestStatus.PENDING,
-                active_or_legacy_trip_predicate(),
+        needs_you_rows = _build_home_needs_you(
+            user_id=user.id,
+            today=today,
+        )
+        if app.debug:
+            print(
+                f"[HOME_PERF] needs_you={time.perf_counter() - _hp_t0:.4f}s "
+                f"count={len(needs_you_rows)}"
             )
-            .all()
-        )
-        if app.debug:
-            print(f"[HOME_PERF] invited_participations={time.perf_counter() - _hp_t0:.4f}s count={len(invited_participations)}")
-        active_invites = sorted(
-            [p for p in invited_participations if p.trip and p.trip.end_date >= today],
-            key=lambda p: p.trip.start_date
-        )
-        banner_invite_count = len(active_invites)
-        # Batch-load all trip owners in one query instead of one get() per invite
-        _inviter_ids = {p.trip.user_id for p in active_invites if p.trip}
-        _inviters_map = (
-            {u.id: u for u in User.query.filter(User.id.in_(_inviter_ids)).all()}
-            if _inviter_ids else {}
-        )
-        for p in active_invites:
-            trip = p.trip
-            inviter = _inviters_map.get(trip.user_id)
-            resort = trip.resort
-            trip_invites.append({
-                'trip_id': trip.id,
-                'trip': trip,
-                'resort': resort,
-                'inviter_name': (f"{inviter.first_name or ''} {inviter.last_name or ''}".strip()) if inviter else 'Someone',
-            })
-        if trip_invites:
-            banner_invite = trip_invites[0]
-    except Exception:
-        db.session.rollback()
-
-    # all_friends already populated above via single join query
-
-    # --- Secondary Card (priority: connect_invite > overlap > friend_trip) ---
-    secondary_card = None
-    try:
-        _hp_t0 = time.perf_counter()
-        connect_inv = Invitation.query.filter_by(
-            receiver_id=user.id,
-            status='pending'
-        ).filter(Invitation.trip_id == None).first()
-        if app.debug:
-            print(f"[HOME_PERF] invitation_query={time.perf_counter()-_hp_t0:.4f}s")
-        if connect_inv:
-            sender = db.session.get(User, connect_inv.sender_id)
-            secondary_card = {
-                'type': 'connect_invite',
-                'invitation_id': connect_inv.id,
-                'sender_name': (f"{sender.first_name or ''} {sender.last_name or ''}".strip()) if sender else 'Someone',
-            }
     except Exception:
         db.session.rollback()
 
@@ -12800,7 +12894,7 @@ def home():
 
     ideas_count = len(dest_feed)
     home_activity_empty = not happening_signals and not dest_feed
-    requests_count = banner_invite_count + (1 if secondary_card else 0)
+    requests_count = len(needs_you_rows)
 
     # _user_avail_home was fetched once before the coordination feed above.
     has_availability = bool(_user_avail_home)
@@ -12901,8 +12995,7 @@ def home():
         'home.html',
         user=user,
         next_trip=next_trip,
-        trip_invites=trip_invites,
-        secondary_card=secondary_card,
+        needs_you_rows=needs_you_rows,
         happening_signals=happening_signals,
         dest_feed=dest_feed,
         home_activity_empty=home_activity_empty,
@@ -16978,7 +17071,14 @@ def respond_to_join_request(request_id):
     Feature complete as of 2026-01-09. Backend + UI verified.
     """
     validate_csrf_request()
-    invitation = Invitation.query.get_or_404(request_id)
+    invitation = (
+        db.session.query(Invitation)
+        .filter(Invitation.id == request_id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if invitation is None:
+        abort(404)
     
     if invitation.invite_type != InviteType.REQUEST:
         return jsonify({"success": False, "error": "Invalid invitation type."}), 400
@@ -16990,6 +17090,11 @@ def respond_to_join_request(request_id):
     # Only the trip owner can respond
     if trip.user_id != current_user.id:
         return jsonify({"success": False, "error": "Only the trip owner can respond to join requests."}), 403
+    if invitation.status != "pending":
+        return jsonify({
+            "success": False,
+            "error": "This join request has already been resolved.",
+        }), 409
         
     data = request.get_json() or {}
     action = data.get("action")

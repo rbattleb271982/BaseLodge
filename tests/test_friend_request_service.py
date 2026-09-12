@@ -20,7 +20,7 @@ from models import (
     db, User, Friend, Invitation, FriendCooldown, InviteType,
 )
 from tests.conftest import (
-    _make_user, _login,
+    _make_user, _make_trip, _login,
     json_post, json_delete, _TEST_CSRF,
 )
 
@@ -197,6 +197,27 @@ class TestDeclineInvitation:
         with app.app_context():
             r = create_friend_request(users['A'], users['B'])
         assert r['code'] == 'COOLDOWN'
+
+    def test_decline_rejects_trip_scoped_invitation(self, client, users):
+        with app.app_context():
+            owner = db.session.get(User, users['A'])
+            trip = _make_trip(owner)
+            inv = Invitation(
+                sender_id=users['A'],
+                receiver_id=users['B'],
+                trip_id=trip.id,
+                status='pending',
+                invite_type=InviteType.OUTBOUND,
+            )
+            db.session.add(inv)
+            db.session.commit()
+            inv_id = inv.id
+
+        _login(client, users['B'])
+        rv = json_post(client, f'/api/friends/invite/{inv_id}/decline')
+        assert rv.status_code == 400
+        with app.app_context():
+            assert db.session.get(Invitation, inv_id).status == 'pending'
 
 
 # ── Cancel endpoint ───────────────────────────────────────────────────────────

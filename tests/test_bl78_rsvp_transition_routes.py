@@ -238,6 +238,45 @@ def test_removal_reinvite_and_join_accept_record_expected_actor(client):
         ]
 
 
+def test_join_request_response_rejects_repeat_without_duplicate_history(client):
+    with app.app_context():
+        owner = _make_user("repeat-request-owner")
+        requester = _make_user("repeat-request-sender")
+        trip = _make_trip(owner)
+        join_request = Invitation(
+            sender_id=requester.id,
+            receiver_id=owner.id,
+            trip_id=trip.id,
+            invite_type=InviteType.REQUEST,
+            status="pending",
+        )
+        db.session.add(join_request)
+        db.session.commit()
+        owner_id = owner.id
+        requester_id = requester.id
+        trip_id = trip.id
+        request_id = join_request.id
+
+    _login(client, owner_id)
+    first = json_post(
+        client,
+        f"/trips/requests/{request_id}/respond",
+        {"action": "accept"},
+    )
+    second = json_post(
+        client,
+        f"/trips/requests/{request_id}/respond",
+        {"action": "accept"},
+    )
+    assert first.status_code == 200
+    assert second.status_code == 409
+    with app.app_context():
+        assert db.session.get(Invitation, request_id).status == "accepted"
+        assert _history(trip_id, requester_id) == [
+            (None, "interested", "join_request_accept", owner_id)
+        ]
+
+
 def test_attendance_changes_do_not_create_history_and_detail_does_not_expose_it(client):
     with app.app_context():
         owner, guest = _make_user("detail-owner"), _make_user("detail-guest")

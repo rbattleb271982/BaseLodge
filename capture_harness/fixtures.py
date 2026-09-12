@@ -242,6 +242,13 @@ def seed_all(database=None):
         status="declined",
     )
     db.session.add(pending_friend_request)
+    db.session.add(Invitation(
+        sender_id=users["EDGE"].id,
+        receiver_id=users["HEAVY"].id,
+        trip_id=None,
+        invite_type=InviteType.OUTBOUND,
+        status="pending",
+    ))
     db.session.flush()
     registry["pending_friend_request_id"] = pending_friend_request.id
     heavy = users["HEAVY"]
@@ -340,6 +347,13 @@ def seed_all(database=None):
             invite_type=InviteType.REQUEST,
             status="pending",
         ))
+    db.session.add(Invitation(
+        sender_id=friends[15].id,
+        receiver_id=heavy.id,
+        trip_id=trips[0].id,
+        invite_type=InviteType.REQUEST,
+        status="pending",
+    ))
     # HT04 also supplies deterministic populated This Mountain rows.  These
     # reciprocal-friend signals intentionally do not alter HEAVY's own
     # 15-trip fixture contract.

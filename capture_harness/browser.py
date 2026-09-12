@@ -417,6 +417,10 @@ class CaptureRunner:
                     page.locator("#section-requests").scroll_into_view_if_needed()
                 elif row["state"] == "next-trip-participant":
                     page.locator(".home-next-trip, .bl-next-trip").first.scroll_into_view_if_needed()
+                elif row["state"] == "narrow-dense":
+                    actions = page.locator(".home-next-trip__actions")
+                    if actions.count() and actions.first.get_attribute("open") is not None:
+                        actions.locator("summary").click()
             elif row["screen"] == "trips":
                 if row["state"] in {
                     "filter-sheet", "no-filter-results",

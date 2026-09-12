@@ -18,6 +18,7 @@ Inputs:
 {% set _friend_count = _next.friends_going_count %}
 {% if _start %}{% set _days_until = (_start - home_today).days %}{% endif %}
 {% set _relationship = 'ORGANIZING' if _next.is_owner else 'GOING' %}
+{% set _actions = _next.actions %}
 {% if _trip.resort %}
     {% set _region_code = _trip.resort.state_code or _trip.resort.state or '' %}
     {% set _region = _region_code if (_trip.resort.country_code or 'US') == 'US' else (_trip.resort.state_name or (_region_code | state_name)) %}
@@ -43,4 +44,20 @@ Inputs:
         {% endif %}
         · <strong>{{ _relationship }}</strong> · +{{ _friend_count }} {{ 'other' if _friend_count == 1 else 'others' }}
     </p>
+    {% if _actions %}
+    <details class="home-next-trip__actions" open>
+        <summary class="home-next-trip__actions-summary">
+            <span>Actions to Take</span>
+            <span class="home-next-trip__actions-count">{{ _next.action_count }} to resolve <span class="home-actions-caret" aria-hidden="true">⌃</span></span>
+        </summary>
+        <div class="home-next-trip__actions-list">
+            {% for action in _actions %}
+            <a class="home-next-trip__action-row" href="{{ action.destination }}">
+                <span>{{ action.label }}</span>
+                <span class="home-chevron" aria-hidden="true">›</span>
+            </a>
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
 </section>
