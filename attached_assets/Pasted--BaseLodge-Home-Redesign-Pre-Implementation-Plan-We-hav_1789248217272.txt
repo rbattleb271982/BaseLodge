@@ -1,0 +1,474 @@
+# BaseLodge Home Redesign — Pre-Implementation Plan
+
+We have completed the Home product/design exploration in Claude and are ready to map the selected direction onto the CURRENT BaseLodge implementation.
+
+THIS IS PLAN / READ-ONLY WORK.
+
+Do not modify application code.
+Do not modify tests.
+Do not modify fixtures.
+Do not create migrations.
+Do not deploy.
+Do not publish.
+Do not push Git.
+
+The goal is to inspect the current codebase, reconcile it with the selected Home design, identify reuse versus new work, and produce the ordered implementation task(s) we will then switch to Build for.
+
+==================================================
+SOURCE OF TRUTH
+==================================================
+
+The Home design exploration is in:
+
+BaseLodge-Cowork-Audit-Package/14-home/
+
+Relevant rounds:
+
+- `04-current-home-redesign/`
+- `05-final-synthesis/`
+- `06-visual-convergence/`
+- `08-home-jkl/`
+- `09-happening-exploration/`
+- `10-consolidated-home/`
+- `11-top-module-exploration/`
+
+Do not restart the Home design process.
+
+The latest selected visual direction supersedes earlier rejected concepts.
+
+If any of these design assets are not available in the Repl, report exactly which ones are missing, but continue the code/readiness investigation where possible.
+
+==================================================
+LOCKED HOME STRUCTURE
+==================================================
+
+The target Home hierarchy is:
+
+1. Welcome / Profile
+2. Personal ski context
+3. Your Next Trip
+4. Actions to Take associated with that trip
+5. Needs You
+6. Ideas
+7. Happening
+8. More upcoming trips / route into Trips where appropriate
+9. Bottom navigation
+
+Do not reorder these during planning.
+
+==================================================
+1. TOP PERSONAL CONTEXT — ROUND 11 G
+==================================================
+
+Use **Concept G from Round 11** as the selected top direction.
+
+The selected structure has a contained personal-context surface with:
+
+### Gear
+Current rider/gear context and route into the existing profile/equipment functionality.
+
+### Passes
+Use G's pass treatment:
+- passes are visually distinct rows/objects, not merely inline metadata
+- support one or multiple passes
+- support long pass names such as Mountain Collective
+- preserve useful friend/pass context where supported by current data
+- support a no-pass state
+
+Do not substitute an earlier A/B/C/D/E/F/H/I/J pass treatment.
+
+### Skiing
+Use the selected J-style stat language rather than the rejected sentence treatment.
+
+The important statistics include:
+- upcoming trips
+- mountains visited
+- wishlist mountains
+
+Do not label upcoming trips simply as lifetime `Trips`.
+
+Audit the exact semantics before implementation.
+
+### Friends
+Preserve friend context and navigation into the existing Friends experience.
+
+The old Home Friends' Passes expansion has now been observed to include a pass distribution and route to all friends. Determine what current data/service already supports this and what should remain accessible from the redesigned Home.
+
+==================================================
+2. YOUR NEXT TRIP — ROUND 11 G
+==================================================
+
+Under the personal context, use the selected **G** architecture for Your Next Trip.
+
+The trip should have its own restrained contained surface immediately beneath the personal context.
+
+It is NOT:
+- a giant editorial hero
+- part of an OPEN/MINE/THEM task register
+- a TODAY status dashboard
+- a pure Trips ledger row
+
+It should communicate the current supported trip context, including where available:
+
+- destination
+- region
+- dates
+- nights
+- viewer relationship
+- participant/friend context
+- proximity/timing such as Starts today / In N days
+- route into Trip Detail
+
+Audit the current Next Trip projection and actions rather than inventing new data.
+
+==================================================
+3. ACTIONS TO TAKE
+==================================================
+
+Actions to Take belongs structurally with Your Next Trip.
+
+Locked behavior:
+
+- actions remain associated with the trip
+- actions are visible/available from Home
+- actions are NOT Needs You
+- blush must NOT be used for these actions
+- Actions to Take must be expandable/collapsible
+- default state: OPEN / expanded
+- collapsed state must still expose that unresolved actions exist and their count
+- expansion reveals the individual actions inline
+
+Do not use:
+- checkboxes merely as decoration
+- MINE/THEM labels
+- blush background
+- a separate task-manager screen
+
+Audit what the existing current Home `Actions to take · N` disclosure actually contains and how its current data/actions work.
+
+==================================================
+4. NEEDS YOU
+==================================================
+
+Needs You is a distinct Home section immediately after Next Trip / Actions.
+
+Semantic contract:
+
+**Blush means another human is waiting for the viewer's response.**
+
+Potential current supported types include:
+
+- trip invitations
+- trip join requests
+- friend requests
+
+Audit whether each is already queryable from Home or from another current BaseLodge surface.
+
+For each determine:
+
+- source/model
+- authorization/privacy
+- existing read projection
+- existing Accept/Decline/Approve/Reject write path
+- whether Home can safely reuse that canonical write behavior
+- whether a thin Home adapter is needed
+- whether genuinely new backend behavior is required
+
+Do not invent a second transition/write path.
+
+Needs You should support multiple requests under heavy load.
+
+==================================================
+5. IDEAS — ROUND 08 J
+==================================================
+
+Use the selected **J Ideas treatment**.
+
+Ideas remains a core Home section answering:
+
+**Where could I go next?**
+
+The selected design uses an explicit WHY treatment/chip to explain why an Idea is relevant.
+
+Potential existing reasons include only signals already supported by BaseLodge, such as:
+
+- friends going
+- wishlist overlap
+- availability overlap
+- other existing Home Ideas reasons
+
+Do not invent recommendation reasons.
+
+The underlying relevance system is already shared with Trips → Both from the shipped Trips redesign.
+
+Audit and preserve that architecture.
+
+Important existing rule:
+
+- Home Idea dismissal suppresses the Idea from Home
+- it does NOT erase the opportunity from Trips → Both
+
+Audit current dismissal storage and behavior.
+
+Availability should remain related to Ideas and should not return as duplicated Home controls.
+
+==================================================
+6. HAPPENING — ROUND 09 M
+==================================================
+
+Use selected **M — The Digest**.
+
+Happening answers:
+
+**What changed that I should know about?**
+
+It is NOT a raw reverse-chronological notification feed.
+
+Selected hierarchy:
+
+### On Your Trips
+Meaningful changes to trips involving the viewer.
+
+Examples only where current data supports them:
+- person joined
+- response progress changed
+- dates changed
+- meaningful planning changes
+
+### Trips Forming
+Meaningful network trip formation/activity.
+
+### Your People
+Rolled-up meaningful people/network signals.
+
+Potential examples only where current product data supports them:
+- friends free during viewer windows
+- wishlist activity
+- new connections
+- ski-day activity
+
+Audit the current Happening service/projection and determine:
+
+- which M categories can be built from existing data
+- which are presentation/grouping changes
+- which require projection/query work
+- which would require unsupported new event semantics
+
+Do not invent events simply because they appeared in an exploration mockup.
+
+Preserve the parked O concept (“where the network is gathering”) as out of scope for this Home implementation.
+
+==================================================
+7. MORE UPCOMING TRIPS
+==================================================
+
+The current consolidated design has a trailing route/count such as:
+
+`8 more upcoming trips this season`
+
+Audit whether this is useful/redundant now that:
+
+- the personal context already shows upcoming-trip count
+- Trips now has the full shipped Mine/Both/Friends’ experience
+
+Recommend the smallest target treatment consistent with the selected design and current navigation.
+
+Do not create a second trip inventory on Home.
+
+==================================================
+8. CURRENT HOME CAPABILITY PRESERVATION
+==================================================
+
+Audit every current shipped Home capability and map its destination in the redesign.
+
+At minimum:
+
+- Welcome / Profile
+- About You & Your Gear
+- Your Activity
+- Friends' Passes
+- Your Next Trip
+- Actions to Take
+- Requests
+- Ideas
+- Idea dismissal
+- Edit Availability
+- Happening
+- any currently shipped footer/index controls
+
+Classify each as:
+
+- preserved directly
+- compressed
+- merged
+- moved to an existing destination
+- intentionally removed as redundant
+
+Nothing should disappear silently.
+
+==================================================
+9. TRUE RESPONSIVE BEHAVIOR
+==================================================
+
+Important correction from Claude Round 09:
+
+Earlier exploration rounds incorrectly tested 360px against a fixed 390px container.
+
+Round 09+ corrected this.
+
+Implementation must test TRUE reflow at:
+
+- 390px
+- 360px
+
+Audit current Home CSS/layout for fixed-width assumptions that would invalidate the responsive design.
+
+Long real-world strings must be supported, including:
+
+- Kicking Horse Mountain Resort, British Columbia
+- Courchevel, Auvergne-Rhône-Alpes
+- Mountain Collective
+- long friend names
+
+Meaningful Home content should wrap rather than truncate when appropriate.
+
+==================================================
+10. VISUAL SYSTEM
+==================================================
+
+The redesign should remain related to the shipped Trips / Trip Detail system without becoming a Trips clone.
+
+Selected principles:
+
+- restrained surfaces
+- strong typography
+- purposeful spacing
+- quiet rules
+- limited card nesting
+- no horizontal content carousels for Ideas/Happening
+- no avatar dependency
+- no decorative photography
+- no generic dashboard tiles
+- blush exclusively for human-response attention
+
+Do not redesign these principles in Replit Plan.
+
+==================================================
+11. AUDIT EXISTING DATA / WRITE PATHS
+==================================================
+
+Before writing implementation batches, explicitly trace:
+
+### Personal context
+- rider type
+- skill
+- equipment
+- user passes
+- friend pass counts/distribution
+- upcoming trips
+- mountains visited
+- wishlist count
+- friend count
+
+### Next Trip / Actions
+- Next Trip selection
+- proximity/status
+- people counts
+- current Actions to Take source
+- action completion/update behavior
+
+### Needs You
+- trip invitations
+- join requests
+- friend requests
+
+### Ideas
+- retrieval
+- WHY/reason data
+- availability
+- dismissal
+
+### Happening
+- current source
+- viewer's own trip events
+- friend/network events
+- current `Planning` vocabulary issue
+
+Use exact functions, routes, models and line references.
+
+==================================================
+12. IMPLEMENTATION DELTA
+==================================================
+
+Classify each target capability as:
+
+- ALREADY SUPPORTED
+- PRESENTATION ONLY
+- PROJECTION / QUERY WORK
+- SHARED-LOGIC REFACTOR
+- NEW WRITE SURFACE USING EXISTING ACTION
+- GENUINELY NEW BACKEND BEHAVIOR
+- MIGRATION REQUIRED
+
+Include risk and dependencies.
+
+==================================================
+13. RECOMMENDED IMPLEMENTATION BATCHES
+==================================================
+
+Do not assume Home should be implemented in one huge Build task.
+
+Recommend the safest ordered batches.
+
+A likely structure might be:
+
+- shared shell / personal context / Next Trip
+- Actions + Needs You
+- Ideas
+- Happening
+- final visual/responsive integration
+
+But derive the actual recommendation from the codebase.
+
+Each proposed batch should state:
+
+- exact scope
+- dependencies
+- backend work
+- frontend work
+- tests
+- acceptance captures
+- risk
+- whether it can be built/published independently
+
+==================================================
+14. REQUIRED FINAL REPORT
+==================================================
+
+Return one:
+
+# Home Redesign Implementation Readiness Report
+
+with:
+
+1. Executive summary
+2. Current Home capability map
+3. Verified data semantics
+4. Selected design → current code mapping
+5. Personal context readiness
+6. Next Trip / Actions readiness
+7. Needs You readiness
+8. Ideas readiness
+9. Happening readiness
+10. Responsive/layout findings
+11. Implementation delta table
+12. Migration verdict
+13. Recommended ordered implementation batches
+14. Genuine product blockers only
+15. Exact files/functions/routes likely to change
+
+Do not list design questions that Claude already resolved.
+
+Do not implement anything.
+
+Stop after the Plan/report so I can review it before switching Replit to Build.
