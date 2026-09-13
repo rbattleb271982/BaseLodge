@@ -81,6 +81,38 @@ def test_home_controls_keep_mobile_tap_targets_and_digest_density():
     assert ".bl-digest-item-copy { min-width: 0; }" in css
 
 
+def test_home_convergence_keeps_action_recommendation_and_digest_weight_distinct():
+    css = _home_css()
+
+    assert ".home-needs-you__rows {" in css
+    assert "background: #FFF4F4;" in css
+    assert "border-radius: 12px;" in css
+
+    ideas_start = css.index(".bl-ideas-section {")
+    ideas_end = css.index("}", ideas_start)
+    ideas_css = css[ideas_start:ideas_end]
+    assert "rgba(253, 251, 247, 0.7)" in ideas_css
+    assert "rgba(92, 18, 25, 0.075)" in ideas_css
+
+    digest_start = css.index(".bl-happening-digest {")
+    digest_end = css.index("}", digest_start)
+    digest_css = css[digest_start:digest_end]
+    assert "rgba(253, 251, 247, 0.48)" in digest_css
+    assert "rgba(92, 18, 25, 0.07)" in digest_css
+
+
+def test_true_360_rules_wrap_copy_away_from_controls():
+    css = _home_css()
+    narrow_start = css.rindex("@media (max-width: 370px)")
+    narrow_css = css[narrow_start:]
+
+    assert ".home-needs-you__bottomline {" in narrow_css
+    assert "flex-wrap: wrap;" in narrow_css
+    assert "flex: 1 1 145px;" in narrow_css
+    assert ".bl-digest-item-topline {" in narrow_css
+    assert ".bl-opp-title-line {" in narrow_css
+
+
 def test_next_trip_matches_round_11_g_and_defers_actions():
     assert "Next Trip" in NEXT_TRIP_TEMPLATE
     assert "ORGANIZING" in NEXT_TRIP_TEMPLATE

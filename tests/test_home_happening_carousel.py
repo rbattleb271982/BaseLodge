@@ -64,3 +64,12 @@ def test_happening_meaningful_copy_wraps_without_query_or_inline_script():
     assert "query(" not in HAPPENING_TEMPLATE
     assert "fetch(" not in HAPPENING_TEMPLATE
     assert "<script" not in HAPPENING_TEMPLATE
+
+
+def test_happening_convergence_is_compact_without_removing_information():
+    assert "min-height: 24px;" in HOME_TEMPLATE
+    assert "padding: 5px 40px 5px 11px;" in HOME_TEMPLATE
+    assert "font-size: 8px;" in HOME_TEMPLATE
+    assert "category.overflow" in HAPPENING_TEMPLATE
+    assert "item.headline or item.detail" in HAPPENING_TEMPLATE
+    assert "item.date_range" in HAPPENING_TEMPLATE

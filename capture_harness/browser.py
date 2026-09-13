@@ -443,6 +443,12 @@ class CaptureRunner:
                     if actions.count() and actions.first.get_attribute("open") is not None:
                         actions.locator("summary").click()
                     page.locator("#section-opportunities").scroll_into_view_if_needed()
+                if row["segment"] == "top":
+                    # Transient connection notices are covered separately. They
+                    # must not obscure the Home foundation in layout captures.
+                    page.locator("#bl-conn-toast").evaluate(
+                        "(element) => element.remove()"
+                    ) if page.locator("#bl-conn-toast").count() else None
             elif row["screen"] == "trips":
                 if row["state"] in {
                     "filter-sheet", "no-filter-results",

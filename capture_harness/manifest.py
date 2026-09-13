@@ -97,9 +97,10 @@ def build_manifest() -> list[dict[str, Any]]:
             ("availability","heavy","lower-intelligence"),("profile-intelligence","heavy","lower-intelligence"),
             ("narrow-dense","heavy","ideas-happening"),("pending-invite","typical","top"),
             ("next-trip-participant","typical","top"),("extreme-wrap","extreme","top"),
+            ("extreme-wrap-narrow","extreme","top"),
             ("edge-error","edge","top")]
     for state, persona, seg in home:
-        add("home", "home", persona, state, "/home", seg, viewport="narrow" if state in {"narrow-dense", "happening-heavy-narrow-m"} else "mobile",
+        add("home", "home", persona, state, "/home", seg, viewport="narrow" if state in {"narrow-dense", "happening-heavy-narrow-m", "extreme-wrap-narrow"} else "mobile",
             wait="home-content-visible")
     # Trips; Season Snapshot is an explicit populated surface.
     trips = [("empty","empty","top-upcoming"),("typical","typical","top-upcoming"),
@@ -239,8 +240,8 @@ MANIFEST = build_manifest()
 
 def validate_manifest(rows: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     rows = MANIFEST if rows is None else rows
-    if len(rows) != 125:
-        raise ValueError(f"capture manifest must contain exactly 125 rows (got {len(rows)})")
+    if len(rows) != 126:
+        raise ValueError(f"capture manifest must contain exactly 126 rows (got {len(rows)})")
     ids = [r["capture_id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise ValueError("capture IDs must be unique")
