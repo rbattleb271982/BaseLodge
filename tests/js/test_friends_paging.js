@@ -82,3 +82,27 @@ test('automatic appends do not move keyboard focus', () => {
     /if \(!reset && firstAdded && source === 'manual'\)/,
   );
 });
+
+test('terminal sent-request responses never restore a false Requested state', () => {
+  const start = template.indexOf('function frCancelSentRequest');
+  const end = template.indexOf(
+    '// ── Accept / Decline friend requests',
+    start,
+  );
+  const handler = template.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.match(
+    handler,
+    /status === 200 \|\| result\.status === 404 \|\| result\.status === 409/,
+  );
+  assert.match(
+    handler,
+    /frRefreshRegions\(\['requests', 'suggestions'\]\)[\s\S]*?\.catch\(function\(\) \{/,
+  );
+  assert.match(
+    handler,
+    /btn\.disabled = true;[\s\S]*?btn\.textContent = 'Refresh needed';/,
+  );
+  assert.match(handler, /Request status changed\. Pull to refresh\./);
+});

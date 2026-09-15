@@ -179,6 +179,10 @@ from services.friends_paging import (
     FriendsCursorError,
     load_friends_page,
 )
+from services.outgoing_friend_requests import (
+    OutgoingRequestsCursorError,
+    load_outgoing_requests_page,
+)
 from services.friend_suggestions_paging import (
     FriendSuggestionsCursorError,
     count_active_suggestions,
@@ -10457,6 +10461,7 @@ def _render_bounded_friends():
     } if sender_ids else {}
     for invitation in pending_incoming:
         invitation._sender = senders.get(invitation.sender_id)
+    outgoing_page = load_outgoing_requests_page(user.id)
 
     from services.pass_utils import (
         CANONICAL_PASS_ORDER,
@@ -10477,11 +10482,33 @@ def _render_bounded_friends():
         friends_next_cursor=page.next_cursor,
         friends_matching_count=page.matching_count,
         pending_incoming=pending_incoming,
+        outgoing_page=outgoing_page,
         filter_passes=filter_passes,
         initial_tab=request.args.get("tab", "friends"),
         suggested_friends=[],
         suggested_count=count_active_suggestions(user.id),
     )
+
+
+@app.route("/api/friends/outgoing/page")
+@login_required
+def api_outgoing_friend_requests_page():
+    try:
+        page = load_outgoing_requests_page(
+            current_user.id,
+            request.args.get("cursor"),
+        )
+    except OutgoingRequestsCursorError as exc:
+        return jsonify({"error": str(exc)}), 400
+    html = app.jinja_env.get_template(
+        "components/outgoing_friend_request_rows.html"
+    ).render(outgoing_rows=page.rows)
+    return jsonify({
+        "html": html,
+        "has_more": page.has_more,
+        "next_cursor": page.next_cursor,
+        "total_count": page.total_count,
+    })
 
 
 @app.route("/api/friends/page")

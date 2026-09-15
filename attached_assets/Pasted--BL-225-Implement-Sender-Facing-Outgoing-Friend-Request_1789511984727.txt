@@ -1,0 +1,467 @@
+# BL-225 — Implement Sender-Facing Outgoing Friend Requests
+
+Use Replit Agent level: POWER.
+
+This is a bounded implementation task.
+
+BL-224 has been reverified COMPLETE. Do not modify or replace its canonical friend-request state machine.
+
+The canonical sender withdrawal endpoint is:
+
+DELETE /api/friends/invite/<invitation_id>
+
+It already provides:
+
+- sender-only authorization
+- pending-only cancellation
+- friend-invitation scope enforcement
+- FriendCooldown handling
+- stale acceptance protection
+- recipient cleanup
+- FriendSuggestion preservation where appropriate
+
+BL-225 must reuse this behavior.
+
+## Goal
+
+Give the sender a complete, history-independent place within the existing Friends experience to see every currently pending outgoing social friend request and withdraw it.
+
+Do not redesign Friends.
+
+## Locked UX direction
+
+Extend the EXISTING Friend Requests region above the Friends / Suggested Friends tabs.
+
+Incoming Friend Requests remain unchanged and immediately actionable.
+
+When one or more pending outgoing friend requests exist, add a collapsed disclosure:
+
+Sent requests · N
+
+When expanded, it displays the sender's pending outgoing requests.
+
+When there are zero pending outgoing requests:
+
+- Do not render the disclosure.
+- Do not render an empty state.
+
+Do NOT:
+
+- add a third Friends tab
+- add a separate page
+- add a modal or sheet
+- add a new card system
+- change the Friends bottom-navigation badge
+
+The bottom-navigation Friends badge must continue to represent incoming actionable requests only.
+
+## Outgoing row treatment
+
+Stay strictly within the existing BaseLodge Friends visual system.
+
+Each outgoing row should contain only the minimum useful information:
+
+- recipient identity/name
+- Requested state
+- existing withdrawal interaction
+
+Use existing Friends row density, typography, controls, spacing, borders, and neutral/burgundy visual language.
+
+Do not add:
+
+- request age/date
+- suggestion attribution
+- pass information
+- mutual-friend counts
+- new badges
+- new colors
+- new icons
+- new avatar treatment
+- additional profile information
+- another information row unless the existing responsive pattern genuinely requires it
+
+Preserve minimum accessible touch targets.
+
+## Canonical retrieval
+
+The canonical Sent requests list must include EVERY currently pending outgoing SOCIAL friend request where:
+
+sender_id = current_user.id
+status = 'pending'
+trip_id IS NULL
+
+It must include requests regardless of creation path:
+
+1. Global user search
+   POST /api/users/<user_id>/connect
+
+2. Suggested Friends
+   POST /api/friends/suggestions/connect
+
+3. Legacy email friend request
+   POST /api/friends/invite
+
+Do not depend on FriendSuggestion existence.
+
+Do not require the recipient to remain globally discoverable.
+
+Exclude:
+
+- incoming requests
+- trip invitations
+- join requests
+- accepted invitations
+- declined invitations
+- cancelled invitations
+- any request belonging to another sender
+
+Return only the recipient identity fields required to render the row.
+
+## Suggested Friends duplication rule
+
+A pending outgoing request associated with an active FriendSuggestion MUST still appear in the canonical Sent requests list.
+
+Suggested Friends must ALSO preserve its existing contextual lifecycle:
+
+Requested
+→ withdraw
+→ Request withdrawn during cooldown
+
+These are two views of the SAME request, not duplicate request records.
+
+Both surfaces must:
+
+- reference the same Invitation.id
+- use the same canonical DELETE endpoint
+- derive state from persisted Invitation/cooldown state
+- never create another request
+- never create another cancellation path
+
+The collapsed Sent requests disclosure is the intentional mechanism for reducing routine visual duplication.
+
+Do not dismiss, delete, or otherwise alter FriendSuggestion merely because the request appears in Sent requests.
+
+## Ordering
+
+Use deterministic newest-first ordering:
+
+Invitation.created_at DESC
+Invitation.id DESC
+
+## Count behavior
+
+Show the exact number of currently pending outgoing social requests:
+
+Sent requests · N
+
+Do not add this count to the Friends bottom-navigation badge.
+
+The count must update after request lifecycle changes.
+
+## Pagination
+
+Use bounded retrieval.
+
+Target:
+
+- 20 rows initially
+- fetch enough information to determine whether more results exist
+- Load more only when required
+- deterministic keyset pagination
+- no offset pagination
+- no per-row database reads
+
+Use the existing BaseLodge pagination/cursor conventions where possible rather than inventing a new framework.
+
+If a dedicated authenticated read endpoint is required for subsequent pages, keep it strictly read-only and sender-scoped.
+
+Do not create another mutation endpoint.
+
+## Lifecycle behavior
+
+### Send from global search
+
+Preserve the immediate Requested state.
+
+Also refresh/update the existing requests region so:
+
+- Sent requests appears if this is the first outgoing request
+- its count updates
+- the new request becomes available in the canonical list
+
+### Send from Suggested Friends
+
+Preserve the existing Suggested Friends Requested state.
+
+Also update the requests region.
+
+### Recipient accepts
+
+Once no longer pending, the request must disappear from Sent requests on the next supported targeted refresh/reload/page-return behavior.
+
+### Recipient declines
+
+Once no longer pending, it must disappear from Sent requests.
+
+Existing cooldown behavior remains authoritative.
+
+### Sender withdraws
+
+Use ONLY:
+
+DELETE /api/friends/invite/<invitation_id>
+
+On success:
+
+- remove/update the outgoing row
+- update Sent requests count
+- hide the disclosure if count becomes zero
+- refresh relevant Suggested Friends state
+- preserve FriendSuggestion
+- preserve Request withdrawn cooldown behavior
+
+### Cooldown
+
+A withdrawn request is NOT a pending outgoing request and therefore must not remain in Sent requests.
+
+Suggested Friends/global search may continue showing the existing cooldown treatment.
+
+## Stale/race handling
+
+The rendered request may become stale because the recipient accepted/declined or another session changed its state.
+
+Required behavior:
+
+- Disable withdrawal while DELETE is in flight.
+- HTTP 200: refresh relevant regions from authoritative persisted state.
+- HTTP 404/409: treat the row as stale and refresh rather than restoring a false Requested state.
+- Authorization/server errors: retain the row and recover the control appropriately.
+- Never locate a request for withdrawal solely by recipient ID.
+- Never accidentally mutate an older Invitation for the same user pair.
+
+Reuse BL-224 endpoint behavior rather than reproducing authorization/state logic in JavaScript.
+
+## Targeted refresh / Capacitor
+
+Reuse the existing Friends targeted-refresh system.
+
+Web and Capacitor share the same Friends implementation.
+
+Ensure Sent requests remains correct after:
+
+- local send
+- local withdrawal
+- pull-to-refresh
+- normal reload
+- returning to the Friends page
+- supported Capacitor foreground/page-return behavior
+
+Prefer the smallest extension to existing refresh behavior.
+
+Do not add polling.
+
+Do not add a native-only implementation.
+
+## Query/performance requirements
+
+Use a viewer-scoped bounded retrieval service.
+
+Requirements:
+
+- no N+1 behavior
+- no per-row relationship query
+- no per-row suggestion query
+- no per-row cooldown query
+- no per-row profile query
+- bounded statement count independent of result count
+
+A joined/batched recipient projection is preferred.
+
+### IMPORTANT: migration/index constraint
+
+The investigation suggested a possible performance index.
+
+DO NOT automatically create a migration.
+
+The existing schema is sufficient for correctness.
+
+Before adding ANY index or migration:
+
+1. Inspect the current relevant Invitation indexes.
+2. Measure/explain the proposed query behavior against realistic scale.
+3. Determine whether an additional index is actually necessary.
+
+If the existing indexes/query plan are sufficient:
+
+DO NOT add a migration.
+
+If evidence demonstrates that a new index is genuinely required for safe bounded production behavior:
+
+STOP before creating it and report:
+
+BL-225 INDEX MIGRATION REQUIRED
+
+Include:
+
+- existing relevant indexes
+- measured/query-plan evidence
+- exact proposed index
+- why implementation should not proceed without it
+
+Do not create the migration until explicitly approved.
+
+## Tests
+
+Add focused regression coverage for at least:
+
+### Retrieval/privacy
+
+- current sender only
+- pending only
+- social friend requests only
+- trip Invitations excluded
+- resolved Invitations excluded
+- non-discoverable requested recipient remains visible to sender
+- authentication required
+- minimum allowlisted recipient projection
+
+### Creation paths
+
+- global-search request appears
+- Suggested Friends request appears
+- legacy email request appears
+- direct-connect/non-Invitation flows do not appear
+
+### Ordering/pagination
+
+- zero
+- one
+- 20
+- 21
+- multi-page
+- newest first
+- deterministic timestamp/ID tie-breaking
+- cursor validation/viewer binding if using cursors
+- no duplicates/omissions across pages
+
+### UI
+
+- disclosure absent at zero
+- Sent requests · N count correct
+- collapsed by default
+- expansion works
+- rows use canonical Invitation IDs
+- withdrawal works
+- count updates
+- disclosure disappears after final request resolves
+
+### Suggested Friends integration
+
+- same request appears canonically in Sent requests
+- Suggested Friends still shows Requested
+- withdrawal from Sent requests updates Suggested Friends
+- withdrawal from Suggested Friends updates Sent requests
+- FriendSuggestion survives withdrawal
+- Request withdrawn cooldown treatment remains intact
+
+### Lifecycle
+
+- accept removes pending outgoing row
+- decline removes pending outgoing row
+- withdraw removes row
+- stale/repeated withdrawal refreshes correctly
+- unauthorized withdrawal remains rejected
+
+### Performance
+
+- fixed/bounded query statement budget
+- no result-count-dependent query growth
+
+### Responsive/Capacitor
+
+Verify the existing Friends visual system at:
+
+- 390px
+- true 360px
+- representative wider responsive width if supported by existing harness
+
+Confirm:
+
+- no horizontal overflow
+- no clipping
+- no control/text collision
+- accessible touch targets
+- bottom-navigation clearance
+- collapsed and expanded Sent requests states
+- long recipient names
+- several outgoing requests
+- incoming + outgoing requests together
+
+Do not use Replit Design.
+
+## Regression protection
+
+Do not change existing behavior for:
+
+- incoming Friend Requests
+- confirmed Friends
+- Friends search
+- global search
+- Suggested Friends
+- FriendSuggestion attribution
+- bottom-navigation badge semantics
+- Home incoming requests
+- Notifications incoming requests
+- existing cooldown behavior
+- existing BL-224 withdrawal behavior
+
+Run the relevant existing regression suites in addition to new focused tests.
+
+## Final report
+
+Return:
+
+1. Exact implementation
+2. Final Friends request-region structure
+3. Outgoing retrieval/query architecture
+4. Creation-path coverage
+5. Suggested Friends duplication behavior
+6. Withdrawal behavior
+7. Stale/race behavior
+8. Count/ordering/pagination behavior
+9. Targeted refresh behavior
+10. Web/Capacitor behavior
+11. Query-budget results
+12. Index/query-plan findings and migration verdict
+13. Exact automated test results
+14. Responsive/browser verification
+15. Console/request health
+16. Files changed
+17. Git/worktree status
+18. Remaining issues/blockers
+
+End with exactly one:
+
+BL-225 COMPLETE — READY FOR SHIP CHECK
+
+or
+
+BL-225 BLOCKED — REVIEW REQUIRED
+
+## HARD CONSTRAINTS
+
+Do not:
+
+- redesign Friends
+- add a third Friends tab
+- introduce another friend-request state machine
+- introduce another withdrawal mutation endpoint
+- alter incoming-request semantics
+- alter bottom-nav badge semantics
+- alter FriendSuggestion lifecycle
+- mutate Production data
+- create a migration without stopping for explicit approval as described above
+- deploy
+- publish
+- push to Git
+- perform unrelated cleanup

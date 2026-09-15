@@ -1,0 +1,17 @@
+{% for outgoing in outgoing_rows %}
+<div class="fr-request-row fr-sent-row"
+     id="fr-sent-{{ outgoing.invitation_id }}"
+     data-outgoing-invitation-id="{{ outgoing.invitation_id }}">
+    <div class="fr-request-info">
+        <p class="fr-request-name">{{ outgoing.recipient_name }}</p>
+    </div>
+    <div class="fr-request-actions">
+        <button type="button"
+                class="fr-req-btn fr-req-btn-decline fr-sent-requested"
+                onclick="frCancelSentRequest({{ outgoing.invitation_id }}, this)"
+                aria-label="Withdraw friend request to {{ outgoing.recipient_name }}">
+            Requested
+        </button>
+    </div>
+</div>
+{% endfor %}

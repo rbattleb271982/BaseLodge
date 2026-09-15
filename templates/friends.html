@@ -220,6 +220,8 @@
             font-weight: 500;
             color: #1A1A1A;
             margin: 0 0 2px 0;
+            line-height: 1.3;
+            overflow-wrap: anywhere;
         }
         .fr-request-sub {
             font-size: 13px;
@@ -257,6 +259,35 @@
             font-size: 13px;
             color: #C0392B;
             margin: 4px 0 0 0;
+        }
+        .fr-sent-disclosure {
+            margin: 0 0 24px;
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .fr-sent-disclosure summary {
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0;
+            color: var(--bl-color-primary);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            list-style-position: inside;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .fr-sent-disclosure[open] summary {
+            border-bottom: 1px solid #E5DFD0;
+        }
+        .fr-sent-row:first-child {
+            border-top: none;
+        }
+        .fr-sent-requested {
+            min-height: 44px;
+        }
+        .fr-sent-disclosure .fr-load-more {
+            margin: 8px 0 12px;
         }
 
         /* ── Global member search results ────────────────────────────── */
@@ -771,42 +802,7 @@
     <div class="page-container">
 
         <div data-fr-region="requests">
-        {% if pending_incoming %}
-        <!-- ══════════════════════════════════════════════════════════════
-             PENDING FRIEND REQUESTS
-        ══════════════════════════════════════════════════════════════ -->
-        <div class="fr-requests-section" id="fr-requests-section">
-            <p class="fr-requests-header">Friend Requests</p>
-            {% for inv in pending_incoming %}
-            <div class="fr-request-row" id="fr-req-{{ inv.id }}">
-                <div class="fr-request-info">
-                    <p class="fr-request-name">
-                        {% if inv._sender %}
-                            {{ inv._sender.first_name | format_name }}{% if inv._sender.last_name %} {{ inv._sender.last_name | format_name }}{% endif %}
-                        {% else %}
-                            Someone
-                        {% endif %}
-                    </p>
-                    {% if inv._sender and inv._sender.home_state %}
-                    <p class="fr-request-sub">{{ inv._sender.home_state }}</p>
-                    {% endif %}
-                </div>
-                <div class="fr-request-actions">
-                    <button class="fr-req-btn fr-req-btn-decline"
-                            onclick="declineRequest({{ inv.id }}, this)"
-                            aria-label="Decline friend request">
-                        Decline
-                    </button>
-                    <button class="fr-req-btn fr-req-btn-accept"
-                            onclick="acceptRequest({{ inv.id }}, this)"
-                            aria-label="Accept friend request">
-                        Accept
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+        {% include "components/friends_requests_region.html" %}
         </div><!-- /requests region -->
 
         <!-- ── BL-12: Friends | Suggested Friends tab bar ── -->
@@ -1427,6 +1423,13 @@
                 searchValue: input ? input.value : '',
                 globalSearchActive: Boolean(_frSearchQuery),
                 focusId: active && active.id ? active.id : null,
+                sentOpen: Boolean(
+                    document.getElementById('fr-sent-disclosure')
+                    && document.getElementById('fr-sent-disclosure').open
+                ),
+                visibleOutgoingCount: document.querySelectorAll(
+                    '#fr-sent-list [data-outgoing-invitation-id]'
+                ).length,
                 visibleFriendCount: document.querySelectorAll(
                     '#fr-alpha-list [data-friend-id]'
                 ).length
@@ -1479,6 +1482,23 @@
                 }
             }
             _frEnsureSuggestionsLoaded();
+            var sent = document.getElementById('fr-sent-disclosure');
+            if (sent && state.sentOpen) sent.open = true;
+            var targetOutgoingCount = state.visibleOutgoingCount || 0;
+            var currentOutgoingCount = document.querySelectorAll(
+                '#fr-sent-list [data-outgoing-invitation-id]'
+            ).length;
+            while (currentOutgoingCount < targetOutgoingCount) {
+                var outgoingMore = document.getElementById('fr-sent-load-more');
+                if (!outgoingMore || !outgoingMore.dataset.cursor) break;
+                var previousOutgoingCount = currentOutgoingCount;
+                await frLoadMoreOutgoing(outgoingMore);
+                if (!context.isCurrent()) return;
+                currentOutgoingCount = document.querySelectorAll(
+                    '#fr-sent-list [data-outgoing-invitation-id]'
+                ).length;
+                if (currentOutgoingCount <= previousOutgoingCount) break;
+            }
             if (state.focusId) {
                 var focusTarget = document.getElementById(state.focusId);
                 if (focusTarget) focusTarget.focus({ preventScroll: true });
@@ -1514,6 +1534,9 @@
                             + ' onclick="_frCancelRequest(' + uid + ',' + invId + ',this)">Requested</button>';
                     }
                 }
+                window.frRefreshRegions(['requests']).catch(function(error) {
+                    _frRefreshController.reportError(error);
+                });
             } else if (data.code === 'INCOMING_PENDING') {
                 _frRefreshSearch();
             } else {
@@ -1572,12 +1595,102 @@
                     var actionDiv = row.querySelector('.fr-global-action');
                     if (actionDiv) actionDiv.innerHTML = '';
                 }
+                window.frRefreshRegions(['requests', 'suggestions']).catch(
+                    function(error) { _frRefreshController.reportError(error); }
+                );
             } else {
                 if (btn) { btn.disabled = false; btn.textContent = 'Requested'; }
             }
         })
         .catch(function() {
             if (btn) { btn.disabled = false; btn.textContent = 'Requested'; }
+        });
+    }
+
+    async function frLoadMoreOutgoing(btn) {
+        if (!btn || btn.disabled || !btn.dataset.cursor) return;
+        btn.disabled = true;
+        var error = document.getElementById('fr-sent-error');
+        if (error) error.hidden = true;
+        try {
+            var response = await fetch(
+                '/api/friends/outgoing/page?cursor='
+                + encodeURIComponent(btn.dataset.cursor),
+                { credentials: 'same-origin' }
+            );
+            if (!response.ok) throw new Error('Could not load sent requests.');
+            var data = await response.json();
+            var list = document.getElementById('fr-sent-list');
+            if (!list) return;
+            var existing = new Set(
+                Array.from(list.querySelectorAll('[data-outgoing-invitation-id]'))
+                    .map(function(row) { return row.dataset.outgoingInvitationId; })
+            );
+            var fragment = document.createElement('template');
+            fragment.innerHTML = data.html || '';
+            fragment.content.querySelectorAll('[data-outgoing-invitation-id]')
+                .forEach(function(row) {
+                    if (existing.has(row.dataset.outgoingInvitationId)) row.remove();
+                });
+            list.appendChild(fragment.content);
+            btn.dataset.cursor = data.next_cursor || '';
+            btn.hidden = !data.has_more;
+        } catch (loadError) {
+            if (error) {
+                error.textContent = loadError.message;
+                error.hidden = false;
+            }
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    function frCancelSentRequest(invitationId, btn) {
+        if (!confirm('Cancel this connection request?')) return;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Cancelling\u2026';
+        }
+        fetch('/api/friends/invite/' + invitationId, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-Token': _frCsrf }
+        })
+        .then(function(response) {
+            return response.json().catch(function() { return {}; }).then(
+                function(data) { return { status: response.status, data: data }; }
+            );
+        })
+        .then(function(result) {
+            if (result.status === 200 || result.status === 404 || result.status === 409) {
+                return window.frRefreshRegions(['requests', 'suggestions'])
+                    .catch(function() {
+                        if (btn && btn.isConnected) {
+                            btn.disabled = true;
+                            btn.textContent = 'Refresh needed';
+                            var row = btn.closest('.fr-sent-row');
+                            var message = row && row.querySelector('.fr-request-error');
+                            if (!message) message = document.getElementById('fr-sent-error');
+                            if (message) {
+                                message.textContent = 'Request status changed. Pull to refresh.';
+                                message.hidden = false;
+                            }
+                        }
+                    });
+            }
+            throw new Error(result.data.error || 'Could not withdraw request.');
+        })
+        .catch(function(error) {
+            if (btn && btn.isConnected) {
+                btn.disabled = false;
+                btn.textContent = 'Requested';
+                var row = btn.closest('.fr-sent-row');
+                var message = row && row.querySelector('.fr-request-error');
+                if (!message) message = document.getElementById('fr-sent-error');
+                if (message) {
+                    message.textContent = error.message;
+                    message.hidden = false;
+                }
+            }
         });
     }
 
@@ -2479,8 +2592,14 @@
         .then(function(data) {
             if (data.success) {
                 frSuggSetActionState(userId, 'requested', data.invitation_id);
+                window.frRefreshRegions(['requests']).catch(function(error) {
+                    _frRefreshController.reportError(error);
+                });
             } else if (data.code === 'OUTGOING_PENDING') {
                 frSuggSetActionState(userId, 'requested', data.invitation_id);
+                window.frRefreshRegions(['requests']).catch(function(error) {
+                    _frRefreshController.reportError(error);
+                });
             } else if (data.code === 'INCOMING_PENDING') {
                 // They already sent us a request — show Accept
                 frSuggSetActionState(userId, 'accept', data.invitation_id);
@@ -2506,6 +2625,9 @@
         .then(function(data) {
             if (data.success) {
                 frSuggSetActionState(suggestedUserId, 'cooldown');
+                window.frRefreshRegions(['requests']).catch(function(error) {
+                    _frRefreshController.reportError(error);
+                });
             } else {
                 window.frRefreshRegions(['suggestions']).catch(function() {
                     frSuggSetActionState(
@@ -2518,6 +2640,26 @@
             frSuggSetActionState(suggestedUserId, 'requested', invitationId);
         });
     }
+
+    (function() {
+        var wasHidden = false;
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                wasHidden = true;
+            } else if (wasHidden) {
+                wasHidden = false;
+                window.frRefreshRegions(['requests', 'suggestions']).catch(
+                    function(error) { _frRefreshController.reportError(error); }
+                );
+            }
+        });
+        window.addEventListener('pageshow', function(event) {
+            if (!event.persisted) return;
+            window.frRefreshRegions(['requests', 'suggestions']).catch(
+                function(error) { _frRefreshController.reportError(error); }
+            );
+        });
+    })();
 
     function frSuggAccept(invitationId, suggestedUserId, btn) {
         if (_frAcceptancePending) return;

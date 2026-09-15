@@ -1,0 +1,56 @@
+{% if pending_incoming %}
+<div class="fr-requests-section" id="fr-requests-section">
+    <p class="fr-requests-header">Friend Requests</p>
+    {% for inv in pending_incoming %}
+    <div class="fr-request-row" id="fr-req-{{ inv.id }}">
+        <div class="fr-request-info">
+            <p class="fr-request-name">
+                {% if inv._sender %}
+                    {{ inv._sender.first_name | format_name }}{% if inv._sender.last_name %} {{ inv._sender.last_name | format_name }}{% endif %}
+                {% else %}
+                    Someone
+                {% endif %}
+            </p>
+            {% if inv._sender and inv._sender.home_state %}
+            <p class="fr-request-sub">{{ inv._sender.home_state }}</p>
+            {% endif %}
+        </div>
+        <div class="fr-request-actions">
+            <button class="fr-req-btn fr-req-btn-decline"
+                    onclick="declineRequest({{ inv.id }}, this)"
+                    aria-label="Decline friend request">
+                Decline
+            </button>
+            <button class="fr-req-btn fr-req-btn-accept"
+                    onclick="acceptRequest({{ inv.id }}, this)"
+                    aria-label="Accept friend request">
+                Accept
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if outgoing_page.total_count %}
+<details class="fr-sent-disclosure" id="fr-sent-disclosure">
+    <summary>
+        <span>Sent requests</span>
+        <span aria-hidden="true">·</span>
+        <span id="fr-sent-count">{{ outgoing_page.total_count }}</span>
+    </summary>
+    <div id="fr-sent-list">
+        {% set outgoing_rows = outgoing_page.rows %}
+        {% include "components/outgoing_friend_request_rows.html" %}
+    </div>
+    <button type="button"
+            id="fr-sent-load-more"
+            class="fr-load-more"
+            data-cursor="{{ outgoing_page.next_cursor or '' }}"
+            {% if not outgoing_page.has_more %}hidden{% endif %}
+            onclick="frLoadMoreOutgoing(this)">
+        Load more
+    </button>
+    <p class="fr-request-error" id="fr-sent-error" hidden></p>
+</details>
+{% endif %}
