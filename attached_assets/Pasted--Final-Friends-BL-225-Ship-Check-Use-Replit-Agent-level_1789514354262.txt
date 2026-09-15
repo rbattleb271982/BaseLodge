@@ -1,0 +1,377 @@
+# Final Friends / BL-225 Ship Check
+
+Use Replit Agent level: POWER.
+
+Perform a FINAL READ-ONLY ship audit of the current Friends experience following completion of BL-224 and BL-225.
+
+Do not modify anything.
+
+The goal is to determine whether the current Friends implementation is ready to commit, push, and publish.
+
+## Scope
+
+Audit the Friends experience as one system:
+
+- Incoming Friend Requests
+- Sent requests
+- Confirmed Friends
+- Friends search
+- Global member search
+- Suggested Friends
+- Friend-request withdrawal
+- FriendSuggestion preservation
+- Cooldown states
+- Targeted refresh
+- Bottom-navigation request badge
+- Web and Capacitor behavior
+
+BL-224 and BL-225 are functionally authoritative.
+
+Do not redesign or polish anything during this audit.
+
+## BL-225 acceptance verification
+
+Verify the implemented sender-facing behavior:
+
+### Sent requests
+
+- `Sent requests · N` appears only when at least one pending outgoing social request exists.
+- It is collapsed by default.
+- It expands and collapses correctly.
+- Zero requests removes the disclosure completely.
+- Incoming Friend Requests remain unchanged.
+
+### Coverage
+
+Verify the canonical outgoing list includes pending requests created through:
+
+- Global member search
+- Suggested Friends
+- Legacy email friend invitation
+
+Verify it does NOT include:
+
+- Incoming requests
+- Trip invitations
+- Join requests
+- Accepted requests
+- Declined requests
+- Cancelled requests
+- Null-trip Invitations that are not social OUTBOUND friend requests
+- Another sender's requests
+
+### Rows
+
+Verify each outgoing row contains only the approved minimal treatment:
+
+- recipient identity/name
+- actionable Requested/withdraw control
+
+Confirm rows reference canonical Invitation IDs.
+
+### Ordering/pagination
+
+Verify:
+
+- newest first
+- `created_at DESC, id DESC`
+- 20 initial rows
+- lookahead behavior
+- Load more only when required
+- signed keyset cursor
+- viewer binding
+- cursor tampering rejection
+- no duplicates or omissions across pages
+
+Test boundaries including:
+
+- 0
+- 1
+- 20
+- 21
+- 41
+
+## BL-224 withdrawal regression
+
+Reverify that ALL outgoing withdrawal surfaces use only:
+
+DELETE /api/friends/invite/<invitation_id>
+
+Confirm:
+
+- sender-only authorization
+- pending-only withdrawal
+- social friend scope
+- canonical cancelled transition
+- FriendCooldown behavior
+- stale acceptance protection
+- repeated withdrawal handling
+- recipient incoming request disappears
+- no accidental friendship rows
+- no duplicate cancellation mechanism exists
+
+## Suggested Friends integration
+
+Explicitly verify the same pending Invitation can be represented in:
+
+1. Sent requests
+2. Suggested Friends
+
+without creating duplicate request records.
+
+Verify:
+
+Requested
+→ sender withdraws from either surface
+→ outgoing request disappears
+→ FriendSuggestion survives
+→ Suggested Friends shows Request withdrawn during cooldown
+
+Verify withdrawal from either surface reconciles the other surface through the supported refresh behavior.
+
+## Search behavior
+
+Verify:
+
+- Global search sends still work.
+- Requested state still appears.
+- Withdrawal still works.
+- Cooldown state still appears after withdrawal.
+- Existing confirmed-friend search/filter behavior is unchanged.
+- Long names remain usable.
+
+## Incoming request regressions
+
+Verify incoming requests still:
+
+- render correctly
+- Accept correctly
+- Decline correctly
+- disappear when resolved
+- remain isolated from Sent requests
+
+The Friends bottom-navigation badge must continue to count incoming actionable requests only.
+
+Outgoing requests must NOT inflate that badge.
+
+## Targeted refresh
+
+Verify authoritative reconciliation after:
+
+- request sent from global search
+- request sent from Suggested Friends
+- sender withdrawal
+- recipient acceptance
+- recipient decline
+- stale 404/409 withdrawal
+- pull-to-refresh
+- browser page-cache return
+- visibility return
+- supported Capacitor foreground/page-return behavior
+
+Confirm disclosure state and loaded pagination depth behave as implemented.
+
+Do not add polling or another refresh system.
+
+## Privacy/security
+
+Verify:
+
+- viewer sees only their own outgoing requests
+- only pending social OUTBOUND Invitations qualify
+- recipient identity projection is minimal
+- non-discoverable recipients previously requested by the sender remain visible
+- no broader profile access is introduced
+- withdrawal authorization remains server-side
+- signed cursors cannot cross viewers
+- CSRF/authentication protections remain intact
+
+## Query/performance
+
+Verify the BL-225 retrieval remains bounded.
+
+Confirm:
+
+- exact outgoing count
+- bounded joined recipient projection
+- no per-row recipient queries
+- no per-row FriendSuggestion queries
+- no per-row cooldown queries
+- no per-row relationship queries
+- no N+1 growth
+
+Report exact statement budgets.
+
+Reconfirm the existing index remains adequate.
+
+Do NOT create a migration or index during this audit.
+
+## Visual/responsive verification
+
+Use deterministic/read-only browser states to review the complete Friends experience at:
+
+- true 360px
+- 390px
+- 430px if supported without modifying fixtures
+- 768px if supported without modifying fixtures
+
+Cover representative states including:
+
+- incoming requests only
+- outgoing requests only
+- incoming + outgoing together
+- one outgoing request
+- several outgoing requests
+- 20+ outgoing requests / pagination
+- long recipient name
+- Suggested Friends with Requested state
+- Suggested Friends with Request withdrawn state
+- confirmed Friends
+- search/global-search state
+- sparse/empty request state
+
+For each supported width verify:
+
+- page/container width
+- no horizontal overflow
+- no important clipping
+- no text/control collisions
+- no accidental extra information rows
+- disclosure summary readability
+- long-name wrapping
+- 44px+ actionable touch targets where required
+- bottom-navigation clearance
+- expanded and collapsed Sent requests composition
+- existing BaseLodge Friends visual system remains intact
+
+Do not create permanent fixtures merely to satisfy an unavailable state. Disclose any coverage gap.
+
+Disposable verification artifacts should remain outside the worktree.
+
+## Browser/runtime health
+
+Report:
+
+- console errors
+- failed application requests
+- capture/tooling-only errors separately
+- Flask/runtime health
+- unexpected log errors
+
+## Regression tests
+
+Run the established relevant suites covering:
+
+- BL-225
+- BL-224
+- friend-request service
+- friend search
+- Friends page
+- Friends pagination
+- Suggested Friends
+- targeted social refresh
+- privacy/authorization
+- query budgets
+- relevant JavaScript interaction behavior
+
+Do not weaken or modify tests.
+
+Report exact:
+
+- passed
+- failed
+- skipped
+
+Also run:
+
+- Python compilation for affected Python files
+- `git diff --check`
+
+## Migration check
+
+Confirm:
+
+- no migration was introduced for BL-225
+- no migration is required
+- no unexpected migration differences exist
+
+Do not create or modify migrations.
+
+## Git/worktree audit
+
+This is important.
+
+At the START and END of the audit report:
+
+- branch
+- HEAD
+- origin/main
+- commits ahead/behind
+- tracked modified files
+- untracked files
+- exact BL-225 implementation files currently changed
+- any unrelated changes
+- generated artifacts that must not be committed
+- whether the worktree is safe for a deliberate commit
+
+Do NOT:
+
+- commit
+- stage
+- push
+- publish
+- deploy
+
+## REQUIRED REPORT
+
+Return exactly:
+
+A. Verdict
+
+B. BL-225 functional verification
+
+C. BL-224 withdrawal regression
+
+D. Friends / Suggested Friends / Search regression
+
+E. Visual and responsive verification
+
+F. Privacy, accessibility, refresh, and query budgets
+
+G. Automated and browser results
+
+H. Migration verdict
+
+I. Git/worktree status
+
+J. Ship blockers
+
+Use exactly one verdict:
+
+READY TO SHIP
+
+READY TO SHIP WITH NON-BLOCKING NOTES
+
+NOT READY TO SHIP
+
+If NOT READY TO SHIP:
+
+- identify the concrete blocker
+- do not fix it
+- stop
+
+End with exactly one:
+
+FRIENDS SHIP CHECK PASSED
+
+or
+
+FRIENDS SHIP CHECK FAILED
+
+## HARD CONSTRAINT
+
+READ ONLY.
+
+Do not change application code, templates, CSS, JavaScript, services, tests, fixtures, migrations, configuration, data, Git history, deployment, or publication state.
+
+If you discover a defect, report it. Do not repair it.
