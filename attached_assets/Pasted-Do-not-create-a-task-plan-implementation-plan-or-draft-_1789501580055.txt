@@ -1,0 +1,40 @@
+Do not create a task, plan, implementation plan, or draft. Do not modify any code.
+Perform the investigation now.
+I have visually confirmed that the Trips page uses the screen width correctly, while the redesigned Home page appears unnecessarily constrained horizontally.
+Use Trips as the control and inspect the currently running application.
+At 390px and 360px, render both /home and the active Trips page and use browser/computed-style measurements to determine exactly why their horizontal layouts differ.
+I need you to:
+Measure the viewport width on both pages.
+Measure every containing element from the shared app shell down to the primary page content.
+Record each element's rendered width, left/right position, horizontal padding, margins, max-width, width, and box-sizing.
+Identify the first DOM element where Home becomes narrower than the equivalent Trips layout.
+Trace the exact CSS selector(s) responsible.
+Quantify the result in pixels at both 390 and 360.
+Pay particular attention to whether Trips achieves its appearance by having full-width page sections with padding inside those sections, while Home instead puts the entire page inside an inset wrapper.
+The distinction matters. I am not asking to make Home cards full bleed. The rounded Home cards can retain gutters. I am asking why the overall Home page framing does not behave like Trips.
+Also compare:
+Home Welcome/Profile header vs Trips header
+their horizontal divider rules
+outer page/background boundaries
+Home card gutters
+Trips content-row gutters
+bottom navigation
+Do not stop after inspecting the source CSS. Use the browser and report actual rendered measurements.
+Do not create another task.
+Do not give me proposed steps.
+Do not implement the fix yet.
+Return the investigation results directly in this format:
+TRIPS — measured geometry
+HOME — measured geometry
+FIRST POINT OF DIVERGENCE
+Element:
+CSS selector:
+Trips measurement:
+Home measurement:
+Difference:
+ROOT CAUSE
+Explain precisely which Home CSS/layout rule produces the narrower presentation.
+EXACT FIX
+Tell me the smallest specific CSS/markup change that would make Home's outer page framing behave like Trips while retaining the intended inset rounded Home cards.
+If the measurements show that Home and Trips actually have identical outer geometry, say that explicitly and then explain which visual structural difference is causing Home to appear narrower.
+Investigation only. No mutations, no task creation, no deployment, no publication, no Git operations.
