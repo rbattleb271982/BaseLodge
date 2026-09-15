@@ -221,6 +221,68 @@ class CaptureRunner:
                     raise RuntimeError(
                         "Friends capture clipped people text: " + ", ".join(clipped_people)
                     )
+                invalid_people_labels = page.locator(
+                    ".friends-people"
+                ).evaluate_all(
+                    """elements => elements
+                        .map(element => element.textContent.trim())
+                        .filter(text =>
+                            /\\+\\s*\\d+\\s+others?\\b/i.test(text)
+                            || /,/.test(text)
+                        )"""
+                )
+                if invalid_people_labels:
+                    raise RuntimeError(
+                        "Friends capture contains a multi-name label: "
+                        + ", ".join(invalid_people_labels)
+                    )
+                malformed_people_labels = page.locator(
+                    ".friends-people"
+                ).evaluate_all(
+                    """elements => elements
+                        .map(element => element.textContent.trim())
+                        .filter(text => {
+                            const context = text.split('·')[0].trim();
+                            if (/^\\d+\\s+friends$/.test(context)) return false;
+                            return !/^\\S+\\s+\\S+(?:\\s+\\S+)*$/.test(context);
+                        })"""
+                )
+                if malformed_people_labels:
+                    raise RuntimeError(
+                        "Friends capture contains an invalid friend label: "
+                        + ", ".join(malformed_people_labels)
+                    )
+                third_information_rows = page.locator(".friends-row").evaluate_all(
+                    """rows => rows.filter(row =>
+                        row.querySelectorAll(
+                            '.ledger-row-main > :not(.ledger-row-top):not(.ledger-row-bottom)'
+                        ).length > 0
+                    ).length"""
+                )
+                if third_information_rows:
+                    raise RuntimeError("Friends capture contains a third information row")
+                row_collisions = page.locator(".friends-row").evaluate_all(
+                    """rows => rows.flatMap((row, index) => {
+                        const collisions = [];
+                        const mountain = row.querySelector('.ledger-mountain');
+                        const date = row.querySelector('.ledger-date');
+                        const people = row.querySelector('.friends-people');
+                        const overlap = row.querySelector('.friends-overlap');
+                        const box = element => element.getBoundingClientRect();
+                        if (mountain && date && box(mountain).right > box(date).left + 1) {
+                            collisions.push(`row ${index + 1} destination/date`);
+                        }
+                        if (people && overlap && box(people).right > box(overlap).left + 1) {
+                            collisions.push(`row ${index + 1} people/overlap`);
+                        }
+                        return collisions;
+                    })"""
+                )
+                if row_collisions:
+                    raise RuntimeError(
+                        "Friends capture contains a collision: "
+                        + ", ".join(row_collisions)
+                    )
                 trip_rows = page.locator(".friends-row")
                 if row["state"] == "friends-empty":
                     if trip_rows.count() or page.locator(".empty-title").count() != 1:
@@ -253,10 +315,15 @@ class CaptureRunner:
                     page.evaluate("window.scrollTo(0, 0)")
                 if row["state"] == "friends-same-trip":
                     consolidated = page.locator(
-                        ".friends-row", has_text="Mara, Noah"
+                        ".friends-row", has_text="2 friends"
                     )
                     if consolidated.count() != 1:
                         raise RuntimeError("Same Trip ID did not consolidate friends")
+                    consolidated_text = consolidated.locator(
+                        ".friends-people"
+                    ).inner_text()
+                    if "Mara Both" in consolidated_text or "Noah Both" in consolidated_text:
+                        raise RuntimeError("Same Trip ID exposed names for a friend group")
                 if row["state"] == "friends-distinct-trip-ids":
                     if page.locator(".friends-row .ledger-mountain", has_text="Telluride").count() != 2:
                         raise RuntimeError("Distinct Telluride Trip IDs were consolidated")

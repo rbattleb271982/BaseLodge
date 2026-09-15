@@ -1,6 +1,7 @@
 """Focused coverage for the trip-centric Friends' Trips feed."""
 
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import event
@@ -39,6 +40,26 @@ def _all_rows(viewer_id, *, today=None):
         if not page.has_more:
             return rows
         cursor = page.next_cursor
+
+
+@pytest.mark.parametrize(
+    ("friend_names", "expected"),
+    [
+        (("Morgan Lee",), "Morgan Lee"),
+        (("Morgan Lee", "Taylor Kim"), "2 friends"),
+        (("Morgan Lee", "Taylor Kim", "Avery Chen"), "3 friends"),
+        (tuple(f"Friend {index}" for index in range(6)), "6 friends"),
+    ],
+)
+def test_friends_people_display_rule(friend_names, expected):
+    macro = app.jinja_env.get_template(
+        "components/my_trips_ledger.html"
+    ).module.friends_people
+    rendered = str(macro(SimpleNamespace(friend_names=friend_names))).strip()
+    assert rendered == expected
+    if len(friend_names) > 1:
+        assert all(name not in rendered for name in friend_names)
+        assert "other" not in rendered
 
 
 @pytest.mark.parametrize("count", [0, 1, 9, 10, 11, 21])
@@ -89,7 +110,7 @@ def test_same_trip_consolidates_eligible_friends_once(client):
         assert len(rows) == 1
         assert rows[0].trip_id == trip.id
         assert rows[0].friend_ids == (guest.id, owner.id)
-        assert rows[0].friend_names == ("Ava", "Zoe")
+        assert rows[0].friend_names == ("Ava Test", "Zoe Test")
 
 
 def test_identical_destination_and_dates_keep_distinct_trip_ids(client):
@@ -139,6 +160,7 @@ def test_only_authorized_going_activity_is_visible(client):
         assert [(row.trip_id, row.friend_ids) for row in rows] == [
             (planning.id, (going.id,))
         ]
+        assert rows[0].friend_names == (f"{going.first_name} {going.last_name}",)
         assert private.id not in {row.trip_id for row in rows}
         assert terminal.id not in {row.trip_id for row in rows}
 
@@ -278,7 +300,9 @@ def test_friends_tab_and_page_endpoint_render_trip_ledger(client):
         owner = _make_user("friends-route-owner")
         guest = _make_user("friends-route-guest")
         owner.first_name = "Elena"
+        owner.last_name = "Rivera"
         guest.first_name = "Jonah"
+        guest.last_name = "Brooks"
         _connect(viewer, owner)
         _connect(viewer, guest)
         trip = _make_trip(
@@ -297,7 +321,10 @@ def test_friends_tab_and_page_endpoint_render_trip_ledger(client):
     response = client.get("/my-trips?tab=friends")
     assert response.status_code == 200
     html = response.get_data(as_text=True)
-    assert "Elena, Jonah" in html
+    assert "2 friends" in html
+    assert "Elena Rivera" not in html
+    assert "Jonah Brooks" not in html
+    assert "+ 1 other" not in html
     assert ">Overlap<" in html
     assert "Overlaps your dates" not in html
     assert "1 trip" in html

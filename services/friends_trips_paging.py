@@ -83,7 +83,15 @@ def _active_public():
 def _entry_union(viewer_id: int, today: date, season_end: date):
     """Return one authorized scalar row per eligible friend/trip source."""
     friend_name = sa.func.coalesce(
-        sa.func.nullif(User.first_name, ""), "Friend"
+        sa.func.nullif(
+            sa.func.trim(
+                sa.func.coalesce(User.first_name, "")
+                + sa.literal(" ")
+                + sa.func.coalesce(User.last_name, "")
+            ),
+            "",
+        ),
+        "Friend",
     )
     common = (
         SkiTrip.id.label("trip_id"),

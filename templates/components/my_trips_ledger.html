@@ -99,8 +99,7 @@
 {% macro friends_people(row) -%}
   {% set count = row.friend_names|length %}
   {% if count == 1 %}{{ row.friend_names[0] }}
-  {% elif count == 2 %}{{ row.friend_names|join(', ') }}
-  {% else %}{{ row.friend_names[0] }}, {{ row.friend_names[1] }} + {{ count - 2 }} other{% if count - 2 != 1 %}s{% endif %}{% endif %}
+  {% elif count > 1 %}{{ count }} friends{% endif %}
 {%- endmacro %}
 
 {% macro friends_row(row) -%}
