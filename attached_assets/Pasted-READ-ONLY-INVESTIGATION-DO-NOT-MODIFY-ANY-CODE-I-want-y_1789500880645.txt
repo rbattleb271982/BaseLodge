@@ -1,0 +1,57 @@
+READ-ONLY INVESTIGATION. DO NOT MODIFY ANY CODE.
+I want you to investigate the horizontal width/bleed of the newly redesigned Home page.
+Look at the current rendered Home at 390px and true 360px. The concern is that the page does not appear to use the available screen width naturally. In the sparse state especially, Home looks like a narrower centered sheet sitting inside the viewport, while the fixed bottom navigation clearly extends edge-to-edge.
+Do not assume the existing 20px Home gutter is wrong. The question is whether we are unintentionally stacking multiple horizontal constraints/insets.
+Specifically audit the complete width hierarchy:
+viewport → app/page shell → Home container → section wrapper → cards/modules → internal content
+For both 390px and 360px, measure and report:
+viewport width
+width and left/right offset of the outer Home/page container
+any max-width affecting Home
+any horizontal margin: auto
+horizontal padding at every relevant parent level
+width of the Welcome/Profile row
+width of its divider
+width of the personal-context card
+width of Next Trip
+width of the availability empty state
+width of Needs You, Ideas and Happening when present
+width and positioning model of the bottom navigation
+effective distance from the physical viewport edge to each major Home surface
+Trace the CSS cascade and DOM ancestry responsible for those measurements. I specifically want to know whether width is being lost through:
+a shared application shell
+.container or equivalent
+Home-specific max-width
+width/calc() rules
+nested horizontal padding
+margins on both a parent and its children
+desktop/mobile responsive rules interacting incorrectly
+safe-area handling
+capture/test-specific CSS
+Compare the Home content boundary with the bottom navigation boundary. Explain why the nav is full bleed while Home is not.
+Also distinguish three different concepts:
+Page background, which may appropriately be full bleed.
+Page content gutter, where the approved design calls for approximately 20px.
+Card/module inset, which should not accidentally add another page-level gutter unless deliberately designed.
+I do not want you to simply make every card touch the screen edges. Determine what the intended geometry should be and whether the current implementation is adding unnecessary inset.
+Pay particular attention to the screenshot/state where there are:
+no upcoming trips
+no friends
+three passes
+no Ideas/Happening/Needs You
+availability empty state
+Sparse states make the width problem particularly visible.
+Return:
+A. Current width map
+A table showing the measured width, left inset, right inset, and governing CSS/element for every major layer at 390px and 360px.
+B. Root cause
+Identify exactly why Home currently appears narrower than the viewport and whether the effect is intentional, accidental, or a combination.
+C. Intended geometry
+State what should be full bleed, what should respect the 20px page gutter, and what should use only internal component padding.
+D. Problems found
+Rank any genuine width/inset defects by severity.
+E. Smallest correction
+If a correction is warranted, describe the smallest CSS/markup change required. Do not implement it.
+F. Regression risk
+Explain what could be affected at 390px, true 360px, desktop/web widths, long-name states, multiple-pass states, and the fixed bottom navigation.
+Do not edit files, tests, fixtures, captures, or application behavior. Do not publish, deploy, or push Git. Investigation only.
