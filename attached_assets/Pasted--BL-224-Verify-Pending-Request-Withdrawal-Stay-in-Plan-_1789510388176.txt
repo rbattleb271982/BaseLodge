@@ -1,0 +1,137 @@
+# BL-224 — Verify Pending Request Withdrawal
+
+Stay in Plan.
+
+This is a verification/audit task first. Do NOT assume BL-224 still requires implementation.
+
+We recently implemented and tested substantial pending friend-request withdrawal behavior while fixing the Suggested Friends lifecycle, including the Charles → Eric scenario.
+
+Before making ANY code changes, audit the current implementation against the existing Notion requirements for:
+
+BL-224 — Pending Request Withdrawal
+
+## Goal
+
+Determine whether the CURRENT codebase already fully satisfies BL-224.
+
+Do not recreate functionality that already exists.
+
+## Specifically trace
+
+Audit the complete outgoing friend-request lifecycle:
+
+1. User sends a friend request.
+2. The request becomes pending.
+3. The sender sees the correct pending/requested state.
+4. The sender can withdraw the pending request.
+5. Withdrawal uses the canonical supported endpoint/path.
+6. The underlying pending invitation/request is correctly removed or transitioned according to the existing architecture.
+7. Any originating Suggested Friends recommendation remains intact when appropriate.
+8. Reloading the relevant surface produces the correct state.
+9. The recipient no longer has an actionable incoming request after withdrawal.
+10. Repeated/stale withdrawal is handled safely.
+11. Authorization prevents another user from withdrawing someone else's request.
+12. Existing friendship, suggestion, invitation, privacy, and notification semantics are preserved.
+
+Pay particular attention to the already-tested Suggested Friends lifecycle:
+
+Richard suggests Eric to Charles
+→ Charles sends Eric a request
+→ Eric remains represented correctly in Suggested Friends
+→ Charles sees Requested
+→ Charles can withdraw
+→ the FriendSuggestion itself remains intact
+→ the UI reflects Request withdrawn / the correct post-withdrawal state
+
+## Audit the architecture
+
+Identify:
+
+- the canonical outgoing friend-request withdrawal endpoint
+- the service/model path it uses
+- how authorization is enforced
+- how pending state is represented
+- how Suggested Friends interacts with the request
+- whether any other UI already uses the same withdrawal path
+- existing tests protecting the behavior
+
+Also determine whether BL-225 can safely consume this same canonical withdrawal behavior without introducing another endpoint.
+
+## Verification
+
+Run the existing focused tests covering:
+
+- sending an outgoing request
+- pending/requested rendering
+- withdrawal
+- reload after withdrawal
+- suggestion preservation
+- recipient state after withdrawal
+- stale/repeated withdrawal
+- authorization
+- query behavior if relevant
+
+Do not weaken tests.
+
+## REQUIRED VERDICT
+
+Return exactly one of:
+
+BL-224 COMPLETE — NO IMPLEMENTATION REQUIRED
+
+or
+
+BL-224 INCOMPLETE — BOUNDED GAP FOUND
+
+If COMPLETE:
+
+- identify the exact existing implementation
+- identify the tests proving it
+- explain why it satisfies the Notion task
+- recommend updating BL-224 to Done
+- confirm BL-225 is unblocked
+
+If INCOMPLETE:
+
+- identify the exact missing requirement
+- identify the root cause
+- propose the smallest safe implementation batch
+- STOP
+
+Do not implement the missing piece during this audit.
+
+## HARD CONSTRAINTS
+
+Do not:
+
+- modify application code
+- modify templates or CSS
+- modify tests
+- modify fixtures
+- modify database models
+- create migrations
+- redesign Suggested Friends
+- implement BL-225
+- deploy
+- publish
+- commit
+- push to Git
+- create a replacement endpoint if a canonical one already exists
+
+This is read-only verification.
+
+## RETURN
+
+Return:
+
+1. BL-224 verdict
+2. Current request lifecycle
+3. Canonical withdrawal endpoint/path
+4. Authorization behavior
+5. Suggested Friends preservation behavior
+6. Recipient behavior after withdrawal
+7. Existing test coverage and exact results
+8. Any gap
+9. Whether BL-225 is now unblocked
+10. Migration verdict
+11. Git/worktree status
