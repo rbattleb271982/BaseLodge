@@ -1,0 +1,44 @@
+READ-ONLY INVESTIGATION. DO NOT MODIFY CODE.
+The Home page appears horizontally inset/narrow relative to the viewport, while the Trips page has the width behavior I expect.
+Use the current Trips page as the control/reference implementation. I am not asking you to reconsider the overall app shell or bottom navigation. I want to know specifically what Home is doing differently from Trips.
+At 390px and true 360px, compare the rendered width hierarchy of:
+Trips
+viewport
+shared app shell
+page/header
+tabs/content sections
+bottom navigation
+Home
+viewport
+shared app shell
+Home outer container
+Welcome/Profile row and divider
+personal-context card
+Next Trip when present
+availability empty state
+Needs You / Ideas / Happening when present
+bottom navigation
+Trace the DOM ancestry and computed CSS for both pages and identify the first point where their horizontal geometry diverges.
+Specifically compare:
+width
+max-width
+margin-left/right
+margin: auto
+padding-left/right
+box-sizing
+responsive media-query rules
+shared versus page-specific wrappers
+any Home-specific container styles
+I want a concrete answer such as:
+“Trips uses X at the page level, while Home adds Y at this element, producing Z px of additional inset.”
+Do not assume the approved Home 20px gutter is necessarily the problem. Determine how Trips establishes its page geometry and whether Home is applying a different or additional containment model.
+Also determine whether Home's cards can retain their intended internal padding and rounded-card treatment while the Home page itself follows the same outer width system as Trips.
+Return only:
+Trips width model
+Home width model
+Exact point of divergence
+Root cause
+Smallest change that would make Home use the same outer page-width behavior as Trips while preserving Home's component design
+Any 360px or desktop regression risk
+Do not implement anything. Do not change tests, fixtures, CSS, templates, data, deployment, or Git.
+The goal is not to redesign Home. The goal is to understand why Trips feels properly edge-to-edge while Home does not, and identify the smallest Home-specific correction.
