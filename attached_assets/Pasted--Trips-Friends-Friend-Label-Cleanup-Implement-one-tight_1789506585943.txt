@@ -1,0 +1,306 @@
+# Trips → Friends' Friend Label Cleanup
+
+Implement one tightly scoped presentation change to Trips → Friends'.
+
+Trips → Mine is frozen.
+Trips → Both is frozen and approved.
+Do not redesign Trips.
+
+The existing BaseLodge Trips visual system is authoritative.
+
+## REQUIRED DISPLAY RULE
+
+Change ONLY how the friend context is displayed on Trips → Friends' rows.
+
+The rule is:
+
+### Exactly 1 eligible friend
+
+Show that person's FULL first and last name.
+
+Examples:
+
+Morgan Lee · going
+
+Alexander Rivera · going
+
+Do not shorten the name to first name only.
+
+### Exactly 2 eligible friends
+
+Do NOT show either person's name.
+
+Display:
+
+2 friends · going
+
+### Exactly 3 eligible friends
+
+Display:
+
+3 friends · going
+
+### 4+ eligible friends
+
+Continue the same count-based pattern:
+
+4 friends · going
+5 friends · going
+6 friends · going
+
+etc.
+
+## IMPORTANT RULE
+
+As soon as the eligible friend count is 2 or greater, names disappear completely.
+
+Therefore NEVER render constructions such as:
+
+Morgan Lee, Taylor Kim · going
+
+Morgan Lee + 1 other · going
+
+Morgan Lee, Taylor Kim + 2 others · going
+
+Friend01 + 2 others · going
+
+The Friends' ledger should have only these two forms:
+
+ONE FRIEND:
+[First Name] [Last Name] · going
+
+MULTIPLE FRIENDS:
+[N] friends · going
+
+## WHY
+
+Friends' is specifically about trips the viewer's friends are taking.
+
+When exactly one friend is associated with the canonical trip, identifying that person is useful.
+
+When multiple friends are associated with the same canonical Trip ID, the ledger only needs to communicate the size of that friend group. The user can open the trip for participant detail.
+
+This also keeps dense and 360px Friends' states compact.
+
+## DO NOT CHANGE
+
+Do not change:
+
+- which trips appear in Friends'
+- reciprocal-friend requirements
+- Going eligibility
+- Interested exclusion
+- privacy or visibility
+- same-Trip-ID consolidation
+- distinct-Trip-ID separation
+- fuzzy matching behavior
+- ordering
+- month grouping
+- pagination
+- Trip Detail navigation
+- dates
+- destination formatting
+- query budgets
+- database models
+- routes
+- Mine
+- Both
+
+In particular:
+
+Multiple friends should STILL consolidate only when they are Going on the SAME canonical Trip ID.
+
+Different Trip IDs must STILL remain separate even if destination and dates are identical.
+
+This task changes only the presentation of the already-calculated friend group.
+
+## VISUAL CONSTRAINTS
+
+Do not change the Trips design.
+
+Preserve:
+
+- current BaseLodge typography
+- burgundy accent
+- neutral palette
+- full-width ledger rows
+- dividers
+- month headers
+- tabs
+- row spacing
+- destination/date hierarchy
+- chevrons
+- bottom navigation
+
+Do not add:
+
+- chips
+- badges
+- new colors
+- cards
+- icons
+- backgrounds
+- shadows
+- additional rows
+
+Do not use any generated concept/mockup as a visual implementation reference.
+
+## TWO-LINE LEDGER STRUCTURE
+
+Preserve the current compact Friends' row:
+
+LINE 1:
+Destination / region                         Dates
+
+LINE 2:
+Friend context · going
+
+Examples:
+
+Park City, UT                         Dec 14–17
+Morgan Lee · going
+
+Aspen, CO                             Dec 18–24
+2 friends · going
+
+Big Sky, MT                         Dec 27–Jan 2
+3 friends · going
+
+No third information row should be introduced.
+
+## IMPLEMENTATION APPROACH
+
+Before editing:
+
+1. Inspect the active Friends' rendering path.
+2. Identify where the existing friend-name summary is generated.
+3. Confirm the projection already contains:
+   - eligible friend count
+   - full name when exactly one eligible friend exists
+4. Confirm no additional database query is necessary.
+5. Determine whether the relevant renderer is shared with Mine or Both.
+6. Scope the change so Mine and Both remain unchanged.
+
+Then implement the smallest safe presentation change.
+
+Do not introduce per-row queries.
+
+## TESTS
+
+Add/update focused coverage for:
+
+### One friend
+
+Given exactly one eligible Going friend:
+
+Expected:
+Morgan Lee · going
+
+Verify:
+- first name appears
+- last name appears
+- "1 friend" does NOT replace the person's name
+
+### Two friends
+
+Given exactly two eligible Going friends:
+
+Expected:
+2 friends · going
+
+Verify:
+- neither person's name appears in the Friends' row
+- no "+ 1 other" construction appears
+
+### Three friends
+
+Expected:
+3 friends · going
+
+Verify:
+- no participant names appear
+
+### Larger group
+
+Example:
+
+6 friends · going
+
+Verify correct count-based rendering.
+
+### Product semantics
+
+Confirm:
+
+- Interested friends remain excluded
+- same Trip ID still consolidates eligible friends
+- different Trip IDs remain separate
+- no fuzzy destination/date consolidation is introduced
+- Mine remains unchanged
+- Both remains unchanged
+- query budget remains unchanged
+
+## RESPONSIVE VERIFICATION
+
+Verify at:
+
+- 390px
+- true 360px
+
+Especially verify:
+
+- a single long first + last name
+- 2-friend count
+- 3+-friend count
+- long destination combined with a single long full name
+- no horizontal overflow
+- no clipping
+- no destination/date/chevron collision
+- no third information row
+
+## ACCEPTANCE CAPTURES
+
+Regenerate the existing Friends' visual review states after implementation:
+
+1. `friends-01-normal-390.png`
+2. `friends-02-heavy-390.png`
+3. `friends-03-heavy-360.png`
+4. `friends-04-same-trip-multiple-friends.png`
+5. `friends-05-distinct-trip-ids.png`
+6. `friends-06-long-content.png`
+7. `friends-07-empty-390.png`
+
+Store them under:
+
+`capture-output/trips-friends-visual-review/`
+
+The important visual proof is:
+
+- single-friend rows show full First + Last name
+- every 2+ friend row shows only `N friends · going`
+- no multi-person name lists remain
+- no `+ N others` construction remains
+- rows remain compact at true 360px
+
+## RETURN
+
+When complete, report:
+
+1. Exact files changed
+2. Where the Friends' label is generated
+3. Exact one-friend rendering rule
+4. Exact 2+-friend rendering rule
+5. Confirmation that full first + last name is used for one friend
+6. Confirmation that names are completely suppressed at 2+
+7. Confirmation Mine and Both are unchanged
+8. Tests run and results
+9. 390px verification
+10. True-360px verification
+11. Exact paths to the seven screenshots
+12. Migration verdict
+13. Any remaining issue
+
+Do not deploy.
+Do not publish.
+Do not push to Git.
+Do not make unrelated changes.
