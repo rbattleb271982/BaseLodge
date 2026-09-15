@@ -1,0 +1,412 @@
+# Final Trips Ship Check — Mine / Both / Friends'
+
+Perform a final READ-ONLY ship check of the complete Trips experience now that the three tabs have been individually reviewed and approved:
+
+- Mine
+- Both
+- Friends'
+
+This is QA verification of the EXISTING implementation.
+
+Do NOT redesign Trips.
+Do NOT use Replit Design.
+Do NOT implement polish unless I explicitly approve a follow-up task.
+Do NOT change application code during this check.
+
+The goal is to determine whether the current Trips implementation is ready to push and publish.
+
+## LOCKED PRODUCT DECISIONS
+
+Treat the current implementation of all three tabs as authoritative.
+
+### Mine
+
+Mine is frozen.
+
+Preserve its existing:
+- trip eligibility
+- month grouping
+- status presentation
+- destination/date hierarchy
+- next-trip treatment
+- navigation
+- pagination
+- empty states
+- visual system
+
+Do not propose cosmetic changes merely because another treatment is possible.
+
+### Both
+
+Both is frozen.
+
+Its approved row structure is at most two visible information rows:
+
+LINE 1:
+Destination / region                         Dates
+
+LINE 2:
+Status · relevance
+
+Approved overlap grammar:
+
+- 1 person overlaps your dates
+- 2 people overlap your dates
+- 3 people overlap your dates
+- N people overlap your dates
+
+Do not show friend names in overlap explanations.
+
+Standalone friend opportunities use:
+
+- FRIEND TRIP · 1 person going
+- FRIEND TRIP · N people going
+
+Preserve:
+- Both eligibility
+- privacy
+- ranking
+- ordering
+- deduplication
+- dates
+- routes
+- query budget
+
+### Friends'
+
+Friends' is frozen.
+
+Approved friend-label grammar:
+
+EXACTLY ONE ELIGIBLE GOING FRIEND:
+First Last · going
+
+TWO OR MORE:
+2 friends · going
+3 friends · going
+4 friends · going
+N friends · going
+
+Once the count reaches 2, NO participant names should appear.
+
+Never render:
+- First Last + 1 other
+- First Last, Second Last
+- First Last, Second Last + N others
+- Friend01 + N others
+
+Preserve:
+- Interested exclusion
+- reciprocal-friend requirements
+- Going eligibility
+- same-canonical-Trip-ID consolidation
+- different-Trip-ID separation
+- no fuzzy resort/date consolidation
+- ordering
+- month grouping
+- pagination
+- navigation
+- privacy
+- query budget
+
+## 1. FUNCTIONAL AUDIT
+
+Verify all three tabs together.
+
+### Mine
+
+Verify:
+- expected viewer trips appear
+- month grouping is correct
+- dates are correct
+- statuses are correct
+- trip links resolve to the canonical Trip Detail
+- empty state behaves correctly
+- pagination/bounds remain correct where applicable
+
+### Both
+
+Verify:
+- viewer trips and eligible friend opportunities appear according to existing Both rules
+- overlap reasons use count-only language
+- no friend names appear in overlap explanations
+- standalone friend-trip copy uses the approved count grammar
+- rows remain at most two visible information rows
+- deduplication and ordering remain correct
+- canonical navigation remains correct
+
+### Friends'
+
+Verify:
+- only eligible Going friend trips appear
+- Interested-only friends do not appear
+- exactly one friend renders FULL first + last name
+- two or more friends render only `N friends · going`
+- no multi-name or `+ N others` construction remains
+- same Trip ID consolidates
+- different Trip IDs remain separate
+- no fuzzy resort/date consolidation occurs
+- canonical navigation remains correct
+
+## 2. CROSS-TAB CONSISTENCY AUDIT
+
+Compare Mine, Both, and Friends' as one Trips product.
+
+Verify consistency of:
+
+- Trips header
+- Season Snapshot access
+- Plan a trip access
+- Mine / Both / Friends' tabs
+- active-tab underline
+- typography
+- burgundy accent
+- neutral palette
+- month headers
+- ledger dividers
+- destination hierarchy
+- region styling
+- date alignment
+- chevrons
+- row density
+- bottom navigation
+- empty-state language hierarchy
+- page width behavior
+
+Do NOT require the content of each tab to be identical.
+
+The question is whether they clearly belong to the same BaseLodge ledger system.
+
+## 3. RESPONSIVE AUDIT
+
+Verify at minimum:
+
+- 390px
+- true 360px
+- 430px
+- 768px
+
+For all three tabs, inspect representative:
+
+- normal
+- heavy
+- long-content
+- empty
+
+states where existing deterministic fixtures are available.
+
+Do not create new product fixtures merely to satisfy this matrix. If an exact state is unavailable, disclose that and use the closest existing deterministic state.
+
+Check:
+
+- viewport width
+- ledger width
+- left/right geometry
+- horizontal overflow
+- clipping
+- text/control collisions
+- destination/date collisions
+- chevron collisions
+- undesirable truncation
+- stranded punctuation
+- accidental third information rows
+- bottom-navigation clearance
+- scroll reachability
+
+At mobile widths, the Trips ledger should continue to use its approved full-width outer behavior with internal content padding.
+
+## 4. LONG-CONTENT AUDIT
+
+Specifically inspect:
+
+- long destination names
+- long region names
+- a long full name in a one-friend Friends' row
+- large friend counts
+- large Both overlap counts
+- date ranges crossing months
+- multiple rows in the same month
+
+Do not change copy simply to make a test pass.
+
+Report an issue only if the current implementation produces a genuine composition or usability defect.
+
+## 5. PRIVACY / SEMANTICS
+
+Run the established Trips-focused tests covering:
+
+- reciprocal friendship
+- trip visibility
+- Going vs Interested behavior
+- Both eligibility
+- Friends' eligibility
+- participant visibility
+- canonical Trip-ID consolidation
+- distinct Trip-ID separation
+- deduplication
+- ordering
+- navigation
+- Trips → Both isolation
+
+Do not weaken or alter any privacy rule.
+
+## 6. QUERY BUDGET / PERFORMANCE
+
+Verify the established query-budget tests for:
+
+- Mine
+- Both
+- Friends'
+
+Confirm:
+
+- no N+1 regression
+- no per-row participant lookup was introduced
+- friend-label changes did not increase query count
+- query counts remain bounded as fixture population grows
+
+Report actual existing test results rather than estimating.
+
+## 7. INTERACTION / ACCESSIBILITY
+
+Verify:
+
+- tabs remain keyboard accessible
+- canonical trip rows remain actionable
+- visible focus behavior remains intact
+- touch targets have not regressed
+- bottom navigation remains usable
+- selected-tab state is conveyed correctly
+- no interaction is obscured by the fixed bottom navigation
+
+Do not redesign controls during this check.
+
+## 8. BROWSER HEALTH
+
+For deterministic browser verification, report:
+
+- console errors
+- failed application requests
+- horizontal overflow
+- important clipping
+- collisions
+
+Distinguish application failures from capture/tooling failures.
+
+## 9. GIT / WORKTREE CHECK
+
+At the END of the audit, report:
+
+- current branch
+- `git status --short`
+- `git log --oneline origin/main..HEAD`
+- HEAD SHA
+- origin/main SHA
+- tracked modified files
+- relevant untracked files
+- generated screenshots/artifacts that should NOT be included in a broad `git add`
+- whether any migration exists
+
+Do NOT commit.
+Do NOT push.
+Do NOT publish.
+
+## 10. SHIP VERDICT
+
+Return exactly one of:
+
+READY TO SHIP
+
+READY TO SHIP WITH NON-BLOCKING NOTES
+
+NOT READY TO SHIP
+
+A blocker must be a genuine functional, privacy, responsive, accessibility, performance, or material visual defect.
+
+Do not block shipment for subjective redesign preferences after the three tab treatments have been approved.
+
+If you find a blocker:
+
+- identify the exact state
+- exact tab
+- exact width if visual
+- root cause
+- smallest correction
+
+Do NOT implement it.
+
+## ACCEPTANCE EVIDENCE
+
+Use the existing deterministic capture infrastructure and existing approved review captures where useful.
+
+You may create disposable READ-ONLY verification screenshots under `/tmp`.
+
+Do not add another large permanent screenshot set to the repository solely for this ship check.
+
+The recently approved Friends' captures are under:
+
+`capture-output/trips-friends-visual-review/`
+
+The approved Both review captures are under:
+
+`capture-output/trips-both-visual-review/`
+
+Use existing Mine captures/fixtures where available.
+
+## RETURN FORMAT
+
+Return exactly these sections:
+
+# Final Trips Ship Check
+
+## A. Verdict
+
+## B. Mine verification
+
+## C. Both verification
+
+## D. Friends' verification
+
+## E. Cross-tab visual and responsive verification
+
+Include a compact width/state table where useful.
+
+## F. Privacy, semantics, accessibility, and query budgets
+
+## G. Regression and browser results
+
+Give exact passed/failed/skipped counts.
+
+## H. Git/worktree status
+
+## I. Ship blockers
+
+End with exactly one of:
+
+TRIPS SHIP CHECK PASSED
+
+or
+
+TRIPS SHIP CHECK FAILED
+
+## HARD CONSTRAINTS
+
+READ ONLY.
+
+Do not:
+- edit application code
+- edit CSS
+- edit templates
+- edit services
+- edit tests
+- edit fixtures
+- edit capture manifests
+- create a new Notion task
+- use Replit Design
+- deploy
+- publish
+- commit
+- push to Git
+- perform unrelated cleanup
+
+If verification exposes a defect, report it and stop.
