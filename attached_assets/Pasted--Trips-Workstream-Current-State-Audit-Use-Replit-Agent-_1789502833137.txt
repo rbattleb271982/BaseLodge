@@ -1,0 +1,314 @@
+# Trips Workstream — Current-State Audit
+
+Use Replit Agent level: PLAN.
+
+We have finished and published the Home redesign. We are now returning to the Trips workstream.
+
+DO NOT IMPLEMENT ANYTHING YET.
+
+I want you to audit the CURRENT Trips implementation and determine exactly where we stand across:
+
+1. Mine
+2. Both
+3. Friends’
+
+Do not create speculative replacement concepts. Inspect the actual current application, code, tests, fixtures, and existing project/task documentation.
+
+==================================================
+LOCKED PRODUCT DECISIONS
+==================================================
+
+Treat these as authoritative and do not reopen them:
+
+- Trips has three views:
+  - Mine
+  - Both
+  - Friends’
+- Mine is the user's own trip ledger.
+- Both is the opportunity/overlap experience already designed and partially or fully implemented.
+- Friends’ is distinct from Both.
+- Accepting an invitation ultimately requires Going / Interested.
+- Interested friends do NOT appear in Friends’.
+- Consolidation happens only for the SAME underlying Trip ID.
+- Do not fuzzy-match separate legacy trips merely because mountain/date information looks similar.
+- Home Ideas dismissal does NOT suppress the corresponding authorized Trips → Both opportunity.
+- Do not restore the removed “trips ahead / already skied” summary row.
+- Preserve existing trip visibility, friendship, privacy, authorization, and canonical trip semantics.
+- Do not redesign Mine if it is already complete.
+
+==================================================
+1. ROUTE + ARCHITECTURE AUDIT
+==================================================
+
+Identify the actual active Trips route and template.
+
+Trace:
+
+- route/controller
+- active template
+- partials/components
+- services/projections
+- CSS
+- JavaScript
+- relevant models
+- visibility/privacy helpers
+- tests
+- deterministic capture fixtures
+
+Explicitly distinguish active code from legacy or unused Trips implementations.
+
+==================================================
+2. MINE — CURRENT STATE
+==================================================
+
+Audit the current Mine implementation.
+
+Determine:
+
+- what is implemented
+- what its current visual treatment is
+- trip grouping/order
+- upcoming/past handling
+- organizer vs participant presentation
+- Going / Interested behavior where relevant
+- empty state
+- long-content behavior
+- responsive behavior at 390px and true 360px
+- navigation into Trip Detail
+- query behavior
+- relevant tests
+
+Classify Mine as exactly one of:
+
+- COMPLETE — DO NOT TOUCH
+- COMPLETE WITH NON-BLOCKING POLISH
+- INCOMPLETE
+- BLOCKED
+
+If Mine is complete, explicitly identify what should be frozen so later Trips work does not accidentally regress it.
+
+==================================================
+3. BOTH — CURRENT STATE
+==================================================
+
+Audit Trips → Both in detail.
+
+Determine exactly what exists TODAY.
+
+Inspect:
+
+- candidate source
+- authorization boundary
+- relationship to Home Ideas
+- whether Home dismissal affects Both
+- deduplication
+- suppression
+- ranking/order
+- trip identity rules
+- date/availability overlap
+- friend context
+- wishlist context
+- accepted/declined/ineligible states
+- empty state
+- row/card presentation
+- links/actions
+- long-content handling
+- responsive behavior
+- query budget
+- privacy
+- existing tests and captures
+
+Most importantly, tell me whether Both is:
+
+- already fully implemented and only needs visual review
+- implemented but missing specific behavior
+- partially implemented
+- not implemented
+
+Do not infer from task status alone. Verify the actual running implementation and code.
+
+==================================================
+4. FRIENDS’ — CURRENT STATE
+==================================================
+
+Audit Friends’ separately.
+
+Determine:
+
+- whether the tab/view exists
+- what data it currently shows
+- whether it uses reciprocal friendship correctly
+- whether it shows only authorized friend trips
+- Going vs Interested behavior
+- how multiple friends on the same underlying Trip ID are represented
+- whether separate trips are incorrectly consolidated
+- trip/date/resort presentation
+- organizer/participant context
+- empty state
+- navigation
+- responsive behavior
+- privacy
+- query behavior
+- existing tests/captures
+
+Pay particular attention to the locked rule:
+
+**Interested friends must NOT appear in Friends’.**
+
+Also verify:
+
+**Multiple friends may be visually consolidated only when they are participants in the same canonical Trip ID. Do not merge separate trips through fuzzy mountain/date matching.**
+
+Classify Friends’ as:
+
+- COMPLETE
+- PARTIALLY IMPLEMENTED
+- LEGACY IMPLEMENTATION NEEDS REPLACEMENT
+- NOT IMPLEMENTED
+
+==================================================
+5. THREE-TAB SYSTEM
+==================================================
+
+Evaluate Mine / Both / Friends’ together.
+
+Check:
+
+- tab order
+- active-state treatment
+- switching behavior
+- URLs/history behavior
+- counts, if any
+- visual consistency
+- section/header geometry
+- bottom-navigation clearance
+- empty-state consistency
+- 390px behavior
+- true 360px behavior
+- widths above 390px now that Home and Trips use the 680px outer-frame model
+
+Do not redesign the tabs. Identify genuine inconsistencies only.
+
+==================================================
+6. TEST + DATA CONTRACT AUDIT
+==================================================
+
+Identify the authoritative contracts/tests protecting:
+
+- Mine trip ordering
+- trip identity
+- Going / Interested
+- reciprocal friendship
+- trip visibility
+- participant visibility
+- Both eligibility
+- Home Ideas → Both isolation
+- Friends’ eligibility
+- same-Trip-ID consolidation
+- no fuzzy matching
+- query budgets
+
+Call out any missing contract tests that should exist BEFORE the next implementation batch.
+
+==================================================
+7. TASK / DOCUMENTATION RECONCILIATION
+==================================================
+
+Inspect existing Trips-related task/project documentation.
+
+Task statuses may be stale.
+
+Do NOT use task status as proof of implementation.
+
+Map:
+
+DOCUMENTED INTENT
+→ ACTUAL CODE
+→ TEST COVERAGE
+→ CURRENT RENDERED PRODUCT
+
+Identify any old Trips tasks that have effectively been superseded by newer implementation.
+
+Do not modify Notion or task records.
+
+==================================================
+8. REQUIRED OUTPUT
+==================================================
+
+Return exactly:
+
+# Trips Current-State Audit
+
+## A. Executive status
+
+Table:
+
+| Area | Status | What exists | What remains |
+| Mine | | | |
+| Both | | | |
+| Friends’ | | | |
+| Three-tab convergence | | | |
+
+## B. Mine
+
+Current implementation, evidence, and verdict.
+
+## C. Both
+
+Current implementation, evidence, and verdict.
+
+Be explicit about whether this is already ready for visual review.
+
+## D. Friends’
+
+Current implementation, evidence, and verdict.
+
+Be explicit about the Interested exclusion and same-Trip-ID consolidation behavior.
+
+## E. Shared Trips architecture
+
+Active routes, templates, services, CSS/JS, privacy boundaries, and query architecture.
+
+## F. Missing protections
+
+Only genuine missing tests/contracts or known defects.
+
+## G. Recommended next batch
+
+Give me the SMALLEST logical next implementation/review batch.
+
+Do not bundle unrelated work.
+
+If Both merely needs visual review, say so and recommend reviewing it BEFORE starting Friends’.
+
+If Both is complete and already sufficiently reviewed, recommend the smallest Friends’ batch.
+
+## H. Agent recommendation
+
+For the recommended next batch, state:
+
+- Replit Agent level: Free / Plan / Power / Max
+- Approximate % of the Trips workstream
+- Why that level is appropriate
+
+==================================================
+CONSTRAINTS
+==================================================
+
+READ/PLAN ONLY.
+
+Do not:
+- edit production code
+- edit tests
+- edit fixtures
+- create migrations
+- alter data
+- change task records
+- commit
+- push
+- deploy
+- publish
+
+Do not create another planning task merely to tell me that an audit should happen.
+
+PERFORM THE AUDIT NOW and return the findings.
