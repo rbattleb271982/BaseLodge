@@ -689,6 +689,18 @@ def test_home_focus_pills_are_conditioned_with_their_section_targets():
     assert "{% if requests_count > 0 %}" in PILLS_TEMPLATE
     assert 'id="pill-requests"' in PILLS_TEMPLATE
     assert 'id="section-requests"' in REQUESTS_TEMPLATE
+    assert "syncHomeSecondaryControls" in HOME_TEMPLATE
+    assert "ideasPill.hidden = true" in HOME_TEMPLATE
+    assert "requestsPill.hidden = true" in HOME_TEMPLATE
+
+
+def test_contextual_availability_wins_without_stranding_sheet_access():
+    assert OPPORTUNITIES_TEMPLATE.count("data-contextual-availability") == 4
+    assert "hasVisibleContextualAvailability" in HOME_TEMPLATE
+    assert "availabilityPill.hidden = hasVisibleContextualAvailability" in HOME_TEMPLATE
+    assert "syncHomeSecondaryControls();" in HOME_TEMPLATE
+    assert ".bl-pills[hidden]," in HOME_TEMPLATE
+    assert ".bl-pill[hidden]" in HOME_TEMPLATE
 
 
 def test_availability_sheet_starts_hidden_and_inert():

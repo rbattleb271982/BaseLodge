@@ -1,0 +1,286 @@
+# Final Home Polish — Implement Visual Audit Findings
+
+Use Replit Agent level: POWER.
+
+The comprehensive read-only Home audit is complete. Implement ONLY the smallest final polish batch identified by that audit.
+
+This is NOT another redesign or convergence exploration.
+
+Do not revisit decisions from Tasks #539–#547.
+
+Do not change:
+- Home information architecture
+- module ordering
+- Round 11 G personal foundation
+- Next Trip design or selection semantics
+- Actions to Take behavior
+- Needs You request semantics or endpoints
+- Ideas recommendation semantics, ranking, privacy, or dismissal
+- Happening evidence, categories, privacy, caps, query budget, or dismissal
+- Trips → Both
+- bottom navigation
+- canonical routes
+- backend/data semantics
+
+No migration.
+
+==================================================
+1. FIX INTERACTION TARGETS
+==================================================
+
+The audit measured:
+
+- Needs You response buttons: 34px minimum height
+- Ideas dismiss controls: 40 × 40px
+- Happening dismiss controls: 40 × 40px
+
+Bring all actual interactive hit areas to at least 44 × 44px.
+
+IMPORTANT:
+
+Do NOT simply make the visible controls substantially larger.
+
+Preserve the compact visual treatment established in #547.
+
+For dismiss controls:
+- retain the current small/quiet glyph
+- enlarge the interactive box around it
+
+For Needs You:
+- preserve the current compact button appearance
+- expand the actual target without materially increasing row height if possible
+
+Verify focus-visible behavior remains correct.
+
+==================================================
+2. CORRECT OVER-COMPRESSED MICROCOPY
+==================================================
+
+The audit found that some lower-module typography became too small during convergence.
+
+Adjust only the identified functional microcopy.
+
+Targets:
+
+### Ideas
+- WHY chips currently ~7px
+- raise to approximately 8–9px
+
+### Happening
+- category/section labels currently ~8px
+- raise to approximately 9px
+- secondary/functional supporting copy currently ~8–9px
+- raise toward approximately 10–11px where appropriate
+
+### Needs You
+- request explanation currently ~9px
+- raise toward approximately 10–11px
+
+Preserve:
+- existing hierarchy
+- muted colors
+- font weights
+- tracking
+- compact line heights
+- module density
+
+Do NOT globally increase the Home type scale.
+
+The purpose is legibility, not making these modules visually louder.
+
+After changes, Happening must STILL be the quietest lower-page module.
+
+==================================================
+3. REMOVE DUPLICATE AVAILABILITY PRESENTATION
+==================================================
+
+The audit verified that Home can currently show adjacent:
+
+- `Add availability`
+- `Add your availability`
+
+These come from separate presentation paths but compete for the same immediate user intent.
+
+Implement the smallest presentation-only correction:
+
+When a contextual availability CTA is already visible in:
+- the Ideas footer, OR
+- the Ideas/availability empty-state card
+
+suppress the lower `Add your availability` smart-action pill.
+
+The contextual CTA should win.
+
+However:
+
+Availability MUST remain reachable when no contextual availability control is currently rendered.
+
+Do not change:
+- availability storage
+- availability route
+- availability sheet behavior
+- recommendation semantics
+
+This should be conditional presentation only.
+
+==================================================
+4. REMOVE REDUNDANT IDEAS / REQUESTS PILLS
+==================================================
+
+The audit found:
+
+- `Ideas N` pill repeats the full Ideas section and its count
+- `Requests N` pill repeats Needs You and its count
+
+When the corresponding full section is already rendered on Home:
+
+- suppress the `Ideas N` pill
+- suppress the `Requests N` pill
+
+Do NOT remove the underlying functionality.
+
+If a pill is still required in a state where its corresponding full section is not rendered, preserve it.
+
+Audit the current client-side update behavior before implementing the condition so we do not strand navigation after:
+- dismissing the final Idea
+- responding to the final request
+- other existing dynamic Home updates
+
+Use the smallest safe conditional solution.
+
+==================================================
+5. DO NOT “FIX” SPARSE WHITESPACE
+==================================================
+
+The audit concluded that the large remainder in sparse Home is NOT itself a layout defect.
+
+Therefore:
+
+- keep sparse Home top-aligned
+- do not stretch cards
+- do not vertically distribute modules
+- do not invent filler
+- do not change bottom-nav positioning
+- do not alter the existing 80px + safe-area bottom compensation
+
+The sparse-state polish comes from removing duplicate controls, not filling the viewport.
+
+==================================================
+6. PRESERVE THE CURRENT SURFACE SYSTEM
+==================================================
+
+The audit approved the current distinction among:
+
+- Personal context
+- Next Trip
+- Needs You
+- Ideas
+- Happening
+- Bottom navigation
+
+Do NOT normalize their borders/radii into one system.
+
+Keep:
+- Personal context: foundational neutral surface
+- Next Trip: neutral surface + burgundy top rule
+- Needs You: strongest blush action surface
+- Ideas: lighter recommendation surface
+- Happening: quietest/lightest digest
+
+Do not reintroduce heavier keylines or additional borders.
+
+==================================================
+7. ACCEPTANCE STATES
+==================================================
+
+Verify at 390px:
+
+- typical with one Idea and no availability
+- heavy with multiple Needs You requests and five Ideas
+- heavy Happening
+- sparse Happening
+- empty / no availability
+- multiple passes
+- long destination and region
+- Actions expanded
+- Actions collapsed
+
+Verify at TRUE 360px:
+
+- heavy Needs You
+- heavy Ideas + Happening
+- long pass name
+- long destination and region
+- Actions expanded
+- Actions collapsed
+- empty / no availability
+
+Specifically verify:
+
+- all affected hit areas >= 44 × 44px
+- visible controls remain compact
+- WHY-chip text is legible
+- Happening remains visually quieter than Ideas and Needs You
+- no duplicate availability CTA in adjacent Home content
+- no redundant Ideas pill when Ideas is rendered
+- no redundant Requests pill when Needs You is rendered
+- availability remains reachable when contextual availability controls are absent
+- Ideas/Requests access is not stranded after dynamic dismissal/response states
+- no horizontal overflow
+- no clipping
+- no text/control collisions
+- no browser-console errors
+- no failed application requests
+- focus-visible remains correct
+
+==================================================
+8. REGRESSION GUARDRAILS
+==================================================
+
+Preserve all completed behavior from #539–#547.
+
+Run focused regression coverage for:
+
+- Needs You responses
+- Ideas dismissal
+- Happening dismissal
+- availability access
+- dynamic removal of final request/Idea
+- Home responsive behavior
+- Home query budgets
+- Trips → Both isolation
+
+No backend/data semantic changes.
+
+No migrations.
+
+==================================================
+DELIVERABLE
+==================================================
+
+Implement the changes.
+
+Then return:
+
+# Final Home Polish Completion
+
+Include:
+
+1. Exact changes made
+2. How 44px targets were achieved without visually enlarging controls
+3. Final typography values changed
+4. Exact pill suppression logic
+5. Dynamic-state behavior after final Idea/request disappears
+6. Regression results
+7. 390px verification
+8. 360px verification
+9. Migration verdict
+10. Any remaining visual issue that you believe should block publication
+
+If there are no remaining blockers, explicitly state:
+
+**HOME VISUAL POLISH COMPLETE — READY FOR FINAL SHIP CHECK**
+
+Do not deploy.
+Do not publish.
+Do not push Git.

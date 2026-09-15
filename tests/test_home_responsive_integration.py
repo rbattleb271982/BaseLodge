@@ -80,6 +80,31 @@ def test_home_controls_keep_mobile_tap_targets_and_digest_density():
     assert "overflow: hidden;" in css
     assert ".bl-digest-item-copy { min-width: 0; }" in css
 
+    for selector in (
+        ".bl-digest-dismiss",
+        ".bl-opp-dismiss",
+        ".home-needs-you__actions button",
+    ):
+        start = css.index(selector)
+        end = css.index("}", start)
+        rule = css[start:end]
+        assert "44px" in rule
+
+
+def test_home_lower_module_microcopy_remains_legible_without_global_scale_change():
+    css = _home_css()
+
+    for selector, expected_size in (
+        (".bl-happening-digest-title,", "font-size: 9px;"),
+        (".bl-digest-item p {", "font-size: 10px;"),
+        (".bl-digest-item .bl-digest-item-meta", "font-size: 10px;"),
+        (".bl-opp-signal", "font-size: 9px;"),
+        (".home-needs-you__bottomline p", "font-size: 10px;"),
+    ):
+        start = css.index(selector)
+        end = css.index("}", start)
+        assert expected_size in css[start:end]
+
 
 def test_home_convergence_keeps_action_recommendation_and_digest_weight_distinct():
     css = _home_css()

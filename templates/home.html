@@ -958,6 +958,10 @@
             gap: 8px;
             margin: 0 0 20px 0;
         }
+        .bl-pills[hidden],
+        .bl-pill[hidden] {
+            display: none;
+        }
         .bl-pill {
             display: inline-flex;
             align-items: center;
@@ -1068,7 +1072,7 @@
         .bl-happening-digest-title,
         .bl-happening-digest-window,
         .bl-digest-category-header {
-            font-size: 8px;
+            font-size: 9px;
             line-height: 1.2;
         }
         .bl-happening-digest-title,
@@ -1098,7 +1102,7 @@
         }
         .bl-digest-category-count {
             color: var(--bl-color-text-tertiary);
-            font-size: 8px;
+            font-size: 9px;
             font-weight: 400;
             letter-spacing: 0;
             opacity: .8;
@@ -1113,7 +1117,7 @@
             display: block;
             flex: 1;
             min-width: 0;
-            padding: 5px 40px 5px 11px;
+            padding: 5px 44px 5px 11px;
             color: inherit;
             text-decoration: none;
         }
@@ -1141,7 +1145,7 @@
         .bl-digest-item p {
             margin: 1px 0 0;
             color: var(--bl-color-text-muted);
-            font-size: 9px;
+            font-size: 10px;
             line-height: 1.25;
             overflow-wrap: anywhere;
             white-space: normal;
@@ -1152,14 +1156,14 @@
         }
         .bl-digest-item .bl-digest-item-meta {
             color: var(--bl-color-text-tertiary);
-            font-size: 8px;
+            font-size: 10px;
         }
         .bl-digest-dismiss {
             position: absolute;
             top: 0;
             right: 0;
-            width: 40px;
-            min-height: 40px;
+            width: 44px;
+            min-height: 44px;
             border: 0;
             background: transparent;
             color: var(--bl-color-text-tertiary);
@@ -1245,7 +1249,7 @@
             align-items: center;
             flex: 1;
             min-width: 0;
-            padding: 8px 42px 8px 12px;  /* reserve the dismiss hit target without making the row feel padded */
+            padding: 8px 46px 8px 12px;  /* reserve the 44px dismiss hit target without making the row feel padded */
             text-decoration: none;
             color: inherit;
             gap: 10px;
@@ -1263,7 +1267,7 @@
             border: 1px solid rgba(92, 18, 25, 0.13);
             border-radius: 999px;
             background: #FBF7EF;
-            font-size: 7px;
+            font-size: 9px;
             font-weight: 700;
             letter-spacing: 0.8px;
             text-transform: uppercase;
@@ -1312,8 +1316,7 @@
             color: var(--bl-color-text-tertiary);
             flex-shrink: 0;
         }
-        /* × button: matches Happening dismiss — 13px visible, anchored top:0 right:0.
-           padding:18px → 13px char + 18px×2 = 49×49px tap target (meets iOS 44pt + Android 48dp). */
+        /* Quiet × glyph inside a full mobile tap target. */
         .bl-opp-dismiss {
             background: none;
             border: none;
@@ -1324,8 +1327,8 @@
             position: absolute;
             top: 0;
             right: 0;
-            width: 40px;
-            min-height: 40px;
+            width: 44px;
+            min-height: 44px;
             padding: 0;
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
@@ -1970,7 +1973,7 @@
             min-width: 0;
             margin: 0;
             color: #6B6060;
-            font-size: 9px;
+            font-size: 10px;
             line-height: 1.3;
             overflow-wrap: anywhere;
         }
@@ -1978,11 +1981,15 @@
             display: flex;
             flex: 0 0 auto;
             gap: 5px;
+            margin: -5px 0;
         }
         .home-needs-you__actions button {
-            min-height: 34px;
+            position: relative;
+            isolation: isolate;
+            min-width: 44px;
+            min-height: 44px;
             padding: 0 10px;
-            border: 1px solid #CFB8BB;
+            border: 0;
             border-radius: 7px;
             background: transparent;
             color: #5C2630;
@@ -1991,10 +1998,21 @@
             font-weight: 700;
             cursor: pointer;
         }
+        .home-needs-you__actions button::before {
+            position: absolute;
+            inset: 5px 0;
+            z-index: -1;
+            border: 1px solid #CFB8BB;
+            border-radius: 7px;
+            background: transparent;
+            content: "";
+        }
         .home-needs-you__actions button.is-primary {
+            color: #fff;
+        }
+        .home-needs-you__actions button.is-primary::before {
             border-color: var(--bl-color-primary);
             background: var(--bl-color-primary);
-            color: #fff;
         }
         .home-needs-you__actions button:disabled {
             cursor: wait;
@@ -2375,6 +2393,38 @@
         if (fallback) {
             fallback.hidden = hasVisibleActivity;
         }
+        syncHomeSecondaryControls();
+    }
+
+    function syncHomeSecondaryControls() {
+        var ideasSection = document.getElementById('section-opportunities');
+        var requestsSection = document.getElementById('section-requests');
+        var ideasPill = document.getElementById('pill-ideas');
+        var requestsPill = document.getElementById('pill-requests');
+        var availabilityPill = document.getElementById('availability-sheet-trigger');
+        var fallback = document.getElementById('home-activity-fallback');
+        var hasVisibleContextualAvailability = Boolean(
+            ideasSection && ideasSection.querySelector('[data-contextual-availability]')
+        ) || Boolean(
+            fallback && !fallback.hidden &&
+            fallback.querySelector('[data-contextual-availability]')
+        );
+
+        // A count pill is useful only with a section target. The server renders
+        // each full section whenever its count is actionable, so these remain
+        // secondary DOM hooks without duplicating or stranding navigation.
+        if (ideasPill) ideasPill.hidden = true;
+        if (requestsPill) requestsPill.hidden = true;
+        if (availabilityPill) {
+            availabilityPill.hidden = hasVisibleContextualAvailability;
+        }
+
+        var pills = document.getElementById('section-pills');
+        if (pills) {
+            pills.hidden = !Array.from(pills.children).some(function(control) {
+                return !control.hidden;
+            });
+        }
     }
 
     var homeCsrfToken = {{ csrf_token() | tojson }};
@@ -2451,6 +2501,8 @@
             }
         });
     }
+
+    syncHomeSecondaryControls();
 
     var _blActivePill = null;
     function blPillActivate(pillName) {
