@@ -1,0 +1,277 @@
+# Trips → Friends' Visual Acceptance Captures
+
+Use Replit Agent level: PLAN.
+
+Trips → Mine is frozen and approved.
+Trips → Both is now frozen and visually approved after the #552 cleanup.
+
+We are now doing PRODUCT-OWNER VISUAL ACCEPTANCE of the existing Trips → Friends' implementation.
+
+DO NOT IMPLEMENT OR CHANGE ANYTHING.
+
+The current audit established that Friends' is already functionally complete. I want current deterministic screenshots of the actual implementation so I can decide whether any visual correction is warranted.
+
+==================================================
+LOCKED FRIENDS' PRODUCT BEHAVIOR
+==================================================
+
+Do not reopen or change these rules:
+
+- Friends' shows authorized upcoming/current trips involving reciprocal friends.
+- Friends must be GOING to appear.
+- Interested friends MUST NOT appear.
+- Multiple eligible friends may be consolidated only when they participate in the SAME canonical Trip ID.
+- Separate trips remain separate even if they have identical or similar:
+  - resort
+  - destination
+  - dates
+  - friend composition
+- Do not fuzzy-match trips.
+- Preserve current privacy and trip-visibility rules.
+- Preserve current chronological ordering and month grouping.
+- Preserve current pagination behavior for this visual review.
+- Preserve canonical Trip Detail navigation.
+- Preserve the existing BaseLodge Trips visual system.
+- Do not make Friends' imitate Both if the current information needs differ.
+
+==================================================
+CAPTURES I NEED
+==================================================
+
+Generate these seven review screenshots from the CURRENT Friends' implementation.
+
+Use existing deterministic fixtures/states wherever possible.
+
+### 1. FRIENDS' — NORMAL — 390px
+
+Representative populated Friends' account.
+
+Show a realistic mix of upcoming friend trips.
+
+Filename:
+
+`friends-01-normal-390.png`
+
+### 2. FRIENDS' — HEAVY — 390px
+
+Dense Friends' account with many visible upcoming friend trips.
+
+I want to evaluate:
+
+- month grouping
+- row density
+- friend context
+- trip hierarchy
+- scrolling rhythm
+- bottom-navigation relationship
+
+Filename:
+
+`friends-02-heavy-390.png`
+
+### 3. FRIENDS' — HEAVY — TRUE 360px
+
+Use the same or equivalent heavy account at a TRUE 360px viewport.
+
+Evaluate:
+
+- destination wrapping
+- friend-context wrapping
+- date alignment
+- chevron alignment
+- row height
+- horizontal overflow
+- text/control collision
+
+Filename:
+
+`friends-03-heavy-360.png`
+
+### 4. SAME TRIP ID — MULTIPLE FRIENDS
+
+Show a deterministic state where multiple eligible friends are Going on the SAME canonical Trip ID and therefore correctly appear together in one Friends' ledger row.
+
+Prefer 390px unless 360px is more useful for visual stress.
+
+Filename:
+
+`friends-04-same-trip-multiple-friends.png`
+
+### 5. DISTINCT TRIP IDS — SIMILAR CONTENT
+
+Show two separate canonical trips that intentionally look similar, ideally with the same or similar:
+
+- resort/destination
+- dates
+
+but DIFFERENT Trip IDs.
+
+They must remain separate rows.
+
+The screenshot should make it possible to visually judge that the ledger still reads clearly when similar trips appear near each other.
+
+Filename:
+
+`friends-05-distinct-trip-ids.png`
+
+### 6. LONG CONTENT
+
+Use the strongest existing Friends' deterministic stress state containing some combination of:
+
+- long resort/destination
+- long region/state
+- long friend names
+- multiple friends on one canonical trip
+- dense secondary context
+
+Prefer TRUE 360px if that creates the stronger stress test.
+
+Filename:
+
+`friends-06-long-content.png`
+
+### 7. EMPTY STATE — 390px
+
+Show the current Friends' empty state.
+
+Use whichever existing deterministic state best represents the normal case where the viewer has friends but none have qualifying visible upcoming trips.
+
+Filename:
+
+`friends-07-empty-390.png`
+
+==================================================
+CAPTURE REQUIREMENTS
+==================================================
+
+Capture the COMPLETE Trips page for every state.
+
+Each screenshot should include:
+
+- Trips header
+- Plan a Trip control
+- Mine / Both / Friends' tabs
+- Friends' visibly active
+- relevant ledger content
+- bottom navigation
+
+Do not crop individual rows.
+
+Use the ACTIVE Trips implementation:
+
+`templates/my_trips_redesign.html`
+
+Do not use the legacy Trips template.
+
+==================================================
+VISUAL REVIEW CHECKS
+==================================================
+
+For each screenshot, record:
+
+- viewport width
+- rendered Trips ledger width
+- horizontal overflow: yes/no
+- clipping: yes/no
+- text/date/chevron collision: yes/no
+- browser console errors
+- failed application requests
+
+Also report, without changing anything:
+
+- maximum observed row height
+- whether any row becomes visually confusing because of friend-name density
+- whether same-Trip-ID consolidation remains understandable
+- whether similar but distinct trips remain visually distinguishable
+- whether any friend-context line is unnecessarily verbose
+- whether any content appears to require more hierarchy at 360px
+
+Do NOT treat normal content below the initial viewport or behind the fixed navigation at the initial scroll position as clipping if it remains normally reachable through scrolling and bottom clearance is correct.
+
+==================================================
+SEMANTIC SPOT CHECK
+==================================================
+
+While generating the screenshots, confirm from the rendered data only:
+
+- No Interested friend appears in Friends'.
+- Same-Trip-ID friends consolidate.
+- Different Trip IDs remain separate.
+- No fuzzy destination/date consolidation is visible.
+
+This is verification only.
+
+Do not change the implementation if you find a problem. Report it.
+
+==================================================
+OUTPUT
+==================================================
+
+Place the seven screenshots together in:
+
+`capture-output/trips-friends-visual-review/`
+
+Return:
+
+# Trips → Friends' Visual Review Captures
+
+## Capture table
+
+For every screenshot provide:
+
+- filename
+- exact path
+- deterministic fixture/state
+- viewport
+- ledger width
+- overflow
+- clipping
+- collision
+- console/request errors
+
+## Semantic verification
+
+Report:
+
+- Interested exclusion
+- same-Trip-ID consolidation
+- distinct-Trip-ID separation
+- no fuzzy matching
+
+## Visual observations
+
+Report only observations from the current renders.
+
+Do NOT recommend or implement a redesign yet.
+
+## Files changed
+
+This should be:
+
+**NONE**
+
+unless disposable output files are counted outside the application source tree.
+
+Then present all seven screenshots for review.
+
+==================================================
+DO NOT
+==================================================
+
+Do not:
+- modify production code
+- modify CSS
+- modify templates
+- modify tests
+- modify existing fixtures
+- modify data models
+- change privacy or authorization
+- change pagination
+- create a migration
+- create another task
+- commit
+- push
+- deploy
+- publish
+
+The only goal is to give me the current Friends' visual states needed for product-owner acceptance.
