@@ -1,0 +1,299 @@
+# Final Home Ship Check
+
+Use Replit Agent level: POWER.
+
+The Home redesign and final polish are complete. Perform one FINAL PRODUCTION-READINESS CHECK before we Git sync and publish.
+
+This is a verification task, NOT an implementation task.
+
+Do not:
+- redesign anything
+- proactively refactor
+- change styling because of preference
+- modify data or migrations
+- deploy or publish
+- push Git
+
+If you find a genuine ship blocker, STOP and report it. Do not fix it unless I explicitly approve the fix.
+
+==================================================
+SCOPE
+==================================================
+
+Verify the CURRENT implementation after all Home work, including:
+
+- #539 — Round 11 G personal foundation + Next Trip
+- #544 — Actions to Take + Needs You
+- #545 — J Ideas with WHY chips
+- #546 — M Happening digest
+- #547 — visual convergence
+- final visual polish
+- final Home width correction:
+  `.home-page-container { max-width: 680px; }`
+
+The current implementation is authoritative.
+
+==================================================
+1. FUNCTIONAL HOME CHECK
+==================================================
+
+Verify:
+
+### Personal context
+- Welcome/Profile
+- Gear navigation
+- one pass
+- multiple passes
+- no pass
+- long pass names
+- skiing statistics
+- Friends navigation
+
+### Next Trip
+- correct trip selection
+- destination/region/dates
+- timing/countdown
+- relationship/people context
+- Trip Detail navigation
+- no-next-trip state
+
+### Actions to Take
+- open by default
+- collapses/expands
+- count remains correct
+- links reach canonical Trip Detail controls
+
+### Needs You
+Verify all supported families:
+- trip invitation
+- join request
+- inbound friend request
+
+Verify:
+- Accept/Decline/Approve/No behavior
+- stale/repeated responses
+- error recovery
+- final-item removal
+- scroll/focus restoration where applicable
+
+### Ideas
+Verify:
+- supported WHY mappings
+- ranking/output remains canonical
+- five-result cap
+- dismissal
+- final-Idea behavior
+- availability footer/empty state
+- Trips → Both isolation
+
+### Happening
+Verify:
+- On Your Trips
+- Trips Forming
+- Your People
+- seven-day window
+- durable evidence only
+- category caps/overflow
+- dismissal
+- sparse and empty behavior
+
+==================================================
+2. REDUNDANCY / FINAL-POLISH CHECK
+==================================================
+
+Confirm:
+
+- no duplicate adjacent availability CTA
+- Ideas count pill is suppressed when full Ideas content is rendered
+- Requests count pill is suppressed when Needs You is rendered
+- no navigation becomes stranded after the final Idea/request disappears
+- all affected interactive targets are at least 44 × 44px
+- focus-visible remains usable
+
+==================================================
+3. RESPONSIVE / VISUAL CHECK
+==================================================
+
+Verify actual rendered Home at:
+
+- 360px
+- 390px
+- 430px or another representative viewport above 390px
+- 768px
+
+Confirm:
+
+- Home frame fills the viewport through 680px
+- at 768px Home frame is 680px and centered
+- 20px Home card gutters remain
+- Welcome/Profile divider follows the expanded Home frame
+- bottom navigation remains viewport-wide
+- no horizontal overflow
+- no clipping
+- no control/text collision
+- no important truncation
+- no stranded punctuation
+- long destinations/regions/person names wrap correctly
+- multiple passes remain composed
+- no-pass state remains composed
+- stat rail remains balanced
+- Actions open/collapsed remain composed
+- heavy Needs You remains usable
+- Ideas remains recommendation-led
+- Happening remains the quietest lower-page module
+- sparse Home remains intentionally top-aligned
+- bottom-nav clearance remains correct
+
+Do NOT treat normal unused viewport space in sparse states as a defect.
+
+==================================================
+4. PRIVACY / AUTHORIZATION
+==================================================
+
+Run focused regression coverage confirming that Home has not changed:
+
+- reciprocal-friend visibility
+- trip visibility
+- participant visibility
+- invitation authorization
+- join-request authorization
+- friend-request authorization
+- Ideas privacy
+- Happening privacy
+- availability privacy
+
+==================================================
+5. QUERY / PERFORMANCE GUARDRAILS
+==================================================
+
+Verify existing Home query-budget tests.
+
+Confirm:
+
+- no N+1 reads were introduced
+- Ideas retains its bounded query behavior
+- Needs You retains its bounded behavior
+- Happening retains its fixed query budget
+- heavy states do not increase query count with row count beyond established bounds
+
+Do not optimize anything unless there is an actual regression.
+
+==================================================
+6. REGRESSION SUITE
+==================================================
+
+Run the relevant existing automated coverage for:
+
+- Home
+- Next Trip
+- Actions
+- Needs You
+- Ideas
+- Happening
+- responsive behavior
+- accessibility/JavaScript
+- Trips → Both isolation
+
+Also run:
+
+- Python compilation
+- `git diff --check`
+
+Inspect:
+
+- application logs
+- browser console
+- failed browser/application requests
+
+==================================================
+7. WORKTREE / MIGRATION CHECK
+==================================================
+
+Report:
+
+- current Git branch
+- whether the working tree contains only the intended Home work
+- whether any unrelated files changed
+- whether any untracked/generated artifacts would accidentally be committed
+- migration verdict
+
+Do NOT commit or push.
+
+==================================================
+REQUIRED OUTPUT
+==================================================
+
+Return:
+
+# Final Home Ship Check
+
+## A. Verdict
+
+Choose exactly ONE:
+
+- READY TO SHIP
+- READY TO SHIP WITH NON-BLOCKING NOTES
+- BLOCKED
+
+## B. Functional verification
+
+Report results for:
+- Personal context
+- Next Trip
+- Actions to Take
+- Needs You
+- Ideas
+- Happening
+
+## C. Visual/responsive verification
+
+Report results at:
+- 360px
+- 390px
+- above 390px
+- 768px
+
+Include the measured Home-frame width at each.
+
+## D. Accessibility and interaction
+
+Report:
+- hit targets
+- keyboard/focus behavior
+- dynamic final-item states
+- console/request health
+
+## E. Privacy and query budgets
+
+Report whether all established guardrails passed.
+
+## F. Regression results
+
+Give exact test counts and any failures/skips.
+
+## G. Git/worktree status
+
+Report:
+- branch
+- modified files
+- untracked files relevant to this work
+- unrelated changes, if any
+- migration verdict
+
+## H. Ship blockers
+
+List ONLY genuine blockers.
+
+If none, state:
+
+**NONE**
+
+If and only if the verdict is READY TO SHIP or READY TO SHIP WITH NON-BLOCKING NOTES, finish with:
+
+**HOME SHIP CHECK PASSED**
+
+Do not implement fixes.
+Do not commit.
+Do not push.
+Do not deploy.
+Do not publish.
