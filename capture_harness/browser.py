@@ -267,11 +267,11 @@ class CaptureRunner:
                 if page.locator(".ledger-invite").count():
                     raise RuntimeError("Both capture unexpectedly contains invitations")
                 overlap_count = page.locator(
-                    ".both-row:not(.both-opportunity) .both-annotation:not(:empty)"
+                    ".both-row:not(.both-opportunity) .both-overlap-relevance"
                 ).count()
                 opportunity_count = page.locator(".both-opportunity").count()
                 truncated_annotations = page.locator(
-                    ".both-annotation:not(:empty)"
+                    ".both-row .ledger-status"
                 ).evaluate_all(
                     """elements => elements
                         .filter(element => {
@@ -285,8 +285,46 @@ class CaptureRunner:
                 )
                 if truncated_annotations:
                     raise RuntimeError(
-                        "Both capture truncated annotations: "
+                        "Both capture truncated relevance copy: "
                         + ", ".join(truncated_annotations)
+                    )
+                named_reasons = page.locator(
+                    ".both-overlap-relevance, .both-opportunity-relevance"
+                ).evaluate_all(
+                    """elements => elements
+                        .map(element => element.textContent.trim())
+                        .filter(text => /Friend\d+|,\s*[A-Z][a-z]+/.test(text))"""
+                )
+                if named_reasons:
+                    raise RuntimeError(
+                        "Both capture exposed names in relevance copy: "
+                        + ", ".join(named_reasons)
+                    )
+                third_information_rows = page.locator(".both-row").evaluate_all(
+                    """rows => rows.filter(row =>
+                        row.querySelectorAll(
+                            '.ledger-row-main > :not(.ledger-row-top):not(.ledger-row-bottom)'
+                        ).length > 0
+                    ).length"""
+                )
+                if third_information_rows:
+                    raise RuntimeError("Both capture contains a third information row")
+                top_row_collisions = page.locator(
+                    ".both-row .ledger-row-top"
+                ).evaluate_all(
+                    """rows => rows.filter(row => {
+                        const mountain = row.querySelector('.ledger-mountain');
+                        const date = row.querySelector('.ledger-date');
+                        if (!mountain || !date) return false;
+                        const mountainBox = mountain.getBoundingClientRect();
+                        const dateBox = date.getBoundingClientRect();
+                        return mountainBox.right > dateBox.left + 1;
+                    }).map(row => row.textContent.trim())"""
+                )
+                if top_row_collisions:
+                    raise RuntimeError(
+                        "Both capture destination/date collision: "
+                        + ", ".join(top_row_collisions)
                     )
                 expected = {
                     "both-normal": (1, 1),

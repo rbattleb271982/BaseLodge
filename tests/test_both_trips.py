@@ -1,8 +1,10 @@
 """Backend contract tests for the Trips Both projection."""
 
 from datetime import date, timedelta
+from types import SimpleNamespace
 
 import sqlalchemy as sa
+import pytest
 
 from app import app
 from models import (
@@ -34,6 +36,30 @@ def _participant(trip, user, status, **dates):
         setattr(value, key, value_date)
     db.session.add(value)
     return value
+
+
+def _render_both_row(*, overlap_names=(), friend_names=(), opportunity=False,
+                     standalone_reason=None):
+    today = date.today()
+    row = SimpleNamespace(
+        trip=SimpleNamespace(
+            id=991,
+            start_date=today + timedelta(days=1),
+            end_date=today + timedelta(days=3),
+            resort=SimpleNamespace(state_code="CO", state="Colorado"),
+        ),
+        attendance_start_date=today + timedelta(days=1),
+        attendance_end_date=today + timedelta(days=3),
+        mountain_name="Deterministic Mountain",
+        relationship="friend_trip" if opportunity else "organizing",
+        overlap_names=list(overlap_names),
+        friend_names=list(friend_names),
+        standalone_reason=standalone_reason,
+        is_opportunity=opportunity,
+    )
+    with app.test_request_context():
+        template = app.jinja_env.get_template("components/my_trips_ledger.html")
+        return str(template.module.both_row(row))
 
 
 def test_both_includes_organizer_going_and_interested_rows(client):
@@ -431,9 +457,11 @@ def test_both_route_renders_grouped_overlaps_opportunities_and_no_invitations(cl
 
     assert 'class="view-tab active" href="/my-trips?tab=both"' in html
     assert "2 entries" in html
-    assert "Dana + 1 other overlap your dates" in html
+    assert "Organizing" in html
+    assert "2 people overlap your dates" in html
+    assert "Dana + 1 other overlap your dates" not in html
     assert "FRIEND TRIP" in html
-    assert "3 friends going" in html
+    assert "3 people going" in html
     assert f'data-trip-id="{mine_id}"' in html
     assert f'data-trip-id="{opportunity_id}"' in html
     assert f'data-trip-id="{invitation_id}"' not in html
@@ -442,6 +470,46 @@ def test_both_route_renders_grouped_overlaps_opportunities_and_no_invitations(cl
     mine_html = client.get("/my-trips").get_data(as_text=True)
     assert f'data-trip-id="{invitation_id}"' in mine_html
     assert 'class="view-tab active" href="/my-trips"' in mine_html
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        (["Dana"], "1 person overlaps your dates"),
+        (["Dana", "Nora"], "2 people overlap your dates"),
+        (["Dana", "Nora", "Theo"], "3 people overlap your dates"),
+    ],
+)
+def test_both_overlap_copy_is_count_only_with_correct_grammar(names, expected):
+    html = _render_both_row(overlap_names=names)
+
+    assert expected in html
+    assert all(name not in html for name in names)
+    assert html.count('class="ledger-row-top"') == 1
+    assert html.count('class="ledger-row-bottom"') == 1
+    assert "both-annotation" not in html
+
+
+@pytest.mark.parametrize(
+    ("names", "expected"),
+    [
+        (["Dana"], "FRIEND TRIP"),
+        (["Dana", "Nora", "Theo"], "FRIEND TRIP"),
+    ],
+)
+def test_both_friend_trip_copy_uses_people_counts_without_names(names, expected):
+    html = _render_both_row(
+        friend_names=names,
+        opportunity=True,
+        standalone_reason="On your wishlist",
+    )
+
+    assert expected in html
+    count = len(names)
+    noun = "person" if count == 1 else "people"
+    assert f"{count} {noun} going" in html
+    assert all(name not in html for name in names)
+    assert "On your wishlist" not in html
 
 
 def test_both_route_keeps_viewer_rows_with_quiet_no_relevance_copy(client):
