@@ -1,0 +1,384 @@
+# BL-116 — Harden PostHog Identity, Event Standards & Privacy Controls
+
+Use BUILD mode.
+
+This is a bounded analytics hardening task.
+
+Before changing code, inspect the current PostHog implementation and Git history. BL-116 was written before several later analytics changes, so determine which requirements are already satisfied.
+
+If BL-116 is already completely implemented, verify it and stop without duplicating work.
+
+Otherwise implement only the remaining BL-116 gaps.
+
+Do not redesign BaseLodge analytics architecture.
+
+BaseLodge remains the source of truth.
+PostHog remains the behavioral analytics layer.
+Analytics failure must remain non-blocking.
+
+## 1. Audit current analytics architecture
+
+Trace:
+
+- PostHog client initialization
+- server-side capture wrapper(s)
+- browser-side PostHog wrapper(s)
+- signup instrumentation
+- email signup/login
+- Google signup/login
+- anonymous identity generation
+- anonymous-to-known identity stitching
+- aliases where applicable
+- logout/reset behavior
+- current user identification
+- `is_internal`
+- current event names
+- current event properties
+- session replay configuration
+- masking/privacy configuration
+- every normal request-time `capture()`
+- every `client.flush()`
+- Gunicorn worker initialization/shutdown behavior
+- tests protecting analytics behavior
+
+Inventory the currently implemented analytics events and establish whether the historical "15 existing events" count is still accurate.
+
+Do not assume the old task description reflects current code.
+
+Report what is already complete versus genuinely missing.
+
+## 2. Anonymous identity
+
+No unrelated anonymous visitors may share a literal/common PostHog distinct ID such as:
+
+`anonymous`
+
+Anonymous analytics identity must be appropriately unique while avoiding prohibited PII.
+
+Preserve anonymous-to-known continuity where appropriate when a user subsequently authenticates.
+
+Do not create a BaseLodge account merely for analytics identity.
+
+Do not expose private identifiers unnecessarily.
+
+## 3. Email and Google identity consistency
+
+Audit email and Google authentication paths.
+
+Ensure PostHog identity behavior is semantically consistent across both:
+
+- signup
+- login
+- anonymous → authenticated transition
+- returning authenticated user
+- logout
+- subsequent different-user login in the same browser/session context
+
+Do not alter authentication product behavior.
+
+Do not modify account linking rules.
+
+Do not change Google authentication itself unless a concrete analytics identity defect requires a narrowly scoped integration change.
+
+If identity semantics require a choice that could materially merge or split existing known-user PostHog histories, STOP and report the decision rather than guessing.
+
+## 4. Logout and identity reset
+
+Verify that logout/reset prevents analytics identity from leaking between users.
+
+After logout, the next anonymous/user session must not incorrectly inherit the previous authenticated user's PostHog identity.
+
+Cover browser behavior and server-side behavior where applicable.
+
+Do not change BaseLodge session/logout semantics outside analytics requirements.
+
+## 5. Privacy and prohibited properties
+
+Audit all PostHog payloads.
+
+Do NOT send:
+
+- email addresses
+- full names
+- private friend relationships
+- raw invitation tokens
+- push tokens
+- passwords/auth secrets
+- unnecessary private-trip content
+- raw availability notes
+- sensitive/freeform user content unless explicitly approved
+
+Prefer stable privacy-safe identifiers and bounded categorical/boolean properties.
+
+Analytics must remain less authoritative and less sensitive than BaseLodge's own application database.
+
+## 6. Event naming/property convention
+
+Define and document a small BaseLodge analytics contract based on the architecture already in use.
+
+Standardize:
+
+- event naming convention
+- property naming convention
+- required/common properties where appropriate
+- identity expectations
+- `is_internal`
+- prohibited properties
+- failure behavior
+
+Do not rename existing production events casually.
+
+If existing events violate the desired convention, preserve backward compatibility where practical and document the transition rather than silently fragmenting historical analytics.
+
+Do not create a large analytics taxonomy project.
+
+## 7. Internal traffic
+
+Review `is_internal`.
+
+Ensure internal traffic can be consistently:
+
+- identified
+- filtered
+- segmented
+
+Do not expose unnecessary identity data to accomplish this.
+
+Use the existing source of truth for internal-user classification if one exists.
+
+Do not invent a second internal-user system.
+
+## 8. Session replay privacy gate
+
+Session replay must NOT become enabled merely because BL-116 is implemented.
+
+Establish an explicit privacy policy/configuration gate before replay can be used.
+
+The implementation/documentation must address masking or exclusion for at least:
+
+- authentication
+- Profile
+- Trips
+- Friends
+- Admin
+- sensitive/freeform content
+
+Prefer fail-closed behavior:
+
+If explicit approved replay privacy configuration is absent, replay remains disabled.
+
+Do not enable session replay in Production as part of this task.
+
+Do not send screenshots/DOM content containing prohibited sensitive data merely to test replay.
+
+## 9. Remove request-time flush behavior
+
+Audit server-side PostHog tracking for:
+
+`capture()`
+followed by
+`client.flush()`
+
+Normal product requests must not wait for PostHog network delivery.
+
+Remove request-time `flush()` where present.
+
+Use the PostHog client's normal batching/background delivery.
+
+Flush only at an appropriate orderly shutdown or explicitly administrative boundary if required by the client lifecycle.
+
+Verify behavior under BaseLodge's production Gunicorn worker lifecycle.
+
+Do not introduce:
+
+- a flush after every event
+- synchronous analytics network calls
+- product-flow failure when PostHog is unavailable
+- unbounded custom analytics threads
+
+## 10. Failure behavior
+
+Analytics remains best-effort and non-blocking.
+
+Verify:
+
+- PostHog unavailable
+- capture raises
+- identity call raises
+- malformed analytics configuration
+- analytics disabled
+
+None may break the underlying BaseLodge product flow.
+
+Do not suppress unrelated application errors.
+
+## 11. Analytics contract tests
+
+Add lightweight focused coverage for:
+
+- unique anonymous identity behavior
+- no literal shared anonymous distinct ID
+- email identity lifecycle
+- Google identity lifecycle
+- anonymous → known continuity
+- logout/reset
+- second user after logout
+- alias/identify behavior where applicable
+- required/common properties
+- prohibited PII/private properties
+- `is_internal`
+- replay disabled without explicit privacy configuration
+- analytics failure non-blocking
+- no request-time `flush()`
+- orderly lifecycle flush if one is required
+- existing analytics events continue functioning
+
+Do not weaken existing analytics tests.
+
+## 12. Performance verification
+
+Demonstrate that normal tracked product requests no longer synchronously flush PostHog.
+
+Where existing test infrastructure supports it, prove:
+
+- request completes without waiting for `flush()`
+- analytics exceptions do not alter the product response
+- batching/background delivery remains configured appropriately
+- Gunicorn worker lifecycle has a safe delivery/shutdown strategy
+
+Do not perform live PostHog network calls during tests.
+
+## 13. Scope constraints
+
+Do not:
+
+- replace PostHog
+- redesign BaseLodge database
+- change authentication semantics
+- change account linking
+- add unrelated events
+- instrument new product surfaces merely because they are available
+- enable Production session replay
+- send new PII
+- modify Production or Development data
+- connect to Production or Development databases
+- modify migrations unless a genuine schema requirement is discovered
+- modify CI unless absolutely necessary
+- modify `.replit`
+- perform unrelated cleanup
+
+Expected migration verdict:
+
+NO MIGRATION REQUIRED
+
+If a migration, auth architecture change, or irreversible PostHog identity decision appears necessary, STOP and report the bounded issue before implementing it.
+
+## 14. Verification
+
+Run focused tests covering:
+
+- analytics
+- signup/onboarding analytics
+- email auth
+- Google auth
+- logout
+- privacy
+- relevant product flows whose instrumentation changed
+- failure/no-op behavior
+- Gunicorn lifecycle where testable
+
+Also run:
+
+- relevant JavaScript tests
+- Python compilation
+- git diff --check
+
+Report exact passed / failed / skipped totals.
+
+Do not use live PostHog data as test evidence.
+
+## 15. Independent review
+
+Review the final diff specifically for:
+
+- PII leakage
+- identity collision
+- cross-user identity leakage
+- accidental history fragmentation
+- synchronous network waits
+- replay accidentally enabled
+- missing masking/exclusion policy
+- analytics exceptions escaping into product flows
+- duplicate event emission
+- unnecessary new instrumentation
+- unrelated changes
+
+Fix concrete BL-116 defects only.
+
+## 16. Git/worktree awareness
+
+BL-165 currently has intentional uncommitted changes in the worktree.
+
+Do not overwrite, revert, stage, or commit those changes.
+
+BL-116 must coexist cleanly with the existing BL-165 modifications.
+
+At completion distinguish clearly between:
+
+A. pre-existing BL-165 modifications
+B. new BL-116 modifications
+
+Report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked modified files
+- which task owns each modified file
+- untracked files
+- `.replit` status
+- migration status
+
+Do not:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+We are batching the BL-165 and BL-116 Git checkpoint.
+
+## REQUIRED FINAL REPORT
+
+Return:
+
+1. Pre-existing BL-116 implementation status
+2. Current analytics architecture
+3. Anonymous identity result
+4. Email/Google identity result
+5. Logout/reset result
+6. Privacy/property audit
+7. Event/property convention
+8. `is_internal` result
+9. Session replay privacy result
+10. Request-time flush result
+11. Gunicorn lifecycle result
+12. Failure/non-blocking result
+13. Existing event regression result
+14. Automated test totals
+15. Migration verdict
+16. BL-116 files changed
+17. BL-165 coexistence status
+18. Independent review result
+19. Git/worktree status
+20. Remaining issues
+
+End with exactly one:
+
+BL-116 COMPLETE — READY FOR BATCH CHECKPOINT
+
+BL-116 IMPLEMENTED — BOUNDED ISSUE REMAINS
+
+BL-116 BLOCKED — STOP BEFORE FURTHER CHANGES

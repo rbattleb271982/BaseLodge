@@ -27,10 +27,74 @@ POSTHOG_HOST = os.environ.get("POSTHOG_HOST", "https://us.i.posthog.com")
 _client = None
 _init_logged = False
 _ANON_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$")
+_EMAIL_VALUE_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_PROHIBITED_PROPERTY_KEYS = frozenset({
+    "address",
+    "availability",
+    "availability_note",
+    "body",
+    "content",
+    "device_token",
+    "email",
+    "first_name",
+    "friend_id",
+    "friend_ids",
+    "full_name",
+    "invite_token",
+    "last_name",
+    "message",
+    "note",
+    "notes",
+    "password",
+    "push_token",
+    "raw_token",
+    "secret",
+    "session_token",
+})
 
 # Analytics payloads must not contain email addresses, full names, passwords,
 # auth/reset/session tokens, invite tokens, planning free text, or exact
 # residential addresses. Keep intentionally bounded travel/social metadata only.
+
+
+def _property_key_is_prohibited(key):
+    normalized = str(key).strip().lower()
+    if normalized in _PROHIBITED_PROPERTY_KEYS:
+        return True
+    if normalized == "token_type":
+        return False
+    return normalized.endswith((
+        "_email",
+        "_password",
+        "_secret",
+        "_token",
+        "_notes",
+        "_message",
+        "_content",
+    ))
+
+
+def _sanitize_properties(value):
+    """Remove prohibited analytics fields recursively at the delivery boundary."""
+    if isinstance(value, dict):
+        sanitized = {}
+        for key, item in value.items():
+            if _property_key_is_prohibited(key):
+                continue
+            if isinstance(item, str) and _EMAIL_VALUE_PATTERN.fullmatch(item.strip()):
+                continue
+            sanitized[key] = _sanitize_properties(item)
+        return sanitized
+    if isinstance(value, (list, tuple)):
+        return [
+            _sanitize_properties(item)
+            for item in value
+            if not (
+                isinstance(item, str)
+                and _EMAIL_VALUE_PATTERN.fullmatch(item.strip())
+            )
+        ]
+    return value
 
 
 def _get_client():
@@ -128,11 +192,11 @@ def track(
         if user_id is not None
         else (_valid_anon_id(anonymous_id) or f"anonymous_event:{uuid.uuid4()}")
     )
-    props = dict(properties or {})
+    props = _sanitize_properties(dict(properties or {}))
     if set_props:
-        props["$set"] = set_props
+        props["$set"] = _sanitize_properties(dict(set_props))
     if set_once_props:
-        props["$set_once"] = set_once_props
+        props["$set_once"] = _sanitize_properties(dict(set_once_props))
 
     try:
         client.capture(event, distinct_id=distinct_id, properties=props)
@@ -154,9 +218,15 @@ def identify(user_id, properties=None, set_once_props=None):
     uid = str(user_id)
     try:
         if properties:
-            client.set(distinct_id=uid, properties=dict(properties))
+            client.set(
+                distinct_id=uid,
+                properties=_sanitize_properties(dict(properties)),
+            )
         if set_once_props:
-            client.set_once(distinct_id=uid, properties=dict(set_once_props))
+            client.set_once(
+                distinct_id=uid,
+                properties=_sanitize_properties(dict(set_once_props)),
+            )
         if properties or set_once_props:
             logger.info("PostHog identify OK: distinct_id=%s", uid)
     except Exception as exc:
@@ -172,19 +242,34 @@ def alias(anon_id, user_id):
     PostHog v7: alias(previous_id, distinct_id) — unchanged from v2.
     """
     client = _get_client()
-    if not client or not anon_id:
+    safe_anon_id = _valid_anon_id(anon_id)
+    if not client or not safe_anon_id:
         return
     try:
-        client.alias(anon_id, str(user_id))
+        client.alias(safe_anon_id, str(user_id))
     except Exception as exc:
-        logger.warning("PostHog alias FAILED: anon_id=%s user_id=%s error=%s", anon_id, user_id, exc)
+        logger.warning(
+            "PostHog alias FAILED: anon_id=%s user_id=%s error=%s",
+            safe_anon_id,
+            user_id,
+            exc,
+        )
+
+
+def _reset_client_after_fork():
+    """Discard any client inherited from a preloaded Gunicorn master."""
+    global _client, _init_logged
+    _client = None
+    _init_logged = False
 
 
 def _shutdown_client():
     """Best-effort delivery at clean process shutdown, never request time."""
+    global _client
     client = _client
     if client is None:
         return
+    _client = None
     try:
         shutdown = getattr(client, "shutdown", None)
         if callable(shutdown):

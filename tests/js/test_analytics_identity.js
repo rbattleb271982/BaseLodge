@@ -8,7 +8,12 @@ const source = fs.readFileSync(
   'utf8'
 );
 
-function runAnalytics({ user = {}, storedUserId = null, reset = false } = {}) {
+function runAnalytics({
+  user = {},
+  storedUserId = null,
+  reset = false,
+  throwOn = []
+} = {}) {
   const calls = [];
   const storage = new Map();
   if (storedUserId !== null) {
@@ -21,12 +26,19 @@ function runAnalytics({ user = {}, storedUserId = null, reset = false } = {}) {
       options.loaded(ph);
     },
     reset() {
+      if (throwOn.includes('reset')) { throw new Error('reset unavailable'); }
       calls.push(['reset']);
     },
     identify(id, properties) {
+      if (throwOn.includes('identify')) {
+        throw new Error('identify unavailable');
+      }
       calls.push(['identify', id, properties]);
     },
     capture(event, properties) {
+      if (throwOn.includes('capture')) {
+        throw new Error('capture unavailable');
+      }
       calls.push(['capture', event, properties]);
     }
   };
@@ -50,7 +62,7 @@ function runAnalytics({ user = {}, storedUserId = null, reset = false } = {}) {
     posthog: ph
   };
   vm.runInNewContext(source, { window, posthog: ph, document: {} });
-  return { calls, storage };
+  return { calls, storage, window };
 }
 
 test('authenticated users are identified with numeric ID and internal flag', () => {
@@ -123,4 +135,41 @@ test('malformed authenticated marker is removed without resetting', () => {
     storage.has('baselodge_posthog_authenticated_user_id'),
     false
   );
+});
+
+test('browser delivery boundary removes prohibited properties', () => {
+  const { calls, window } = runAnalytics();
+
+  window.blTrackPostHogEvent('safe_event', {
+    method: 'email',
+    email: 'person@example.com',
+    nested: {
+      invite_token: 'private',
+      delivery: 'download'
+    },
+    recipients: ['person@example.com', 'category'],
+    token_type: 'trip_invite'
+  });
+
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(calls.at(-1))),
+    [
+      'capture',
+      'safe_event',
+      {
+        method: 'email',
+        nested: { delivery: 'download' },
+        recipients: ['category'],
+        token_type: 'trip_invite'
+      }
+    ]
+  );
+});
+
+test('browser SDK failures do not escape analytics initialization', () => {
+  assert.doesNotThrow(() => runAnalytics({
+    user: { id: 42, is_internal: false },
+    storedUserId: '84',
+    throwOn: ['reset', 'identify', 'capture']
+  }));
 });

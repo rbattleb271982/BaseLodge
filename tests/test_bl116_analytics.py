@@ -1,4 +1,5 @@
 import json
+import runpy
 from urllib.parse import quote
 
 import analytics
@@ -34,6 +35,7 @@ class FakePostHog:
 
 def _install_client(monkeypatch):
     client = FakePostHog()
+    monkeypatch.setattr(analytics, "POSTHOG_KEY", "test-key")
     monkeypatch.setattr(analytics, "_client", client)
     return client
 
@@ -97,8 +99,93 @@ def test_track_and_identify_do_not_flush_synchronously(monkeypatch):
     assert client.set_once_calls == [("12", {"created_source": "signup"})]
 
 
+def test_delivery_boundary_removes_prohibited_properties(monkeypatch):
+    client = _install_client(monkeypatch)
+
+    analytics.track(
+        12,
+        "safe_event",
+        {
+            "method": "email",
+            "email": "person@example.com",
+            "nested": {
+                "invite_token": "private",
+                "delivery": "download",
+            },
+            "recipients": ["person@example.com", "category"],
+            "token_type": "trip_invite",
+        },
+        set_props={"is_internal": False, "full_name": "Private Person"},
+    )
+    analytics.identify(
+        12,
+        properties={"is_internal": True, "email": "person@example.com"},
+    )
+
+    assert client.captures == [(
+        "safe_event",
+        "12",
+        {
+            "method": "email",
+            "nested": {"delivery": "download"},
+            "recipients": ["category"],
+            "token_type": "trip_invite",
+            "$set": {"is_internal": False},
+        },
+    )]
+    assert client.sets == [("12", {"is_internal": True})]
+
+
+def test_alias_accepts_only_valid_browser_anonymous_ids(monkeypatch):
+    client = _install_client(monkeypatch)
+
+    analytics.alias("browser-anon_123", 12)
+    analytics.alias("anonymous", 12)
+    analytics.alias("person@example.com", 12)
+    analytics.alias("12345", 12)
+
+    assert client.aliases == [("browser-anon_123", "12")]
+
+
+def test_delivery_failures_never_escape_product_calls(monkeypatch):
+    class BrokenClient:
+        def capture(self, *_args, **_kwargs):
+            raise RuntimeError("capture unavailable")
+
+        def set(self, *_args, **_kwargs):
+            raise RuntimeError("identify unavailable")
+
+        def set_once(self, *_args, **_kwargs):
+            raise RuntimeError("identify unavailable")
+
+        def alias(self, *_args, **_kwargs):
+            raise RuntimeError("alias unavailable")
+
+    monkeypatch.setattr(analytics, "POSTHOG_KEY", "test-key")
+    monkeypatch.setattr(analytics, "_client", BrokenClient())
+
+    analytics.track(12, "login_completed", {"method": "email"})
+    analytics.identify(
+        12,
+        properties={"is_internal": False},
+        set_once_props={"created_source": "signup"},
+    )
+    analytics.alias("browser-anon_123", 12)
+
+
+def test_disabled_analytics_is_a_noop(monkeypatch):
+    monkeypatch.setattr(analytics, "POSTHOG_KEY", "")
+    monkeypatch.setattr(analytics, "_client", None)
+
+    analytics.track(12, "login_completed")
+    analytics.identify(12, properties={"is_internal": False})
+    analytics.alias("browser-anon_123", 12)
+
+
 def test_shutdown_uses_guarded_client_shutdown(monkeypatch):
     client = _install_client(monkeypatch)
+    analytics._shutdown_client()
+    assert client.shutdown_calls == 1
     analytics._shutdown_client()
     assert client.shutdown_calls == 1
 
@@ -122,3 +209,28 @@ def test_shutdown_falls_back_to_flush_when_shutdown_is_unavailable(monkeypatch):
     monkeypatch.setattr(analytics, "_client", client)
     analytics._shutdown_client()
     assert client.flush_calls == 1
+
+
+def test_post_fork_reset_discards_inherited_client(monkeypatch):
+    _install_client(monkeypatch)
+    monkeypatch.setattr(analytics, "_init_logged", True)
+
+    analytics._reset_client_after_fork()
+
+    assert analytics._client is None
+    assert analytics._init_logged is False
+
+
+def test_gunicorn_hooks_reset_after_fork_and_shutdown_on_worker_exit(
+    monkeypatch
+):
+    hooks = runpy.run_path("gunicorn.conf.py")
+    inherited = _install_client(monkeypatch)
+
+    hooks["post_fork"](None, None)
+    assert analytics._client is None
+    assert inherited.shutdown_calls == 0
+
+    worker_client = _install_client(monkeypatch)
+    hooks["worker_exit"](None, None)
+    assert worker_client.shutdown_calls == 1

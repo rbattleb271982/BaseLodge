@@ -5,6 +5,58 @@
 (function () {
   'use strict';
 
+  var prohibitedPropertyKeys = {
+    address: true,
+    availability: true,
+    availability_note: true,
+    body: true,
+    content: true,
+    device_token: true,
+    email: true,
+    first_name: true,
+    friend_id: true,
+    friend_ids: true,
+    full_name: true,
+    invite_token: true,
+    last_name: true,
+    message: true,
+    note: true,
+    notes: true,
+    password: true,
+    push_token: true,
+    raw_token: true,
+    secret: true,
+    session_token: true
+  };
+
+  function propertyKeyIsProhibited(key) {
+    var normalized = String(key).trim().toLowerCase();
+    if (prohibitedPropertyKeys[normalized]) { return true; }
+    if (normalized === 'token_type') { return false; }
+    return /_(email|password|secret|token|notes|message|content)$/.test(normalized);
+  }
+
+  function sanitizeProperties(value) {
+    if (Array.isArray(value)) {
+      return value.filter(function (item) {
+        return !(typeof item === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(item.trim()));
+      }).map(sanitizeProperties);
+    }
+    if (value && typeof value === 'object') {
+      return Object.keys(value).reduce(function (result, key) {
+        var item = value[key];
+        if (
+          !propertyKeyIsProhibited(key)
+          && !(typeof item === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(item.trim()))
+        ) {
+          result[key] = sanitizeProperties(item);
+        }
+        return result;
+      }, {});
+    }
+    return value;
+  }
+
   window.blTrackProjectEvent = function (name, data) {
     try {
       if (window.umami && typeof window.umami.track === 'function') {
@@ -19,7 +71,7 @@
     try {
       if (window.posthog && typeof window.posthog.capture === 'function') {
         if (arguments.length > 1) {
-          window.posthog.capture(name, data);
+          window.posthog.capture(name, sanitizeProperties(data || {}));
         } else {
           window.posthog.capture(name);
         }
@@ -44,6 +96,7 @@
     api_host: host,
     autocapture: false,
     capture_pageview: false,
+    /* Fail closed. See docs/analytics-contract.md before changing this. */
     disable_session_recording: true,
     loaded: function (ph) {
       var user = window.__USER__ || {};
@@ -71,7 +124,11 @@
       }
 
       if (shouldReset) {
-        ph.reset();
+        try {
+          ph.reset();
+        } catch (error) {
+          /* Analytics identity reset failure must not interrupt the app. */
+        }
         try {
           window.localStorage.removeItem(authenticatedUserMarker);
         } catch (error) {
@@ -83,9 +140,13 @@
        *    Internal users are NOT excluded — they are tagged via is_internal
        *    person property and filtered in PostHog dashboards. */
       if (currentUserId) {
-        ph.identify(currentUserId, {
-          is_internal: Boolean(user.is_internal)
-        });
+        try {
+          ph.identify(currentUserId, {
+            is_internal: Boolean(user.is_internal)
+          });
+        } catch (error) {
+          /* Analytics identity failure must not interrupt the app. */
+        }
         try {
           window.localStorage.setItem(
             authenticatedUserMarker,
@@ -97,7 +158,11 @@
       }
 
       /* Core activation event — fires for all users. */
-      ph.capture('app_loaded');
+      try {
+        ph.capture('app_loaded');
+      } catch (error) {
+        /* Analytics capture failure must not interrupt the app. */
+      }
     }
   });
 }());
