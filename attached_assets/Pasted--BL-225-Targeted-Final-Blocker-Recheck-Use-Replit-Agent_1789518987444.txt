@@ -1,0 +1,180 @@
+# BL-225 — Targeted Final Blocker Recheck
+
+Use Replit Agent level: POWER.
+
+READ ONLY.
+
+Do not modify anything.
+
+Perform a targeted final verification of ONLY the three BL-225 ship blockers that were just corrected, plus the browser Load More correction discovered during implementation.
+
+Do not repeat the full Friends ship audit.
+
+## 1. InviteType.OUTBOUND scope
+
+Verify the final code consistently requires the social friend-request contract where an Invitation is interpreted or mutated as a person-to-person friend request:
+
+- trip_id IS NULL
+- invite_type == InviteType.OUTBOUND
+
+Reverify the corrected paths, including:
+
+- incoming Friends requests
+- Friends bottom-nav pending badge
+- global-search relationship/request state
+- duplicate friend-request detection
+- acceptance
+- sender withdrawal
+- Suggested Friends request-state mapping
+- Home/Notifications paths affected by the correction
+
+Prove a null-trip non-OUTBOUND Invitation:
+
+- does not render as an incoming friend request
+- does not increment the Friends badge
+- does not create Requested/incoming search state
+- does not block a legitimate OUTBOUND request
+- cannot be accepted through the social accept endpoint
+- cannot be withdrawn through the social withdrawal endpoint
+- does not create Friend rows
+
+Confirm legitimate OUTBOUND requests still behave normally.
+
+## 2. Accept/withdraw serialization
+
+Verify both canonical terminal operations load the Invitation using the intended SELECT ... FOR UPDATE locking path.
+
+Reverify:
+
+- accept then withdraw
+- withdraw then accept
+- repeated accept
+- repeated withdraw
+- exactly one coherent terminal Invitation state
+- no friendship after successful withdrawal
+- no duplicate Friend rows
+- no duplicate cooldown effects
+
+Confirm the PostgreSQL-gated two-session test exists and accurately exercises the real race.
+
+If BL79_TEST_POSTGRES_URL is still unavailable:
+
+- report the test as skipped
+- do not claim SQLite proves PostgreSQL row-lock behavior
+- do not treat the environment limitation as a product failure unless code evidence reveals an actual defect
+
+Do not create or configure a PostgreSQL test database during this recheck.
+
+## 3. NULL-safe outgoing pagination
+
+Verify the final implementation uses:
+
+- explicit null rank
+- timestamped rows first
+- NULL rows last
+- created_at DESC within timestamped rows
+- Invitation.id DESC tie/fallback ordering
+- signed cursor version 2
+- viewer binding
+- rank-aware continuation
+
+Re-run focused cases for:
+
+- ordinary 0/1/20/21/41 boundaries
+- mixed timestamp and NULL rows
+- 20+ timestamp rows followed by NULL rows
+- 20+ NULL rows
+- timestamp → NULL page transition
+- equal timestamps
+- multiple NULL rows
+- complete traversal equals total_count
+- no duplicate IDs
+- no omitted IDs
+- malformed rank/timestamp cursor combinations
+- tampered cursor
+- cross-viewer cursor
+
+Confirm retrieval remains exactly two SQL statements per page.
+
+## 4. Load More browser correction
+
+Verify the scoped hidden-state correction actually hides the completed Load More control after the final page.
+
+Confirm it does not alter unrelated buttons or disclosure behavior.
+
+Use disposable/read-only browser verification at representative mobile width.
+
+Check:
+
+- pagination from 20 to 20+
+- final Load More disappears
+- count remains correct
+- no horizontal overflow
+- no collision
+- no console error
+- no failed application request
+
+## 5. Focused regression
+
+Run the smallest relevant existing suites that protect these corrections and their immediate integration surfaces.
+
+Do not rerun unrelated full-application suites merely to increase the test count.
+
+Report exact:
+
+- passed
+- failed
+- skipped
+
+Also run:
+
+- Python compilation for affected Python files
+- git diff --check
+
+## 6. Migration
+
+Confirm:
+
+- no migration exists for these fixes
+- no migration is required
+- no migration file changed
+
+## 7. Git/worktree
+
+Report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- exact tracked modified files
+- exact untracked files
+- confirm .replit is unchanged
+- identify any unrelated modification
+- confirm whether the intended BL-225 changes are safe for a deliberate commit
+
+Do NOT:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+## REQUIRED VERDICT
+
+Return exactly one:
+
+BL-225 FINAL RECHECK PASSED — SAFE TO COMMIT
+
+or
+
+BL-225 FINAL RECHECK FAILED — DO NOT SHIP
+
+If failed, identify the concrete blocker and stop.
+
+## HARD CONSTRAINT
+
+READ ONLY.
+
+Do not change code, tests, fixtures, migrations, configuration, data, Git state, deployment, or publication state.
