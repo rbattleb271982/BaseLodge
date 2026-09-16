@@ -1,0 +1,448 @@
+# BL-162 — Progressively Load Mountain Detail Social Intelligence
+
+Use BUILD mode.
+
+This is a performance improvement to the existing Mountain Detail experience.
+
+Do not redesign Mountain Detail.
+Do not change the approved visual system.
+Do not change social eligibility, privacy, trip visibility, counts, ordering, or user-facing semantics.
+
+## Goal
+
+Mountain Detail currently blocks the initial page response on secondary social intelligence even though the core mountain/pass content can render independently.
+
+Improve perceived Mountain Detail performance by rendering the core mountain experience first and progressively loading appropriate secondary social intelligence afterward.
+
+The current task identifies these secondary areas:
+
+- Going
+- Interested
+- Availability
+- Been Here
+- Want to Go
+- related friend/social intelligence
+- qualifying trips/participants where applicable
+
+The implementation must preserve the exact existing product behavior and privacy rules.
+
+## Important context
+
+Notion BL-162 states:
+
+- Representative current profile: approximately 13 SQL statements
+- Approximately 24.8 KB HTML
+- Approximately 7 ms warm in-memory
+- Expected impact: High for large social graphs, Medium at current scale
+- Dependencies: BL-133 and BL-146
+
+First verify those dependencies/current architecture rather than assuming their historical state.
+
+---
+
+# 1. Audit the current Mountain Detail request
+
+Before changing code, trace the complete current Mountain Detail route.
+
+Identify:
+
+- route/controller
+- services called
+- SQL/query-producing operations
+- templates and partials
+- friend/social projections
+- trip projections
+- Going/Interested logic
+- availability logic
+- Been Here / Want to Go logic
+- pass/resort/core mountain data
+- privacy checks
+- authentication assumptions
+- JavaScript involved
+- existing endpoints that may already expose any of this information
+
+Classify every piece of page data as either:
+
+A. CORE / INITIAL RENDER
+
+or
+
+B. SECONDARY / CANDIDATE FOR PROGRESSIVE LOAD
+
+Core content must remain immediately available.
+
+Do not create duplicate APIs for information already exposed safely through an appropriate existing endpoint.
+
+---
+
+# 2. Establish baseline evidence
+
+Before implementation, record representative Mountain Detail behavior.
+
+Measure where supported by existing infrastructure:
+
+- initial SQL statement count
+- initial rendered HTML size
+- route/server timing
+- social-graph-related queries
+- number of queries that scale with friends/trips
+- browser request sequence
+- console errors
+- failed application requests
+
+Use deterministic/local test data.
+
+Do not connect to or mutate Production or Development.
+
+The purpose is to establish what work can actually be removed from the blocking initial request.
+
+---
+
+# 3. Design the smallest progressive-loading boundary
+
+Based on the audit, choose the smallest architecture that materially reduces blocking work.
+
+Prefer grouping related secondary intelligence into a small number of bounded requests rather than creating many tiny endpoints.
+
+Avoid:
+
+- one endpoint per row
+- one request per friend
+- one request per trip
+- N+1 behavior
+- excessive browser waterfalls
+- duplicated eligibility/privacy logic
+- duplicated templates
+- client-side reconstruction of server-owned business rules
+
+Where practical, reuse existing services and server-rendered partials.
+
+The initial Mountain Detail request should no longer calculate secondary intelligence that has been moved behind progressive loading.
+
+Simply hiding already-rendered content with JavaScript does NOT satisfy BL-162.
+
+---
+
+# 4. Preserve the initial Mountain Detail experience
+
+The initial response must continue to render the approved Mountain Detail shell and core information.
+
+Do not redesign or restyle the page.
+
+Do not add:
+
+- new cards
+- new colors
+- new badges
+- new icons
+- new shadows
+- new information architecture
+- new navigation
+- new user-facing concepts
+
+If secondary content needs a temporary loading state, use the smallest presentation consistent with the existing design system.
+
+Avoid layout jumps where reasonably possible.
+
+---
+
+# 5. Preserve social semantics exactly
+
+Progressively loaded content must remain behaviorally equivalent to the current implementation.
+
+Do not change:
+
+- friend-only rules
+- reciprocal-friend requirements
+- Going semantics
+- Interested semantics
+- availability semantics
+- Been Here semantics
+- Want to Go semantics
+- trip eligibility
+- private-trip visibility
+- participant visibility
+- resort matching
+- canonical IDs
+- deduplication
+- ordering
+- counts
+
+A user must not gain access to information through the new endpoint that they could not see through the existing Mountain Detail page.
+
+Treat the progressive endpoints as authenticated/privacy-sensitive application surfaces.
+
+---
+
+# 6. Query and scaling requirements
+
+The progressive implementation must remain bounded.
+
+Specifically verify:
+
+- no per-friend queries
+- no per-trip queries
+- no per-participant hydration
+- no new N+1 behavior
+- initial Mountain Detail query count decreases when secondary intelligence is deferred
+- progressive request query count remains bounded as social graph size increases
+
+Add or update query-budget coverage where appropriate.
+
+Report before/after statement counts separately for:
+
+A. initial Mountain Detail request
+B. progressive social request(s)
+C. total page hydration
+
+The goal is primarily to reduce blocking initial work, not merely move an inefficient query pattern to another endpoint.
+
+---
+
+# 7. Progressive-load behavior
+
+Implement robust browser behavior.
+
+Verify:
+
+- secondary intelligence loads after the core page
+- each section renders once
+- repeated visibility/page lifecycle events do not create duplicate content
+- browser back/forward cache behavior remains sane
+- refresh works
+- authentication failures are handled safely
+- failed secondary requests do not break the core Mountain Detail page
+- no infinite retry behavior
+- no duplicate analytics events caused solely by hydration
+- no console errors
+
+Because BaseLodge uses Capacitor, consider both normal browser visibility and Capacitor-style lifecycle behavior where existing infrastructure supports it.
+
+Do not add native-only dependencies or require a new iOS/Android build unless absolutely necessary. This task should remain web-layer compatible.
+
+---
+
+# 8. Accessibility and responsive behavior
+
+Verify Mountain Detail at:
+
+- true 360px
+- 390px
+- 430px
+- 768px
+
+Check:
+
+- no horizontal overflow
+- no clipping
+- no collisions
+- no unexpected layout shift that materially harms usability
+- loading state is understandable
+- hydrated content remains keyboard/screen-reader usable to the same extent as before
+- touch targets remain appropriate
+- bottom navigation does not obstruct content
+- content remains reachable
+
+Do not redesign responsive behavior.
+
+---
+
+# 9. Regression coverage
+
+Add focused tests for:
+
+- authenticated progressive endpoint access
+- privacy equivalence
+- Going
+- Interested
+- availability
+- Been Here
+- Want to Go
+- private trip exclusion
+- friend eligibility
+- ordering
+- counts
+- deduplication
+- empty social state
+- larger social graph
+- bounded query count
+- initial route no longer performing deferred work
+- progressive response contains the expected existing content
+- failed progressive request leaves core Mountain Detail usable
+
+Reuse existing fixtures where possible.
+
+Do not weaken existing tests.
+
+---
+
+# 10. Browser verification
+
+Use disposable deterministic test data only.
+
+Verify representative Mountain Detail states including:
+
+- little/no social intelligence
+- Going friends
+- Interested friends
+- availability
+- Been Here / Want to Go
+- relevant trip activity
+- heavier social graph where existing fixtures allow it
+
+Report:
+
+- initial request behavior
+- progressive request behavior
+- content equivalence
+- console errors
+- failed application requests
+- overflow
+- collisions
+- layout issues
+
+Clearly distinguish application failures from capture/tooling failures.
+
+---
+
+# 11. Migration and infrastructure constraints
+
+Do not create a migration unless implementation proves one is genuinely required.
+
+Expected verdict:
+
+NO MIGRATION REQUIRED
+
+Do not modify:
+
+- Production data
+- Development data
+- database schema
+- .replit
+- CI infrastructure
+- unrelated test infrastructure
+
+Do not connect to Production or Development.
+
+Do not use this task to clean up unrelated Mountain Detail code.
+
+---
+
+# 12. Verification
+
+Run:
+
+- focused Mountain Detail tests
+- relevant privacy/social tests
+- query-budget tests
+- relevant JavaScript tests
+- browser verification
+- Python compilation for affected Python files
+- git diff --check
+
+Run broader regressions only where reasonably necessary to establish that the shared social logic remains intact.
+
+Report exact passed / failed / skipped totals.
+
+---
+
+# 13. Independent review
+
+After implementation, perform a bounded architecture review.
+
+Specifically inspect for:
+
+- duplicated privacy logic
+- duplicated eligibility logic
+- N+1 queries
+- unnecessary new endpoints
+- unnecessary request waterfall
+- client-side business-rule duplication
+- stale or duplicate hydration
+- accidental initial-route social work that should have been removed
+- visual regressions
+- application behavior changes outside BL-162
+
+Fix concrete BL-162 defects found by this review before the final report.
+
+Do not expand into unrelated cleanup.
+
+---
+
+# 14. Git/worktree
+
+At the end report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked modified files
+- untracked files
+- .replit status
+- migration status
+- generated artifacts
+
+Do not:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+We will review the result first.
+
+---
+
+# REQUIRED FINAL REPORT
+
+Return:
+
+1. Architecture before BL-162
+2. Progressive-loading boundary chosen
+3. Core content retained in initial render
+4. Secondary content deferred
+5. Endpoint/partial architecture
+6. Privacy and semantic equivalence
+7. Query counts before and after
+8. Scaling/N+1 result
+9. Browser hydration behavior
+10. Responsive/accessibility results
+11. Automated test totals
+12. Browser test results
+13. Migration verdict
+14. Files changed
+15. Independent review result
+16. Git/worktree status
+17. Remaining issues
+
+End with exactly one:
+
+BL-162 COMPLETE — READY FOR SHIP CHECK
+
+BL-162 IMPLEMENTED — BOUNDED ISSUE REMAINS
+
+BL-162 BLOCKED — STOP BEFORE FURTHER CHANGES
+
+# HARD CONSTRAINTS
+
+Do not:
+
+- redesign Mountain Detail
+- change privacy or eligibility rules
+- change Going/Interested semantics
+- change Been Here/Want to Go semantics
+- change trip visibility
+- add N+1 queries
+- create unnecessary endpoint waterfalls
+- duplicate server business rules in JavaScript
+- touch Production or Development data
+- modify CI infrastructure
+- modify .replit
+- perform unrelated cleanup
+- stage
+- commit
+- push
+- publish
+- deploy
