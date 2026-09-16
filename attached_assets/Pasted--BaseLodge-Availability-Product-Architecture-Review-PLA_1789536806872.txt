@@ -1,0 +1,283 @@
+# BaseLodge Availability Product Architecture Review
+## PLAN ONLY — DO NOT IMPLEMENT
+
+Following the full BaseLodge audit (#565), perform a focused product-architecture review of Availability.
+
+The purpose is NOT to find more generic bugs and NOT to redesign or implement anything.
+
+We need a precise picture of how BaseLodge currently represents and uses a user's availability across the entire application so the product owner can decide whether the current architecture should remain, be consolidated, or be simplified.
+
+## 1. Map the current Availability system
+
+Identify every current user-facing surface where availability or availability-derived information appears.
+
+Include, where applicable:
+
+- Profile
+- Settings
+- Home
+- Open to Ski
+- Trips
+- Trip creation
+- Trip Detail
+- Mountain Detail
+- Friends/social surfaces
+- Ideas/planning
+- Any contextual prompts or actions
+- Any other reachable surface
+
+For each location document:
+
+- What the user sees
+- What the user can do
+- What data is being used
+- Whether the data is raw availability or a derived comparison/overlap
+- Where the user goes to edit it
+- Whether the interaction is duplicated elsewhere
+
+## 2. Establish the canonical data model
+
+Trace the existing Availability-related models, routes, helpers, and services.
+
+Explain:
+
+- What constitutes a user's canonical availability
+- Whether there is one source of truth
+- How date ranges are stored
+- How availability relates to trips
+- How availability overlaps are calculated
+- How Open to Ski relates to availability
+- Whether Ideas/planning consume availability
+- Whether Mountain or social experiences consume availability
+- Whether any screens maintain separate or duplicated state
+
+Do not change schema or data.
+
+## 3. Map the user journey
+
+Using disposable local data, walk through:
+
+### User has no availability
+
+What do they encounter across the app?
+
+Where are they prompted to add it?
+
+What happens when they do?
+
+### User has availability but no trips
+
+What becomes useful?
+
+Where does that availability surface?
+
+### User has availability and friends with overlapping dates
+
+What does BaseLodge do with that information?
+
+### User has availability and an existing trip
+
+How are personal availability and trip dates related?
+
+### User changes availability
+
+Which screens immediately reflect the change?
+
+Which require reload/navigation?
+
+Does anything become stale or inconsistent?
+
+## 4. Evaluate Open to Ski specifically
+
+Explain exactly what "Open to Ski" currently means in BaseLodge.
+
+Determine whether it is:
+
+- A distinct product concept
+- A presentation of Availability
+- A social sharing layer over Availability
+- A separate workflow
+- Some combination of these
+
+Document:
+
+- Entry points
+- Destination
+- Data dependencies
+- User actions
+- Relationship to friends
+- Relationship to trip creation/planning
+- Relationship to the Instagram/share card if applicable
+
+Then answer:
+
+Does Open to Ski currently justify being a distinct product concept, or is the distinction primarily presentational?
+
+Do NOT make implementation changes.
+
+## 5. Identify duplication and fragmentation
+
+Look for cases where the user must manage or interpret essentially the same concept in multiple places.
+
+Examples:
+
+- Setting dates in one place but seeing them elsewhere
+- Different terminology for the same dates
+- Multiple edit entry points
+- Multiple summaries
+- Availability versus Open to Ski
+- Availability versus trip dates
+- Availability versus planning/Ideas
+
+Classify each as:
+
+USEFUL CONTEXTUAL REPETITION
+
+INCONSISTENT DUPLICATION
+
+REDUNDANT WORKFLOW
+
+PRODUCT CONCEPT MISMATCH
+
+## 6. Identify missing connections
+
+Look for places where BaseLodge already has the necessary data but fails to use it at an obvious moment.
+
+Examples could include:
+
+- Availability that could inform trip planning
+- Friend overlap that exists but is difficult to discover
+- Open dates that could contextualize Mountain discovery
+- Existing trip dates that could reduce duplicate availability entry
+
+These examples are not requirements.
+
+Only report opportunities supported by the current product.
+
+## 7. Evaluate whether a standalone Availability destination is necessary
+
+Answer explicitly:
+
+- What unique job does the current Availability destination perform?
+- Could that job live naturally in Profile?
+- Could it live naturally in Home?
+- Could it be primarily contextual within Trips/planning?
+- Would consolidation make Availability harder to manage?
+- Does it need a dedicated edit surface even if it is not a primary destination?
+
+Do not assume consolidation is preferable.
+
+Give the tradeoffs.
+
+## 8. Evaluate terminology
+
+Document every meaningful Availability-related term currently exposed to users.
+
+Especially examine:
+
+- Availability
+- Open to Ski
+- Available
+- Dates
+- Overlap
+- Any similar terminology
+
+Identify whether users are being asked to understand multiple names for essentially the same concept.
+
+## 9. Evaluate current design/presentation
+
+Without redesigning anything, compare Availability-related UI across surfaces.
+
+Look for:
+
+- Different date-range presentation
+- Different editing controls
+- Different card/row patterns
+- Different empty states
+- Different terminology
+- Different calls to action
+- Different hierarchy
+
+Identify the strongest existing BaseLodge pattern that could potentially become canonical.
+
+## 10. Product architecture options
+
+Based on the evidence, provide 2–4 coherent future-state options.
+
+For example, options might resemble:
+
+A. Keep current architecture with targeted cleanup
+
+B. One canonical Availability system with contextual presentation throughout BaseLodge
+
+C. Availability becomes primarily part of Profile while overlaps/planning remain contextual
+
+D. Another architecture supported by the evidence
+
+These are examples only.
+
+For EACH option provide:
+
+- What stays
+- What changes
+- What disappears
+- What gets consolidated
+- Navigation impact
+- Screens affected
+- User benefit
+- Downsides/tradeoffs
+- Implementation complexity: Low / Medium / High
+- Existing backlog tasks affected
+- Whether schema changes appear necessary
+
+Do NOT select a winner.
+
+The product owner will decide.
+
+## 11. Do not implement
+
+Do not:
+
+- edit application code
+- edit templates
+- edit tests
+- edit CSS/JavaScript
+- edit migrations
+- change navigation
+- create tasks
+- edit Notion
+- stage
+- commit
+- push
+- publish
+- deploy
+
+Use disposable/local data only.
+
+Do not access Development or Production.
+
+Beginning and ending Git/worktree state must match.
+
+# REQUIRED OUTPUT
+
+Return:
+
+1. Current Availability architecture
+2. All Availability surfaces
+3. Canonical data/source-of-truth analysis
+4. Open to Ski relationship
+5. Current user journeys
+6. Cross-screen duplication
+7. Missing connections
+8. Standalone Availability destination assessment
+9. Terminology assessment
+10. Design/presentation consistency assessment
+11. Existing backlog relationships
+12. Product architecture options with tradeoffs
+13. Migration implications
+14. Git/worktree verification
+15. Exact decisions the product owner needs to make
+
+End with:
+
+AVAILABILITY ARCHITECTURE REVIEW COMPLETE — READY FOR PRODUCT DECISION
