@@ -1,0 +1,383 @@
+# BL-227 — Trip Detail Locked Presentation Foundation
+## PLAN ONLY — DO NOT IMPLEMENT
+
+Use PLAN mode.
+
+This task begins implementation of the already-approved Trip Detail presentation architecture.
+
+The design direction is LOCKED.
+
+Do not use this planning task to redesign Trip Detail, propose alternative information architecture, add new product concepts, or expand scope.
+
+The purpose of this plan is to map the approved presentation onto the current BaseLodge implementation and produce the safest, smallest implementation plan.
+
+## Approved Trip Detail architecture
+
+Trip Detail is organized into three primary sections:
+
+### 1. TRIP
+
+The top of Trip Detail should contain:
+
+- Hybrid mountain/date header using the approved BaseLodge presentation
+- Trip Planning immediately below the header
+- Two newest planning items shown directly
+- All Ideas action
+- Share an idea/link action
+
+The historical standalone Stay presentation should not remain as a separate primary block in this presentation.
+
+Determine where existing stay/lodging information belongs under the approved architecture without deleting underlying functionality or data.
+
+### 2. PEOPLE
+
+People contains the existing participant/social functionality presented coherently together:
+
+- Participation summary / existing approved graphic where applicable
+- Join requests
+- Invite action
+- Going
+- Interested
+- Invited
+
+Reuse existing participation state, permissions, invitation behavior, and server-owned logic.
+
+Do not invent new participant statuses.
+
+### 3. YOU
+
+You contains the current user's trip-specific information:
+
+- Riding
+- Ability
+- Pass
+- RSVP / participation status
+- User availability relative to the trip dates
+- Equipment
+- Lessons
+
+Reuse existing BaseLodge data and semantics.
+
+Do not create new schema or duplicate Profile data.
+
+## Lifecycle presentation
+
+The approved foundation must also account for:
+
+### Organizer
+- Cancel Trip
+- Existing authorization preserved
+- Appropriate confirmation before destructive action
+
+### Participant
+- Leave Trip
+- Existing authorization preserved
+- Appropriate confirmation before destructive action
+
+### Past/cancelled trips
+- Appropriate read-only presentation
+- No actions that should no longer be available
+- Historical information remains understandable
+
+Do not change trip lifecycle semantics.
+
+---
+
+# PLAN REQUIREMENTS
+
+## 1. Check whether BL-227 already exists
+
+Before planning implementation, inspect:
+
+- current Trip Detail code
+- relevant Git history
+- current templates/partials
+- current tests
+- any BL-227-related implementation already present
+
+Determine whether BL-227 is:
+
+A. not implemented
+B. partially implemented
+C. already complete
+
+If already complete, return verification evidence instead of planning duplicate work.
+
+## 2. Map the current Trip Detail architecture
+
+Identify:
+
+- route/controller
+- services
+- templates
+- partials/components
+- JavaScript
+- CSS
+- relevant models
+- query/service dependencies
+- organizer permissions
+- participant permissions
+- invitation/join-request behavior
+- trip planning/ideas behavior
+- lodging/stay behavior
+- equipment presentation
+- availability presentation
+- lessons presentation
+- RSVP behavior
+- trip lifecycle handling
+
+For each current Trip Detail element, state where it moves under:
+
+TRIP
+PEOPLE
+YOU
+
+Also identify anything that should remain outside those sections.
+
+## 3. Identify reuse versus new presentation work
+
+For every approved BL-227 element classify it as:
+
+A. existing functionality that only moves
+B. existing functionality requiring a new presentation wrapper/partial
+C. existing functionality requiring minor integration work
+D. genuinely missing functionality
+
+BL-227 should overwhelmingly consist of A-C.
+
+If substantial D functionality is discovered, flag it rather than silently expanding BL-227.
+
+## 4. Stay/lodging handling
+
+Trace the current Stay implementation carefully.
+
+The approved presentation removes the historical standalone Stay block.
+
+Determine:
+
+- what Stay currently displays
+- what actions it provides
+- what data it owns
+- whether any downstream functionality depends on its current DOM/template location
+- where that information belongs in the approved Trip presentation
+- how to remove the standalone presentation without deleting functionality
+
+Do not delete lodging/stay data or functionality.
+
+## 5. People mapping
+
+Trace:
+
+- Going
+- Interested
+- Invited
+- join requests
+- invitation actions
+- organizer controls
+- participant counts/summary
+- relevant privacy rules
+
+Determine the smallest presentation architecture that groups these under People while preserving existing server semantics.
+
+Do not redesign friend requests or invitations.
+
+## 6. You mapping
+
+Trace where each value currently comes from:
+
+- Riding
+- Ability
+- Pass
+- RSVP
+- Availability
+- Equipment
+- Lessons
+
+Determine whether each value is:
+
+- trip-owned
+- participant-owned
+- profile-owned
+- derived
+
+Identify existing edit/action paths.
+
+BL-227 should present existing information rather than create duplicate storage.
+
+## 7. Permissions/state matrix
+
+Produce a bounded state matrix for:
+
+User role:
+- organizer
+- Going participant
+- Interested participant
+- Invited participant where applicable
+- nonparticipant where applicable
+
+Trip lifecycle:
+- upcoming/active
+- past
+- cancelled
+
+Identify which controls appear in each meaningful combination.
+
+Preserve current authorization.
+
+Do not invent permissions.
+
+## 8. Responsive implementation
+
+Assess the approved architecture at:
+
+- 360px
+- 390px
+- 430px
+- 768px
+- wider desktop
+
+Identify likely responsive implementation issues before Build.
+
+BaseLodge is mobile-first and uses Capacitor.
+
+Do not require a new native iOS/Android build for this presentation work unless existing architecture makes that unavoidable.
+
+## 9. Data/query impact
+
+Determine whether reorganizing Trip Detail can reuse the existing route context.
+
+Identify:
+
+- current Trip Detail query count where measurable
+- any N+1 risks
+- duplicate data loading
+- whether new endpoints are actually necessary
+
+Prefer existing server-rendered context and bounded partials.
+
+Do not introduce progressive loading merely because BL-162 used it elsewhere.
+
+BL-227 is presentation-first.
+
+## 10. Test impact
+
+Identify existing tests that protect:
+
+- Trip Detail
+- organizer controls
+- participant states
+- invitations
+- join requests
+- planning ideas
+- stay/lodging
+- availability
+- equipment
+- lessons
+- past trips
+- cancelled trips
+- privacy/authorization
+- responsive/browser behavior
+
+Specify the focused regression coverage Build should add or update.
+
+Do not propose weakening tests simply because presentation changes.
+
+## 11. Scope boundaries
+
+BL-227 must NOT include:
+
+- new database schema
+- migrations
+- Buddy Pass integration
+- new social-count systems
+- availability redesign
+- Lessons data migration
+- new invitation/request state machines
+- new trip lifecycle states
+- broad backend refactors
+- analytics expansion
+- unrelated Profile changes
+- native-app-only functionality
+- unrelated design cleanup
+
+Identify any tempting adjacent work and explicitly leave it for another task.
+
+## 12. Implementation batches
+
+Recommend the smallest safe Build structure.
+
+Prefer ONE bounded BL-227 Build if current architecture supports it.
+
+Only recommend multiple Build batches if there is a concrete technical reason.
+
+If splitting is necessary, explain exactly why and define the boundary.
+
+Do not manufacture extra batches for process.
+
+## 13. Git/worktree awareness
+
+Inspect current:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked changes
+- untracked files
+- `.replit`
+- migrations
+
+BL-165 and BL-116 have already been pushed.
+
+Do not change anything during this Plan.
+
+Do not:
+
+- edit files
+- create files
+- stage
+- commit
+- push
+- publish
+- deploy
+- modify databases
+
+## REQUIRED PLAN OUTPUT
+
+Return:
+
+1. BL-227 current implementation status
+2. Current Trip Detail architecture
+3. Approved TRIP mapping
+4. Approved PEOPLE mapping
+5. Approved YOU mapping
+6. Stay/lodging transition
+7. Organizer/participant lifecycle controls
+8. Role × lifecycle state matrix
+9. Reuse vs new presentation work
+10. Query/data impact
+11. Responsive considerations
+12. Existing test coverage
+13. Required new/updated tests
+14. Exact files likely to change
+15. Explicitly excluded adjacent work
+16. Recommended Build structure
+17. Migration verdict
+18. Git/worktree status
+19. Risks/blockers
+20. Exact recommended Build prompt outline
+
+End with exactly one:
+
+BL-227 PLAN COMPLETE — READY FOR BUILD
+
+BL-227 ALREADY COMPLETE — VERIFY BEFORE NOTION UPDATE
+
+BL-227 PLAN BLOCKED — RESOLVE BEFORE BUILD
+
+## HARD CONSTRAINT
+
+PLAN ONLY.
+
+Do not implement anything.
+Do not modify any source, template, CSS, JavaScript, test, configuration, migration, database, Git history, or deployment state.
