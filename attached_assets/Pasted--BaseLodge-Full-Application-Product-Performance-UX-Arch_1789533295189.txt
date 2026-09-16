@@ -1,0 +1,1303 @@
+# BaseLodge — Full Application Product, Performance, UX & Architecture Audit
+## PLAN / AUDIT ONLY — DO NOT IMPLEMENT
+
+Perform a comprehensive audit of the CURRENT BaseLodge application.
+
+This is not an implementation task.
+
+The goal is to identify:
+
+1. Real user-facing bugs
+2. Broken or inconsistent behavior
+3. Performance problems and unnecessary loading delays
+4. Privacy or authorization defects
+5. Responsive and accessibility problems
+6. State-consistency problems
+7. Product-quality gaps
+8. Design inconsistencies
+9. Navigation/information-architecture problems
+10. Screens, sections, or flows that may be unnecessary or duplicative
+11. Opportunities to consolidate or simplify the application
+12. Features that exist but are poorly surfaced or difficult to discover
+13. Areas where BaseLodge's current product architecture no longer matches how the application has evolved
+14. Other high-value improvements that are not explicitly covered by this brief but become apparent during a comprehensive review
+
+Do not fix anything during this audit.
+
+Base findings on evidence from:
+
+- Current application code
+- Current automated tests
+- Query/performance measurements
+- Disposable browser/runtime verification
+- Current responsive behavior
+- Existing routes/templates/components
+- Current navigation and information architecture
+- Existing product semantics
+
+Do not manufacture work simply to produce a long report.
+
+A smaller number of high-confidence findings and thoughtful product opportunities is preferable to a huge speculative list.
+
+IMPORTANT:
+
+There are TWO different kinds of findings in this audit.
+
+### A. DEFECTS
+
+Something is objectively broken, slow, inconsistent, unsafe, inaccessible, or behaving contrary to established BaseLodge semantics.
+
+Defects require evidence.
+
+### B. PRODUCT OPPORTUNITIES
+
+The application works as designed, but there may be a materially better way to organize, simplify, consolidate, surface, or present the experience.
+
+Product opportunities may involve judgment, but must still be grounded in the current application.
+
+Do NOT report a subjective design/product recommendation as a bug.
+
+Do NOT implement product opportunities.
+
+The purpose is to give the product owner evidence and options for deciding what BaseLodge should become next.
+
+---
+
+# 1. Establish current application surface
+
+Inventory the current user-facing application before testing it.
+
+Map the major authenticated and unauthenticated surfaces, including as applicable:
+
+- Landing/authentication
+- Signup
+- Onboarding
+- Home
+- Mountains/discovery
+- Mountain Detail
+- Trips
+- Trip creation
+- Trip Detail
+- Trip Planning / ideas
+- Friends
+- Suggested Friends
+- Friend search
+- Invitations / requests
+- Notifications
+- Profile
+- Settings
+- Availability
+- Equipment
+- Ski Days / history
+- Pass-related experiences
+- Admin/internal surfaces where relevant
+- Error states
+- Empty states
+- Loading states
+- Navigation
+- Any other currently reachable product surface
+
+Also identify:
+
+- Major cross-surface flows
+- Primary navigation destinations
+- Secondary navigation destinations
+- Screens reachable only through contextual actions
+- Screens with overlapping purposes
+- Screens that appear to represent older product architecture
+- Functionality that exists but is difficult to reach
+
+Do not treat dead or unreachable historical code as a current product surface unless it creates a concrete defect, maintenance problem, or architectural opportunity.
+
+Produce a concise current application map.
+
+---
+
+# 2. Browser-based product audit
+
+Use disposable/local application data and authenticated browser sessions to walk the product like a real user.
+
+Test representative account states, not just one pristine account.
+
+Include at minimum:
+
+### New/light account
+
+- little or no social graph
+- few/no trips
+- few/no wishlist mountains
+- incomplete optional profile data where supported
+
+### Established account
+
+- multiple friends
+- multiple trips
+- wishlist activity
+- equipment
+- availability
+- ski history
+- invitations/requests
+
+### Dense account
+
+Where practical create a disposable account with approximately:
+
+- 25 reciprocal friends
+- 15 trips
+- multiple Going / Interested / Invited relationships
+- multiple planning ideas
+- wishlist mountains
+- ski history
+- equipment
+- availability overlaps
+
+The purpose is to expose scaling, navigation, hierarchy, and presentation problems that small fixtures hide.
+
+Do not use Development or Production data.
+
+---
+
+# 3. Core-flow functional audit
+
+Exercise major user journeys end-to-end.
+
+Examples include:
+
+- signup → onboarding → Home
+- login/logout/login as another user
+- discover mountain → Mountain Detail
+- wishlist add/remove
+- create trip
+- view/edit trip
+- RSVP transitions
+- invite participant
+- accept/decline invitations
+- join requests where supported
+- Trip Detail Trip / People / You
+- planning idea creation and viewing
+- friend search
+- friend request send/withdraw/accept/decline
+- Suggested Friends
+- notifications
+- Profile
+- equipment create/edit/delete/primary behavior
+- availability
+- Ski Day/history behavior
+- cancelled/completed/past trip behavior
+
+For each flow look for:
+
+- incorrect state
+- stale state
+- duplicate state
+- missing refresh
+- actions that appear but fail
+- actions that work but don't update UI
+- incorrect navigation
+- inconsistent labels
+- misleading counts
+- lost state after reload
+- race conditions
+- double submission
+- missing confirmation
+- broken back navigation
+- incorrect browser-cache return
+- visibility/resume problems relevant to Capacitor/browser lifecycle
+- unnecessary intermediate screens
+- actions that send the user somewhere unexpected
+- flows that require excessive navigation
+- unclear completion state
+- dead ends
+- unclear next action
+
+Report only reproducible or strongly evidenced defects as defects.
+
+Product simplification opportunities should be reported separately.
+
+---
+
+# 4. Performance audit
+
+Measure representative application requests.
+
+Do not rely only on subjective impressions.
+
+For each important page/flow capture where practical:
+
+- server response time
+- SQL statement count
+- response size
+- progressive requests
+- duplicate requests
+- request waterfall
+- browser-side loading delay
+- expensive JavaScript behavior
+- obvious layout/re-render delay
+
+Prioritize:
+
+- Home
+- Mountains
+- Mountain Detail
+- Trips
+- Trip Detail
+- Friends
+- Suggested Friends
+- Notifications
+- Profile
+
+Test both light and dense account states where useful.
+
+Look specifically for:
+
+- N+1 queries
+- query count growth with friends/trips/participants
+- repeated loading of the same data
+- unnecessary blocking secondary information
+- synchronous external-service work
+- redundant endpoint calls
+- sequential requests that could safely be grouped
+- excessive initial HTML
+- large payloads
+- expensive server-side aggregation
+- expensive client-side rendering
+- unnecessary page reloads after mutation
+- slow paths hidden by tiny test fixtures
+- progressive loading that actually makes the experience feel slower
+- pages that appear visually incomplete while secondary data loads
+- pages where too much nonessential content blocks first render
+
+Do not recommend optimization merely because a query count looks large.
+
+Tie performance findings to measurable user impact or scaling behavior.
+
+---
+
+# 5. Loading-state audit
+
+Inspect every surface that performs asynchronous/progressive work.
+
+Look for:
+
+- blank regions
+- flashing content
+- layout shift
+- spinner that never clears
+- missing skeleton/loading state
+- duplicate loaders
+- stale loading state
+- loader after content already exists
+- error state that looks like loading
+- inability to retry
+- unnecessary full-page loading
+- race between requests
+- stale response overwriting newer state
+- progressive sections appearing in a confusing order
+
+Also test:
+
+- slow simulated response
+- failed response
+- repeated action
+- navigation away/back
+- visibility return where relevant
+
+Assess whether the loading architecture itself makes sense.
+
+If a screen technically works but its loading strategy materially harms perceived performance, report it as a product/performance opportunity with evidence.
+
+---
+
+# 6. Responsive audit
+
+Test the major surfaces at true widths:
+
+- 360px
+- 390px
+- 430px
+- 768px
+- 1280px
+
+BaseLodge is mobile-first and runs through Capacitor, so prioritize phone behavior.
+
+Inspect for:
+
+- horizontal overflow
+- clipped text
+- action collisions
+- inaccessible buttons
+- tiny touch targets
+- bottom-navigation obstruction
+- sticky-element collisions
+- modal/sheet overflow
+- keyboard/focus problems
+- long-name behavior
+- dense social-list behavior
+- long mountain names
+- long trip names
+- many participants
+- many planning ideas
+- large counts
+- empty states
+- error states
+- layouts that technically fit but become visually confusing
+- excessive vertical scrolling caused by weak hierarchy
+- desktop layouts that simply stretch mobile UI without gaining clarity
+
+Do not redesign screens during this audit.
+
+---
+
+# 7. Accessibility interaction audit
+
+Perform a bounded interaction review for obvious product defects.
+
+Check:
+
+- keyboard navigation
+- focus visibility
+- modal/sheet focus behavior
+- tab semantics
+- disclosure semantics
+- button vs link semantics where functionally important
+- labels for actionable controls
+- disabled states
+- loading/busy states
+- destructive-action confirmation
+- obvious contrast/readability defects if measurable
+- focus after mutations
+- focus after closing sheets/modals
+
+This is not a formal WCAG certification exercise.
+
+Report concrete user-impacting defects.
+
+---
+
+# 8. Privacy and authorization audit
+
+Test important surfaces using multiple disposable users.
+
+Attempt realistic cross-user access to:
+
+- private trips
+- participant information
+- availability
+- equipment
+- planning content
+- invitations
+- friend requests
+- notifications
+- Profile-owned data
+- organizer controls
+- participant controls
+
+Check both:
+
+- server authorization
+- server-rendered HTML leakage
+
+A control being visually hidden is not sufficient if unauthorized/private data is still shipped in the response.
+
+Look for IDOR-style access mistakes and state leakage, but do not perform destructive or external security testing.
+
+Do not connect to Production or Development.
+
+---
+
+# 9. State consistency audit
+
+Look for disagreement between different places showing the same concept.
+
+Examples:
+
+- RSVP status
+- friend-request status
+- trip participant counts
+- wishlist status
+- equipment primary state
+- pass state
+- trip lifecycle
+- notification state
+- invitation state
+- Suggested Friends state
+- availability overlap
+- Ski Day totals
+- Mountain social state
+
+Check state after:
+
+- mutation
+- reload
+- browser back
+- page-cache return
+- visibility return
+- second authenticated session where useful
+
+Identify the canonical source of truth for any inconsistency.
+
+Also identify cases where the same concept is presented differently enough across screens that the user could reasonably interpret them as different concepts.
+
+---
+
+# 10. Empty / edge / failure states
+
+Inspect important surfaces with:
+
+- zero friends
+- zero trips
+- zero wishlist mountains
+- zero notifications
+- zero suggestions
+- no equipment
+- no availability
+- no planning ideas
+- one participant
+- many participants
+- very long names
+- malformed-but-supported legacy data
+- failed API request
+- stale object
+- 404
+- 409/conflict
+- unauthorized access
+- cancelled trip
+- completed/past trip
+
+Flag states that are:
+
+- broken
+- misleading
+- inaccessible
+- visually incomplete
+- unnecessarily confusing
+- missing an obvious next action
+
+Do not flag intentionally minimal states merely because they are simple.
+
+---
+
+# 11. Console and network audit
+
+During browser verification capture:
+
+- JavaScript console errors
+- failed application requests
+- unexpected redirects
+- repeated requests
+- uncaught promise errors
+- 4xx/5xx responses caused by normal product interaction
+- broken asset requests
+- obvious external dependency failures affecting the product
+
+Separate harmless development/capture-only messages from actual product defects.
+
+---
+
+# 12. Code-path audit
+
+After browser testing, inspect the code behind suspicious or high-cost paths.
+
+Look specifically for:
+
+- unreachable UI still carrying active JS/CSS
+- duplicated business logic
+- GET-time mutations
+- per-row database calls
+- unbounded queries
+- unnecessary commits
+- inconsistent authorization checks
+- stale compatibility code affecting current behavior
+- broad exception swallowing that hides product failures
+- external network calls on normal request paths
+- accidental analytics coupling
+- obsolete targeted-refresh references
+- duplicate event listeners
+- missing cleanup
+- routes/templates that exist only because of old product architecture
+- multiple implementations of essentially the same interaction
+- components that should logically be shared but have drifted apart
+
+Do not perform a generic style/code-quality review.
+
+A code finding belongs in this audit only if it creates a plausible product, reliability, privacy, performance, consistency, or maintenance problem.
+
+---
+
+# 13. Full product architecture and simplification review
+
+Now step beyond defect detection and evaluate the CURRENT BaseLodge product as a coherent application.
+
+Ask:
+
+### Does every screen still deserve to exist?
+
+For every major screen or route determine:
+
+- What user job does this screen perform?
+- Is that job unique?
+- Is another screen already doing most of the same job?
+- Does the user need a separate destination for it?
+- Could it become a section, sheet, tab, contextual action, or component somewhere else?
+- Would consolidation reduce navigation without making the destination overloaded?
+
+Identify screens that may reasonably be:
+
+- consolidated
+- absorbed into another surface
+- demoted from primary navigation
+- converted to contextual UI
+- retired from the user-facing experience
+
+Do not recommend deletion merely because a screen is simple.
+
+### Does every section belong where it currently lives?
+
+Identify:
+
+- information that appears on the wrong screen
+- actions separated from the information they operate on
+- duplicated summaries
+- concepts that users must mentally reconcile across screens
+- content that would be more useful in context elsewhere
+
+### Are there screens doing too much?
+
+Identify screens with:
+
+- excessive unrelated responsibilities
+- very long scroll depth
+- competing primary actions
+- too many independent sections
+- weak visual hierarchy
+- high cognitive load
+
+Recommend decomposition only when there is a concrete user benefit.
+
+### Are there screens doing too little?
+
+Identify standalone destinations whose entire useful purpose could reasonably be incorporated elsewhere.
+
+---
+
+# 14. Navigation and information-architecture review
+
+Evaluate BaseLodge navigation as a whole.
+
+Inspect:
+
+- primary/bottom navigation
+- contextual navigation
+- back behavior
+- cross-links
+- tabs
+- settings hierarchy
+- Profile hierarchy
+- Trip hierarchy
+- Mountain hierarchy
+- social/friend hierarchy
+
+Ask:
+
+- Can users predict where something lives?
+- Are similar concepts grouped?
+- Are important features buried?
+- Are low-value destinations occupying prime navigation?
+- Are users repeatedly bouncing between screens to complete one job?
+- Does navigation terminology match screen terminology?
+- Does the current navigation reflect the features BaseLodge now actually has?
+
+Identify opportunities to:
+
+- consolidate destinations
+- simplify navigation
+- improve hierarchy
+- move secondary functionality out of primary navigation
+- expose important functionality contextually
+
+Do not implement navigation changes.
+
+---
+
+# 15. Design-system consistency review
+
+Evaluate visual and interaction consistency across the current app.
+
+This is not a request for a wholesale visual redesign.
+
+Look for mismatches in:
+
+- page headers
+- typography hierarchy
+- spacing
+- card treatment
+- section headers
+- buttons
+- icon usage
+- disclosure patterns
+- tabs
+- sheets/modals
+- empty states
+- loading states
+- destructive actions
+- list rows
+- badges/counts
+- selected states
+- sticky actions
+- bottom-navigation relationship
+- responsive behavior
+
+Identify screens/components that appear to belong to an older or different BaseLodge design language.
+
+Look for places where the same conceptual action has different visual treatments without a clear reason.
+
+Report:
+
+- specific mismatch
+- affected screens
+- likely canonical pattern already present elsewhere in BaseLodge
+- whether standardization would materially improve comprehension or polish
+
+Do not simply recommend "make everything consistent."
+
+Be specific.
+
+---
+
+# 16. Terminology and copy consistency review
+
+Audit important product terminology.
+
+Examples may include:
+
+- Going
+- Interested
+- Invited
+- Requested
+- Friend Requests
+- Suggested Friends
+- Wishlist / Want to Go
+- Ski Days
+- Trips
+- Planning / Ideas
+- Availability
+- Riding
+- Ability
+- Pass
+- Equipment
+- Lessons
+
+Identify cases where:
+
+- two terms describe the same concept
+- one term describes different concepts
+- labels differ between screens
+- button copy and resulting destination do not match
+- old terminology remains in isolated screens
+- technical/backend terminology leaks into the UI
+
+Do not rewrite all product copy.
+
+Report meaningful mismatches.
+
+---
+
+# 17. Feature discoverability audit
+
+Identify useful BaseLodge functionality that exists but may be difficult for users to discover.
+
+For each candidate ask:
+
+- How does a user currently find it?
+- Is the entry point visible when relevant?
+- Does the user need prior knowledge that it exists?
+- Is it buried in Settings/Profile when it would be useful contextually?
+- Is there a natural surface where it could be exposed without clutter?
+
+Examples could include:
+
+- availability
+- equipment
+- lessons
+- friend suggestions
+- planning
+- pass information
+- ski history
+- trip social information
+
+Do not assume these examples are problems.
+
+Use the current application as evidence.
+
+---
+
+# 18. Cross-screen duplication audit
+
+Identify data or controls repeated across multiple surfaces.
+
+For each duplication determine whether it is:
+
+### Useful repetition
+The same information appropriately appears in multiple contexts.
+
+### Inconsistent duplication
+The same concept is presented differently and risks confusion.
+
+### Redundant destination
+A separate screen or section may no longer be necessary.
+
+### Duplicate implementation
+Two code/UI paths implement essentially the same product behavior independently.
+
+Do not recommend consolidation solely to reduce code.
+
+The user experience must improve.
+
+---
+
+# 19. Product gaps not explicitly requested
+
+After completing the structured audit, perform one additional pass with this question:
+
+> "Based on what BaseLodge is trying to help skiers and snowboarders do, what meaningful improvement opportunities became obvious while using the current application that were NOT explicitly requested in this audit?"
+
+This is intentionally open-ended.
+
+You may identify opportunities involving:
+
+- design
+- hierarchy
+- consolidation
+- navigation
+- discoverability
+- workflow simplification
+- contextual information
+- social experience
+- trip planning
+- mountain discovery
+- personalization
+- lifecycle presentation
+- reducing unnecessary screens or taps
+
+However:
+
+- Ground every recommendation in observed current behavior.
+- Explain the user problem before proposing the improvement.
+- Do not invent large new product categories without evidence.
+- Do not recommend features merely because competing apps have them.
+- Do not turn BaseLodge into a different product.
+- Do not implement anything.
+
+These findings should be labeled PRODUCT OPPORTUNITY rather than BUG.
+
+---
+
+# 20. Existing tests versus actual behavior
+
+Review current automated coverage and identify meaningful blind spots.
+
+Do not equate "untested" with "bug."
+
+Identify:
+
+- critical flows with no regression protection
+- tests that no longer reflect current presentation
+- tests that pass while browser behavior is broken
+- missing dense-account coverage
+- missing lifecycle/role combinations
+- missing responsive states
+- missing failure-state coverage
+- product architecture that is difficult to test because responsibilities are fragmented
+
+Recommend tests only where they protect meaningful product behavior.
+
+---
+
+# 21. Compare findings against existing backlog
+
+Where possible, compare each finding against existing BL tasks/project tasks available in the project context.
+
+Classify each as:
+
+A. already tracked
+B. partially tracked
+C. genuinely new
+D. already implemented / stale backlog item
+E. existing task whose original framing should be reconsidered based on the current app
+
+Do NOT create tasks or edit Notion during this audit.
+
+We will decide what becomes backlog work after reviewing the report.
+
+---
+
+# 22. Finding confidence
+
+Every DEFECT must have a confidence level:
+
+### CONFIRMED
+
+Reproduced through runtime/browser/test evidence.
+
+### HIGH CONFIDENCE
+
+Code and state evidence clearly demonstrates the problem even if full browser reproduction is impractical.
+
+### INVESTIGATE
+
+Credible concern requiring additional bounded investigation before implementation.
+
+Do not present speculation as a bug.
+
+For PRODUCT OPPORTUNITIES use:
+
+### STRONG OPPORTUNITY
+
+Clear user/product benefit supported by multiple observations.
+
+### PLAUSIBLE OPPORTUNITY
+
+Evidence supports considering the change, but product judgment is required.
+
+### EXPLORATORY
+
+Interesting possibility requiring product/design investigation before deciding whether it belongs in BaseLodge.
+
+---
+
+# 23. Severity for defects
+
+Classify each confirmed/high-confidence defect:
+
+### P0 — Critical
+
+Security/privacy/data-loss or app-blocking failure requiring immediate action.
+
+### P1 — High
+
+Major user flow broken, severe performance problem, significant authorization/privacy defect, or common crash/error.
+
+### P2 — Medium
+
+Meaningful product defect, recurring inconsistency, measurable lag, or important edge-state problem.
+
+### P3 — Low
+
+Real but limited polish, edge, or maintenance issue.
+
+Do not inflate severity.
+
+Do NOT assign P0-P3 severity to subjective product opportunities.
+
+Instead classify product opportunities by expected impact:
+
+### HIGH IMPACT
+Could materially simplify or improve a major BaseLodge experience.
+
+### MEDIUM IMPACT
+Meaningful improvement but not foundational.
+
+### LOW IMPACT
+Useful polish or simplification.
+
+---
+
+# 24. Performance evidence format
+
+For measurable performance findings provide:
+
+| Surface | Fixture | SQL | Server time | Payload | Secondary requests | Finding |
+|---|---|---:|---:|---:|---:|---|
+
+Where a measurement cannot be obtained reliably, say so.
+
+Do not invent numbers.
+
+---
+
+# 25. Defect format
+
+For every defect provide:
+
+### Finding
+Short descriptive title.
+
+### Classification
+Bug / Performance / Privacy / Authorization / UX / Responsive / Accessibility / Reliability / Maintenance.
+
+### Confidence
+Confirmed / High Confidence / Investigate.
+
+### Severity
+P0 / P1 / P2 / P3.
+
+### Surface
+Exact affected screen/flow.
+
+### Evidence
+What reproduced or demonstrated it.
+
+### User impact
+What a BaseLodge user actually experiences.
+
+### Root cause
+Code/path/state explanation where established.
+
+### Smallest correct fix
+Bounded fix direction, not implementation.
+
+### Likely files
+Files expected to change.
+
+### Existing task
+Existing BL/task number if already tracked; otherwise NEW.
+
+### Migration
+Required / Not required / Unknown.
+
+---
+
+# 26. Product-opportunity format
+
+For every product/design/architecture opportunity provide:
+
+### Opportunity
+Short descriptive title.
+
+### Type
+Design / Navigation / Consolidation / Discoverability / Workflow / Information Architecture / Consistency / Simplification / Product.
+
+### Confidence
+Strong Opportunity / Plausible Opportunity / Exploratory.
+
+### Expected impact
+High / Medium / Low.
+
+### Current experience
+Describe what BaseLodge does today.
+
+### Observed problem
+What friction, duplication, confusion, or missed opportunity exists.
+
+### Evidence
+Screens, flows, code structure, or browser observations supporting it.
+
+### Proposed direction
+Describe the potential improvement at a product level.
+
+Do NOT provide implementation code.
+
+### Screens affected
+List relevant surfaces.
+
+### What could be removed or consolidated
+Be explicit where applicable.
+
+### Risks/tradeoffs
+What might be lost or complicated.
+
+### Existing task
+Existing BL/task number if relevant; otherwise NEW.
+
+### Requires design exploration?
+Yes / No.
+
+### Requires Plan before Build?
+Yes / No.
+
+---
+
+# 27. Prioritized output
+
+Do NOT simply return hundreds of observations.
+
+Produce:
+
+## Immediate defects
+
+P0/P1 defects, if any.
+
+## Next product-quality batch
+
+The strongest P2 findings that should reasonably be fixed together.
+
+## Performance batch
+
+Measured performance issues worth addressing.
+
+## Product architecture opportunities
+
+The strongest opportunities involving:
+
+- consolidation
+- screen removal
+- navigation
+- hierarchy
+- discoverability
+- simplification
+
+## Design consistency opportunities
+
+The most meaningful cross-app visual/interaction mismatches.
+
+## Small polish batch
+
+Real P3 defects that could efficiently be bundled.
+
+## Investigations
+
+Things with insufficient evidence to fix yet.
+
+## Existing backlog reconciliation
+
+Existing tasks that appear:
+
+- already done
+- obsolete
+- duplicated
+- partially complete
+- directly related to findings
+- worth reframing
+
+Then provide separate master tables for:
+
+1. Defects
+2. Product opportunities
+
+---
+
+# 28. Recommend implementation batches
+
+After the audit, recommend a small number of implementation batches.
+
+Optimize for:
+
+- user impact
+- shared files/surfaces
+- dependency order
+- regression risk
+- efficient Replit usage
+
+Do not automatically recommend one Build per finding.
+
+Group related defects when technically sensible.
+
+Keep product/design opportunities separate from straightforward bug fixes where product decisions are still required.
+
+For each proposed batch give:
+
+- findings included
+- why grouped
+- dependencies
+- expected files
+- recommended Replit Agent level:
+  - Free
+  - Plan
+  - Power
+  - Max
+- approximate percentage of a Replit batch
+- whether Plan is needed before Build
+- whether product-owner approval is required before implementation
+
+Do not implement them.
+
+---
+
+# 29. Overall BaseLodge product assessment
+
+At the end of the audit, provide a concise holistic assessment of the current application.
+
+Answer:
+
+### What currently feels strongest?
+
+Identify the most coherent, mature areas of BaseLodge.
+
+### What currently feels weakest?
+
+Identify areas with the most friction, inconsistency, technical lag, or unclear purpose.
+
+### Where has the app outgrown its original architecture?
+
+Identify places where accumulated functionality suggests the information architecture should evolve.
+
+### What would you remove?
+
+Identify screens, sections, or interactions you would seriously consider eliminating or consolidating, with evidence.
+
+### What would you combine?
+
+Identify destinations or workflows that appear stronger as one experience.
+
+### What would you surface more prominently?
+
+Identify valuable existing functionality that is currently too hidden.
+
+### What would you simplify?
+
+Identify flows with unnecessary steps or decisions.
+
+### What would you standardize?
+
+Identify the highest-value design or interaction inconsistencies.
+
+### If only five improvements could be made next, what five areas deserve product-owner review?
+
+Do NOT simply select five bugs by severity.
+
+Choose five areas that collectively have the greatest potential to improve the actual BaseLodge experience.
+
+These are recommendations for REVIEW, not authorization to implement.
+
+---
+
+# 30. Safety / environment constraints
+
+Use only:
+
+- local/disposable databases
+- isolated fixtures
+- local application runtime
+- read-only repository/Git history
+- existing test infrastructure
+
+Never:
+
+- connect to Production
+- connect to Development
+- inspect real user data
+- mutate real user data
+- run Production migrations
+- run Development migrations
+- send real notifications
+- send real emails
+- send real push notifications
+- send live analytics
+- call destructive external services
+
+Mock/no-op external services where required.
+
+---
+
+# 31. Repository constraints
+
+This is an AUDIT ONLY.
+
+Do not:
+
+- modify application source
+- modify templates
+- modify CSS
+- modify JavaScript
+- modify tests
+- modify migrations
+- modify CI
+- modify `.replit`
+- create permanent scripts
+- create permanent fixtures
+- create project tasks
+- edit Notion
+- stage
+- commit
+- push
+- publish
+- deploy
+
+Temporary audit artifacts must be removed before completion.
+
+Beginning and ending Git/worktree state must match.
+
+---
+
+# REQUIRED FINAL REPORT
+
+Return:
+
+1. Executive summary
+2. Current BaseLodge application map
+3. Application surfaces audited
+4. Account/fixture states tested
+5. Core flows exercised
+6. Browser viewport coverage
+7. Performance measurement table
+8. Confirmed bugs
+9. Performance findings
+10. Loading-state findings
+11. Responsive findings
+12. Accessibility findings
+13. Privacy/authorization findings
+14. State-consistency findings
+15. Empty/error/edge-state findings
+16. Console/network findings
+17. Code-path findings
+18. Navigation/information-architecture findings
+19. Design-system consistency findings
+20. Terminology/copy mismatches
+21. Feature-discoverability findings
+22. Cross-screen duplication findings
+23. Screen consolidation/removal opportunities
+24. Other product opportunities discovered
+25. Test-coverage blind spots
+26. Existing backlog reconciliation
+27. Master defect table
+28. Master product-opportunity table
+29. Recommended implementation batches
+30. Items requiring further investigation
+31. Migration assessment
+32. Production/Development risk assessment
+33. Beginning vs ending Git/worktree verification
+34. Overall BaseLodge product assessment
+35. Five highest-value areas for product-owner review
+36. Exact recommended next action
+
+For every reported defect, distinguish:
+
+CONFIRMED
+HIGH CONFIDENCE
+INVESTIGATE
+
+For every product opportunity, distinguish:
+
+STRONG OPPORTUNITY
+PLAUSIBLE OPPORTUNITY
+EXPLORATORY
+
+Do not call a subjective product recommendation a bug.
+
+Do not implement recommendations.
+
+End with exactly one:
+
+BASELODGE AUDIT COMPLETE — FINDINGS READY FOR TRIAGE
+
+BASELODGE AUDIT COMPLETE — NO MATERIAL GAPS FOUND
+
+BASELODGE AUDIT BLOCKED — INCOMPLETE COVERAGE
+
+## FINAL REMINDER
+
+AUDIT ONLY.
+
+Do not fix anything.
+
+The goal is not merely to find bugs.
+
+The goal is to step back and evaluate the CURRENT BaseLodge application as a complete product:
+
+- What is actually broken?
+- What is actually slow?
+- What feels inconsistent?
+- What has become unnecessarily complicated?
+- What is duplicated?
+- What is hidden?
+- What screens no longer justify existing independently?
+- What could be consolidated?
+- What could be removed?
+- Where does the design language drift?
+- Where does the navigation no longer match the product?
+- Where has BaseLodge outgrown its original architecture?
+- What meaningful improvement became obvious only after looking at the entire application together?
+
+Give us evidence and options.
+
+The product owner will decide what changes.
