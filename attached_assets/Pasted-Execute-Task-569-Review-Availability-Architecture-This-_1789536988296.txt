@@ -1,0 +1,567 @@
+Execute Task #569 — Review Availability Architecture.
+
+This is a PLAN / INVESTIGATION ONLY task.
+
+Follow Task #569 exactly as written. Do not implement any changes and do not select a preferred future-state architecture on behalf of the product owner.
+
+The purpose of this work is to give us an evidence-based understanding of how Availability currently works across BaseLodge and what coherent architectural choices are available to us.
+
+IMPORTANT CONTEXT
+
+This task follows the full BaseLodge application audit (#565), which identified Availability as an area where the application may have become fragmented as the product evolved.
+
+We specifically need to understand the relationship among:
+
+- Canonical user Availability
+- Open to Ski
+- Home
+- Profile
+- Trips
+- Trip creation
+- Trip Detail
+- Friend availability overlap
+- Ideas / trip planning
+- Mountain Detail
+- Social discovery
+- Sharing / Open to Ski cards
+- Any other current Availability-derived experience
+
+Do not assume these should be consolidated.
+
+Determine what actually exists first.
+
+## 1. Map the complete current Availability architecture
+
+Identify every reachable user-facing surface where Availability or Availability-derived information appears.
+
+For every surface report:
+
+- What the user sees
+- What the user can do
+- What terminology is used
+- What underlying data is used
+- Whether it displays canonical Availability or derived information
+- Whether it allows editing
+- Where editing sends the user
+- What other surfaces show substantially the same information
+
+Include contextual surfaces even if Availability is not the primary purpose of the page.
+
+## 2. Establish the canonical source of truth
+
+Trace the current models, routes, helpers, services, and templates involved in Availability.
+
+Explain precisely:
+
+- Where a user's Availability is stored
+- How date ranges are represented
+- Whether there is exactly one canonical source of truth
+- What creates Availability
+- What edits Availability
+- What deletes Availability
+- What reads Availability
+- What derives information from Availability
+- Whether any other feature stores overlapping or duplicated date state
+
+Explicitly distinguish:
+
+CANONICAL DATA
+
+DERIVED DATA
+
+PRESENTATION-ONLY STATE
+
+TRIP-SPECIFIC DATA
+
+Do not infer that two date concepts are identical merely because they look similar.
+
+## 3. Trace Availability relationships with Trips
+
+Determine how canonical Availability relates to:
+
+- Trip dates
+- Trip attendance dates
+- RSVP status
+- Trip creation
+- Trip editing
+- Trip Detail
+- Friend overlap
+- Planning / Ideas
+
+Answer specifically:
+
+- Does creating a trip affect Availability?
+- Does joining a trip affect Availability?
+- Do trip dates automatically become Availability?
+- Does Availability constrain trip dates?
+- Are trip attendance dates independent?
+- Can a user have Availability that conflicts with a trip?
+- Is that intentional under current semantics?
+- Where is Availability used to improve a Trip experience?
+
+Do not propose changes until the current semantics are established.
+
+## 4. Trace social and friend-overlap behavior
+
+Determine exactly how Availability becomes social information.
+
+Document:
+
+- How reciprocal friendship affects eligibility
+- How overlaps are calculated
+- Whether raw Availability is exposed to friends
+- Whether only derived overlap is exposed
+- Where overlaps appear
+- What dates or windows anchor the comparison
+- Whether Mountain Detail, Trip Detail, Home, or Ideas use the same overlap semantics
+- Whether the user can act directly on an overlap
+
+Explicitly assess privacy boundaries.
+
+Do not broaden access.
+
+## 5. Evaluate Open to Ski
+
+This is a major part of the review.
+
+Explain exactly what Open to Ski currently is.
+
+Determine whether it functions as:
+
+- A separate data concept
+- A view of canonical Availability
+- A social interpretation of Availability
+- A sharing mechanism
+- A discovery experience
+- A trip-planning entry point
+- Some combination of these
+
+Map:
+
+- Entry points
+- Destination
+- Data dependencies
+- User actions
+- Editing behavior
+- Friend/social behavior
+- Share-card behavior
+- Relationship to canonical Availability
+- Relationship to Trips
+- Relationship to Ideas
+- Relationship to Mountains
+
+Then answer:
+
+What is genuinely unique about Open to Ski today?
+
+What is simply another presentation of Availability?
+
+Do not decide whether Open to Ski should remain separate. Give us the evidence needed to make that decision.
+
+## 6. Exercise real product journeys
+
+Use disposable local data only.
+
+Test at minimum:
+
+### Scenario A — No Availability
+
+A user has no Availability and no trips.
+
+Document what they encounter across relevant BaseLodge surfaces.
+
+Identify:
+
+- Prompts
+- Empty states
+- Calls to action
+- Editing entry points
+- Dead ends
+- Places where the app appears unaware that Availability is missing
+
+### Scenario B — Availability, no Trips
+
+Give the user several Availability ranges.
+
+Document what changes throughout the app.
+
+Identify where those dates become useful and where they remain invisible.
+
+### Scenario C — Friend overlap
+
+Create reciprocal friends with partially overlapping Availability.
+
+Document:
+
+- Where overlap appears
+- What the user learns
+- What they can do next
+- Whether the same overlap appears consistently across surfaces
+
+### Scenario D — Availability + existing Trip
+
+Create a trip that intersects some but not all of the user's Availability.
+
+Document the relationship among:
+
+- Availability
+- Trip dates
+- Attendance dates
+- RSVP
+- Friend overlap
+- Ideas/planning
+
+### Scenario E — Edit Availability
+
+Change the user's Availability.
+
+Observe relevant open/reloaded surfaces.
+
+Identify:
+
+- What updates immediately
+- What requires reload
+- What requires navigation
+- What becomes stale
+- Whether derived overlap recalculates correctly
+
+## 7. Identify duplication and fragmentation
+
+For every repeated Availability-related presentation or workflow, classify it as exactly one of:
+
+USEFUL CONTEXTUAL REPETITION
+
+INCONSISTENT DUPLICATION
+
+REDUNDANT WORKFLOW
+
+PRODUCT CONCEPT MISMATCH
+
+Explain why.
+
+Pay particular attention to:
+
+- Availability vs Open to Ski
+- Availability vs trip dates
+- Availability vs attendance dates
+- Availability vs Ideas
+- Profile vs Home editing/access
+- Multiple summaries of the same ranges
+- Multiple calls to edit the same underlying data
+- Different terminology for the same underlying data
+
+Do not recommend consolidation solely because code or data is repeated.
+
+The user experience must justify it.
+
+## 8. Identify missing connections
+
+Look for places where BaseLodge ALREADY HAS relevant Availability data but fails to use it at a natural moment.
+
+Examples might include:
+
+- Availability that could contextualize planning
+- Existing overlap that is difficult to discover
+- Existing dates that could provide context during Mountain discovery
+- Existing trip information that could reduce redundant user effort
+
+These are examples, not requirements.
+
+Only report opportunities supported by observed current behavior.
+
+For each one explain:
+
+- Existing data
+- Current user experience
+- Missing connection
+- Potential user benefit
+
+Do not invent new product categories.
+
+## 9. Assess the standalone Availability destination
+
+Determine what unique job the current Availability destination performs.
+
+Then separately evaluate these possibilities:
+
+- Keep it as a standalone destination
+- Keep a dedicated editing surface but remove it from primary navigation
+- Make Profile the canonical management location
+- Make Home the primary entry point
+- Make Availability primarily contextual to Trips/planning
+- Another architecture supported by the evidence
+
+Do not choose among them.
+
+For each relevant possibility explain what becomes easier and what becomes harder.
+
+## 10. Audit terminology
+
+Inventory current user-facing terms related to Availability.
+
+Include at least:
+
+- Availability
+- Open to Ski
+- Available
+- Dates
+- Overlap
+- Any other related language found in the current product
+
+Identify:
+
+- Same concept / different terminology
+- Different concepts / dangerously similar terminology
+- Technical terminology leaking into UI
+- Terminology that changes depending on screen
+- Places where the user's mental model could become unclear
+
+Do not rewrite copy yet.
+
+## 11. Audit design and interaction patterns
+
+Compare Availability-related UI across current surfaces.
+
+Inspect:
+
+- Date-range formatting
+- Date editing
+- Add/remove interactions
+- Empty states
+- Cards
+- Rows
+- Section headers
+- Calls to action
+- Overlap presentation
+- Social presentation
+- Share presentation
+- Responsive behavior
+
+Identify which EXISTING BaseLodge implementation appears to be the strongest current pattern.
+
+Do not redesign anything.
+
+## 12. Reconcile existing backlog
+
+Identify existing BL/project tasks that relate to:
+
+- Availability
+- Open to Ski
+- Friend overlap
+- Trip Ideas
+- Trip planning
+- Home
+- Profile
+- Availability sharing
+
+Classify each relevant task as:
+
+- Still aligned
+- Partially aligned
+- Potentially superseded
+- Potentially needs reframing
+- Already implemented
+- Unrelated after inspection
+
+Do not create tasks.
+
+Do not edit Notion.
+
+## 13. Provide future-state architecture options
+
+Based on the evidence, give us 2–4 coherent product architecture options.
+
+Do NOT select a winner.
+
+At least one option should preserve most of the current architecture so we can compare consolidation against doing very little.
+
+For EACH option provide:
+
+### Concept
+
+What the architecture would mean to the user.
+
+### Canonical management location
+
+Where users would primarily add/edit Availability.
+
+### Open to Ski
+
+What role it would play.
+
+### Home
+
+How Availability would appear there.
+
+### Profile
+
+How Availability would appear there.
+
+### Trips / Trip Detail
+
+How Availability would interact with trips.
+
+### Ideas / Planning
+
+How Availability would interact with planning.
+
+### Mountains
+
+How Availability would interact with discovery.
+
+### Navigation
+
+What destinations remain, move, or disappear.
+
+### What stays
+
+Existing functionality retained.
+
+### What changes
+
+Product behavior/presentation that would change.
+
+### What disappears
+
+Screens, sections, navigation items, or duplicated interactions that would no longer be needed.
+
+### User benefit
+
+Why this architecture might be better.
+
+### Tradeoffs
+
+What could become worse or more complicated.
+
+### Implementation complexity
+
+LOW / MEDIUM / HIGH
+
+### Likely affected files/surfaces
+
+Identify them.
+
+### Existing backlog impact
+
+Tasks likely affected.
+
+### Migration implication
+
+NO MIGRATION LIKELY / MIGRATION MAY BE REQUIRED / UNKNOWN
+
+Do not write implementation code.
+
+## 14. Explicitly identify product-owner decisions
+
+Finish the analysis by giving the product owner a SHORT list of actual decisions to make.
+
+Frame them as concrete choices.
+
+For example:
+
+"Should X remain a distinct concept from Y?"
+
+NOT:
+
+"Consider improving the Availability experience."
+
+We should be able to answer each decision directly and then turn those answers into implementation tasks.
+
+## SAFETY / ENVIRONMENT CONSTRAINTS
+
+Use only:
+
+- Local/disposable databases
+- Isolated fixtures
+- Local application runtime
+- Current source
+- Current tests
+- Read-only Git history
+
+Never:
+
+- Connect to Development
+- Connect to Production
+- Inspect real user data
+- Mutate real user data
+- Send notifications
+- Send email
+- Send push
+- Send analytics
+- Call destructive external services
+- Run Development migrations
+- Run Production migrations
+
+## REPOSITORY CONSTRAINTS
+
+THIS IS PLAN / INVESTIGATION ONLY.
+
+Do not:
+
+- Edit app.py
+- Edit models.py
+- Edit services
+- Edit templates
+- Edit CSS
+- Edit JavaScript
+- Edit tests
+- Edit migrations
+- Edit CI
+- Edit .replit
+- Create permanent scripts
+- Create permanent fixtures
+- Create tasks
+- Edit Notion
+- Stage
+- Commit
+- Push
+- Publish
+- Deploy
+
+Temporary investigation artifacts must be removed before completion.
+
+Record beginning:
+
+- Branch
+- HEAD
+- origin/main
+- Ahead/behind
+- git status --short
+- git diff --stat
+- .replit state
+- migration state
+
+At completion prove that the repository/worktree matches the beginning state exactly.
+
+# REQUIRED FINAL REPORT
+
+Return exactly these sections:
+
+1. Current Availability architecture
+2. All Availability surfaces
+3. Canonical data/source-of-truth analysis
+4. Availability relationship to Trips
+5. Social/friend-overlap architecture
+6. Open to Ski relationship
+7. Current user journeys
+8. Cross-screen duplication and fragmentation
+9. Missing connections
+10. Standalone Availability destination assessment
+11. Terminology assessment
+12. Design/presentation consistency assessment
+13. Existing backlog relationships
+14. Future-state product architecture options
+15. Migration implications
+16. Exact product-owner decisions required
+17. Beginning vs ending Git/worktree verification
+18. Remaining evidence gaps, if any
+
+Do not recommend implementation tasks yet.
+
+Do not select a future-state option.
+
+Do not implement anything.
+
+End with exactly:
+
+AVAILABILITY ARCHITECTURE REVIEW COMPLETE — READY FOR PRODUCT DECISION
