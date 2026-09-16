@@ -72,7 +72,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Run mandatory PostgreSQL 17 worker and cutover tests
+      - name: Run mandatory PostgreSQL 17 concurrency and cutover tests
         env:
           BL443_REQUIRE_POSTGRES17: "1"
           BL442_REQUIRE_POSTGRES17: "1"
@@ -81,6 +81,7 @@ jobs:
           PATH="/usr/lib/postgresql/17/bin:$PATH" \
             "$RUNNER_TEMP/baselodge-ci-venv/bin/python" -m pytest -q \
               tests/test_bl443_cutover_postgres.py \
+              tests/test_connection_transitions_postgres.py \
               --junitxml=/tmp/pytest-bl443-postgres17.xml
           "$RUNNER_TEMP/baselodge-ci-venv/bin/python" - <<'PY'
           from pathlib import Path
@@ -89,13 +90,13 @@ jobs:
           cases = list(ElementTree.parse(
               Path("/tmp/pytest-bl443-postgres17.xml")
           ).getroot().iter("testcase"))
-          if len(cases) != 29:
-            raise SystemExit(f"expected 29 worker/cutover PostgreSQL tests, collected {len(cases)}")
+          if len(cases) != 33:
+            raise SystemExit(f"expected 33 PostgreSQL tests, collected {len(cases)}")
           skipped = [case.attrib.get("name") for case in cases
                      if case.find("skipped") is not None]
           if skipped:
               raise SystemExit("Worker/cutover PostgreSQL tests skipped: " + ", ".join(skipped))
-          print("Worker/cutover PostgreSQL 17 tests: 29 run, 0 skipped")
+          print("PostgreSQL 17 tests: 33 run, 0 skipped")
           PY
 
       - name: Run full test suite
@@ -138,9 +139,9 @@ jobs:
               for case in postgres_cases
               if case.find("skipped") is not None
           ]
-          if len(postgres_cases) != 29:
+          if len(postgres_cases) != 33:
               raise SystemExit(
-                  f"expected 29 worker/cutover PostgreSQL tests, "
+                  f"expected 33 PostgreSQL tests, "
                   f"collected {len(postgres_cases)}"
               )
           if skipped:

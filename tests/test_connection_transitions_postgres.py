@@ -1,8 +1,15 @@
 """PostgreSQL-only two-session concurrency coverage for BL-79."""
 
 from concurrent.futures import ThreadPoolExecutor
+import getpass
 import os
+import shutil
+import socket
+import subprocess
+import sys
 from threading import Barrier
+from urllib.parse import quote
+from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
@@ -26,23 +33,208 @@ from tests.conftest import (
 )
 
 
+def _free_local_port():
+    with socket.socket() as candidate:
+        candidate.bind(("127.0.0.1", 0))
+        return candidate.getsockname()[1]
+
+
 @pytest.fixture(scope="module")
-def postgres_connection_database():
-    database_url = os.environ.get("BL79_TEST_POSTGRES_URL")
-    if not database_url:
-        pytest.skip("BL79_TEST_POSTGRES_URL is required for lock integration tests")
-    engine = sa.create_engine(database_url, pool_pre_ping=True)
-    saved_engine = _swap_engine(engine)
-    with app.app_context():
-        db.drop_all()
-        db.create_all()
+def postgres_connection_database(tmp_path_factory):
+    """Run only against a unique database in a disposable local cluster."""
+    initdb = shutil.which("initdb")
+    pg_ctl = shutil.which("pg_ctl")
+    createdb = shutil.which("createdb")
+    dropdb = shutil.which("dropdb")
+    if not all((initdb, pg_ctl, createdb, dropdb)):
+        pytest.fail(
+            "Local PostgreSQL tools initdb, pg_ctl, createdb, and dropdb "
+            "are required for connection concurrency tests"
+        )
+
+    root = tmp_path_factory.mktemp("connection-transitions-postgres")
+    data = root / "data"
+    sockets = root / "socket"
+    sockets.mkdir()
+    log = root / "postgres.log"
+    port = _free_local_port()
+    role = getpass.getuser()
+    database_name = f"bl79_{uuid4().hex}"
+    database_url = (
+        f"postgresql://{quote(role, safe='')}@127.0.0.1:{port}/"
+        f"{database_name}"
+    )
+    engine = None
+    saved_engine = None
+    server_start_attempted = False
     try:
+        server_start_attempted = True
+        subprocess.run(
+            [
+                initdb,
+                "-D",
+                str(data),
+                "-A",
+                "trust",
+                "--no-locale",
+                "--encoding=UTF8",
+                "-U",
+                role,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            [
+                pg_ctl,
+                "-D",
+                str(data),
+                "-o",
+                f"-F -h 127.0.0.1 -k {sockets} -p {port}",
+                "-l",
+                str(log),
+                "-w",
+                "start",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        subprocess.run(
+            [
+                createdb,
+                "-h",
+                "127.0.0.1",
+                "-p",
+                str(port),
+                "-U",
+                role,
+                database_name,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+
+        engine = sa.create_engine(database_url, pool_pre_ping=True)
+        saved_engine = _swap_engine(engine)
+        with app.app_context():
+            db.create_all()
         yield
     finally:
-        with app.app_context():
-            db.session.remove()
-            db.drop_all()
-        _swap_engine(saved_engine)
+        primary_error_active = sys.exc_info()[0] is not None
+        cleanup_errors = []
+
+        def attempt_cleanup(label, operation):
+            try:
+                operation()
+            except Exception as exc:
+                cleanup_errors.append(f"{label}: {exc}")
+
+        if saved_engine is not None:
+            def remove_session():
+                with app.app_context():
+                    db.session.remove()
+
+            attempt_cleanup("remove database session", remove_session)
+            attempt_cleanup(
+                "restore Flask-SQLAlchemy engine",
+                lambda: _swap_engine(saved_engine),
+            )
+        if engine is not None:
+            attempt_cleanup("dispose PostgreSQL engine", engine.dispose)
+        if server_start_attempted:
+            try:
+                status = subprocess.run(
+                    [pg_ctl, "-D", str(data), "status"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                server_is_running = status.returncode == 0
+            except Exception as exc:
+                cleanup_errors.append(
+                    f"inspect disposable PostgreSQL server: {exc}"
+                )
+                server_is_running = False
+            attempt_cleanup(
+                "drop disposable PostgreSQL database",
+                lambda: subprocess.run(
+                    [
+                        dropdb,
+                        "--if-exists",
+                        "-h",
+                        "127.0.0.1",
+                        "-p",
+                        str(port),
+                        "-U",
+                        role,
+                        database_name,
+                    ],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                ),
+            )
+            try:
+                stop = subprocess.run(
+                    [
+                        pg_ctl,
+                        "-D",
+                        str(data),
+                        "-m",
+                        "immediate",
+                        "-w",
+                        "stop",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if server_is_running and stop.returncode != 0:
+                    cleanup_errors.append(
+                        "stop disposable PostgreSQL server: "
+                        + (stop.stderr.strip() or stop.stdout.strip())
+                    )
+            except Exception as exc:
+                cleanup_errors.append(
+                    f"stop disposable PostgreSQL server: {exc}"
+                )
+            try:
+                final_status = subprocess.run(
+                    [pg_ctl, "-D", str(data), "status"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                if final_status.returncode == 0:
+                    cleanup_errors.append(
+                        "disposable PostgreSQL server is still running"
+                    )
+                elif final_status.returncode == 3:
+                    attempt_cleanup(
+                        "remove disposable PostgreSQL cluster",
+                        lambda: shutil.rmtree(root),
+                    )
+                else:
+                    cleanup_errors.append(
+                        "could not confirm disposable PostgreSQL shutdown: "
+                        + (
+                            final_status.stderr.strip()
+                            or final_status.stdout.strip()
+                            or f"pg_ctl status exited {final_status.returncode}"
+                        )
+                    )
+            except Exception as exc:
+                cleanup_errors.append(
+                    f"verify disposable PostgreSQL shutdown: {exc}"
+                )
+        if cleanup_errors and not primary_error_active:
+            pytest.fail(
+                "Disposable PostgreSQL cleanup failed: "
+                + "; ".join(cleanup_errors)
+            )
 
 
 def _setup_pair(connected=False):

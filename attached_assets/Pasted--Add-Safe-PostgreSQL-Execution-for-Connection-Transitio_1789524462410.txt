@@ -1,0 +1,231 @@
+# Add Safe PostgreSQL Execution for Connection Transition Tests
+
+Use Replit Agent level: POWER.
+
+Implement permanent, safe PostgreSQL test infrastructure for:
+
+tests/test_connection_transitions_postgres.py
+
+Then execute the four PostgreSQL tests.
+
+## Context
+
+The infrastructure investigation established:
+
+- tests/test_connection_transitions_postgres.py contains 4 real PostgreSQL concurrency tests.
+- They currently depend on BL79_TEST_POSTGRES_URL.
+- The current fixture is destructive: it runs db.drop_all() and db.create_all() against the supplied database.
+- No safe dedicated BL79 PostgreSQL database currently exists.
+- Existing Development/managed databases MUST NOT be used.
+- Production MUST NEVER be used.
+- BaseLodge already has a safe disposable PostgreSQL pattern in:
+
+tests/test_bl443_cutover_postgres.py
+
+That pattern starts a temporary local PostgreSQL cluster, uses a random local port, creates uniquely named disposable databases, and tears the server down afterward.
+
+Reuse that architectural pattern.
+
+## Goal
+
+Make the four connection-transition PostgreSQL tests run automatically against an ephemeral local PostgreSQL instance without requiring a manually supplied application database URL.
+
+The infrastructure must fail safely and make it impossible for these tests to accidentally drop tables from Development or Production.
+
+## Implementation direction
+
+Adapt/reuse the established BL-443 disposable PostgreSQL test infrastructure rather than inventing a separate persistent database system.
+
+Prefer extracting/reusing common test infrastructure if doing so is small and clearly improves safety.
+
+Do not perform broad test-framework refactoring.
+
+The resulting connection-transition tests should:
+
+1. Start or receive an automatically created local disposable PostgreSQL test cluster/database.
+2. Use a unique test database.
+3. Bind Flask-SQLAlchemy to that disposable database.
+4. Run the existing PostgreSQL-specific tests.
+5. Tear down the test database/server automatically.
+6. Leave no persistent application data behind.
+7. Require no Production, Development, Supabase, or Replit-managed application database connection.
+
+## Safety requirements
+
+This is critical.
+
+The test infrastructure MUST NOT use:
+
+- DATABASE_URL
+- BASELODGE_DEVELOPMENT_DATABASE_URL
+- BASELODGE_NEW_DEVELOPMENT_DATABASE_URL
+- SUPABASE_DATABASE_URL
+- any Production database URL
+- any Replit-managed application database
+
+Do not connect to or inspect Production.
+
+Do not mutate Development.
+
+Do not copy Production or Development credentials into test configuration.
+
+Do not create a persistent remote test database.
+
+Prefer an automatically created localhost PostgreSQL cluster/database under temporary storage.
+
+If BL79_TEST_POSTGRES_URL remains supported for some reason, it MUST NOT remain an unrestricted destructive escape hatch.
+
+Either:
+
+A. remove the need for arbitrary externally supplied BL79_TEST_POSTGRES_URL entirely,
+
+or
+
+B. add strict fail-closed validation proving that any supplied target is a disposable test target and cannot match protected application databases.
+
+Prefer A if compatible with the existing test architecture.
+
+## Existing tests
+
+Preserve the semantics of all four tests:
+
+1. concurrent friendship formation
+2. concurrent friendship removal
+3. concurrent removal and reconnection
+4. concurrent friend-request acceptance and withdrawal
+
+Do not weaken assertions.
+
+The accept-versus-withdraw test must continue to:
+
+- use two independent clients/sessions
+- target the same pending OUTBOUND Invitation
+- execute accept and withdrawal concurrently
+- expect exactly one HTTP 200
+- expect exactly one HTTP 409
+- verify one coherent final Invitation state
+
+If acceptance wins:
+
+- Invitation = accepted
+- exactly two reciprocal Friend rows
+- no cooldown
+- exactly one formed event
+
+If withdrawal wins:
+
+- Invitation = cancelled
+- no Friend rows
+- exactly one cooldown
+- no connection event
+
+## Actually run the PostgreSQL tests
+
+After implementing the safe disposable infrastructure, run:
+
+python -m pytest -q -rs tests/test_connection_transitions_postgres.py
+
+Success requires:
+
+4 passed
+0 failed
+0 skipped
+
+A skipped PostgreSQL test is NOT a successful result.
+
+Also run the focused non-PostgreSQL connection/friend-request regressions necessary to ensure the infrastructure work did not change application behavior.
+
+## CI
+
+Inspect the existing GitHub CI PostgreSQL setup.
+
+If this four-test module can safely be added to the existing PostgreSQL CI execution with a small bounded change, do so.
+
+The long-term goal is that these tests run automatically rather than depending on someone remembering to execute them manually.
+
+Do not redesign CI or broaden unrelated test jobs.
+
+## Application scope
+
+This should be test-infrastructure work.
+
+Do not change application friend-request behavior unless execution of the real PostgreSQL tests exposes an actual application defect.
+
+If a PostgreSQL test FAILS because of application behavior:
+
+STOP.
+
+Do not repair the application automatically.
+
+Report:
+
+POSTGRES CONCURRENCY DEFECT FOUND
+
+with the exact failing behavior and evidence.
+
+We will decide separately how to fix it.
+
+## Verification
+
+Report:
+
+- PostgreSQL version used
+- whether cluster/database was local and disposable
+- confirmation that no application database was contacted
+- exact four-test result
+- accept-vs-withdraw result
+- relevant non-PostgreSQL regression result
+- teardown/cleanup result
+- CI integration result
+- any skips
+- any failures
+
+## Git/worktree
+
+Before and after report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked modifications
+- untracked files
+
+There is already a local investigation commit ahead of origin. Do not rewrite or remove it.
+
+Do not:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+## Final verdict
+
+End with exactly one:
+
+POSTGRES CONCURRENCY TESTING ENABLED — ALL 4 TESTS PASS
+
+POSTGRES CONCURRENCY DEFECT FOUND
+
+POSTGRES TEST INFRASTRUCTURE BLOCKED
+
+## HARD CONSTRAINTS
+
+Do not:
+
+- connect to Production
+- connect to Development
+- use an application database as a test target
+- reveal credentials
+- provision a persistent database
+- modify Production or Development data
+- weaken the four concurrency tests
+- create a migration
+- stage
+- commit
+- push
+- publish
+- deploy
+- perform unrelated cleanup
