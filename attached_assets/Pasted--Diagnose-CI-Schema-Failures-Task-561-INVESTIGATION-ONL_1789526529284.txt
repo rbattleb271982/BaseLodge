@@ -1,0 +1,345 @@
+# Diagnose CI Schema Failures — Task #561
+
+INVESTIGATION ONLY.
+
+Do not switch to Design.
+Do not implement fixes.
+Do not modify application code, tests, migrations, CI configuration, database state, or project configuration.
+Do not commit, push, publish, or deploy.
+
+## Context
+
+GitHub Actions run:
+
+35048372334
+
+Commit:
+
+1bd49996252dd6190a7f52a67f077f434521d425
+
+failed after we added the four PostgreSQL connection-transition tests to the existing PostgreSQL CI gate.
+
+The PostgreSQL gate successfully collected all 33 expected tests.
+
+Result:
+
+- 29 passed
+- 4 failed
+- 0 skipped
+
+All four failures are from:
+
+tests/test_connection_transitions_postgres.py
+
+The common visible failure is:
+
+psycopg2.errors.UndefinedColumn:
+column "first_name" of relation "user" does not exist
+
+The error occurs while tests/conftest.py::_make_user attempts to create a User during setup.
+
+Separately, the GitHub Actions "Source integrity" job also failed.
+
+We need to determine the exact root cause of BOTH failures before changing anything.
+
+---
+
+# 1. Capture exact GitHub CI evidence
+
+Inspect the failed GitHub Actions run:
+
+35048372334
+
+Read the complete failed logs for:
+
+- Tests
+- Source integrity
+
+Record:
+
+- exact commands executed
+- exact failing PostgreSQL traceback
+- exact Source integrity assertion/check that failed
+- relevant environment/setup steps
+- whether either failure occurs before application behavior is exercised
+
+Do not infer the Source integrity cause from the PostgreSQL failure. Treat them as separate failures until proven related.
+
+---
+
+# 2. Trace the PostgreSQL test infrastructure
+
+Inspect and compare:
+
+- tests/test_connection_transitions_postgres.py
+- tests/test_bl443_cutover_postgres.py
+- tests/conftest.py
+- .github/workflows/ci.yml
+- migrations/env.py
+- relevant shared PostgreSQL test helpers, if any
+
+Determine exactly how the disposable PostgreSQL databases are created for:
+
+A. BL-443 PostgreSQL tests
+B. Connection-transition PostgreSQL tests
+
+For each, document:
+
+- PostgreSQL cluster creation
+- database creation
+- schema initialization
+- whether db.create_all() is used
+- whether Alembic migrations are run
+- which migration revision/head is applied
+- whether a partial/minimal schema is intentionally constructed
+- when Flask-SQLAlchemy binds to the disposable database
+- teardown behavior
+
+Explain why the existing 29 BL-443 PostgreSQL tests pass while the four newly enabled connection-transition tests fail.
+
+---
+
+# 3. Trace the User schema
+
+Inspect:
+
+- models.py
+- migrations/versions/000000000000_create_base_schema.py
+- subsequent relevant migrations
+- tests/conftest.py
+
+Determine:
+
+- the current User model columns
+- where first_name was introduced
+- where last_name was introduced
+- whether those columns exist in the base schema
+- whether later migrations add them
+- whether the disposable connection-transition database receives those migrations
+- why SQLAlchemy believes first_name exists while PostgreSQL reports that the physical table does not
+
+Do not modify migrations.
+
+---
+
+# 4. Establish the regression boundary
+
+Compare commit:
+
+1bd49996252dd6190a7f52a67f077f434521d425
+
+with its parent and relevant earlier commits.
+
+Determine whether:
+
+A. 1bd49996 introduced a broken PostgreSQL schema/bootstrap path,
+
+B. the mismatch already existed but the four tests were previously skipped and therefore never exposed it in CI,
+
+or
+
+C. another change is responsible.
+
+Be precise.
+
+Also determine whether the four tests passed locally under PostgreSQL 16.10 because the local bootstrap path differed from GitHub PostgreSQL 17, because of environmental state, or for another specific reason.
+
+Do not classify this as a PostgreSQL 16-vs-17 compatibility issue unless the evidence actually supports that conclusion.
+
+---
+
+# 5. Diagnose Source integrity separately
+
+Inspect:
+
+scripts/ci_integrity.py
+
+and the exact Source integrity failure from run 35048372334.
+
+Identify:
+
+- exact failed integrity check
+- expected value/state
+- actual value/state
+- why it changed
+- whether the failure was caused by the intentional CI/test-infrastructure work
+- whether it represents an application defect, repository metadata mismatch, stale allowlist/hash/count, or something else
+
+Do not fix it.
+
+---
+
+# 6. Classify both failures
+
+For EACH failure independently, classify it as one of:
+
+- application regression
+- migration/schema defect
+- test infrastructure defect
+- CI configuration defect
+- repository integrity metadata/check defect
+- other, with explanation
+
+Explicitly answer whether either failure means the BaseLodge application itself is currently broken.
+
+---
+
+# 7. Production and Development risk
+
+Without connecting to either database, determine whether these failures imply any risk to:
+
+- Production schema
+- Development schema
+- Production data
+- Development data
+
+Do not inspect, connect to, query, migrate, or mutate Production or Development.
+
+Base the assessment only on repository code, migration history, disposable test infrastructure, and CI evidence.
+
+---
+
+# 8. Recommend the smallest correct fixes
+
+For the PostgreSQL failure, state the smallest correct fix.
+
+Do NOT simply recommend adding first_name manually to a test table unless that is demonstrably the correct architectural solution.
+
+The goal is for the disposable PostgreSQL test database to represent the schema the tests are actually intended to exercise.
+
+For the Source integrity failure, state the smallest correct fix separately.
+
+For each proposed fix identify:
+
+- exact files that would need to change
+- why those files need to change
+- whether application code changes are needed
+- whether test changes are needed
+- whether CI changes are needed
+- whether migration changes are needed
+
+DO NOT IMPLEMENT THEM.
+
+---
+
+# 9. Post-fix verification plan
+
+State exactly what should be run after the eventual fix.
+
+At minimum we expect the PostgreSQL CI gate to achieve:
+
+33 passed
+0 failed
+0 skipped
+
+The four connection-transition tests must genuinely execute against disposable PostgreSQL and must not be skipped.
+
+The accept-versus-withdraw race must still prove:
+
+- two independent clients/sessions
+- same pending OUTBOUND Invitation
+- concurrent accept and withdrawal
+- exactly one HTTP 200
+- exactly one HTTP 409
+- coherent final Invitation state
+- correct Friend rows
+- correct cooldown state
+- correct connection-event count
+
+Also specify the appropriate Source integrity command/check that must pass.
+
+---
+
+# 10. Migration verdict
+
+Explicitly state one:
+
+NO MIGRATION REQUIRED
+
+or
+
+MIGRATION REQUIRED
+
+If you believe a migration is required, identify the existing schema deficiency that requires it.
+
+Do not create a migration.
+
+---
+
+# 11. Git/worktree verification
+
+At the beginning and end of the investigation report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked modifications
+- untracked files
+- .replit status
+- migration-file status
+
+The investigation itself must leave the repository unchanged.
+
+---
+
+# REQUIRED FINAL REPORT
+
+Return exactly these sections:
+
+A. PostgreSQL CI failure root cause
+
+B. Why BL-443 passes but connection-transition tests fail
+
+C. Local PostgreSQL 16.10 vs GitHub PostgreSQL 17 explanation
+
+D. Source integrity failure root cause
+
+E. Failure classification
+
+F. Application regression assessment
+
+G. Production/Development risk
+
+H. Smallest correct PostgreSQL fix
+
+I. Smallest correct Source integrity fix
+
+J. Files that would change
+
+K. Post-fix verification
+
+L. Migration verdict
+
+M. Git/worktree status
+
+Then end with exactly one:
+
+CI FAILURES DIAGNOSED — BOUNDED FIXES IDENTIFIED
+
+CI FAILURE ROOT CAUSE INCOMPLETE — MORE INVESTIGATION REQUIRED
+
+CI FAILURE INDICATES APPLICATION DEFECT — STOP BEFORE FIX
+
+# HARD CONSTRAINTS
+
+Do not:
+
+- modify application code
+- modify tests
+- modify migrations
+- modify .github/workflows/ci.yml
+- modify scripts/ci_integrity.py
+- modify .replit
+- modify database state
+- connect to Development
+- connect to Production
+- create a migration
+- stage files
+- commit
+- push
+- publish
+- deploy
+- implement either fix
+
+This task ends with diagnosis only.
