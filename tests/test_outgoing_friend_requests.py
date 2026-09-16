@@ -5,12 +5,16 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import event
+from itsdangerous import URLSafeSerializer
 
 from app import app
 from models import FriendSuggestion, Invitation, InviteType, db
 from services.outgoing_friend_requests import (
     OUTGOING_REQUESTS_PAGE_SIZE,
+    OutgoingRequestCursor,
     OutgoingRequestsCursorError,
+    decode_outgoing_requests_cursor,
+    encode_outgoing_requests_cursor,
     load_outgoing_requests_page,
 )
 from tests.conftest import _login, _make_user, json_delete, json_post
@@ -28,6 +32,30 @@ def _pending(sender, receiver, *, created_at=None, trip_id=None, status="pending
     db.session.add(invitation)
     db.session.flush()
     return invitation
+
+
+def _persist_null_created_at(*invitation_ids):
+    Invitation.query.filter(Invitation.id.in_(invitation_ids)).update(
+        {Invitation.created_at: None},
+        synchronize_session=False,
+    )
+    db.session.flush()
+
+
+def _traverse(viewer_id):
+    rows = []
+    cursors = []
+    cursor = None
+    while True:
+        page = load_outgoing_requests_page(viewer_id, cursor)
+        rows.extend(page.rows)
+        if not page.has_more:
+            return rows, cursors, page.total_count
+        assert page.next_cursor
+        cursors.append(
+            decode_outgoing_requests_cursor(page.next_cursor, viewer_id=viewer_id)
+        )
+        cursor = page.next_cursor
 
 
 def test_retrieval_is_sender_scoped_pending_social_and_minimal(client):
@@ -109,9 +137,135 @@ def test_cursor_is_signed_and_bound_to_viewer(client):
             load_outgoing_requests_page(other.id, cursor)
         with pytest.raises(OutgoingRequestsCursorError):
             load_outgoing_requests_page(viewer.id, "not-a-cursor")
-        replacement = "a" if cursor[-1] != "a" else "b"
+        token, signature = cursor.rsplit(".", 1)
+        replacement = "a" if signature[0] != "a" else "b"
+        tampered_cursor = f"{token}.{replacement}{signature[1:]}"
         with pytest.raises(OutgoingRequestsCursorError):
-            load_outgoing_requests_page(viewer.id, cursor[:-1] + replacement)
+            load_outgoing_requests_page(viewer.id, tampered_cursor)
+
+
+def test_cursor_contract_accepts_only_consistent_rank_timestamp_pairs(client):
+    with app.app_context():
+        viewer = _make_user("outgoing-cursor-contract")
+        db.session.commit()
+        tied_at = datetime(2026, 1, 15, 12, 0, 0)
+
+        timestamp_cursor = OutgoingRequestCursor(
+            viewer_id=viewer.id,
+            null_rank=0,
+            created_at=tied_at,
+            invitation_id=10,
+        )
+        timestamp_value = encode_outgoing_requests_cursor(timestamp_cursor)
+        assert decode_outgoing_requests_cursor(
+            timestamp_value, viewer_id=viewer.id
+        ) == timestamp_cursor
+
+        null_cursor = OutgoingRequestCursor(
+            viewer_id=viewer.id,
+            null_rank=1,
+            created_at=None,
+            invitation_id=9,
+        )
+        null_value = encode_outgoing_requests_cursor(null_cursor)
+        assert decode_outgoing_requests_cursor(
+            null_value, viewer_id=viewer.id
+        ) == null_cursor
+
+        for invalid in (
+            OutgoingRequestCursor(viewer.id, 0, None, 8),
+            OutgoingRequestCursor(viewer.id, 1, tied_at, 7),
+        ):
+            with pytest.raises(OutgoingRequestsCursorError):
+                encode_outgoing_requests_cursor(invalid)
+
+
+def test_signed_cursor_rejects_inconsistent_rank_timestamp_payloads(client):
+    with app.app_context():
+        viewer = _make_user("outgoing-cursor-malformed")
+        db.session.commit()
+        serializer = URLSafeSerializer(
+            app.config["SECRET_KEY"],
+            salt="outgoing-friend-requests-page",
+        )
+        base = {
+            "v": 2,
+            "t": "outgoing-friend-requests",
+            "u": viewer.id,
+            "i": 10,
+        }
+        inconsistent_payloads = (
+            {**base, "n": 0, "d": None},
+            {**base, "n": 1, "d": datetime(2026, 1, 15).isoformat()},
+        )
+
+        for payload in inconsistent_payloads:
+            signed = serializer.dumps(payload)
+            with pytest.raises(OutgoingRequestsCursorError):
+                decode_outgoing_requests_cursor(signed, viewer_id=viewer.id)
+
+
+def test_mixed_nullable_rows_traverse_timestamp_then_null_phases(client):
+    with app.app_context():
+        viewer = _make_user("outgoing-null-mixed-viewer")
+        timestamped_ids = []
+        tied_at = datetime(2026, 1, 15, 12, 0, 0)
+        for index in range(25):
+            recipient = _make_user(f"outgoing-null-dated-{index}")
+            timestamped_ids.append(
+                _pending(viewer, recipient, created_at=tied_at).id
+            )
+        null_ids = []
+        for index in range(22):
+            recipient = _make_user(f"outgoing-null-legacy-{index}")
+            null_ids.append(_pending(viewer, recipient).id)
+        _persist_null_created_at(*null_ids)
+        db.session.commit()
+
+        rows, cursors, total_count = _traverse(viewer.id)
+        actual_ids = [row.invitation_id for row in rows]
+
+        assert total_count == 47
+        assert len(actual_ids) == total_count
+        assert len(actual_ids) == len(set(actual_ids))
+        assert actual_ids == (
+            sorted(timestamped_ids, reverse=True)
+            + sorted(null_ids, reverse=True)
+        )
+        assert [row.created_at is None for row in rows] == (
+            [False] * 25 + [True] * 22
+        )
+        assert [(cursor.null_rank, cursor.created_at is None) for cursor in cursors] == [
+            (0, False),
+            (1, True),
+        ]
+
+
+def test_more_than_twenty_null_rows_page_by_id_desc(client):
+    with app.app_context():
+        viewer = _make_user("outgoing-null-only-viewer")
+        null_ids = [
+            _pending(
+                viewer,
+                _make_user(f"outgoing-null-only-{index}"),
+            ).id
+            for index in range(41)
+        ]
+        _persist_null_created_at(*null_ids)
+        db.session.commit()
+
+        rows, cursors, total_count = _traverse(viewer.id)
+
+        assert total_count == 41
+        assert [row.invitation_id for row in rows] == sorted(
+            null_ids, reverse=True
+        )
+        assert all(row.created_at is None for row in rows)
+        assert len({row.invitation_id for row in rows}) == 41
+        assert [(cursor.null_rank, cursor.created_at) for cursor in cursors] == [
+            (1, None),
+            (1, None),
+        ]
 
 
 def test_service_statement_budget_is_fixed(client):
@@ -136,6 +290,43 @@ def test_service_statement_budget_is_fixed(client):
         assert len(page.rows) == 20
         assert page.total_count == 41
         assert len(statements) == 2
+
+
+def test_nullable_paging_keeps_two_statements_per_page(client):
+    with app.app_context():
+        viewer = _make_user("outgoing-null-budget-viewer")
+        invitation_ids = [
+            _pending(
+                viewer,
+                _make_user(f"outgoing-null-budget-{index}"),
+            ).id
+            for index in range(41)
+        ]
+        _persist_null_created_at(*invitation_ids)
+        db.session.commit()
+        viewer_id = viewer.id
+        engine = db.engine
+        cursor = None
+        page_sizes = []
+
+        while True:
+            statements = []
+
+            def record(_connection, _cursor, statement, _params, _context, _many):
+                statements.append(statement)
+
+            event.listen(engine, "before_cursor_execute", record)
+            try:
+                page = load_outgoing_requests_page(viewer_id, cursor)
+            finally:
+                event.remove(engine, "before_cursor_execute", record)
+            assert len(statements) == 2
+            page_sizes.append(len(page.rows))
+            if not page.has_more:
+                break
+            cursor = page.next_cursor
+
+        assert page_sizes == [20, 20, 1]
 
 
 def test_route_is_authenticated_and_renders_collapsed_disclosure(client):
@@ -318,3 +509,4 @@ def test_ui_reuses_canonical_mutation_and_targeted_refresh():
     assert "location.reload" not in handler
     assert "document.addEventListener('visibilitychange'" in source
     assert "window.addEventListener('pageshow'" in source
+    assert ".fr-load-more[hidden] { display: none; }" in source

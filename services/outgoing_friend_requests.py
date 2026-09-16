@@ -13,7 +13,7 @@ from models import Invitation, InviteType, User, db
 
 
 OUTGOING_REQUESTS_PAGE_SIZE = 20
-_CURSOR_VERSION = 1
+_CURSOR_VERSION = 2
 _CURSOR_TYPE = "outgoing-friend-requests"
 _CURSOR_MAX_LENGTH = 768
 
@@ -25,7 +25,8 @@ class OutgoingRequestsCursorError(ValueError):
 @dataclass(frozen=True)
 class OutgoingRequestCursor:
     viewer_id: int
-    created_at: datetime
+    null_rank: int
+    created_at: datetime | None
     invitation_id: int
 
 
@@ -35,7 +36,7 @@ class OutgoingRequestRow:
     recipient_id: int
     recipient_first_name: str
     recipient_last_name: str
-    created_at: datetime
+    created_at: datetime | None
 
     @property
     def recipient_name(self) -> str:
@@ -58,7 +59,16 @@ def encode_outgoing_requests_cursor(cursor: OutgoingRequestCursor) -> str:
         not isinstance(cursor, OutgoingRequestCursor)
         or type(cursor.viewer_id) is not int
         or cursor.viewer_id <= 0
-        or not isinstance(cursor.created_at, datetime)
+        or type(cursor.null_rank) is not int
+        or cursor.null_rank not in (0, 1)
+        or (
+            cursor.null_rank == 0
+            and not isinstance(cursor.created_at, datetime)
+        )
+        or (
+            cursor.null_rank == 1
+            and cursor.created_at is not None
+        )
         or type(cursor.invitation_id) is not int
         or cursor.invitation_id <= 0
     ):
@@ -70,7 +80,8 @@ def encode_outgoing_requests_cursor(cursor: OutgoingRequestCursor) -> str:
         "v": _CURSOR_VERSION,
         "t": _CURSOR_TYPE,
         "u": cursor.viewer_id,
-        "d": cursor.created_at.isoformat(),
+        "n": cursor.null_rank,
+        "d": cursor.created_at.isoformat() if cursor.created_at else None,
         "i": cursor.invitation_id,
     })
 
@@ -89,23 +100,32 @@ def decode_outgoing_requests_cursor(
         ).loads(value)
         if (
             not isinstance(payload, dict)
-            or set(payload) != {"v", "t", "u", "d", "i"}
+            or set(payload) != {"v", "t", "u", "n", "d", "i"}
             or payload["v"] != _CURSOR_VERSION
             or payload["t"] != _CURSOR_TYPE
             or type(payload["u"]) is not int
             or payload["u"] != int(viewer_id)
+            or type(payload["n"]) is not int
+            or payload["n"] not in (0, 1)
             or type(payload["i"]) is not int
             or payload["i"] <= 0
-            or not isinstance(payload["d"], str)
         ):
             raise ValueError
-        created_at = datetime.fromisoformat(payload["d"])
+        if payload["n"] == 1:
+            if payload["d"] is not None:
+                raise ValueError
+            created_at = None
+        else:
+            if not isinstance(payload["d"], str):
+                raise ValueError
+            created_at = datetime.fromisoformat(payload["d"])
     except (BadData, ValueError, TypeError, KeyError) as exc:
         raise OutgoingRequestsCursorError(
             "Invalid outgoing requests cursor."
         ) from exc
     return OutgoingRequestCursor(
         viewer_id=payload["u"],
+        null_rank=payload["n"],
         created_at=created_at,
         invitation_id=payload["i"],
     )
@@ -134,11 +154,16 @@ def load_outgoing_requests_page(
         .scalar()
         or 0
     )
+    null_rank = sa.case(
+        (Invitation.created_at.is_(None), 1),
+        else_=0,
+    ).label("null_rank")
     query = (
         db.session.query(
             Invitation.id.label("invitation_id"),
             Invitation.receiver_id.label("recipient_id"),
             Invitation.created_at,
+            null_rank,
             User.first_name.label("recipient_first_name"),
             User.last_name.label("recipient_last_name"),
         )
@@ -146,15 +171,31 @@ def load_outgoing_requests_page(
         .filter(_pending_outgoing_predicate(viewer_id))
     )
     if cursor:
-        query = query.filter(sa.or_(
-            Invitation.created_at < cursor.created_at,
-            sa.and_(
-                Invitation.created_at == cursor.created_at,
+        if cursor.null_rank == 1:
+            query = query.filter(
+                null_rank == 1,
                 Invitation.id < cursor.invitation_id,
-            ),
-        ))
+            )
+        else:
+            query = query.filter(sa.or_(
+                null_rank > cursor.null_rank,
+                sa.and_(
+                    null_rank == cursor.null_rank,
+                    sa.or_(
+                        Invitation.created_at < cursor.created_at,
+                        sa.and_(
+                            Invitation.created_at == cursor.created_at,
+                            Invitation.id < cursor.invitation_id,
+                        ),
+                    ),
+                ),
+            ))
     candidates = (
-        query.order_by(Invitation.created_at.desc(), Invitation.id.desc())
+        query.order_by(
+            null_rank.asc(),
+            Invitation.created_at.desc(),
+            Invitation.id.desc(),
+        )
         .limit(OUTGOING_REQUESTS_PAGE_SIZE + 1)
         .all()
     )
@@ -175,6 +216,7 @@ def load_outgoing_requests_page(
         last = rows[-1]
         next_cursor = encode_outgoing_requests_cursor(OutgoingRequestCursor(
             viewer_id=viewer_id,
+            null_rank=1 if last.created_at is None else 0,
             created_at=last.created_at,
             invitation_id=last.invitation_id,
         ))

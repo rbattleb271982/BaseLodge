@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import sqlalchemy as sa
 from itsdangerous import BadData, URLSafeSerializer
-from models import FriendCooldown, FriendSuggestion, Invitation, User, db
+from models import FriendCooldown, FriendSuggestion, Invitation, InviteType, User, db
 from services.visibility import reciprocal_friend_predicate
 
 SUGGESTIONS_PAGE_SIZE = 20
@@ -125,6 +125,7 @@ def load_suggestions_page(viewer_id, cursor_value=None):
         Invitation.receiver_id == viewer_id,
         Invitation.sender_id.in_(ids),
         Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
         Invitation.status == "pending",
     ).group_by(Invitation.sender_id).all()
     inbound_by_sender = {row.sender_id: row.invitation_id for row in inbound_rows}
@@ -134,6 +135,7 @@ def load_suggestions_page(viewer_id, cursor_value=None):
         Invitation.sender_id == viewer_id,
         Invitation.receiver_id.in_(ids),
         Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
         Invitation.status == "pending",
     ).group_by(Invitation.receiver_id).all()
     outgoing_by_receiver = {

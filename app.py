@@ -1017,7 +1017,8 @@ def inject_pending_friend_count():
         count = Invitation.query.filter(
             Invitation.receiver_id == current_user.id,
             Invitation.status == 'pending',
-            Invitation.trip_id.is_(None)
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
         ).count()
         return {'pending_friend_count': count}
     except Exception:
@@ -7828,14 +7829,20 @@ def create_friend_request(actor_id, target_id):
     # Existing outgoing pending request from actor → target (friend-only, not trip)?
     existing_out = Invitation.query.filter_by(
         sender_id=actor_id, receiver_id=target_id, status='pending'
-    ).filter(Invitation.trip_id.is_(None)).first()
+    ).filter(
+        Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
+    ).first()
     if existing_out:
         return {'ok': False, 'code': 'OUTGOING_PENDING', 'invitation_id': existing_out.id}
 
     # Existing incoming pending request from target → actor?
     existing_in = Invitation.query.filter_by(
         sender_id=target_id, receiver_id=actor_id, status='pending'
-    ).filter(Invitation.trip_id.is_(None)).first()
+    ).filter(
+        Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
+    ).first()
     if existing_in:
         return {'ok': False, 'code': 'INCOMING_PENDING', 'invitation_id': existing_in.id}
 
@@ -7947,7 +7954,10 @@ def user_connect(user_id):
         # Exception 2: target sent current user a pending request
         incoming = Invitation.query.filter_by(
             sender_id=user_id, receiver_id=current_user.id, status='pending'
-        ).filter(Invitation.trip_id.is_(None)).first()
+        ).filter(
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+        ).first()
 
         if not is_friend and not incoming:
             return jsonify({'success': False, 'error': 'User not found'}), 404
@@ -8006,7 +8016,12 @@ def get_friend_profile(friend_id):
 @login_required
 def accept_invitation(invitation_id):
     validate_csrf_request()
-    invitation = db.session.get(Invitation, invitation_id)
+    invitation = (
+        db.session.query(Invitation)
+        .filter(Invitation.id == invitation_id)
+        .with_for_update()
+        .one_or_none()
+    )
 
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
@@ -8016,7 +8031,7 @@ def accept_invitation(invitation_id):
 
     # Guard: only friend invitations (trip_id IS NULL) may be accepted here.
     # Trip join requests use a separate flow and must not create Friend rows.
-    if invitation.trip_id is not None:
+    if invitation.trip_id is not None or invitation.invite_type != InviteType.OUTBOUND:
         return jsonify({"success": False, "error": "Not a friend invitation"}), 400
 
     # Guard: only 'pending' (or already-'accepted') invitations may proceed.
@@ -8118,13 +8133,18 @@ def cancel_friend_invite(invitation_id):
     are managed through the trip workflow and must not be cancelled here.
     """
     validate_csrf_request()
-    invitation = db.session.get(Invitation, invitation_id)
+    invitation = (
+        db.session.query(Invitation)
+        .filter(Invitation.id == invitation_id)
+        .with_for_update()
+        .one_or_none()
+    )
     if not invitation:
         return jsonify({"success": False, "error": "Invitation not found"}), 404
     if invitation.sender_id != current_user.id:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     # Enforce scope: only friend invitations (no trip) may be cancelled here
-    if invitation.trip_id is not None:
+    if invitation.trip_id is not None or invitation.invite_type != InviteType.OUTBOUND:
         return jsonify({"success": False, "error": "Not a friend invitation"}), 400
     if invitation.status != 'pending':
         return jsonify({"success": False, "error": "Invitation is not pending"}), 409
@@ -8160,6 +8180,8 @@ def remove_friend(friend_id):
     # either direction so no invitation row can produce a ghost connected-state
     # after the Friend rows are removed.
     Invitation.query.filter(
+        Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
         db.or_(
             db.and_(
                 Invitation.sender_id == current_user.id,
@@ -10256,7 +10278,10 @@ def user_search():
     _out_rows = (
         Invitation.query
         .filter_by(sender_id=current_uid, status='pending')
-        .filter(Invitation.trip_id.is_(None))
+        .filter(
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+        )
         .all()
     )
     my_outgoing = {r.receiver_id: r.id for r in _out_rows}  # {target_uid: inv_id}
@@ -10264,7 +10289,10 @@ def user_search():
     _in_rows = (
         Invitation.query
         .filter_by(receiver_id=current_uid, status='pending')
-        .filter(Invitation.trip_id.is_(None))
+        .filter(
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+        )
         .all()
     )
     my_incoming = {r.sender_id: r.id for r in _in_rows}  # {sender_uid: inv_id}
@@ -10425,7 +10453,10 @@ def _friends_acceptance_presentation(accepted_user_id):
     pending_count = (
         Invitation.query
         .filter_by(receiver_id=current_user.id, status="pending")
-        .filter(Invitation.trip_id.is_(None))
+        .filter(
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+        )
         .count()
     )
     return {
@@ -10450,7 +10481,10 @@ def _render_bounded_friends():
     pending_incoming = (
         Invitation.query
         .filter_by(receiver_id=user.id, status="pending")
-        .filter(Invitation.trip_id.is_(None))
+        .filter(
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+        )
         .order_by(Invitation.created_at.desc())
         .all()
     )
@@ -10884,6 +10918,8 @@ def remove_friend_web(friend_id):
     # either direction so no invitation row can produce a ghost connected-state
     # after the Friend rows are removed.
     Invitation.query.filter(
+        Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
         db.or_(
             db.and_(
                 Invitation.sender_id == current_user.id,
@@ -10969,6 +11005,7 @@ def suggest_connections(friend_id):
     pending_with_jon_ids = set()
     _pend_invs = Invitation.query.filter(
         Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
         Invitation.status == 'pending',
         db.or_(
             Invitation.sender_id == friend_id,
@@ -11549,6 +11586,8 @@ def connect_add(user_id):
     # Mark any pending invitations between these two users as accepted,
     # since the connection was successfully established via QR/direct link.
     Invitation.query.filter(
+        Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
         db.or_(
             db.and_(
                 Invitation.sender_id == current_user.id,
@@ -12644,7 +12683,10 @@ def home():
                         sender_id=user.id,
                         receiver_id=_other_uid,
                         status='accepted',
-                    ).filter(Invitation.trip_id.is_(None)).first() is not None
+                    ).filter(
+                        Invitation.trip_id.is_(None),
+                        Invitation.invite_type == InviteType.OUTBOUND,
+                    ).first() is not None
                     if _was_sender:
                         connection_toast_suggest_url = url_for(
                             'suggest_connections', friend_id=_other_uid
@@ -13630,7 +13672,10 @@ def notifications():
         connects = Invitation.query.filter_by(
             receiver_id=current_user.id,
             status='pending'
-        ).filter(Invitation.trip_id == None).order_by(Invitation.created_at.desc()).all()
+        ).filter(
+            Invitation.trip_id.is_(None),
+            Invitation.invite_type == InviteType.OUTBOUND,
+        ).order_by(Invitation.created_at.desc()).all()
         if connects:
             # Bulk-load all sender Users in one query instead of one per invite.
             sender_ids = list({inv.sender_id for inv in connects})

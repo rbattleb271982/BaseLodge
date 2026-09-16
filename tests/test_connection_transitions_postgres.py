@@ -8,9 +8,22 @@ import pytest
 import sqlalchemy as sa
 
 from app import app
-from models import Friend, FriendConnectionEvent, db
+from models import (
+    Friend,
+    FriendConnectionEvent,
+    FriendCooldown,
+    Invitation,
+    InviteType,
+    db,
+)
 from services.connection_transitions import transition_connection
-from tests.conftest import _make_user, _swap_engine
+from tests.conftest import (
+    _login,
+    _make_user,
+    _swap_engine,
+    json_delete,
+    json_post,
+)
 
 
 @pytest.fixture(scope="module")
@@ -125,3 +138,69 @@ def test_concurrent_remove_and_reconnect_are_serialized(postgres_connection_data
         assert _pair_friend_count(first_id, second_id) == (
             2 if events[-1] == "formed" else 0
         )
+
+
+def test_concurrent_friend_request_accept_and_withdraw_serialize(
+    postgres_connection_database,
+):
+    """PostgreSQL proves the Invitation FOR UPDATE behavior SQLite cannot."""
+    with app.app_context():
+        sender = _make_user(f"pg-invitation-sender-{os.urandom(5).hex()}")
+        receiver = _make_user(f"pg-invitation-receiver-{os.urandom(5).hex()}")
+        invitation = Invitation(
+            sender_id=sender.id,
+            receiver_id=receiver.id,
+            status="pending",
+            invite_type=InviteType.OUTBOUND,
+        )
+        db.session.add(invitation)
+        db.session.commit()
+        sender_id = sender.id
+        receiver_id = receiver.id
+        invitation_id = invitation.id
+
+    barrier = Barrier(2)
+
+    def worker(operation):
+        client = app.test_client()
+        user_id = receiver_id if operation == "accept" else sender_id
+        _login(client, user_id)
+        barrier.wait(timeout=10)
+        try:
+            if operation == "accept":
+                response = json_post(
+                    client,
+                    f"/api/friends/invite/{invitation_id}/accept",
+                )
+            else:
+                response = json_delete(
+                    client,
+                    f"/api/friends/invite/{invitation_id}",
+                )
+            return operation, response.status_code
+        finally:
+            with app.app_context():
+                db.session.remove()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = dict(executor.map(worker, ("accept", "withdraw")))
+
+    assert sorted(outcomes.values()) == [200, 409]
+    with app.app_context():
+        invitation = db.session.get(Invitation, invitation_id)
+        friend_count = _pair_friend_count(sender_id, receiver_id)
+        cooldown_count = FriendCooldown.query.filter_by(
+            user_a_id=min(sender_id, receiver_id),
+            user_b_id=max(sender_id, receiver_id),
+        ).count()
+        if invitation.status == "accepted":
+            assert outcomes == {"accept": 200, "withdraw": 409}
+            assert friend_count == 2
+            assert cooldown_count == 0
+            assert _pair_event_types(sender_id, receiver_id) == ["formed"]
+        else:
+            assert invitation.status == "cancelled"
+            assert outcomes == {"accept": 409, "withdraw": 200}
+            assert friend_count == 0
+            assert cooldown_count == 1
+            assert _pair_event_types(sender_id, receiver_id) == []

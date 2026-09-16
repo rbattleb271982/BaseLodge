@@ -1,0 +1,378 @@
+# BL-225 — Resolve Final Friends Ship Blockers
+
+Use Replit Agent level: POWER.
+
+This is a bounded correctness implementation.
+
+The Final Friends Ship Check identified three concrete blockers. The nullable-timestamp blocker has now been separately investigated and has an approved NO-MIGRATION solution.
+
+Implement ONLY these three corrections.
+
+Do not redesign Friends and do not expand scope.
+
+## BLOCKER 1 — Consistent social friend-request scoping
+
+The audit found that several existing friend-request paths classify a null-trip pending Invitation as a social friend request without consistently requiring:
+
+InviteType.OUTBOUND
+
+BL-225's outgoing service already uses the correct scope.
+
+Make the EXISTING friend-request lifecycle consistently require the same social friend-request contract wherever an Invitation is being interpreted as an ordinary person-to-person friend request:
+
+- trip_id IS NULL
+- invite_type == InviteType.OUTBOUND
+
+Audit and correct the exact affected paths identified by the ship check, including:
+
+- Incoming Friends request rendering/retrieval
+- Friends bottom-navigation actionable request count
+- Acceptance presentation/counting where applicable
+- Global-search incoming/requested/duplicate relationship-state detection
+- Canonical friend-request acceptance
+- Canonical friend-request cancellation/withdrawal
+
+Do not mechanically add OUTBOUND filters to unrelated Invitation uses.
+
+Join requests and other Invitation types must continue using their own existing semantics.
+
+### Mutation behavior
+
+For the canonical friend-request accept and cancel/withdraw routes:
+
+A null-trip Invitation that is NOT InviteType.OUTBOUND must NOT be accepted or cancelled as a social friend request.
+
+Use the existing application's error conventions.
+
+Do not create a new endpoint.
+
+Do not create a new request type or state machine.
+
+### Regression protection
+
+Explicitly test that a pending:
+
+trip_id = NULL
+invite_type != OUTBOUND
+
+does NOT:
+
+- render as an incoming friend request
+- inflate the Friends bottom-nav badge
+- create a Requested/incoming friend-search state
+- block a legitimate social friend request
+- get accepted through the social friend accept endpoint
+- get cancelled through the social friend withdrawal endpoint
+- create Friend rows
+
+Preserve all legitimate OUTBOUND behavior.
+
+## BLOCKER 2 — Serialize accept versus withdrawal
+
+The ship check found that canonical accept and cancel/withdraw can concurrently observe the same Invitation as pending.
+
+The decline route already uses the stronger row-locking pattern.
+
+Correct the canonical friend-request accept and cancel/withdraw transitions so competing terminal mutations are serialized appropriately.
+
+Use the existing database/session/locking conventions already present in BaseLodge.
+
+Prefer the established decline implementation as the architectural reference.
+
+Requirements:
+
+- Load the target Invitation under the appropriate row lock before validating/mutating terminal state.
+- Re-check authoritative state while locked.
+- Exactly one competing terminal transition may succeed.
+- The losing operation must observe the resolved state and return the existing appropriate stale/conflict response.
+- Withdrawal winning must prevent subsequent friendship creation.
+- Acceptance winning must prevent subsequent cancellation from producing a conflicting state.
+- No duplicate Friend rows.
+- No duplicate cooldown side effects.
+- Preserve sender/recipient authorization.
+- Preserve CSRF/authentication.
+- Preserve FriendSuggestion semantics.
+- Preserve current response contracts unless a correctness change is required.
+
+Do NOT:
+
+- introduce application-level mutexes
+- introduce polling
+- introduce a second mutation endpoint
+- redesign the Invitation state machine
+
+### Concurrency verification
+
+Add focused tests appropriate to the repository/database infrastructure.
+
+At minimum protect:
+
+- cancel then accept
+- accept then cancel
+- repeated cancel
+- repeated accept if applicable
+- resolved-state conflict behavior
+- no accidental friendship after successful cancellation
+- no contradictory final Invitation state
+- no duplicate cooldown rows
+
+If true concurrent database testing is supported safely by the existing test infrastructure, use it.
+
+If SQLite limitations prevent a meaningful FOR UPDATE concurrency simulation, protect the locking/query contract and terminal-state behavior through the strongest existing repository testing pattern, and explicitly report that limitation.
+
+Do not claim SQLite proves PostgreSQL row-lock behavior if it does not.
+
+## BLOCKER 3 — NULL-safe outgoing pagination
+
+The investigation established:
+
+- Invitation.created_at is nullable at the database level.
+- Normal ORM creation receives a Python default.
+- Development currently contains no qualifying NULL rows.
+- Production was not accessed.
+- NULL remains a valid persisted legacy/raw-SQL state.
+- SQLite and PostgreSQL order NULL differently under bare DESC.
+- Current cursor logic cannot guarantee traversal of qualifying NULL rows.
+
+NO MIGRATION IS REQUIRED.
+
+Implement the approved application-level nullable-keyset convention based on the existing pattern in:
+
+services/my_trips_paging.py
+
+### Required ordering
+
+Define an explicit null rank equivalent to:
+
+null_rank = CASE
+    WHEN Invitation.created_at IS NULL THEN 1
+    ELSE 0
+END
+
+Order outgoing requests by:
+
+1. null_rank ASC
+2. Invitation.created_at DESC
+3. Invitation.id DESC
+
+This means:
+
+- normal timestamped requests remain newest-first
+- legacy NULL rows appear after timestamped requests
+- NULL ordering is identical across SQLite and PostgreSQL
+
+### Cursor
+
+Update the signed outgoing-request cursor contract to include null rank.
+
+Requirements:
+
+- bump the cursor version
+- rank 0 requires a valid datetime
+- rank 1 requires no datetime
+- retain Invitation ID
+- retain viewer binding
+- retain signature/tamper protection
+
+Reject inconsistent payloads such as:
+
+- rank 0 + NULL timestamp
+- rank 1 + non-NULL timestamp
+
+### Continuation
+
+Implement rank-aware keyset continuation.
+
+For a non-null/rank-0 cursor, continuation must allow:
+
+- remaining timestamped rows according to created_at/id
+- transition into rank-1 NULL rows
+
+For a rank-1 cursor:
+
+- remain within rank 1
+- continue by Invitation.id DESC
+
+Do not use backend-default NULL ordering.
+
+Do not fabricate timestamps.
+
+Do not backfill data.
+
+Do not create a migration.
+
+### Required NULL pagination tests
+
+Add focused coverage for:
+
+- mixed timestamped and NULL qualifying rows
+- more than 20 timestamped rows followed by NULL rows
+- more than 20 NULL rows
+- page boundary transitioning from timestamped to NULL
+- multiple NULL rows ordered by ID DESC
+- equal non-null timestamps ordered by ID DESC
+- complete traversal count equals total_count
+- no duplicate IDs across pages
+- no omitted IDs across pages
+- cursor rank 0 + datetime
+- cursor rank 1 + no datetime
+- invalid rank/timestamp combinations rejected
+- viewer binding after cursor-version change
+- tampered cursor rejection
+- existing 0/1/20/21/41 non-null boundaries remain correct
+- fixed query statement budget remains intact
+
+Tests that require persisted NULL created_at must create it in a way that bypasses/moves past the SQLAlchemy Python default, since normal ORM construction masks created_at=None.
+
+## CROSS-BLOCKER REGRESSION
+
+After implementing all three corrections, rerun the relevant Friends suites covering:
+
+- BL-225 outgoing requests
+- BL-224 withdrawal
+- friend-request service
+- friend search
+- incoming Friends requests
+- Suggested Friends
+- bottom-nav badge behavior
+- Home incoming requests if they consume the same request classification
+- Notifications incoming requests if they consume the same classification
+- targeted social refresh
+- privacy/authorization
+- query budgets
+- relevant JavaScript interactions
+
+Verify that legitimate OUTBOUND requests still work through:
+
+- global search
+- Suggested Friends
+- legacy email request creation
+- incoming acceptance
+- decline
+- sender withdrawal
+
+## QUERY/PERFORMANCE
+
+BL-225 outgoing retrieval must remain bounded.
+
+Report exact statement counts.
+
+Do not introduce:
+
+- per-row queries
+- N+1 behavior
+- new index
+- migration
+
+The prior investigation established that the existing sender-leading index is adequate.
+
+## RESPONSIVE / BROWSER CHECK
+
+After the corrections, verify representative Friends states at:
+
+- true 360px
+- 390px
+- 430px where supported without expanding fixture scope
+- 768px where supported without expanding fixture scope
+
+Include:
+
+- incoming + outgoing
+- outgoing expanded/collapsed
+- Suggested Friends Requested
+- Suggested Friends Request withdrawn
+- long recipient name
+- pagination/load-more state
+
+Confirm:
+
+- no horizontal overflow
+- no important clipping
+- no collisions
+- touch targets remain correct
+- bottom-nav clearance
+- no new visual regression
+
+This is not a redesign task.
+
+## MIGRATION
+
+Expected verdict:
+
+NO MIGRATION REQUIRED
+
+Do not create or modify migrations.
+
+If implementation unexpectedly proves a migration is required, STOP and report before creating one.
+
+## GIT / REPOSITORY
+
+Before and after implementation report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked modifications
+- untracked files
+
+Do not modify .replit.
+
+Do not:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+Do not include generated verification artifacts in the worktree.
+
+## FINAL REPORT
+
+Return:
+
+1. Exact InviteType scoping corrections
+2. Exact accept/withdraw serialization correction
+3. Exact NULL-pagination correction
+4. Cursor contract/version
+5. Concurrency behavior
+6. Incoming/badge/search regression behavior
+7. Suggested Friends behavior
+8. Outgoing pagination behavior
+9. Query-budget results
+10. Automated test results
+11. Browser/responsive results
+12. Migration verdict
+13. Files changed
+14. Git/worktree status
+15. Remaining blockers
+
+End with exactly one:
+
+BL-225 SHIP BLOCKERS RESOLVED — READY FOR FINAL RECHECK
+
+or
+
+BL-225 STILL BLOCKED — REVIEW REQUIRED
+
+## HARD CONSTRAINTS
+
+Do not:
+
+- redesign Friends
+- alter unrelated Invitation semantics
+- create another endpoint
+- create another request state machine
+- create or modify a migration
+- backfill data
+- access Production
+- modify .replit
+- stage
+- commit
+- push
+- publish
+- deploy
+- perform unrelated cleanup
+
+Fix only the three documented Friends ship blockers.
