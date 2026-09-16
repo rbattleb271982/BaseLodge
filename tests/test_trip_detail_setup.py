@@ -154,7 +154,7 @@ def test_active_guest_sees_explicit_rsvp_and_only_valid_alternative(
         assert 'id="td-participant-date-sheet"' not in html
 
 
-def test_pending_invitee_gets_view_only_setup_chips(client):
+def test_pending_invitee_gets_no_you_setup_markup(client):
     with app.app_context():
         _owner_id, trip_id, _owner_participant_id = _setup_trip()
         invited = _make_user("trip-detail-pending")
@@ -165,7 +165,9 @@ def test_pending_invitee_gets_view_only_setup_chips(client):
 
     html = _trip_html(client, invited_id, trip_id)
 
-    assert html.count('td-setup-row td-setup-row--readonly') == 2
+    assert 'id="td-panel-you"' not in html
+    assert 'id="td-setup-card"' not in html
+    assert 'td-setup-row td-setup-row--readonly' not in html
     assert 'onclick="openPassSheet()"' not in html
     assert 'onclick="toggleEquipmentOverride()"' not in html
     assert 'onclick="toggleLessonEditor()"' not in html
@@ -283,7 +285,7 @@ def test_my_setup_distinguishes_missing_values_from_explicit_no_pass(
     assert "No lesson" in missing_html
 
 
-def test_my_setup_edit_affordances_are_absent_for_pending_invitee(client):
+def test_pending_invitee_gets_no_setup_content_or_edit_affordances(client):
     with app.app_context():
         owner_id, trip_id, _owner_participant_id = _setup_trip()
         invited = _make_user("trip-detail-pending-affordance")
@@ -294,13 +296,11 @@ def test_my_setup_edit_affordances_are_absent_for_pending_invitee(client):
 
     html = _trip_html(client, invited_id, trip_id)
 
-    setup_html = html.split('id="td-setup-card"', 1)[1].split(
-        "</div><!-- /td-setup-card -->", 1
-    )[0]
-    assert 'class="td-setup-row td-setup-row--readonly"' in setup_html
-    assert 'onclick="openPassSheet()"' not in setup_html
-    assert 'onclick="toggleEquipmentOverride()"' not in setup_html
-    assert 'onclick="toggleLessonEditor()"' not in setup_html
+    assert 'id="td-setup-card"' not in html
+    assert 'class="td-setup-row td-setup-row--readonly"' not in html
+    assert 'onclick="openPassSheet()"' not in html
+    assert 'onclick="toggleEquipmentOverride()"' not in html
+    assert 'onclick="toggleLessonEditor()"' not in html
 
 
 def test_lessons_and_equipment_use_existing_signal_endpoint(client):
@@ -363,6 +363,22 @@ def test_trip_detail_hub_has_flat_planning_and_progressive_rsvp_sections(client)
     assert html.index('id="td-tab-people"') < html.index('id="td-tab-you"')
 
 
+def test_trip_detail_you_presents_riding_and_ability_as_distinct_values(client):
+    with app.app_context():
+        owner_id, trip_id, _participant_id = _setup_trip()
+
+    html = _trip_html(client, owner_id, trip_id)
+    you_panel = html.split('id="td-panel-you"', 1)[1].split(
+        "</section><!-- /td-hub-your-trip -->", 1
+    )[0]
+
+    assert '<span class="td-profile-fact-label">Riding</span>' in you_panel
+    assert '<span class="td-profile-fact-value">Skier</span>' in you_panel
+    assert '<span class="td-profile-fact-label">Ability</span>' in you_panel
+    assert '<span class="td-profile-fact-value">Intermediate</span>' in you_panel
+    assert "Skier · Intermediate" not in you_panel
+
+
 def test_trip_detail_hub_keeps_pending_invitee_view_only_and_sticky_rsvp(client):
     with app.app_context():
         _owner_id, trip_id, _owner_participant_id = _setup_trip()
@@ -382,6 +398,10 @@ def test_trip_detail_hub_keeps_pending_invitee_view_only_and_sticky_rsvp(client)
     assert 'id="td-edit-toggle-btn"' not in html
     assert 'onclick="openParticipantDateSheet()"' not in html
     assert 'id="td-self-rsvp"' not in html
+    assert 'id="td-tab-people"' not in html
+    assert 'id="td-tab-you"' not in html
+    assert 'id="td-panel-people"' not in html
+    assert 'id="td-panel-you"' not in html
     assert 'class="sticky-action-container visible"' in html
     assert 'name="response" value="going"' in html
     assert 'name="response" value="interested"' in html
@@ -491,3 +511,12 @@ def test_trip_detail_people_rows_use_mobile_safe_wrapping():
     assert "overflow-wrap: anywhere" in TRIP_DETAIL_TEMPLATE
     assert "flex-wrap: wrap" in TRIP_DETAIL_TEMPLATE
     assert ".td-person-actions" in TRIP_DETAIL_TEMPLATE
+
+
+def test_trip_detail_tabs_keep_keyboard_focus_contract():
+    assert "button.tabIndex = selected ? 0 : -1;" in TRIP_DETAIL_TEMPLATE
+    assert "event.key === 'ArrowRight' || event.key === 'ArrowLeft'" in (
+        TRIP_DETAIL_TEMPLATE
+    )
+    assert "next.focus();" in TRIP_DETAIL_TEMPLATE
+    assert "window.selectTripDetailTab('trip');" in TRIP_DETAIL_TEMPLATE

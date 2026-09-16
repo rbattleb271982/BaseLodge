@@ -10,16 +10,32 @@ from capture_harness.manifest import (
 
 def test_manifest_shape_and_count():
     validate_manifest()
-    assert len(MANIFEST) == 126
-    assert len({r["capture_id"] for r in MANIFEST}) == 126
+    assert len(MANIFEST) == 129
+    assert len({r["capture_id"] for r in MANIFEST}) == 129
     required = {"capture_id", "product_area", "screen", "route_template", "persona",
                 "state", "viewport", "segment", "logical_route_bindings", "preconditions",
                 "interaction", "deterministic_wait_condition", "output_path", "rationale"}
     assert all(required <= set(row) for row in MANIFEST)
 
 
-def test_mobile_only_and_exclusions():
-    assert {tuple(r["viewport"].values()) for r in MANIFEST} <= {(390, 844), (360, 800)}
+def test_bounded_viewports_and_exclusions():
+    assert {tuple(r["viewport"].values()) for r in MANIFEST} <= {
+        (360, 800),
+        (390, 844),
+        (430, 932),
+        (768, 1024),
+        (1280, 900),
+    }
+    responsive_trip_rows = {
+        (r["viewport"]["width"], r["is_mobile"])
+        for r in MANIFEST
+        if r["screen"] == "trip-detail" and r["state"].startswith("responsive-")
+    }
+    assert responsive_trip_rows == {
+        (430, True),
+        (768, True),
+        (1280, False),
+    }
     assert all(not any(r["route_template"].startswith(x) for x in FORBIDDEN) for r in MANIFEST)
     assert not any("admin" in r["route_template"].lower() for r in MANIFEST)
 

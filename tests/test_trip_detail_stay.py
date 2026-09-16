@@ -51,14 +51,14 @@ def test_day_trip_has_no_stay_ui_even_when_stay_data_exists(client):
     assert "View property" not in html
 
 
-def test_overnight_owner_sees_compact_add_stay_but_no_empty_card(client):
+def test_overnight_owner_sees_no_standalone_stay_presentation(client):
     with app.app_context():
         owner_id, trip_id = _setup_trip()
 
     html = _trip_html(client, owner_id, trip_id)
 
-    assert 'id="td-stay-heading"' in html
-    assert "Add Stay" in html
+    assert 'id="td-stay-heading"' not in html
+    assert "Add Stay" not in html
     assert 'class="td-stay-card"' not in html
 
 
@@ -102,7 +102,7 @@ def test_organizer_can_create_name_only_stay(client):
         assert trip.accommodation_link is None
 
     html = _trip_html(client, owner_id, trip_id)
-    assert "The Hythe" in html
+    assert "The Hythe" not in html
     assert "View property" not in html
 
 
@@ -126,11 +126,10 @@ def test_organizer_can_create_stay_with_description_and_url(client):
     assert response.get_json()["stay_description"] == "Check-in after 4 PM"
     assert response.get_json()["accommodation_link"] == "https://www.marriott.com/vail"
     html = _trip_html(client, owner_id, trip_id)
-    assert "Marriott Vail" in html
-    assert "Check-in after 4 PM" in html
-    assert 'href="https://www.marriott.com/vail"' in html
-    assert 'target="_blank" rel="noopener noreferrer"' in html
-    assert "View property" in html
+    assert "Marriott Vail" not in html
+    assert "Check-in after 4 PM" not in html
+    assert 'href="https://www.marriott.com/vail"' not in html
+    assert "View property" not in html
 
 
 def test_organizer_can_edit_and_clear_stay(client):
@@ -174,7 +173,7 @@ def test_organizer_can_edit_and_clear_stay(client):
 
     html = _trip_html(client, owner_id, trip_id)
     assert "Airbnb on Gore Creek" not in html
-    assert "Add Stay" in html
+    assert "Add Stay" not in html
 
 
 @pytest.mark.parametrize(
@@ -218,7 +217,7 @@ def test_invalid_stay_save_rejected_without_partial_persistence(
         assert trip.accommodation_link == "https://example.com/existing"
 
 
-def test_active_going_and_interested_participants_view_but_cannot_mutate_stay(client):
+def test_active_participants_do_not_view_or_mutate_stay(client):
     with app.app_context():
         owner_id, trip_id = _setup_trip(
             stay_name="Rental house near Lionshead",
@@ -233,8 +232,12 @@ def test_active_going_and_interested_participants_view_but_cannot_mutate_stay(cl
         interested_id = interested.id
         db.session.commit()
 
-    assert "Rental house near Lionshead" in _trip_html(client, going_id, trip_id)
-    assert "Rental house near Lionshead" in _trip_html(client, interested_id, trip_id)
+    assert "Rental house near Lionshead" not in _trip_html(
+        client, going_id, trip_id
+    )
+    assert "Rental house near Lionshead" not in _trip_html(
+        client, interested_id, trip_id
+    )
 
     _login(client, going_id)
     response = json_post(
@@ -282,7 +285,7 @@ def test_declined_and_removed_viewers_remain_denied(client, status):
     assert response.status_code == 404
 
 
-def test_historical_authorized_participant_sees_saved_stay(client):
+def test_historical_authorized_participant_keeps_stay_data_out_of_presentation(client):
     with app.app_context():
         start = date.today() - timedelta(days=8)
         owner_id, trip_id = _setup_trip(
@@ -296,8 +299,8 @@ def test_historical_authorized_participant_sees_saved_stay(client):
         guest_id = guest.id
         db.session.commit()
 
-    assert "Historical lodge" in _trip_html(client, owner_id, trip_id)
-    assert "Historical lodge" in _trip_html(client, guest_id, trip_id)
+    assert "Historical lodge" not in _trip_html(client, owner_id, trip_id)
+    assert "Historical lodge" not in _trip_html(client, guest_id, trip_id)
 
 
 def test_legacy_accommodation_values_do_not_become_named_stay(client):
@@ -309,8 +312,8 @@ def test_legacy_accommodation_values_do_not_become_named_stay(client):
 
     html = _trip_html(client, owner_id, trip_id)
 
-    assert 'id="td-stay-heading"' in html
-    assert "Add Stay" in html
+    assert 'id="td-stay-heading"' not in html
+    assert "Add Stay" not in html
     assert "View property" not in html
     assert "https://example.com/legacy" not in html
 
@@ -389,3 +392,14 @@ def test_stay_save_is_silent(client, monkeypatch):
 
     assert response.status_code == 200
     assert emitted_events == []
+
+
+def test_trip_detail_source_has_no_orphan_stay_presentation_code():
+    template = (
+        __import__("pathlib").Path("templates/trip_detail.html").read_text()
+    )
+    assert ".td-stay-" not in template
+    assert "openStaySheet" not in template
+    assert "saveTripStay" not in template
+    assert "clearTripStay" not in template
+    assert "'stay-editor'" not in template

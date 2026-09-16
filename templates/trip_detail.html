@@ -515,83 +515,6 @@
         .td-swg-title { font-size: 17px; font-weight: 600; color: #1A1A1A; margin: 0 0 2px; }
         .td-swg-sub { display: block; font-size: 13px; color: var(--bl-color-text-muted, #8A857A); margin: 0; }
         .td-swg-wishlist { font-size: 12px; color: #5C1219; margin: 0; font-weight: 500; }
-        .td-stay-card {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            padding: 14px 16px;
-            background: #FFFFFF;
-            border: 1px solid #E5DFD0;
-            border-radius: 14px;
-        }
-        .td-stay-icon {
-            width: 36px;
-            height: 36px;
-            background: rgba(92,18,25,0.07);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            color: #5C1219;
-        }
-        .td-stay-copy { flex: 1; min-width: 0; }
-        .td-stay-name {
-            margin: 0;
-            color: #1A1A1A;
-            font-size: 16px;
-            font-weight: 650;
-            overflow-wrap: anywhere;
-        }
-        .td-stay-description {
-            margin: 4px 0 0;
-            color: var(--bl-color-text-muted, #8A857A);
-            font-size: 13px;
-            line-height: 1.4;
-            overflow-wrap: anywhere;
-            white-space: pre-wrap;
-        }
-        .td-stay-link {
-            display: inline-block;
-            margin-top: 8px;
-            color: #5C1219;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .td-stay-link:active { opacity: 0.65; }
-        .td-stay-actions {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 5px;
-            flex-shrink: 0;
-        }
-        .td-stay-action {
-            padding: 2px 0;
-            border: 0;
-            background: transparent;
-            color: #5C1219;
-            font: inherit;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .td-stay-action--clear { color: #8B4A52; }
-        .td-stay-add {
-            display: inline-flex;
-            align-items: center;
-            gap: 7px;
-            padding: 5px 0;
-            border: 0;
-            background: transparent;
-            color: #5C1219;
-            font: inherit;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        .td-stay-add:active, .td-stay-action:active { opacity: 0.65; }
         .td-planning-card {
             background: #FFFFFF;
             border: 1px solid #E5DFD0;
@@ -2101,8 +2024,10 @@
 
         <nav class="td-detail-tabs" aria-label="Trip detail sections" role="tablist">
             <button type="button" class="td-detail-tab" id="td-tab-trip" role="tab" aria-selected="true" aria-controls="td-panel-trip" onclick="selectTripDetailTab('trip')">Trip</button>
+            {% if not is_invited %}
             <button type="button" class="td-detail-tab" id="td-tab-people" role="tab" aria-selected="false" aria-controls="td-panel-people" onclick="selectTripDetailTab('people')" aria-label="People, {{ people_projection.total }} associated people{% if pending_join_request_count %}, {{ pending_join_request_count }} join request{{ 's' if pending_join_request_count != 1 else '' }} waiting{% endif %}">People <span class="td-detail-tab-count">{{ people_projection.total }}</span>{% if pending_join_request_count %}<span class="td-detail-tab-attention" aria-hidden="true">{{ pending_join_request_count }}</span>{% endif %}</button>
             <button type="button" class="td-detail-tab" id="td-tab-you" role="tab" aria-selected="false" aria-controls="td-panel-you" onclick="selectTripDetailTab('you')">You</button>
+            {% endif %}
         </nav>
 
         <div data-td-region="trip" id="td-panel-trip" role="tabpanel" aria-labelledby="td-tab-trip">
@@ -2147,6 +2072,7 @@
         {% endif %}
         </div><!-- /Trip panel -->
 
+        {% if not is_invited %}
         <section class="td-hub-your-trip td-hub-section" data-td-region="setup" id="td-panel-you" role="tabpanel" aria-labelledby="td-tab-you">
             <div class="td-you-section-heading">
                 <p class="td-section-label" id="td-your-trip-heading">From your profile</p>
@@ -2156,7 +2082,11 @@
             <div class="td-profile-facts">
                 <div class="td-profile-fact">
                     <span class="td-profile-fact-label">Riding</span>
-                    <span class="td-profile-fact-value">{{ (current_user.display_rider_type or 'Not set')|trim }}{% if current_user.skill_level %} · {{ current_user.skill_level.value|title if current_user.skill_level.value is defined else current_user.skill_level|title }}{% endif %}</span>
+                    <span class="td-profile-fact-value">{{ (current_user.display_rider_type or 'Not set')|trim }}</span>
+                </div>
+                <div class="td-profile-fact">
+                    <span class="td-profile-fact-label">Ability</span>
+                    <span class="td-profile-fact-value">{{ current_user.skill_level.value|title if current_user.skill_level and current_user.skill_level.value is defined else (current_user.skill_level|title if current_user.skill_level else 'Not set') }}</span>
                 </div>
                 <div class="td-profile-fact">
                     <span class="td-profile-fact-label">Pass</span>
@@ -2480,6 +2410,7 @@
         </div>
         {% endif %}
         </section><!-- /td-hub-people -->
+        {% endif %}
 
     </div><!-- /page-container -->
 
@@ -3379,102 +3310,6 @@
                 var pc = document.querySelector('.page-container');
                 if (pc) pc.classList.remove('td-edit-mode');
             }
-
-            // ── Shared Stay — organizer-only, silent ──
-            {% if false %}
-            const _tdStayCsrf = {{ csrf_token() | tojson }};
-            window.openStaySheet = function() {
-                var error = document.getElementById('td-stay-error');
-                if (error) {
-                    error.textContent = '';
-                    error.classList.remove('visible');
-                }
-                _openSheet('td-stay-sheet');
-                setTimeout(function() {
-                    var name = document.getElementById('td-stay-name');
-                    if (name) name.focus();
-                }, 320);
-            };
-            window.closeStaySheet = function() { _closeSheet('td-stay-sheet'); };
-            window.saveTripStay = async function() {
-                var nameEl = document.getElementById('td-stay-name');
-                var descriptionEl = document.getElementById('td-stay-description');
-                var linkEl = document.getElementById('td-stay-link');
-                var errorEl = document.getElementById('td-stay-error');
-                var saveBtn = document.getElementById('td-stay-save');
-                var name = nameEl ? nameEl.value.trim() : '';
-                var description = descriptionEl ? descriptionEl.value.trim() : '';
-                var link = linkEl ? linkEl.value.trim() : '';
-                function showError(message) {
-                    if (errorEl) {
-                        errorEl.textContent = message;
-                        errorEl.classList.add('visible');
-                    }
-                }
-                if (!name) {
-                    showError('Stay name is required.');
-                    return;
-                }
-                if (name.length > 200) {
-                    showError('Stay name cannot exceed 200 characters.');
-                    return;
-                }
-                if (description.length > 500) {
-                    showError('Stay details cannot exceed 500 characters.');
-                    return;
-                }
-                if (saveBtn) saveBtn.disabled = true;
-                try {
-                    const res = await fetch(`/api/trip/{{ trip.id }}/stay`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': _tdStayCsrf
-                        },
-                        body: JSON.stringify({
-                            stay_name: name,
-                            stay_description: description,
-                            accommodation_link: link
-                        })
-                    });
-                    const data = await res.json().catch(function() { return {}; });
-                    if (res.ok && data.success) {
-                        window.closeStaySheet();
-                        await window.tdRefreshRegions(['stay', 'stay-editor']);
-                    } else {
-                        showError(data.error || 'Could not save Stay.');
-                    }
-                } catch(e) {
-                    showError('Network error. Please try again.');
-                } finally {
-                    if (saveBtn) saveBtn.disabled = false;
-                }
-            };
-            window.clearTripStay = async function(button) {
-                if (!window.confirm('Clear this Stay from the trip?')) return;
-                if (button) button.disabled = true;
-                try {
-                    const res = await fetch(`/api/trip/{{ trip.id }}/stay`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': _tdStayCsrf
-                        },
-                        body: JSON.stringify({ clear: true })
-                    });
-                    const data = await res.json().catch(function() { return {}; });
-                    if (res.ok && data.success) {
-                        await window.tdRefreshRegions(['stay', 'stay-editor']);
-                    } else {
-                        blToast(data.error || 'Could not clear Stay.');
-                    }
-                } catch(e) {
-                    blToast(e && e.status === 429 ? 'Too many requests. Please try again later.' : 'Network error. Please try again.');
-                } finally {
-                    if (button && button.isConnected) button.disabled = false;
-                }
-            };
-            {% endif %}
 
             // ── Note counter ──
             window.tdNoteOnInput = function() { _tdSyncNoteUI(); };

@@ -13,6 +13,9 @@ PERSONAS = ("empty", "light", "typical", "heavy", "extreme", "edge")
 VIEWPORTS = {
     "mobile": {"width": 390, "height": 844},
     "narrow": {"width": 360, "height": 800},
+    "wide-mobile": {"width": 430, "height": 932},
+    "tablet": {"width": 768, "height": 1024},
+    "desktop": {"width": 1280, "height": 900},
 }
 FORBIDDEN = ("/admin", "/location-setup", "/planning-window", "/overlap-detail")
 PERSONA_IDS = {f"persona-{p}" for p in PERSONAS}
@@ -54,6 +57,7 @@ def _row(area: str, screen: str, persona: str, state: str, route: str,
         "screen": screen, "route_template": route, "route": route,
         "persona": persona, "state": state, "viewport": VIEWPORTS[viewport].copy(),
         "viewport_name": viewport, "segment": segment,
+        "is_mobile": viewport != "desktop",
         "logical_route_bindings": bindings, "bindings": bindings,
         "preconditions": [f"persona:{persona}", "capture-runtime"],
         "interaction": interaction, "deterministic_wait_condition": wait,
@@ -173,6 +177,14 @@ def build_manifest() -> list[dict[str, Any]]:
             viewport="narrow" if state=="dense-roster" else "mobile",
             interaction="open invitation sheet" if state=="invite-modal" else "none",
             wait="trip-detail-visible")
+    for viewport in ("wide-mobile", "tablet", "desktop"):
+        add(
+            "trip-detail", "trip-detail", "heavy",
+            f"responsive-{viewport}", "/trips/{trip_id}", "you",
+            bindings={"trip_id": "HT04"}, viewport=viewport,
+            wait="trip-detail-visible",
+            rationale="BL-227 locked Trip Detail responsive verification.",
+        )
     # Friends and friend read-only surfaces.
     friends = [("empty","empty","top"),("typical","typical","top"),("heavy-25-friends","heavy","top"),
                ("pagination","heavy","continuation"),("suggestions","typical","suggestions"),
@@ -240,8 +252,8 @@ MANIFEST = build_manifest()
 
 def validate_manifest(rows: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
     rows = MANIFEST if rows is None else rows
-    if len(rows) != 126:
-        raise ValueError(f"capture manifest must contain exactly 126 rows (got {len(rows)})")
+    if len(rows) != 129:
+        raise ValueError(f"capture manifest must contain exactly 129 rows (got {len(rows)})")
     ids = [r["capture_id"] for r in rows]
     if len(set(ids)) != len(ids):
         raise ValueError("capture IDs must be unique")

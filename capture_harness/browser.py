@@ -67,7 +67,10 @@ class CaptureRunner:
         screenshot.parent.mkdir(parents=True, exist_ok=True)
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True, executable_path=self.executable)
-            context = browser.new_context(viewport=row["viewport"], is_mobile=True)
+            context = browser.new_context(
+                viewport=row["viewport"],
+                is_mobile=row.get("is_mobile", True),
+            )
             context.add_init_script("""(() => {
               const Frozen = 1799949600000;
               const NativeDate = Date;
