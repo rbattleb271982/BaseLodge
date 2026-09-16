@@ -1,0 +1,398 @@
+Review BaseLodge's current Profile and Settings architecture as a PRODUCT ARCHITECTURE REVIEW ONLY.
+
+DO NOT IMPLEMENT ANYTHING.
+
+This review follows the full-app audit (#565) and the Availability architecture review (#569). We are now evaluating whether Profile, Settings, and their related edit/manage destinations have evolved into a fragmented or duplicative experience.
+
+The product owner will make the product decisions after seeing your findings. Do not choose a preferred future architecture, redesign screens, consolidate routes, or create implementation tasks.
+
+GOAL
+
+Give us a precise picture of:
+
+1. What Profile is currently for
+2. What Settings is currently for
+3. What information/actions appear in each
+4. What information is view-only versus editable
+5. Where editing actually happens
+6. What other screens/sheets/routes are effectively extensions of Profile or Settings
+7. Where the same information or action appears in multiple places
+8. Where ownership is inconsistent or unclear
+9. Whether users must navigate somewhere unexpected to change information they can see elsewhere
+10. Whether any destinations now exist primarily because of historical implementation rather than a coherent current product need
+11. Whether screens could potentially be consolidated or removed
+12. Whether terminology, hierarchy, navigation, or presentation differs for the same concept across surfaces
+
+IMPORTANT PRODUCT CONTEXT
+
+Do not assume that every existing screen needs to survive.
+
+We specifically want you to identify opportunities where BaseLodge may be better if:
+
+- two destinations were consolidated;
+- a standalone screen became a section, sheet, or contextual action;
+- an edit workflow moved closer to where the information is displayed;
+- Profile became more clearly a personal ski identity/dashboard;
+- Settings became more clearly configuration/account management;
+- duplicated information or controls were removed;
+- navigation became simpler;
+- an old route or UI concept no longer justified its existence.
+
+These are PRODUCT OPPORTUNITIES, not defects. Clearly separate them from demonstrated bugs or inconsistencies.
+
+Do not recommend consolidation merely because two surfaces share data. Contextual repetition may be useful.
+
+CURRENT AREAS TO TRACE
+
+At minimum inspect:
+
+- Profile
+- Settings
+- Account/personal information
+- Ski/snowboard identity
+- Riding discipline
+- Ability
+- Ski passes
+- Equipment
+- Primary equipment
+- Availability
+- Ski Days / ski history
+- Wishlist / Want to Go
+- Upcoming trips shown on Profile
+- Friends/social information shown on Profile, if any
+- Notification preferences
+- Privacy-related settings
+- Authentication/account controls
+- Logout/account deletion if present
+- Any onboarding data that later becomes editable
+- Any standalone editor or management routes reached from Profile or Settings
+- Relevant Home or other surfaces that expose the same personal information
+
+AVAILABILITY DECISION ALREADY MADE
+
+Do not reopen the Availability architecture decision.
+
+The locked direction from #569 is:
+
+- Availability is the canonical functional concept.
+- “Add availability” is appropriate management language.
+- Open to Ski is a first-person presentation of canonical Availability, not a separate data model.
+- Trips remain separate from Availability.
+- Raw Availability remains private.
+- Profile placement of Availability has NOT yet been decided.
+
+Therefore, for this review, simply show us how Availability currently intersects Profile/Settings and what placement options the existing architecture permits. Do not choose its future location.
+
+METHOD
+
+1. Record beginning Git/worktree state.
+
+2. Inventory all currently reachable Profile, Settings, and related management routes/templates/actions.
+
+3. Trace navigation into and out of them:
+   - bottom navigation
+   - Profile links
+   - Settings links
+   - Home/contextual links
+   - direct management screens
+   - sheets/modals
+   - onboarding-to-later-edit paths
+
+4. Build a CURRENT-STATE OWNERSHIP MATRIX.
+
+For every meaningful personal-data concept, show:
+
+| Concept | Displayed where | Editable where | Canonical storage | Other contextual surfaces | Notes |
+
+Include at minimum:
+- name/account identity
+- riding discipline
+- ability
+- pass
+- equipment
+- primary equipment
+- availability
+- ski history/Ski Days
+- wishlist
+- upcoming trips
+- notification preferences
+- privacy/account controls
+
+5. Exercise representative disposable accounts:
+   - new/light account
+   - established account
+   - dense account with multiple equipment setups, trips, wishlist mountains, availability, ski history, friends, etc.
+
+Use only disposable/local data. Never access Development or Production.
+
+6. Evaluate the actual user journeys.
+
+Examples:
+
+“I see X on Profile. How do I change it?”
+
+“I completed X during onboarding. Where would I expect to change it later?”
+
+“I want to change my pass.”
+
+“I want to change my equipment.”
+
+“I want to update my riding/ability information.”
+
+“I want to manage Availability.”
+
+“I want to understand my ski history.”
+
+“I want to change account/privacy/notification configuration.”
+
+Document how many conceptual navigation steps each requires and whether the destination is intuitive.
+
+Do not optimize for raw click count alone.
+
+7. Identify duplication and classify each instance as:
+
+A. USEFUL CONTEXTUAL REPETITION
+The same information appropriately appears in multiple contexts.
+
+B. INCONSISTENT DUPLICATION
+The same concept appears differently or has conflicting edit/ownership patterns.
+
+C. REDUNDANT WORKFLOW
+Multiple places effectively perform the same management job without a clear product reason.
+
+D. OWNERSHIP MISMATCH
+Information appears to belong to one product surface but must be managed somewhere conceptually unrelated.
+
+E. LEGACY/PRESENTATION DEBT
+A route, screen, control, or hierarchy appears to survive primarily because of historical implementation.
+
+Do not call something redundant simply because it shares underlying data.
+
+8. Evaluate Profile specifically.
+
+Based on current product behavior, describe what Profile currently functions as:
+
+- identity?
+- ski résumé?
+- personal dashboard?
+- social profile?
+- management screen?
+- statistics/history?
+- mixture?
+
+Do not choose what it SHOULD become yet.
+
+Identify the tensions created by its current mixture.
+
+9. Evaluate Settings specifically.
+
+Describe what Settings currently contains and whether those items behave like:
+
+- account configuration
+- product preferences
+- ski identity/profile editing
+- privacy
+- notifications
+- data management
+- miscellaneous management
+
+Again, describe before judging.
+
+10. Look for consolidation/removal opportunities.
+
+For each credible opportunity, show:
+
+CURRENT:
+Profile → X → separate management screen
+
+POSSIBLE:
+Profile → inline/contextual edit
+
+or:
+
+CURRENT:
+Profile contains X
+Settings also manages X
+
+POSSIBLE:
+One becomes canonical and the other links/contextualizes it
+
+or:
+
+CURRENT:
+Standalone screen Y exists
+
+POSSIBLE:
+Y becomes a section/sheet within another destination
+
+These are examples only. Base findings on the actual app.
+
+11. Evaluate responsive/design consistency at:
+
+- 360px
+- 390px
+- 430px
+- 768px
+- 1280px
+
+Look specifically for:
+
+- information hierarchy
+- section density
+- edit affordances
+- cards/rows that represent similar data differently
+- excessive vertical depth
+- dead space
+- settings-list consistency
+- mobile versus desktop usefulness
+- inconsistent headings/labels
+- confusing navigation transitions
+- duplicated page chrome
+- screens that feel visually disconnected from the current BaseLodge system
+
+Do not redesign them.
+
+12. Check accessibility/navigation behavior where relevant:
+- keyboard/focus
+- semantic controls
+- sheets/modals
+- back navigation
+- destructive account actions
+- disclosure controls
+
+13. Inspect implementation only as needed to understand why the current product behaves this way.
+
+Look for:
+- duplicated rendering/business rules
+- multiple write paths
+- legacy compatibility routes
+- GET-time mutation
+- canonical ownership
+- Profile/Settings-specific query behavior
+- server/client ownership
+- stale templates/scripts/styles
+
+Do not refactor anything.
+
+14. Reconcile against existing BL/Notion tasks if project context is locally available.
+
+Do NOT create or edit tasks.
+
+For each finding identify:
+- already tracked
+- partially tracked
+- new
+- stale/already implemented
+- product decision required
+
+15. Present FUTURE-STATE OPTIONS.
+
+Give 2–4 coherent architectures.
+
+Examples might include:
+- Profile as personal ski identity; Settings as configuration
+- Profile as personal dashboard with contextual editing
+- More consolidated Profile/Settings destination
+- Another architecture supported by evidence
+
+These examples are NOT instructions to recommend them.
+
+For each option include:
+
+- What Profile becomes
+- What Settings becomes
+- What moves
+- What stays
+- What screens/routes might disappear or consolidate
+- Availability placement implications
+- Navigation implications
+- Design implications
+- Engineering complexity
+- Migration implications
+- Benefits
+- Tradeoffs
+- Existing backlog interactions
+
+DO NOT RANK THE OPTIONS.
+
+DO NOT SELECT A WINNER.
+
+FINAL REPORT FORMAT
+
+Return:
+
+1. Executive summary
+2. Current Profile purpose
+3. Current Settings purpose
+4. Surface/navigation map
+5. Current-state ownership matrix
+6. Onboarding → later-edit mapping
+7. New/light account journey
+8. Established account journey
+9. Dense account journey
+10. Profile findings
+11. Settings findings
+12. Cross-surface duplication classification
+13. Ownership mismatches
+14. Redundant workflows
+15. Useful contextual repetition
+16. Legacy/presentation debt
+17. Terminology inconsistencies
+18. Design consistency findings
+19. Responsive findings
+20. Accessibility/navigation findings
+21. Performance/query observations
+22. Privacy/authorization observations
+23. Existing backlog reconciliation
+24. Potential screen consolidation/removal opportunities
+25. Future-state Option A
+26. Future-state Option B
+27. Future-state Option C, if warranted
+28. Future-state Option D, if warranted
+29. Availability placement implications
+30. Decisions required from the product owner
+31. Recommended order for making those decisions
+32. Implementation dependencies AFTER decisions
+33. Migration verdict for each option
+34. Beginning vs ending Git/worktree proof
+35. Coverage limitations
+36. Final verdict
+
+For section 30, make the decisions concrete and individually answerable.
+
+For example:
+
+DECISION 1
+Should X live in Profile, Settings, or both contextually?
+
+A. ...
+B. ...
+C. ...
+
+Do this only where the evidence establishes a genuine product decision.
+
+Do NOT answer those questions yourself.
+
+CRITICAL CONSTRAINTS
+
+- Review only.
+- No implementation.
+- No source edits.
+- No test edits.
+- No CSS/template/JS edits.
+- No migrations.
+- No database changes.
+- No Development or Production access.
+- No external analytics/notifications.
+- No Notion/task mutations.
+- No commits.
+- No pushes.
+- No publishing.
+- No deployment.
+- No permanent audit artifacts.
+- Restore/remove all temporary artifacts.
+- Ending Git/worktree state must exactly match beginning state.
+
+End with exactly:
+
+PROFILE / SETTINGS REVIEW COMPLETE — PRODUCT DECISIONS REQUIRED
