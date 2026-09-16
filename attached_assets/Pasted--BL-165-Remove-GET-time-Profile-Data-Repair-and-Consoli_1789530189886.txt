@@ -1,0 +1,246 @@
+# BL-165 — Remove GET-time Profile Data Repair and Consolidate Aggregates
+
+Use BUILD mode.
+
+This is a bounded Profile performance/read-semantics refactor.
+
+Before implementing, inspect the current code and Git history for BL-165-equivalent behavior. If the complete requirement is already implemented, do not duplicate it: verify it, report the evidence, and stop. Otherwise proceed directly with the implementation below.
+
+## Goal
+
+Profile GET/read paths must be read-only.
+
+Current/historical Profile behavior can repair equipment `is_primary` state and commit while serving a GET. Remove that read-time mutation while preserving the equipment-primary invariant and legacy-data safety.
+
+Also inspect Profile's secondary wishlist, trip, and Ski Day aggregates and consolidate or defer them only where doing so produces a concrete bounded improvement.
+
+Do not redesign Profile.
+
+## 1. Audit current Profile behavior
+
+Trace:
+
+- Profile route(s)
+- equipment loading
+- `is_primary` repair/normalization
+- any `db.session.commit()`, flush, update, insert, or delete reachable from Profile GET
+- equipment create/edit/delete flows
+- primary-equipment selection flows
+- wishlist aggregates
+- trip aggregates
+- Ski Day aggregates
+- query counts
+- templates/partials consuming these values
+
+Establish the current query/transaction baseline before changing code.
+
+Explicitly determine whether BL-165 has already been partially or fully implemented.
+
+## 2. Make Profile GET read-only
+
+Profile GET must not:
+
+- repair `is_primary`
+- commit
+- flush mutations
+- update equipment
+- insert/delete rows
+- silently normalize legacy records
+
+Loading Profile should not change persistent application state.
+
+Add regression protection that proves repeated Profile GET requests leave relevant database state unchanged.
+
+## 3. Preserve equipment-primary invariants
+
+Move/enforce primary-equipment invariants at the appropriate mutation boundary.
+
+Inspect all canonical equipment write paths, including as applicable:
+
+- create
+- edit
+- delete
+- mark primary
+- replacement of a primary item
+
+Preserve existing product semantics.
+
+Do not invent a new equipment state model.
+
+If legacy malformed data still needs repair support, preserve it through an explicit safe maintenance/write path rather than Profile GET.
+
+Do not perform a migration or bulk data repair unless evidence proves one is required.
+
+## 4. Aggregate performance
+
+Inspect Profile's wishlist, trip, and Ski Day aggregates.
+
+Only consolidate/defer them where there is a measurable or structurally clear benefit.
+
+Avoid:
+
+- N+1 queries
+- per-row hydration
+- duplicate aggregate queries
+- unnecessary new endpoints
+- client-side reconstruction of server business rules
+
+Do not turn BL-165 into a Profile redesign or broad performance rewrite.
+
+Report before/after Profile query counts and identify exactly what changed.
+
+## 5. Preserve behavior
+
+The Profile page must continue to display the same user-facing information and actions.
+
+Do not change:
+
+- Profile layout/design
+- equipment semantics
+- primary-equipment meaning
+- wishlist semantics
+- trip visibility
+- Ski Day semantics
+- privacy rules
+- authorization
+- navigation
+- analytics semantics
+
+This is a read-semantics/performance task, not a product redesign.
+
+## 6. Tests
+
+Add focused regression coverage proving:
+
+- Profile GET performs no persistent mutation
+- Profile GET does not repair malformed equipment state
+- repeated GETs are idempotent/read-only
+- equipment create/edit/delete paths preserve the primary invariant
+- primary replacement behaves correctly
+- deletion of primary equipment preserves existing intended behavior
+- legacy malformed equipment can still be handled safely through the appropriate explicit path
+- Profile aggregates remain correct
+- privacy/visibility behavior remains unchanged
+- query count does not regress
+- no N+1 behavior is introduced
+
+Reuse existing fixtures/tests where possible.
+
+Do not weaken existing tests.
+
+## 7. Verification
+
+Run focused suites covering:
+
+- Profile
+- equipment
+- wishlist Profile aggregates
+- trip Profile aggregates
+- Ski Day Profile aggregates
+- relevant privacy/visibility
+- query budgets
+
+Also run:
+
+- Python compilation for affected files
+- git diff --check
+
+Report exact passed / failed / skipped totals.
+
+Use only disposable/local test data.
+
+Do not connect to Production or Development.
+
+## 8. Migration
+
+Expected verdict:
+
+NO MIGRATION REQUIRED
+
+If current evidence unexpectedly proves a migration is necessary, STOP and report why before creating one.
+
+Do not modify migrations as part of this task without explicit approval.
+
+## 9. Independent review
+
+Review the final diff specifically for:
+
+- GET-time mutations
+- hidden commits/flushes
+- missed equipment write paths
+- invariant regressions
+- N+1 queries
+- unnecessary aggregate work
+- privacy changes
+- unrelated cleanup
+
+Fix concrete BL-165 defects only.
+
+## 10. Git/worktree
+
+At completion report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- tracked modified files
+- untracked files
+- .replit status
+- migration status
+- generated artifacts
+
+Do not:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+We will review the result first.
+
+## REQUIRED FINAL REPORT
+
+Return:
+
+1. Pre-existing BL-165 implementation status
+2. Profile GET behavior before
+3. Read-time mutation removed
+4. Equipment invariant enforcement
+5. Legacy malformed-data handling
+6. Aggregate/query changes
+7. Before/after query counts
+8. User-facing behavior equivalence
+9. Automated test totals
+10. Migration verdict
+11. Files changed
+12. Independent review result
+13. Git/worktree status
+14. Remaining issues
+
+End with exactly one:
+
+BL-165 COMPLETE — READY FOR SHIP CHECK
+
+BL-165 IMPLEMENTED — BOUNDED ISSUE REMAINS
+
+BL-165 BLOCKED — STOP BEFORE FURTHER CHANGES
+
+## HARD CONSTRAINTS
+
+Do not:
+
+- redesign Profile
+- change equipment product semantics
+- change privacy/visibility
+- create a migration without stopping first
+- connect to Production or Development
+- modify CI
+- modify .replit
+- perform unrelated cleanup
+- stage
+- commit
+- push
+- publish
+- deploy

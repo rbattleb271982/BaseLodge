@@ -5,7 +5,15 @@ from datetime import datetime, timedelta
 import pytest
 
 from app import _CSRF_EXEMPT_ENDPOINTS, app
-from models import db, EquipmentDiscipline, EquipmentSetup, Friend, InviteToken, User
+from models import (
+    db,
+    EquipmentDiscipline,
+    EquipmentSetup,
+    EquipmentSlot,
+    Friend,
+    InviteToken,
+    User,
+)
 from tests.conftest import _TEST_CSRF, _login, _make_user, form_post, json_post
 
 
@@ -31,6 +39,7 @@ def bl218_setup(client):
             user_id=viewer.id,
             discipline=EquipmentDiscipline.SKIER,
             brand="First",
+            slot=EquipmentSlot.PRIMARY,
             is_primary=True,
             created_at=datetime.utcnow() - timedelta(minutes=1),
         )
@@ -38,6 +47,7 @@ def bl218_setup(client):
             user_id=viewer.id,
             discipline=EquipmentDiscipline.SKIER,
             brand="Second",
+            slot=EquipmentSlot.SECONDARY,
             is_primary=True,
             created_at=datetime.utcnow(),
         )
@@ -191,8 +201,10 @@ def test_equipment_normalization_happens_only_in_explicit_mutations(
         session["_auth_session_logged"] = True
 
     # Read paths leave the deliberately invalid two-primary legacy state alone.
+    before = _persistent_state(bl218_setup)
     assert client.get("/profile").status_code == 200
-    assert _persistent_state(bl218_setup)["primaries"] == (True, True)
+    assert client.get("/profile").status_code == 200
+    assert _persistent_state(bl218_setup) == before
 
     saved = form_post(
         client,
@@ -221,6 +233,60 @@ def test_equipment_normalization_happens_only_in_explicit_mutations(
     )
     assert deleted.status_code == 200
     assert _persistent_state(bl218_setup)["primaries"] == (True,)
+
+
+def test_legacy_equipment_mutations_enforce_the_primary_invariant(
+    client, bl218_setup
+):
+    _login(client, bl218_setup["viewer_id"])
+    with client.session_transaction() as session:
+        session["_auth_session_logged"] = True
+
+    saved = json_post(
+        client,
+        "/profile/equipment",
+        {
+            "slot": "secondary",
+            "discipline": "skier",
+            "brand": "Second updated",
+            "length_cm": 170,
+            "width_mm": 98,
+        },
+    )
+    assert saved.status_code == 200
+    assert _persistent_state(bl218_setup)["primaries"] == (True, False)
+
+    deleted = json_post(
+        client,
+        "/profile/equipment/delete",
+        {"slot": "primary"},
+    )
+    assert deleted.status_code == 200
+    assert _persistent_state(bl218_setup)["primaries"] == (True,)
+
+
+def test_onboarding_equipment_write_repairs_an_all_false_primary_state(
+    client, bl218_setup
+):
+    with app.app_context():
+        for setup in EquipmentSetup.query.filter_by(
+            user_id=bl218_setup["viewer_id"]
+        ).all():
+            setup.is_primary = False
+        db.session.commit()
+
+    _login(client, bl218_setup["viewer_id"])
+    saved = form_post(
+        client,
+        "/onboarding/equipment",
+        {
+            "equipment_status": "have_own_equipment",
+            "equipment_brand": "First updated",
+        },
+    )
+
+    assert saved.status_code == 302
+    assert _persistent_state(bl218_setup)["primaries"] == (True, False)
 
 
 def test_bl218_endpoints_have_no_csrf_exemptions():

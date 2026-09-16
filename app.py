@@ -13026,6 +13026,8 @@ def save_onboarding_equipment():
     if equipment_status in ('needs_rentals', 'have_own_equipment'):
         user.equipment_status = equipment_status
 
+    db.session.flush()
+    _normalize_equipment_primaries(user.id)
     db.session.commit()
     return redirect(url_for("home"))
 
@@ -19424,6 +19426,8 @@ def delete_equipment():
     
     # Delete
     db.session.delete(equipment)
+    db.session.flush()
+    _normalize_equipment_primaries(current_user.id)
     db.session.commit()
     
     return jsonify({"success": True, "message": f"{slot.value} equipment deleted"})
@@ -19484,6 +19488,11 @@ def save_equipment():
     equipment.width_mm = parsed_width_mm
     
     db.session.add(equipment)
+    db.session.flush()
+    _normalize_equipment_primaries(
+        current_user.id,
+        preferred=equipment if slot == EquipmentSlot.PRIMARY else None,
+    )
     db.session.commit()
     
     return jsonify({"success": True, "message": f"{slot.value} equipment saved"})
