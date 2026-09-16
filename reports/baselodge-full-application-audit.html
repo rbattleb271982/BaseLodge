@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BaseLodge Full Application Audit</title>
+<style>
+:root{--ink:#221f1b;--muted:#665f56;--wine:#5c1219;--paper:#fffdf8;--line:#ded6ca;--soft:#f4efe6}
+*{box-sizing:border-box}body{margin:0;background:#ece7df;color:var(--ink);font:15px/1.58 Arial,sans-serif}.page{max-width:980px;margin:28px auto;padding:64px 72px;background:var(--paper);box-shadow:0 6px 30px #0001}h1{font:700 38px/1.12 Georgia,serif;color:var(--wine);margin:0 0 8px}h2{font:700 25px/1.2 Georgia,serif;color:var(--wine);margin:42px 0 14px;padding-bottom:7px;border-bottom:2px solid var(--line)}h3{font-size:17px;margin:22px 0 7px}.subtitle{font-size:18px;color:var(--muted)}.meta{margin:22px 0 34px;padding:14px 18px;background:var(--soft);border-left:4px solid var(--wine)}p{margin:8px 0}ul,ol{margin:8px 0 12px;padding-left:24px}li{margin:3px 0}table{border-collapse:collapse;width:100%;margin:14px 0 22px;font-size:13px}th,td{border:1px solid var(--line);padding:7px 8px;vertical-align:top;text-align:left}th{background:var(--soft)}code{background:var(--soft);padding:1px 4px;border-radius:3px}.finding{border:1px solid var(--line);border-left:4px solid var(--wine);padding:12px 16px;margin:14px 0}.finding h3{margin-top:0}.verdict{margin-top:48px;padding:20px;text-align:center;background:var(--wine);color:#fff;font-weight:700;letter-spacing:.04em}.small{font-size:13px;color:var(--muted)}@media(max-width:700px){.page{margin:0;padding:28px 20px;box-shadow:none}table{display:block;overflow-x:auto}h1{font-size:31px}}@media print{body{background:#fff}.page{margin:0;max-width:none;padding:24mm 18mm;box-shadow:none}h2{break-after:avoid}.finding,table{break-inside:avoid}}
+</style></head><body><main class="page">
+<h1>BaseLodge Full Application Audit</h1>
+<p class="subtitle">Product, Performance, UX, Privacy, Accessibility & Architecture</p>
+<div class="meta"><strong>Audit type:</strong> Evidence-based audit only; no application fixes implemented.<br><strong>Environment:</strong> Disposable local SQLite fixtures only.<br><strong>Repository baseline:</strong> Branch main at f3f5dde9f6ad0454591c4683121784a20c4a5572.</div>
+
+<h2>1. Executive summary</h2>
+<p>BaseLodge's core social trip-planning architecture is substantially mature. Privacy boundaries, authorization rules, lifecycle handling, responsive layouts, and state transitions have broad automated coverage.</p>
+<ul><li>No P0 or P1 defects</li><li>Five material P2 defects plus several P3 maintenance and interaction defects</li><li>No confirmed authorization or private-data leakage defect</li><li>No confirmed N+1 or severe server-performance regression</li><li>Payload hotspots on Trip Detail, Friends, and Home</li><li>Five stale Python assertions and two broken visual-capture states</li><li>Major information-architecture opportunities around Profile/Settings, availability, invitations, and notifications</li></ul>
+<p>The most important confirmed user-facing defect is malformed equipment IDs causing generic 500 errors. The most important reliability concern is Notifications silently presenting database failures as an empty inbox.</p>
+
+<h2>2. Current BaseLodge application map</h2>
+<table><tr><th>Area</th><th>Current job</th></tr><tr><td>Home</td><td>Next trip, Needs You, Ideas, Happening, availability and coordination signals</td></tr><tr><td>Trips</td><td>Upcoming, history, invitations, Friends' Trips, combined trip/opportunity view, season summary</td></tr><tr><td>Friends</td><td>Directory, incoming/outgoing requests, search, suggestions and profiles</td></tr><tr><td>Mountains</td><td>Resort discovery, Mountain Detail, social context, wishlist and visited state</td></tr><tr><td>Secondary</td><td>Notifications, Profile, Settings, availability, equipment, Ski Days, planning, invites and legal pages</td></tr><tr><td>Unauthenticated</td><td>Authentication, signup, password reset, invite landing and onboarding</td></tr></table>
+<p>The shipped primary navigation is Home, Trips, Friends and Mountains. Some documentation and older comments still describe an earlier architecture involving Invite or Profile as primary destinations.</p>
+
+<h2>3. Application surfaces audited</h2>
+<p>Authentication, onboarding, Home, Trips, Friends' Trips, trip creation, Trip Detail, Trip Planning, Friends, search, suggestions, invitations, Mountains, Mountain Detail, wishlist, Notifications, Profile, Settings, equipment, availability, Open to Ski, Ski Days, pass experiences, legal pages, navigation, and error/loading/empty/dense states.</p>
+<p>Inventory: 267 route decorators, 122 templates, 141 Python test files and 7 JavaScript test files.</p>
+
+<h2>4. Account/fixture states tested</h2>
+<ul><li><strong>Light:</strong> minimal social graph, few/no trips and empty optional states</li><li><strong>Typical:</strong> friends, trips, wishlist, social activity, invitations and requests</li><li><strong>Dense:</strong> large friend graph, multiple trips and roles, planning, equipment, availability, history, dense notifications and long values</li><li><strong>Edge:</strong> 403/404/500, validation failures, empty results, failed loading, cancelled/completed trips and narrow layouts</li></ul>
+
+<h2>5. Core flows exercised</h2>
+<p>Authentication switching; onboarding; Home states; discovery to Mountain Detail; wishlist and visited presentation; Trips/history/invitations/social feeds; Trip Detail roles; invite loading; RSVP and participation contracts; planning refresh; Friends paging/search/suggestions; notification acknowledgement; Profile/equipment/availability/Ski Days; terminal trip exclusion; authorization; cache return; and stale-response protections.</p>
+
+<h2>6. Browser viewport coverage</h2>
+<p>True widths: 360, 390, 430, 768 and 1280px, plus an existing 980px state. The matrix completed 127 of 129 states. Completed states reported no document-level horizontal overflow. Two states failed because the capture harness targeted presentation that is no longer visible.</p>
+
+<h2>7. Performance measurement table</h2>
+<p class="small">Local SQLite SQL time rounded to 0ms and is not suitable for production latency conclusions.</p>
+<table><tr><th>Surface</th><th>Fixture</th><th>SQL</th><th>Payload</th><th>Secondary requests</th><th>Finding</th></tr>
+<tr><td>Home</td><td>Light / dense</td><td>14 / 20</td><td>105 / 128 KB</td><td>9 / 8</td><td>Large aggregate route; bounded SQL</td></tr>
+<tr><td>Trips</td><td>Light / dense</td><td>5 / 7</td><td>26 / 34 KB</td><td>7 / 7</td><td>Reasonable baseline</td></tr>
+<tr><td>Friends</td><td>Light / dense</td><td>8 / 10</td><td>126 / 139 KB</td><td>10 / 8</td><td>Payload disproportionately large</td></tr>
+<tr><td>Mountains</td><td>Light / dense</td><td>3+1 / 1+2 API</td><td>35 KB document</td><td>8</td><td>Full catalog API scales with catalog size</td></tr>
+<tr><td>Profile</td><td>Light / dense</td><td>7 / 7</td><td>34 KB</td><td>7</td><td>Stable baseline</td></tr>
+<tr><td>Notifications</td><td>Light / dense</td><td>3 / 5</td><td>18 / 20 KB</td><td>8</td><td>Stable; defective failure semantics</td></tr>
+<tr><td>Trip Detail</td><td>Dense</td><td>19</td><td>195 KB</td><td>8</td><td>Largest measured document</td></tr>
+<tr><td>Mountain Detail</td><td>Light / dense</td><td>3 + 5/7 social</td><td>25 KB</td><td>10</td><td>Small document; progressive social cost</td></tr></table>
+
+<h2>8. Confirmed bugs</h2>
+<div class="finding"><h3>D1 — Malformed equipment IDs produce 500 responses</h3><p><strong>Classification:</strong> Reliability · <strong>Confidence:</strong> Confirmed · <strong>Severity:</strong> P2</p><p>Authenticated probes sent <code>setup_id=abc</code> to save, make-primary and delete. All returned generic 500 pages. Direct <code>int(setup_id)</code> calls need guarded parsing and stable 400 responses. No migration required.</p></div>
+<div class="finding"><h3>D2 — Notification query failures look like an empty inbox</h3><p><strong>Classification:</strong> Reliability/UX · <strong>Confidence:</strong> High Confidence · <strong>Severity:</strong> P2</p><p>Pending-request and activity queries catch broad exceptions, roll back, then render normal empty collections. A database failure can hide social activity without telling the user. Failures need privacy-safe logging and an explicit degraded state.</p></div>
+<div class="finding"><h3>D3 — Authentication mode controls are inaccessible</h3><p><strong>Classification:</strong> Accessibility · <strong>Confidence:</strong> High Confidence · <strong>Severity:</strong> P2</p><p>The login/create-account switch uses clickable divs without keyboard focusability, tab/button roles, selected state or panel association.</p></div>
+<div class="finding"><h3>D4 — Login errors are not announced</h3><p><strong>Classification:</strong> Accessibility · <strong>Confidence:</strong> High Confidence · <strong>Severity:</strong> P2</p><p>The dynamic error lacks an alert/live-region role, field association and focus handling.</p></div>
+<div class="finding"><h3>D5 — Notification actions have indistinguishable pending and failed states</h3><p><strong>Classification:</strong> UX/Reliability · <strong>Confidence:</strong> High Confidence · <strong>Severity:</strong> P2</p><p>Rows dim during requests, but controls do not expose busy state and failure silently restores the row.</p></div>
+<div class="finding"><h3>D6 — Shared focus styling can hide keyboard focus</h3><p><strong>Classification:</strong> Accessibility · <strong>Confidence:</strong> High Confidence · <strong>Severity:</strong> P2</p><p>Shared CSS removes form-control outlines and relies on subtle border changes. A consistent high-visibility <code>:focus-visible</code> treatment is needed.</p></div>
+<div class="finding"><h3>D7 — Two capture states cannot complete</h3><p><strong>Classification:</strong> Maintenance · <strong>Confidence:</strong> Confirmed · <strong>Severity:</strong> P3</p><p>Home availability targets a hidden trigger; Trip Detail invite-modal activates an overlay that remains non-visible.</p></div>
+<div class="finding"><h3>D8 — Five Python assertions are stale</h3><p><strong>Classification:</strong> Maintenance · <strong>Confidence:</strong> Confirmed · <strong>Severity:</strong> P3</p><p>Four assertions expect removed/renamed Trip Detail presentation; one expects the former nested Friends' Trips destination shape.</p></div>
+
+<h2>9. Performance findings</h2>
+<p>No severe performance defect was confirmed. Priorities are Trip Detail's 195 KB document, Friends' 139 KB payload, Home's critical-path aggregation, Mountains' full-catalog data architecture, targeted refresh POST+GET behavior, and unknown intent-prefetch waste.</p>
+
+<h2>10. Loading-state findings</h2>
+<p>Mountain social loading, Friends paging and targeted refresh have strong deduplication, retry and stale-response protections. Gaps remain in notification action feedback, shared navigation progress cancellation, form-submission loading, and production measurement of Home's external/degraded paths.</p>
+
+<h2>11. Responsive findings</h2>
+<p>No global horizontal overflow was observed. Concerns remain around controls below the app's 48–52px interaction sizing, clipped long metadata/settings values, desktop layouts that mainly stretch mobile UI, and multiple fixed/sticky interaction systems on Trip Detail.</p>
+
+<h2>12. Accessibility findings</h2>
+<ul><li>Non-semantic authentication tabs</li><li>Unannounced login errors</li><li>Suppressed focus outlines</li><li>Incomplete dialog contracts across some sheets</li><li>Undersized avatar, chip, filter and text-link controls</li><li>No busy/failure semantics for notification mutations</li><li>Inconsistent arrow and back-control labeling</li></ul>
+<p>Strong existing behavior includes availability-sheet focus trapping/restoration, Friends paging focus preservation and stale-response safeguards.</p>
+
+<h2>13. Privacy/authorization findings</h2>
+<p>No confirmed authorization or private-data leakage defect was found. Existing coverage includes private trips, reciprocal-friend requirements, invitation isolation, organizer/participant controls, planning visibility, availability privacy, equipment ownership, terminal-trip exclusion, CSRF and log privacy.</p><p>The notification-viewed endpoint is protected by the global unsafe-method CSRF hook; a raw authenticated tokenless POST returned 403.</p>
+
+<h2>14. State-consistency findings</h2>
+<p>No new cross-screen state inconsistency was reproduced. Positive evidence includes latest-response-only refresh, duplicate-submit prevention, monotonic paging generations, invite invalidation, canonical lifecycle filtering and equipment-primary normalization. Participant-specific effective-date coverage should be rewritten against the current Friends' Trips shape.</p>
+
+<h2>15. Empty/error/edge-state findings</h2>
+<p>The matrix covered empty friends/trips/wishlist/notifications, no-results discovery, no dates, validation errors, long/dense states, system errors and terminal trips. Material gaps are notification outage ambiguity, malformed equipment 500s, silent notification action failure and the two obsolete capture states.</p>
+
+<h2>16. Console/network findings</h2>
+<p>No unexpected console errors occurred on normal completed captures. Intentional 403/404/500 states produced expected errors. Favicon requests were occasionally browser-aborted although the asset returned 200 directly. Google Fonts failed only under deliberately blocked external networking and retained system fallbacks. Malformed equipment probes produced the three reproducible 500s.</p>
+
+<h2>17. Code-path findings</h2>
+<ul><li>Broad exception swallowing in Notifications</li><li>Unguarded integer parsing in equipment handlers</li><li>Obsolete Trip Detail refresh/presentation assumptions</li><li>Multiple critical-path modules in Home</li><li>Full client-side Mountains catalog</li><li>No new unsafe GET mutation confirmed</li></ul>
+
+<h2>18. Navigation/information-architecture findings</h2>
+<ol><li>Documented and shipped primary navigation disagree</li><li>Profile and Settings lack one clear canonical model</li><li>Availability is fragmented among editing, Open to Ski, overlap, Ideas and trip creation</li><li>Invitation behavior is split among friend, trip, group and share-link flows</li><li>Notifications is useful but buried</li><li>Legacy aliases obscure canonical destinations</li></ol>
+
+<h2>19. Design-system consistency findings</h2>
+<p>The app has a recognizable visual language but multiple button families, sheet/modal implementations, focus/loading/disabled behaviors, headers, arrows, tabs, empty states and destructive-action patterns. Highest-value standards: one dialog primitive, semantic button variants, a focus policy, one tab/disclosure contract, one async state contract and one header/back family.</p>
+
+<h2>20. Terminology/copy mismatches</h2>
+<p>Mountain/resort, wishlist/bucket list, friend/connection, invite/join request, availability/Open to Ski, planning/Ideas, Profile/Settings and Create Trip/Add Trip need consistent product definitions while preserving real differences among social and participant states.</p>
+
+<h2>21. Feature-discoverability findings</h2>
+<p>Availability is distributed across Home, Profile, Ideas and standalone routes. Equipment is mostly account configuration rather than trip context. Notifications lacks a persistent entry. Planning depends on contextual discovery. Ski history and visited mountains are weakly connected to planning. Suggested Friends competes with many responsibilities inside Friends.</p>
+
+<h2>22. Cross-screen duplication findings</h2>
+<p><strong>Useful:</strong> resort identity, trip status and friend context in relevant surfaces. <strong>Inconsistent:</strong> wishlist terminology, friend terminology, availability models and invite mechanisms. <strong>Duplicate implementation:</strong> modals, sheets, buttons, back controls and async state handling.</p>
+
+<h2>23. Screen consolidation/removal opportunities</h2>
+<table><tr><th>Opportunity</th><th>Confidence</th><th>Impact</th><th>Direction</th></tr><tr><td>Canonical Profile/Settings architecture</td><td>Strong</td><td>High</td><td>One grouped destination; aliases only for compatibility</td></tr><tr><td>Unified Availability experience</td><td>Strong</td><td>High</td><td>Dates → overlap → idea/trip as one flow</td></tr><tr><td>Unified Invite composer</td><td>Plausible</td><td>Medium</td><td>One composer with explicit modes</td></tr><tr><td>Contextualize narrow destinations</td><td>Plausible</td><td>Medium</td><td>Absorb narrow editors where their information is used</td></tr></table>
+
+<h2>24. Other product opportunities discovered</h2>
+<ul><li>Turn Mountains into a discovery-to-planning funnel</li><li>Make pending actions globally visible</li><li>Reduce Trip Detail initial document weight</li><li>Define explicit route, query and payload budgets</li><li>Standardize dialogs, tabs, buttons, focus and async behavior</li><li>Standardize core product vocabulary</li></ul>
+
+<h2>25. Test-coverage blind spots</h2>
+<p>No comprehensive route SQL/payload budgets; no browser prefetch-waste or targeted-refresh waterfall measurements; no production percentile instrumentation; limited scaling fixtures; no notification query-failure test; no malformed equipment-ID test; insufficient authentication accessibility coverage; stale Trip Detail/Friends' Trips assertions; and no full-run capture-completion guard.</p><p><strong>Results:</strong> JavaScript 63/63 passing. Partitioned Python: 2,329 passing, 36 skipped, 5 failing.</p>
+
+<h2>26. Existing backlog reconciliation</h2>
+<table><tr><th>Task</th><th>Assessment</th></tr><tr><td>#66 Push notification status</td><td>Separate from notification failure semantics</td></tr><tr><td>#67 Push permission re-prompt</td><td>Separate OS permission lifecycle concern</td></tr><tr><td>#76 Inline resort title update</td><td>Direct Trip Detail consistency improvement</td></tr><tr><td>#77 Delete-account FK violations</td><td>Existing account lifecycle defect; not duplicated</td></tr><tr><td>#566 Equipment validation</td><td>Represented D1; later cancelled</td></tr><tr><td>#567 Notification outage visibility</td><td>Represented D2; later cancelled</td></tr><tr><td>#568 Sign-in accessibility</td><td>Represented D3/D4; later cancelled</td></tr></table>
+
+<h2>27. Master defect table</h2>
+<table><tr><th>ID</th><th>Finding</th><th>Confidence</th><th>Severity</th></tr><tr><td>D1</td><td>Malformed equipment IDs return 500</td><td>Confirmed</td><td>P2</td></tr><tr><td>D2</td><td>Notification DB failures look empty</td><td>High Confidence</td><td>P2</td></tr><tr><td>D3</td><td>Auth switch inaccessible</td><td>High Confidence</td><td>P2</td></tr><tr><td>D4</td><td>Login errors not announced</td><td>High Confidence</td><td>P2</td></tr><tr><td>D5</td><td>Notification actions lack pending/failure feedback</td><td>High Confidence</td><td>P2</td></tr><tr><td>D6</td><td>Shared focus can be difficult to see</td><td>High Confidence</td><td>P2</td></tr><tr><td>D7</td><td>Two capture states fail</td><td>Confirmed</td><td>P3</td></tr><tr><td>D8</td><td>Five stale Python assertions</td><td>Confirmed</td><td>P3</td></tr><tr><td>D9</td><td>Undersized important touch targets</td><td>High Confidence</td><td>P3</td></tr><tr><td>D10</td><td>Navigation progress can remain stuck</td><td>Investigate</td><td>P3</td></tr><tr><td>D11</td><td>Long metadata can be clipped</td><td>Investigate</td><td>P3</td></tr></table>
+
+<h2>28. Master product-opportunity table</h2>
+<table><tr><th>Opportunity</th><th>Confidence</th><th>Impact</th></tr><tr><td>Canonical Profile/Settings</td><td>Strong</td><td>High</td></tr><tr><td>Unified Availability</td><td>Strong</td><td>High</td></tr><tr><td>Unified Invite composer</td><td>Plausible</td><td>Medium</td></tr><tr><td>Contextualize narrow destinations</td><td>Plausible</td><td>Medium</td></tr><tr><td>Mountains-to-planning funnel</td><td>Strong</td><td>High</td></tr><tr><td>Globally visible pending actions</td><td>Strong</td><td>High</td></tr><tr><td>Reduce Trip Detail weight</td><td>Plausible</td><td>Medium</td></tr><tr><td>Route/payload budgets</td><td>Strong</td><td>Medium</td></tr><tr><td>Shared interaction standards</td><td>Strong</td><td>High</td></tr><tr><td>Core vocabulary standardization</td><td>Strong</td><td>Medium</td></tr></table>
+
+<h2>29. Recommended implementation batches</h2>
+<ol><li><strong>Input and failure reliability:</strong> equipment validation, notification degraded states and notification action feedback. Power; no plan needed except presentation choice.</li><li><strong>Authentication accessibility:</strong> semantic mode switch, announced errors and focus. Power; no product plan needed.</li><li><strong>Shared interaction accessibility:</strong> focus, touch targets and accessible dialog foundation. Max; plan and approval recommended.</li><li><strong>Regression confidence:</strong> repair capture harness and stale tests. Power; no plan needed.</li><li><strong>Product architecture exploration:</strong> Profile, Availability, Invite, Mountains, pending actions and vocabulary. Plan then Max; owner approval required.</li><li><strong>Performance:</strong> establish budgets before decomposing Trip Detail, Friends and Home. Power for measurement; Max for redesign.</li></ol>
+
+<h2>30. Items requiring further investigation</h2>
+<p>Production-like Home P95; compressed Friends/Trip Detail transfer cost; Mountains scaling; prefetch waste; duplicate targeted refreshes; Capacitor navigation-loader behavior; clipped-value accessibility; native back behavior for sheets; real database outage behavior; and reachability of old Trip Detail attention logic.</p>
+
+<h2>31. Migration assessment</h2>
+<p>No confirmed defect requires a database migration. Unified Availability or Invite architecture remains unknown until planned; other proposed work is expected to be code, template and test changes only.</p>
+
+<h2>32. Production/Development risk assessment</h2>
+<p>Neither Development nor Production was accessed. No real users, migrations, messages, push notifications, analytics or external side effects were involved. Future consolidation must preserve deep links, privacy boundaries, invitation authorization models and privacy-safe diagnostics.</p>
+
+<h2>33. Beginning vs ending Git/worktree verification</h2>
+<table><tr><th>Item</th><th>Beginning</th><th>Ending</th></tr><tr><td>Branch</td><td>main</td><td>main</td></tr><tr><td>HEAD</td><td>f3f5dde9f6ad0454591c4683121784a20c4a5572</td><td>Same</td></tr><tr><td>origin/main</td><td>3c7e98d8839aec8463c502a3f6d64e871fafe83d</td><td>Same</td></tr><tr><td>Tracked/staged/untracked</td><td>Empty</td><td>Empty</td></tr><tr><td>Diff hashes</td><td>SHA-256 of empty content</td><td>Same</td></tr><tr><td>Audit temp artifacts</td><td>N/A</td><td>Zero remaining</td></tr></table>
+
+<h2>34. Overall BaseLodge product assessment</h2>
+<p><strong>Strongest:</strong> social-trip authorization, lifecycle modeling, Home hierarchy, stale-response protection, social privacy, fixture coverage and mobile-first visual language.</p><p><strong>Weakest:</strong> authentication accessibility, notification failure semantics, accumulated modal/sheet implementations, Profile/Settings architecture, availability and invitation fragmentation, stale regression contracts and absent route budgets.</p><p>The app has outgrown its earlier screen-oriented architecture. Home is now a coordination center; Mountains is social discovery; Profile includes account/history/gear/preferences; and Availability spans several planning flows.</p>
+
+<h2>35. Five highest-value areas for product-owner review</h2>
+<ol><li>Availability as one planning workflow</li><li>Canonical Profile/Settings architecture</li><li>Pending actions and Notifications</li><li>Accessible shared interaction system</li><li>Trip Detail and Friends payload architecture</li></ol>
+
+<h2>36. Exact recommended next action</h2>
+<p>Approve a first implementation batch for controlled equipment-ID validation, explicit Notification failure/retry states, accessible authentication switching/error announcement, and repair of stale tests and capture states. Then conduct a separate product-design plan for unified Availability and canonical Profile/Settings architecture.</p>
+<div class="verdict">BASELODGE AUDIT COMPLETE — FINDINGS READY FOR TRIAGE</div>
+</main></body></html>
