@@ -1,0 +1,707 @@
+Create and execute a PLAN / INVESTIGATION task:
+
+#571 — Review Pending Actions and Notifications Architecture
+
+This is an evidence-based product architecture review of how BaseLodge currently communicates notifications, requests, invitations, pending actions, unread state, and other user-attention items across the application.
+
+DO NOT IMPLEMENT ANYTHING.
+
+The goal is to determine whether BaseLodge currently has a coherent distinction between:
+
+1. Something the user should KNOW
+2. Something the user needs to DO
+3. Something that has changed state
+4. Something that should remain visible until resolved
+5. Something that belongs contextually on another screen
+6. Something that belongs in notification history
+
+Do not assume Notifications should become an inbox, that Home should become an action center, or that a new screen is needed. Map the current product first and present product-owner decisions.
+
+## Context already locked
+
+Do not reopen these decisions:
+
+### Home
+Home is about what is happening now in BaseLodge.
+
+It should not become Profile or a generic configuration surface.
+
+### Profile
+Profile is the user + their personal BaseLodge configuration.
+
+It should not become another Home/dashboard.
+
+### Availability
+Availability is the canonical functional concept.
+
+Open to Ski is a first-person presentation of Availability.
+
+Trips remain separate.
+
+Raw Availability remains private.
+
+### Trip Detail
+Trip Detail uses the established Trip / People / You architecture and current server-owned permissions and lifecycle semantics.
+
+Do not redesign those architectures during this review.
+
+## Primary questions
+
+Determine how BaseLodge currently handles things such as:
+
+- Friend requests
+- Friend-request acceptance/rejection
+- Trip invitations
+- Invitation responses
+- Join requests
+- Join-request approval/rejection
+- RSVP changes
+- Trip changes
+- Trip cancellation
+- Participant changes
+- Planning activity
+- Social/friend activity
+- Notifications
+- Unread notification state
+- Notification badges/counts
+- Pending-request counts
+- Pending invitation counts
+- Home alerts/actions
+- Friends actions
+- Trip actions
+- Any other current user-attention state
+
+Do not assume every one of these currently generates a notification.
+
+Document what actually exists.
+
+## 1. Establish the audit boundary
+
+Before doing anything, record:
+
+- Branch
+- HEAD
+- origin/main
+- Ahead/behind
+- git status --short
+- Tracked diff
+- Untracked files
+- .replit state
+- Migration state
+
+Use only:
+
+- Current source
+- Current tests
+- Read-only Git history
+- Disposable local data
+- Isolated local runtime/capture infrastructure
+
+Never access:
+
+- Development database
+- Production database
+- Real user data
+- Live analytics
+- External notification providers
+- Email providers
+- Push providers
+- Other external services
+
+The ending repository/worktree state must exactly match the beginning state.
+
+## 2. Inventory every attention surface
+
+Map every currently reachable place where BaseLodge tells a user that something happened or needs attention.
+
+At minimum inspect:
+
+- Home
+- Notifications
+- Friends
+- Friend Requests
+- Trip Detail
+- Trips
+- Trip invitations
+- Join requests
+- Planning/Ideas
+- Bottom navigation
+- Badges/counts
+- Inline banners
+- Toasts
+- Sheets/modals
+- Empty states
+- Any notification/preferences surfaces relevant to understanding behavior
+
+For each surface document:
+
+- What appears
+- Why it appears
+- Whether it requires action
+- Whether the action can be completed there
+- Whether it remains after action
+- Whether it has unread/read state
+- Whether another surface shows the same event
+- Where the canonical underlying state lives
+
+## 3. Build an event/action matrix
+
+For every meaningful event type, produce:
+
+| Event | Actor | Recipient | Notification created? | Action required? | Where surfaced? | Where resolved? | Persists until resolved? | Read/unread behavior | Canonical state |
+
+Include all supported examples discovered in current source.
+
+At minimum investigate:
+
+- Incoming friend request
+- Friend request accepted
+- Trip invitation
+- Invitation accepted
+- Invitation declined
+- Join request
+- Join request approved
+- Join request rejected
+- RSVP/status change
+- Trip cancellation
+- Participant leave
+- Trip completion where relevant
+- Planning activity
+- Other meaningful social/trip notifications currently implemented
+
+Do not invent missing event types.
+
+## 4. Distinguish notification state from actionable state
+
+For every event determine whether BaseLodge currently treats it as:
+
+### Informational
+Example conceptual model:
+“Richard accepted your friend request.”
+
+No action is required.
+
+### Actionable
+Example conceptual model:
+“Sarah invited you to Aspen.”
+
+The user must respond.
+
+### Contextual state
+Example conceptual model:
+A pending invitation is visible on the relevant Trip because that is where the underlying relationship exists.
+
+### Historical
+Example conceptual model:
+An event remains useful as a record after its actionable state is resolved.
+
+### Ephemeral feedback
+Example conceptual model:
+“Equipment updated.”
+
+Useful immediately, but not necessarily appropriate as persistent notification history.
+
+These are analytical categories only. Do not change product behavior.
+
+## 5. Exercise complete disposable journeys
+
+Use isolated disposable users to walk complete flows.
+
+At minimum:
+
+### Friend request
+User A sends request to User B.
+
+Observe:
+- Sender state
+- Recipient state
+- Notifications
+- Friends
+- Badges
+- Home
+- Accept
+- Reject
+- Reload
+- Back navigation
+- Second session where useful
+
+### Trip invitation
+Organizer invites User B.
+
+Observe:
+- Organizer state
+- Invitee state
+- Notifications
+- Trips
+- Trip Detail
+- Home
+- Accept / Interested / Decline as currently supported
+- Post-response behavior
+
+### Join request
+User B requests to join an eligible trip.
+
+Observe:
+- Requester state
+- Organizer state
+- Notifications
+- Trip Detail
+- Home
+- Approve
+- Reject
+- Post-resolution state
+
+### Relevant trip/social event
+Exercise at least one representative informational notification that does not require a user response.
+
+For each journey record what changes on every affected surface.
+
+## 6. Test unresolved versus read
+
+This distinction is critical.
+
+Determine whether an actionable item can currently be:
+
+- Unread + unresolved
+- Read + unresolved
+- Unread + already resolved elsewhere
+- Read + resolved
+
+Determine what happens in each case.
+
+Specifically answer:
+
+Does marking a notification as read have any relationship to resolving the underlying action?
+
+It generally should not be assumed that these are the same concept. Document current behavior.
+
+## 7. Test cross-surface resolution
+
+For actions appearing in multiple places, resolve them somewhere OTHER than Notifications.
+
+Examples where currently supported:
+
+- Accept friend request from Friends
+- Respond to invitation from Trip Detail
+- Resolve join request from Trip Detail
+
+Then inspect:
+
+- Notifications
+- Home
+- Badges
+- Relevant contextual screen
+
+Determine whether anything becomes stale, misleading, duplicated, or contradictory.
+
+Repeat where useful by resolving from another supported surface.
+
+## 8. Audit badges and counts
+
+Inventory every user-visible badge/count related to attention.
+
+For each determine:
+
+- What it counts
+- Canonical query/state
+- Whether it counts unread events
+- Whether it counts unresolved actions
+- Whether those concepts are mixed
+- Whether it updates after mutation
+- Whether reload is required
+- Whether counts agree across surfaces
+- Whether dense state scales correctly
+
+Pay special attention to bottom-navigation badges.
+
+## 9. Audit Notifications as a product
+
+Describe what the Notifications surface actually is today.
+
+Determine the degree to which it behaves as:
+
+- Activity history
+- Inbox
+- Action center
+- Social feed
+- Alert stream
+- Mixed system
+
+Evaluate:
+
+- Chronology
+- Read/unread semantics
+- Action affordances
+- Resolved items
+- Stale actionable items
+- Deep links
+- Empty state
+- Dense history
+- Grouping
+- Dismissal/deletion if present
+- Failure states
+- Retry behavior
+- Pagination/loading if present
+
+Do not decide what Notifications SHOULD become yet.
+
+## 10. Audit Home as an attention surface
+
+Describe exactly what pending/actionable information Home currently exposes.
+
+Determine:
+
+- Which actions appear
+- Why they appear there
+- Whether they duplicate Notifications
+- Whether duplication is useful context
+- Whether unresolved actions can be missed
+- Whether Home becomes overloaded in dense states
+- Whether Home distinguishes urgency from normal content
+
+Do not redesign Home.
+
+## 11. Audit Friends as an attention surface
+
+Determine how friend requests and related pending state interact with:
+
+- Friends
+- Notifications
+- Home
+- Bottom navigation
+- Any badges/counts
+
+Document whether Friends is currently the canonical action destination or merely another presentation.
+
+## 12. Audit Trips/Trip Detail as attention surfaces
+
+Determine how:
+
+- Invitations
+- Join requests
+- RSVP changes
+- Organizer actions
+- Participant actions
+
+interact with:
+
+- Notifications
+- Home
+- Trips
+- Trip Detail
+
+Preserve current authorization and lifecycle semantics.
+
+## 13. Classify duplication
+
+Every repeated attention item should be classified as:
+
+### A. Useful contextual repetition
+The same underlying state appropriately appears in multiple contexts.
+
+### B. Redundant duplication
+The same item is presented multiple times without additional user value.
+
+### C. Inconsistent duplication
+Multiple surfaces represent the same state differently or become inconsistent.
+
+### D. Necessary action persistence
+The same unresolved action remains visible in multiple appropriate places because the user still needs to act.
+
+### E. Historical + contextual coexistence
+Notifications retain the historical event while another surface owns current state.
+
+Do not classify repetition as bad solely because it exists.
+
+## 14. Identify missing connections
+
+Only identify missing connections supported by observed product behavior.
+
+Examples of the TYPE of issue to investigate, not predetermined findings:
+
+- An actionable invitation exists but is difficult to discover.
+- A resolved action still looks actionable in Notifications.
+- A badge represents unread notifications while the user interprets it as pending actions.
+- Home surfaces one request type but not another equivalent type.
+- Notification deep links do not take the user to the useful resolution context.
+- Failure leaves the user uncertain whether an action succeeded.
+
+Ground every finding in evidence.
+
+## 15. Loading/failure/state review
+
+Exercise relevant asynchronous behavior under:
+
+- Normal response
+- Slow response
+- Failed response
+- Retry
+- Repeated action
+- Reload
+- Back navigation
+- Visibility return
+- Resolution from another surface
+
+Look for:
+
+- Duplicate requests
+- Stale responses
+- Double actions
+- Unclear pending states
+- Missing retry
+- Silent failure
+- Incorrect badges
+- Uncaught console errors
+
+Do not fix them.
+
+## 16. Responsive review
+
+Verify relevant attention surfaces at:
+
+- 360px
+- 390px
+- 430px
+- 768px
+- 1280px
+
+Inspect:
+
+- Dense notifications
+- Long names
+- Long trip names
+- Multiple pending requests
+- Action buttons
+- Badges
+- Bottom navigation
+- Sheets/modals
+- Wrapping
+- Overflow
+- Sticky controls
+- Desktop use of space
+
+## 17. Accessibility/interaction review
+
+Where relevant inspect:
+
+- Keyboard navigation
+- Focus
+- Semantic buttons/links
+- Read/unread controls
+- Badges
+- Modal/sheet focus
+- Destructive actions
+- Loading/busy semantics
+- Success/error feedback
+
+This is not formal WCAG certification.
+
+## 18. Privacy and authorization
+
+Using disposable users, verify that attention surfaces do not expose unauthorized:
+
+- Private trip information
+- Participant-only information
+- Join requests
+- Invitations
+- Friend-request data
+- Planning content
+- Availability
+- Equipment
+- Other private user information
+
+Inspect both routes and rendered HTML where relevant.
+
+## 19. Performance/query behavior
+
+Measure where reliable:
+
+- Notifications
+- Home attention regions
+- Friends/request state
+- Trip Detail pending actions
+- Badge/count calculations
+
+Look for:
+
+- N+1 behavior
+- Duplicate aggregate queries
+- Repeated count work
+- Dense-state scaling
+- Unnecessary secondary requests
+- Per-notification hydration
+
+Do not optimize based solely on query count.
+
+## 20. Inspect code after product evidence
+
+Use implementation inspection to explain observed behavior.
+
+Focus on:
+
+- Canonical state ownership
+- Notification creation
+- Notification read state
+- Pending-action state
+- Badge calculation
+- Cross-surface refresh
+- Deep-link construction
+- Authorization
+- Server/client ownership
+- Legacy compatibility behavior
+- Duplicated business rules
+- Swallowed failures
+
+Do not refactor anything.
+
+## 21. Reconcile backlog
+
+If local project/backlog context is available, classify findings as:
+
+- Already tracked
+- Partially tracked
+- New
+- Stale/already implemented
+- Product decision required
+
+Do NOT create or edit tasks.
+
+## 22. Develop future-state options
+
+Present 2–4 coherent product architectures supported by evidence.
+
+Possible categories might include:
+
+- Notifications primarily as history, contextual surfaces own actions
+- Notifications as a combined history/action inbox
+- Home as a bounded pending-action summary with contextual resolution
+- Another architecture demonstrated by current BaseLodge behavior
+
+These are examples only.
+
+For EACH option state:
+
+- What Notifications becomes
+- What Home owns
+- What Friends owns
+- What Trips/Trip Detail owns
+- Where pending actions live
+- What badges represent
+- What happens after an action is resolved
+- What remains in history
+- Deep-link behavior
+- Navigation implications
+- Design implications
+- Engineering complexity
+- Migration implications
+- Benefits
+- Tradeoffs
+- Existing backlog impact
+
+DO NOT RANK OPTIONS.
+DO NOT SELECT A WINNER.
+
+## 23. Product-owner decisions
+
+Translate the findings into individually answerable decisions.
+
+Each should be formatted:
+
+DECISION N — [specific question]
+
+Context:
+[Evidence explaining why this decision exists.]
+
+Example:
+[A concrete BaseLodge scenario.]
+
+A. [Option]
+B. [Option]
+C. [Option if needed]
+
+Implications:
+[Neutral explanation.]
+
+Do not answer the decisions.
+
+Do not bundle unrelated decisions.
+
+Order foundational decisions before downstream presentation decisions.
+
+## Required final report
+
+Return exactly these sections:
+
+1. Executive summary
+2. Current attention architecture
+3. Attention surface map
+4. Event/action matrix
+5. Notification state model
+6. Pending-action state model
+7. Read versus unresolved findings
+8. Friend-request journey
+9. Trip-invitation journey
+10. Join-request journey
+11. Informational-notification journey
+12. Cross-surface resolution findings
+13. Badge/count inventory
+14. Notifications product assessment
+15. Home attention assessment
+16. Friends attention assessment
+17. Trips/Trip Detail attention assessment
+18. Useful contextual repetition
+19. Redundant duplication
+20. Inconsistent duplication
+21. Necessary action persistence
+22. Historical/contextual coexistence
+23. Missing connections
+24. Loading/failure findings
+25. Responsive findings
+26. Accessibility/interaction findings
+27. Privacy/authorization findings
+28. Performance/query observations
+29. Backlog reconciliation
+30. Future-state Option A
+31. Future-state Option B
+32. Future-state Option C, if warranted
+33. Future-state Option D, if warranted
+34. Decisions required from product owner
+35. Recommended decision order
+36. Implementation dependencies after decisions
+37. Migration implications
+38. Beginning vs ending Git/worktree proof
+39. Coverage limitations
+40. Final verdict
+
+## Critical constraints
+
+PLAN / INVESTIGATION ONLY.
+
+NO implementation.
+NO source edits.
+NO template edits.
+NO CSS edits.
+NO JavaScript edits.
+NO test edits.
+NO migration.
+NO Development or Production access.
+NO real user data.
+NO external notifications.
+NO external analytics.
+NO Notion/task edits.
+NO .replit edits.
+NO commits.
+NO pushes.
+NO publishing.
+NO deployment.
+NO permanent audit artifacts.
+
+Remove all temporary artifacts.
+
+Ending Git/worktree state must exactly match beginning state.
+
+If a required check cannot be performed within these constraints, report the limitation rather than bypassing the boundary.
+
+End with exactly:
+
+PENDING ACTIONS / NOTIFICATIONS REVIEW COMPLETE — PRODUCT DECISIONS REQUIRED
