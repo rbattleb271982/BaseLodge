@@ -1,0 +1,433 @@
+# Fix CI Test Isolation and Dependency Manifest Drift — Task #562
+
+Use BUILD mode.
+
+This is a tightly bounded CI/test-infrastructure correction based on the completed Task #561 diagnosis.
+
+Do not switch to Design.
+
+## Context
+
+GitHub Actions run:
+
+35048372334
+
+for commit:
+
+1bd49996252dd6190a7f52a67f077f434521d425
+
+failed for two independently diagnosed reasons.
+
+### Failure 1 — PostgreSQL test isolation
+
+The mandatory PostgreSQL gate ran:
+
+tests/test_bl443_cutover_postgres.py
+tests/test_connection_transitions_postgres.py
+
+in the same pytest process.
+
+Result:
+
+29 passed
+4 failed
+0 skipped
+
+The four connection-transition tests fail before exercising concurrency behavior with:
+
+psycopg2.errors.UndefinedColumn:
+column "first_name" of relation "user" does not exist
+
+Task #561 established that this is NOT a schema or migration defect.
+
+The root cause is a process-global test isolation leak.
+
+In:
+
+tests/test_bl443_cutover_postgres.py
+
+the test:
+
+test_full_path_production_settings_resources_and_preflight_postgres
+
+calls create_worker_resources().
+
+That worker setup intentionally replaces:
+
+db.session
+
+with its own scoped worker session.
+
+The BL-443 test removes the worker session and disposes its engine during teardown but does not restore the original Flask-SQLAlchemy db.session object.
+
+Because the later connection-transition module executes in the same pytest process, its db.create_all() correctly creates a full schema in its own disposable PostgreSQL database, but _make_user() subsequently resolves the stale BL-443 worker session and writes to BL-443's intentionally partial database containing only user(id).
+
+The correct fix is to restore the original db.session after the BL-443 worker test.
+
+Do not expand the BL-443 partial schema to hide the leak.
+
+### Failure 2 — Source integrity dependency drift
+
+The Source integrity job runs:
+
+python -m scripts.ci_integrity fast
+
+and fails with:
+
+FAIL: runtime dependency manifests differ
+
+Task #561 established:
+
+requirements.txt contains:
+- freezegun
+- playwright
+
+pyproject.toml does not.
+
+Both packages have real repository imports in capture functionality.
+
+This mismatch predates the PostgreSQL work.
+
+The correct fix is to add the missing runtime dependencies to pyproject.toml and regenerate uv.lock so the dependency manifests agree.
+
+No application migration is required.
+
+---
+
+# 1. Establish baseline
+
+Before modifying anything, report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- git status --short
+- tracked modifications
+- untracked files
+- .replit status
+- migration-file status
+
+There is already a local attachment/investigation commit ahead of origin.
+
+Do not rewrite, squash, reset, amend, remove, or otherwise alter existing commits.
+
+---
+
+# 2. Fix the BL-443 session leak
+
+Modify only the narrowest appropriate test infrastructure.
+
+Primary expected file:
+
+tests/test_bl443_cutover_postgres.py
+
+For the worker-resource/full-path test:
+
+1. Capture the original Flask-SQLAlchemy db.session before create_worker_resources() replaces it.
+2. Preserve the existing worker-resource assertions and behavior.
+3. In robust teardown/finally handling:
+   - remove the worker scoped session
+   - dispose the worker engine
+   - restore the exact original db.session object
+4. Ensure restoration happens even if an assertion or cleanup operation fails.
+
+Do not modify production worker behavior in:
+
+services/message_worker_runtime.py
+
+unless implementation evidence proves the diagnosed test-only correction is impossible.
+
+The production worker intentionally owns a dedicated process and its session rebinding is not the diagnosed defect.
+
+Do not:
+
+- modify the User model
+- add first_name manually to the BL-443 partial schema
+- broaden the BL-443 fixture schema
+- split the CI modules into separate pytest processes to mask the state leak
+- make connection-transition tests silently compensate for BL-443 state leakage
+
+Fix the leak at its source.
+
+---
+
+# 3. Add regression protection for session restoration
+
+Add the smallest focused regression necessary to prove that the BL-443 full-path worker test does not leave db.session replaced after completion.
+
+The regression should protect the actual failure mode without duplicating broad application tests.
+
+Prefer proving that:
+
+- the original db.session identity is restored
+- subsequent Flask-SQLAlchemy operations resolve through the normal session
+- cleanup occurs even through the worker-resource path
+
+Do not introduce application behavior changes.
+
+---
+
+# 4. Fix dependency manifest drift
+
+Update:
+
+pyproject.toml
+
+to include the missing runtime dependencies already present in requirements.txt:
+
+- freezegun
+- playwright
+
+Preserve the project's existing dependency declaration conventions.
+
+Do not arbitrarily change versions.
+
+Use the existing requirements.txt declarations and repository dependency policy as the source of truth.
+
+Then regenerate:
+
+uv.lock
+
+using the repository's established uv workflow.
+
+Do not manually edit uv.lock.
+
+Do not remove the packages from requirements.txt because both are genuinely imported by repository capture functionality.
+
+Do not restructure dependency management beyond this mismatch.
+
+---
+
+# 5. Verify dependency integrity
+
+Run:
+
+uv lock --check
+python -m scripts.ci_integrity fast
+
+Both must pass.
+
+If fast integrity exposes another failure after the dependency-manifest mismatch is fixed, investigate that newly exposed failure only far enough to determine whether it is:
+
+A. directly caused by this bounded change, or
+B. a separate pre-existing integrity defect.
+
+Do not automatically expand scope into unrelated fixes.
+
+If another independent defect appears, report it and stop before broadening implementation.
+
+Also run the focused capture-harness/integrity tests relevant to freezegun and Playwright dependency usage.
+
+---
+
+# 6. Run the exact combined PostgreSQL gate
+
+The critical verification is NOT an isolated execution of the four connection tests.
+
+Run both modules together, in the same process and same order used by CI:
+
+tests/test_bl443_cutover_postgres.py
+tests/test_connection_transitions_postgres.py
+
+The result MUST be:
+
+33 passed
+0 failed
+0 skipped
+
+The four connection-transition tests must genuinely execute.
+
+Do not accept skips.
+
+Specifically verify that the accept-versus-withdraw race still proves:
+
+- two independent clients/sessions
+- same pending OUTBOUND Invitation
+- concurrent accept and withdrawal
+- exactly one HTTP 200
+- exactly one HTTP 409
+- coherent final Invitation state
+- correct reciprocal Friend rows when acceptance wins
+- correct cooldown when withdrawal wins
+- correct connection-event count
+
+Also confirm the other three PostgreSQL concurrency tests still pass.
+
+---
+
+# 7. Verify test-order isolation
+
+Because the diagnosed defect was cross-module contamination, verify at least:
+
+A. BL-443 followed by connection transitions in one pytest process
+
+and, if inexpensive:
+
+B. connection transitions followed by BL-443
+
+No module should depend on leaked process-global database/session state from the other.
+
+Do not create separate CI processes as the solution.
+
+---
+
+# 8. Run focused regressions
+
+Run the smallest appropriate focused suites covering:
+
+- BL-443 PostgreSQL infrastructure
+- connection-transition PostgreSQL infrastructure
+- friend-request lifecycle
+- outgoing friend requests
+- worker resource/session behavior
+- capture harness
+- source integrity
+
+Report exact:
+
+- passed
+- failed
+- skipped
+
+Also run:
+
+- Python compilation for affected Python files
+- git diff --check
+
+---
+
+# 9. CI configuration
+
+Do not remove either PostgreSQL module from the mandatory CI gate.
+
+The existing intended CI contract remains:
+
+33 PostgreSQL tests
+0 skipped
+
+Do not weaken the expected count.
+
+Do not disable or bypass Source integrity.
+
+Do not modify .github/workflows/ci.yml unless execution proves a CI-specific correction is actually required.
+
+If no workflow change is necessary, leave it untouched.
+
+---
+
+# 10. Migration and application scope
+
+Expected migration verdict:
+
+NO MIGRATION REQUIRED
+
+Do not create or modify migrations.
+
+Do not change:
+
+- User schema
+- application friend-request behavior
+- production worker behavior
+- Development database
+- Production database
+- database configuration
+- .replit
+
+Do not connect to Development or Production.
+
+All PostgreSQL verification must continue using disposable local test databases only.
+
+---
+
+# 11. Independent final review
+
+After implementation and verification, perform a final bounded review of the diff.
+
+Confirm:
+
+- BL-443 restores db.session reliably
+- no production worker behavior changed
+- dependency manifests agree
+- uv.lock reflects the intended dependency update
+- combined PostgreSQL execution is clean
+- no application schema workaround was introduced
+- no migration was introduced
+- no unrelated cleanup occurred
+
+---
+
+# 12. Git/worktree report
+
+At completion report:
+
+- branch
+- HEAD
+- origin/main
+- ahead/behind
+- git status --short
+- tracked modified files
+- untracked files
+- .replit status
+- migration-file status
+- whether any generated test artifacts remain
+
+Do not:
+
+- stage
+- commit
+- push
+- publish
+- deploy
+
+We will inspect the result before Git operations.
+
+---
+
+# REQUIRED FINAL REPORT
+
+Return:
+
+1. BL-443 session restoration implementation
+2. Regression protection added
+3. Dependency manifest correction
+4. uv.lock result
+5. Combined PostgreSQL result
+6. Test-order isolation result
+7. Accept-vs-withdraw race result
+8. Source integrity result
+9. Focused regression totals
+10. Migration verdict
+11. Files changed
+12. Independent review result
+13. Git/worktree status
+14. Remaining blockers
+
+End with exactly one:
+
+CI FAILURES RESOLVED — READY FOR FINAL GITHUB RECHECK
+
+CI FIX INCOMPLETE — REMAINING BOUNDED DEFECT
+
+APPLICATION DEFECT DISCOVERED — STOP BEFORE FURTHER CHANGES
+
+# HARD CONSTRAINTS
+
+Do not:
+
+- connect to Production
+- connect to Development
+- modify Production or Development data
+- modify the User schema
+- create or modify migrations
+- weaken PostgreSQL tests
+- allow PostgreSQL skips
+- remove tests from CI
+- bypass Source integrity
+- modify production worker behavior unless absolutely required and explicitly reported
+- stage
+- commit
+- push
+- publish
+- deploy
+- perform unrelated cleanup

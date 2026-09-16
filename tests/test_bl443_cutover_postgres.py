@@ -34,6 +34,7 @@ from models import (
     MessagingDeliveryPolicy,
     MessagingReplayEvent,
     MessagingWorkerHeartbeat,
+    db,
 )
 from release_identity import ReleaseIdentity
 from runtime_config import DatabaseConfiguration, RuntimeConfigurationError
@@ -856,14 +857,22 @@ def test_full_path_production_settings_resources_and_preflight_postgres(
         lambda **_kwargs: ReleaseIdentity("b" * 40, "VERIFIED"),
     )
     settings = load_worker_settings(_production_worker_environment())
+    original_db_session = db.session
     engine, sessions = create_worker_resources(settings)
     try:
         session = sessions()
         run_startup_preflight(session)
         session.close()
     finally:
-        sessions.remove()
-        engine.dispose()
+        try:
+            sessions.remove()
+        finally:
+            try:
+                engine.dispose()
+            finally:
+                db.session = original_db_session
+
+    assert db.session is original_db_session
 
 
 def test_full_path_rejects_release_mismatch_postgres(bl443_sessions, monkeypatch):
