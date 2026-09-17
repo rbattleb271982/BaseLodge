@@ -164,23 +164,167 @@ class TestSelectorEligibility:
         assert resp.status_code == 200
         assert b'AliceConnected' not in resp.data
 
-    def test_already_suggested_shown_disabled(self, client):
-        """An active suggestion for Bob renders as disabled (status label shown)."""
+    def test_already_suggested_shows_exact_withdraw_action(self, client):
+        """An active suggestion carries its exact identity into Withdraw."""
         with _app.app_context():
             richard = _make_user('Richard')
             jon = _make_user('JonDs')
             bob = _make_user('BobAlreadySugg')
             _make_friend(richard.id, jon.id)
             _make_friend(richard.id, bob.id)
-            _make_suggestion(suggester_id=richard.id, recipient_id=jon.id,
-                             suggested_user_id=bob.id)
+            suggestion = _make_suggestion(
+                suggester_id=richard.id, recipient_id=jon.id,
+                suggested_user_id=bob.id,
+            )
             _db.session.commit()
-            rid, jid = richard.id, jon.id
+            rid, jid, suggestion_id = richard.id, jon.id, suggestion.id
 
         _login(client, rid)
         resp = client.get(f'/friends/{jid}/suggest')
         assert resp.status_code == 200
         assert b'Already suggested' in resp.data
+        assert b'>Withdraw</button>' in resp.data
+        assert f'data-suggestion-id="{suggestion_id}"'.encode() in resp.data
+
+
+class TestWithdrawSentSuggestion:
+
+    def test_creator_withdraws_exact_row_and_can_suggest_again(self, client):
+        with _app.app_context():
+            creator = _make_user('Creator')
+            recipient = _make_user('Recipient')
+            target = _make_user('Target')
+            other_target = _make_user('OtherTarget')
+            _make_friend(creator.id, recipient.id)
+            _make_friend(creator.id, target.id)
+            _make_friend(creator.id, other_target.id)
+            exact = _make_suggestion(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                suggested_user_id=target.id,
+            )
+            unrelated = _make_suggestion(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                suggested_user_id=other_target.id,
+            )
+            invitation = Invitation(
+                sender_id=recipient.id, receiver_id=target.id, status='pending',
+            )
+            cooldown = SuggestionPushCooldown(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                last_sent_at=datetime.utcnow(),
+            )
+            _db.session.add_all([invitation, cooldown])
+            _db.session.commit()
+            creator_id, recipient_id = creator.id, recipient.id
+            exact_id, unrelated_id = exact.id, unrelated.id
+            invitation_id, cooldown_id = invitation.id, cooldown.id
+
+        _login(client, creator_id)
+        response = json_delete(
+            client, f'/api/friends/suggestions/{exact_id}',
+        )
+        assert response.status_code == 200
+        selector = client.get(f'/friends/{recipient_id}/suggest').data
+        assert b'Target Test' in selector
+        assert f'data-suggestion-id="{exact_id}"'.encode() not in selector
+
+        with _app.app_context():
+            assert _db.session.get(FriendSuggestion, exact_id).dismissed_at is not None
+            assert _db.session.get(FriendSuggestion, unrelated_id).dismissed_at is None
+            assert _db.session.get(Invitation, invitation_id).status == 'pending'
+            assert _db.session.get(SuggestionPushCooldown, cooldown_id) is not None
+            assert Friend.query.filter_by(
+                user_id=creator_id, friend_id=recipient_id,
+            ).count() == 1
+            assert FriendCooldown.query.count() == 0
+
+    @pytest.mark.parametrize('actor_kind', ['recipient', 'other', 'unrelated'])
+    def test_non_creator_cannot_withdraw(self, client, actor_kind):
+        with _app.app_context():
+            creator = _make_user('CreatorDenied')
+            recipient = _make_user('RecipientDenied')
+            other = _make_user('OtherSuggester')
+            unrelated = _make_user('Unrelated')
+            target = _make_user('DeniedTarget')
+            exact = _make_suggestion(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                suggested_user_id=target.id,
+            )
+            _make_suggestion(
+                suggester_id=other.id, recipient_id=recipient.id,
+                suggested_user_id=target.id,
+            )
+            _db.session.commit()
+            exact_id = exact.id
+            actor_id = {
+                'recipient': recipient.id,
+                'other': other.id,
+                'unrelated': unrelated.id,
+            }[actor_kind]
+
+        _login(client, actor_id)
+        assert json_delete(
+            client, f'/api/friends/suggestions/{exact_id}',
+        ).status_code == 403
+        with _app.app_context():
+            assert _db.session.get(FriendSuggestion, exact_id).dismissed_at is None
+
+    def test_stale_repeated_and_missing_withdrawals_are_bounded(self, client):
+        with _app.app_context():
+            creator = _make_user('CreatorStale')
+            recipient = _make_user('RecipientStale')
+            target = _make_user('TargetStale')
+            active = _make_suggestion(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                suggested_user_id=target.id,
+            )
+            expired = _make_suggestion(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                suggested_user_id=target.id + 1, expires_days=-1,
+            )
+            dismissed = _make_suggestion(
+                suggester_id=creator.id, recipient_id=recipient.id,
+                suggested_user_id=target.id + 2, dismissed_at=datetime.utcnow(),
+            )
+            _db.session.commit()
+            creator_id = creator.id
+            active_id, expired_id, dismissed_id = active.id, expired.id, dismissed.id
+
+        _login(client, creator_id)
+        assert json_delete(client, f'/api/friends/suggestions/{active_id}').status_code == 200
+        assert json_delete(client, f'/api/friends/suggestions/{active_id}').status_code == 409
+        assert json_delete(client, f'/api/friends/suggestions/{expired_id}').status_code == 409
+        assert json_delete(client, f'/api/friends/suggestions/{dismissed_id}').status_code == 409
+        assert json_delete(client, '/api/friends/suggestions/999999999').status_code == 404
+
+    def test_recipient_attribution_retains_other_active_suggester(self, client):
+        with _app.app_context():
+            first = _make_user('First')
+            second = _make_user('Second')
+            recipient = _make_user('RecipientMulti')
+            target = _make_user('TargetMulti')
+            withdrawn = _make_suggestion(
+                suggester_id=first.id, recipient_id=recipient.id,
+                suggested_user_id=target.id,
+            )
+            _make_suggestion(
+                suggester_id=second.id, recipient_id=recipient.id,
+                suggested_user_id=target.id,
+            )
+            _db.session.commit()
+            first_id, recipient_id, withdrawn_id = (
+                first.id, recipient.id, withdrawn.id,
+            )
+
+        _login(client, first_id)
+        assert json_delete(
+            client, f'/api/friends/suggestions/{withdrawn_id}',
+        ).status_code == 200
+        _login(client, recipient_id)
+        payload = client.get('/api/friends/suggestions/page').get_json()
+        assert payload['count'] == 1
+        assert 'Second' in payload['html']
+        assert 'First' not in payload['html']
 
 
 # ---------------------------------------------------------------------------

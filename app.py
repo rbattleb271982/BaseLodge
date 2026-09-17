@@ -8476,6 +8476,41 @@ def dismiss_suggestion():
     return jsonify({'success': True})
 
 
+@app.route("/api/friends/suggestions/<int:suggestion_id>", methods=["DELETE"])
+@login_required
+def withdraw_friend_suggestion(suggestion_id):
+    """Close one active suggestion, as its original suggester only."""
+    validate_csrf_request()
+    suggestion = (
+        db.session.query(FriendSuggestion)
+        .filter(FriendSuggestion.id == suggestion_id)
+        .with_for_update()
+        .one_or_none()
+    )
+    if suggestion is None:
+        return jsonify({"success": False, "error": "Suggestion not found"}), 404
+    if suggestion.suggester_id != current_user.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    now = datetime.utcnow()
+    if suggestion.dismissed_at is not None or suggestion.expires_at <= now:
+        return jsonify({
+            "success": False,
+            "error": "Suggestion is no longer active",
+        }), 409
+
+    suggestion.dismissed_at = now
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "error": "Could not withdraw suggestion",
+        }), 500
+    return jsonify({"success": True, "message": "Suggestion withdrawn"}), 200
+
+
 @app.route("/api/friends/suggestions/connect", methods=["POST"])
 @login_required
 @limiter.limit("30 per hour", key_func=_user_or_ip)
@@ -11259,9 +11294,10 @@ def suggest_connections(friend_id):
         other = inv.sender_id if inv.receiver_id == friend_id else inv.receiver_id
         pending_with_jon_ids.add(other)
 
-    # Batch 3: IDs Richard has already actively suggested to Jon (not expired, not dismissed)
-    already_suggested_ids = {
-        row.suggested_user_id for row in FriendSuggestion.query.filter(
+    # Batch 3: exact active suggestions Richard has already sent to Jon.
+    active_suggestions = {
+        row.suggested_user_id: row.id
+        for row in FriendSuggestion.query.filter(
             FriendSuggestion.suggester_id == current_user.id,
             FriendSuggestion.recipient_id == friend_id,
             FriendSuggestion.dismissed_at.is_(None),
@@ -11279,8 +11315,13 @@ def suggest_connections(friend_id):
             continue  # already connected to Jon — hide
         if conn.id in pending_with_jon_ids:
             candidates.append({'user': conn, 'state': 'disabled', 'status_label': 'Request pending'})
-        elif conn.id in already_suggested_ids:
-            candidates.append({'user': conn, 'state': 'disabled', 'status_label': 'Already suggested'})
+        elif conn.id in active_suggestions:
+            candidates.append({
+                'user': conn,
+                'state': 'suggested',
+                'status_label': 'Already suggested',
+                'suggestion_id': active_suggestions[conn.id],
+            })
         else:
             candidates.append({'user': conn, 'state': 'selectable', 'status_label': None})
 

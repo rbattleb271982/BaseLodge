@@ -92,6 +92,17 @@
         flex-shrink: 0;
         margin-left: auto;
     }
+    .sc-withdraw {
+        border: 0;
+        background: none;
+        color: var(--bl-color-primary, #5C1219);
+        font: inherit;
+        font-size: 13px;
+        padding: 8px 0 8px 8px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+    .sc-withdraw:disabled { opacity: 0.5; cursor: default; }
     .sc-empty-state {
         font-size: 15px;
         color: var(--bl-color-text-muted);
@@ -241,6 +252,20 @@
                     {%- if c.user.home_state %} - {{ c.user.home_state | state_name }}{% endif -%}
                 </span>
             </label>
+        {% elif c.state == 'suggested' %}
+            <div class="sc-label sc-label--static">
+                <span class="sc-cb-custom sc-cb-custom--off" aria-hidden="true"></span>
+                <span class="sc-name">
+                    {{- c.user.first_name | format_name -}}
+                    {%- if c.user.last_name %} {{ c.user.last_name | format_name }}{% endif -%}
+                    {%- if c.user.home_state %} - {{ c.user.home_state | state_name }}{% endif -%}
+                </span>
+                <span class="sc-status-badge">{{ c.status_label }}</span>
+                <button type="button" class="sc-withdraw"
+                        data-suggestion-id="{{ c.suggestion_id }}"
+                        data-user-id="{{ c.user.id }}"
+                        onclick="scWithdraw(this)">Withdraw</button>
+            </div>
         {% else %}
             <div class="sc-label sc-label--static">
                 <span class="sc-cb-custom sc-cb-custom--off" aria-hidden="true"></span>
@@ -347,6 +372,47 @@
     function scHideConfirm() {
         document.getElementById('sc-confirm-bg').style.display = 'none';
         document.getElementById('sc-confirm-sheet').style.display = 'none';
+    }
+
+    function scWithdraw(btn) {
+        var suggestionId = btn.getAttribute('data-suggestion-id');
+        var userId = btn.getAttribute('data-user-id');
+        btn.disabled = true;
+        btn.textContent = 'Withdrawing…';
+        fetch('/api/friends/suggestions/' + suggestionId, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+            }
+        })
+        .then(function(response) {
+            return response.json().then(function(data) {
+                return { ok: response.ok, data: data };
+            });
+        })
+        .then(function(result) {
+            if (!result.ok || !result.data.success) throw new Error(result.data.error);
+            var row = btn.closest('.sc-row');
+            var name = row.querySelector('.sc-name');
+            row.innerHTML = '';
+            var label = document.createElement('label');
+            label.className = 'sc-label';
+            label.htmlFor = 'sc-cb-' + userId;
+            label.innerHTML =
+                '<input type="checkbox" id="sc-cb-' + userId + '" class="sc-checkbox" ' +
+                'value="' + userId + '" onchange="scUpdateCta()">' +
+                '<span class="sc-cb-custom" aria-hidden="true"></span>';
+            var nameSpan = document.createElement('span');
+            nameSpan.className = 'sc-name';
+            nameSpan.textContent = name.textContent;
+            label.appendChild(nameSpan);
+            row.appendChild(label);
+            label.querySelector('input').focus();
+        })
+        .catch(function() {
+            btn.disabled = false;
+            btn.textContent = 'Try again';
+        });
     }
 </script>
 {% endblock %}
