@@ -1,0 +1,360 @@
+BASELODGE TASK BL-239 — REVIEW ANTICIPATORY LOADING
+
+AGENT LEVEL: Power
+BATCH: ~100% of BL-239
+MODE: Investigation only. Read-only.
+
+We are investigating BaseLodge's perceived-performance architecture and opportunities for anticipatory loading.
+
+DO NOT IMPLEMENT ANY CHANGES.
+
+Do not modify application code, configuration, tests, database state, deployment settings, dependencies, or production behavior. Do not access real user data. This task is evidence gathering and architectural analysis only.
+
+BaseLodge is a mobile-first web application packaged through Capacitor for iOS and Android. Preserve the existing architecture and treat current authentication, authorization, privacy, and data-access rules as authoritative.
+
+OBJECTIVE
+
+Determine what work BaseLodge can safely begin before a likely navigation, authentication completion, screen transition, or secondary interaction so that the product feels materially faster without:
+
+- exposing private data
+- weakening authorization
+- serving stale-sensitive information incorrectly
+- wasting substantial network or compute resources
+- creating inconsistent UI state
+- introducing unnecessary architectural complexity
+
+Investigate anticipatory loading broadly, including:
+
+- prefetching
+- preloading
+- caching
+- progressive rendering
+- request parallelization
+- optimistic UI
+- state preservation
+- static asset loading
+- route/navigation preparation
+- authentication-transition loading
+- API sequencing
+- Capacitor app launch/resume behavior
+- offline and reconnection behavior
+
+IMPORTANT PRIVACY RULE
+
+Authentication and current authorization must always remain authoritative.
+
+Speculative loading, caching, or state preservation must never preserve access to private content after authorization changes, expose another user's data, bypass server authorization, or make private content visible before the application knows the current user is authorized to see it.
+
+Do not propose client caching simply because it would be faster. Classify data according to its privacy, mutability, authorization sensitivity, and staleness risk.
+
+INVESTIGATION
+
+Start by documenting the current architecture from the repository.
+
+Do not assume how BaseLodge works. Trace the actual implementation.
+
+Map the current loading/request/render sequence for at least:
+
+1. Cold web launch
+2. Returning authenticated web launch
+3. Login
+4. Account creation/onboarding transition where applicable
+5. Capacitor cold launch
+6. Capacitor returning/resume flow
+7. Home
+8. Profile
+9. Availability / Open to Ski
+10. Trips
+11. Individual trip
+12. Friends / social surfaces
+13. Notifications
+14. Needs You or the current equivalent attention/action surfaces
+15. Wishlist
+16. Any other high-frequency navigation revealed by the architecture
+
+For each important flow, identify:
+
+USER ACTION OR SIGNAL
+↓
+CURRENT WORK
+↓
+NETWORK REQUEST(S)
+↓
+SERVER/AUTH WORK
+↓
+CLIENT STATE/PROCESSING
+↓
+RENDER
+↓
+SECONDARY REQUESTS / ASSETS
+
+Identify dependencies that currently force sequential work and determine whether those dependencies are real or accidental.
+
+ANTICIPATORY OPPORTUNITIES
+
+For each meaningful opportunity, identify the earliest reliable signal that the user is likely to need the resource.
+
+Examples could include:
+
+- app launch
+- authentication beginning
+- authentication succeeding
+- route becoming likely
+- visible navigation destination
+- tab interaction
+- touch/pointer intent
+- screen becoming active
+- data already available from another request
+- user action that reliably predicts the next state
+
+Do not assume these are appropriate. Evaluate them.
+
+Classify each candidate as:
+
+A. SAFE TO PREPARE EARLY
+Low privacy/staleness risk and a reliable enough intent signal.
+
+B. SAFE WITH GUARDRAILS
+Potentially useful, but requires authorization checks, cache invalidation, freshness limits, cancellation, resource limits, or another explicit control.
+
+C. KEEP DEMAND-DRIVEN
+Private, mutable, expensive, stale-sensitive, low-probability, or otherwise inappropriate for speculative work.
+
+D. NOT WORTH OPTIMIZING
+Technically possible but unlikely to create meaningful perceived-performance improvement.
+
+For A and B candidates, estimate the likely user-visible benefit qualitatively:
+
+- High
+- Medium
+- Low
+
+Explain WHY.
+
+Do not manufacture numerical latency improvements unless they can actually be measured from available evidence.
+
+CACHING
+
+Document current caching behavior across:
+
+- browser
+- server
+- static assets
+- API responses
+- client state
+- authentication state
+- Capacitor/native shell where applicable
+
+Identify:
+
+- what is cached
+- where
+- lifetime/invalidation behavior
+- whether cache contents are user-specific
+- whether authorization is revalidated
+- whether stale data can be displayed
+- what happens on logout/account switch
+- what happens after background/resume
+
+Explicitly flag any privacy or authorization concern you discover.
+
+PROGRESSIVE RENDERING
+
+Determine whether major screens unnecessarily wait for unrelated data before becoming useful.
+
+For each major screen, identify:
+
+- minimum information required for meaningful first render
+- information that can arrive afterward
+- information that should NOT render stale
+- whether skeleton/loading behavior reflects actual dependencies
+- whether independent requests could run concurrently
+
+OPTIMISTIC UI
+
+Identify actions where optimistic feedback might make BaseLodge feel faster.
+
+However, evaluate optimistic behavior according to consequence.
+
+Do not recommend optimistic success for actions where failure would create misleading social state, privacy problems, incorrect coordination, or user confusion.
+
+Remember the BaseLodge product principle:
+
+Use attention proportional to consequence.
+
+CAPACITOR
+
+Specifically investigate differences between:
+
+- browser launch
+- installed Capacitor cold launch
+- warm launch
+- background/resume
+- network loss
+- network restoration
+
+Determine whether the shell, static assets, authentication bootstrap, or predictable initial requests could be prepared differently without creating stale/private-state problems.
+
+DENSE ACCOUNT TEST
+
+Evaluate recommendations against a mature BaseLodge user with approximately:
+
+- 25+ friends
+- 15+ trips
+- multiple overlapping trips/availability windows
+- years of history
+- substantial notifications/social activity
+
+A strategy that works only for sparse accounts is not sufficient.
+
+BASELODGE PRODUCT PRINCIPLES
+
+Performance work should reinforce:
+
+"What should the user understand, feel, and be able to do at this moment?"
+
+The goal is not maximum prefetching.
+
+The goal is for BaseLodge to feel ready when the user needs it.
+
+Avoid approaches that:
+
+- create manufactured urgency
+- introduce distracting loading transitions
+- increase unnecessary background activity
+- sacrifice privacy for speed
+- make stale information appear authoritative
+- increase architectural complexity for negligible perceived benefit
+
+OUTPUT
+
+Return one self-contained investigation report.
+
+Use this structure:
+
+# BL-239 — Anticipatory Loading Investigation
+
+## 1. Executive Summary
+
+Give the 5–10 most important findings.
+
+Separate:
+- existing strengths
+- meaningful performance opportunities
+- architectural constraints
+- privacy/staleness risks
+
+## 2. Current Loading Architecture
+
+Explain:
+- server rendering
+- authentication bootstrap
+- client requests
+- static assets
+- current caching
+- Capacitor behavior
+- relevant state management
+
+Reference actual files/functions/routes.
+
+## 3. Current User-Visible Loading Sequences
+
+Map the major flows.
+
+Show where sequential work occurs and where the user currently waits.
+
+## 4. Anticipatory Loading Opportunity Matrix
+
+For each candidate include:
+
+Surface / Flow
+Current behavior
+Possible anticipatory work
+Earliest reliable signal
+Classification A/B/C/D
+Expected user-visible benefit
+Privacy/staleness considerations
+Implementation complexity
+Evidence/reference
+
+## 5. Request Parallelization Opportunities
+
+Identify requests that are unnecessarily sequential and which could safely run concurrently.
+
+## 6. Progressive Rendering Opportunities
+
+Identify screens that could become useful before all data is available.
+
+## 7. Caching Review
+
+Document current caching and safe/unsafe opportunities.
+
+## 8. Optimistic UI Review
+
+Identify appropriate and inappropriate candidates.
+
+## 9. Capacitor-Specific Findings
+
+Cover cold launch, warm launch, resume, offline, and reconnect.
+
+## 10. Dense-Account Analysis
+
+Explain how findings change for mature/high-volume accounts.
+
+## 11. Privacy, Authorization & Staleness Guardrails
+
+List non-negotiable constraints for any future implementation.
+
+## 12. Prioritized Recommendations
+
+Group findings into:
+
+P0 — Fix regardless of anticipatory-loading strategy
+P1 — High-value perceived-performance opportunities
+P2 — Useful secondary improvements
+P3 — Low-value / defer
+Do Not Do — unsafe or unjustified approaches
+
+For every recommendation explain:
+- user problem
+- proposed architectural direction
+- why it helps
+- risk
+- implementation scope
+- dependencies
+
+DO NOT IMPLEMENT THE RECOMMENDATIONS.
+
+## 13. Suggested Follow-Up Tasks
+
+Only propose separate implementation or investigation tasks where the evidence supports them.
+
+Avoid turning every observation into a task.
+
+## 14. Evidence Appendix
+
+List relevant:
+- files
+- routes
+- functions
+- tests
+- configuration
+- architectural evidence
+
+FINAL REQUIREMENT
+
+Before finishing, verify that every recommendation is supported by repository evidence rather than generic performance best practices.
+
+Clearly distinguish:
+
+FACT — directly observed in the repository
+INFERENCE — strongly suggested by the architecture
+RECOMMENDATION — proposed future work
+
+Stop after delivering the report.
+
+Do not make code changes.
+Do not implement fixes.
+Do not deploy.
+Do not publish.
+Do not alter Notion.
