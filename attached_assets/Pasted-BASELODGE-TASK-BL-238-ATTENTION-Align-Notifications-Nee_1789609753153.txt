@@ -1,0 +1,641 @@
+BASELODGE TASK BL-238
+ATTENTION — Align Notifications, Needs You, badges, and contextual actions
+
+AGENT LEVEL: Power
+BATCH: ~100% of BL-238
+
+This is an implementation task, but investigation and a bounded implementation plan must happen before mutation.
+
+Implement the locked product decisions in BL-238.
+
+Do not redesign the broader BaseLodge architecture.
+
+BEFORE CHANGING CODE
+
+Inspect the current implementation and map:
+
+1. Notifications
+2. Home → Needs You
+3. Friends requests
+4. Trip invitations
+5. Trip join requests
+6. Notification seen/read state
+7. Friend-request badge state
+8. Notification badge state
+9. Resolution state
+10. Deep-link behavior
+11. Informational-notification retention
+12. Cross-surface targeted refresh/reconciliation
+
+Also inspect relevant tests and existing work from Attention Architecture review #571.
+
+Reconcile overlap with:
+
+- BL-233 — Notifications explicit loading/failure states
+- BL-230 — Notifications database failure vs empty state
+- BL-205 — native push registration/tap reliability
+- BL-118 — notification/lifecycle/outbound analytics
+
+Do NOT implement BL-205 or BL-118 as part of this task.
+
+Produce a short bounded implementation plan before mutation.
+
+LOCKED MENTAL MODEL
+
+NOTIFICATIONS
+= What happened?
+
+HOME → NEEDS YOU
+= What do I still need to deal with?
+
+FRIENDS / TRIP DETAIL / OTHER CONTEXTUAL DESTINATION
+= Where the underlying relationship, trip, or workflow actually lives.
+
+RED BADGE
+= Something new I have not seen.
+
+Red badges do NOT mean unresolved work.
+
+SEEN and RESOLVED are separate concepts.
+
+Never collapse them.
+
+NOTIFICATIONS
+
+Notifications owns recent relevant activity.
+
+Examples:
+
+- friend request received/sent where current messaging supports it
+- trip invitation received
+- join request approved
+- trip dates changed
+- friend request accepted
+- other meaningful existing trip/planning/social activity
+
+Notifications should feel socially warm and alive because the activity involves real people, trips, and ski context.
+
+Do not use artificial urgency.
+
+Do not turn Notifications into an inbox or action center.
+
+NO RESOLUTION ACTIONS IN NOTIFICATIONS
+
+Notifications must not directly own:
+
+- Accept / Decline friend request
+- Going / Interested / Decline
+- Approve / Reject join request
+- equivalent canonical workflow mutations
+
+If the current implementation allows friend requests to be accepted directly from Notifications, remove that behavior.
+
+Notifications may deep-link to the appropriate owning context.
+
+NOTIFICATION BADGE
+
+The red Notifications badge represents:
+
+UNSEEN NOTIFICATION ACTIVITY ONLY.
+
+Opening Notifications should mark the currently relevant presented unseen notification activity as seen and clear the corresponding badge.
+
+Opening Notifications must NOT resolve underlying actions.
+
+Example:
+
+Trip invitation is unseen + unresolved.
+
+User opens Notifications.
+
+Result:
+
+seen = yes
+resolved = no
+
+Notification badge clears.
+
+Invitation may still exist in Notifications while unresolved.
+Needs You still contains it.
+Trip Detail still owns the underlying decision.
+
+ACTIONABLE NOTIFICATION RESOLUTION
+
+If a notification exists specifically because an underlying action remains unresolved, then after confirmed resolution:
+
+- remove it from Needs You
+- remove the corresponding actionable notification
+
+Do not preserve it as permanent history.
+
+Example:
+
+Michael invites Richard to Aspen.
+
+Before response:
+Notifications → invitation
+Needs You → invitation
+Trip Detail → invitation state
+
+Richard responds Going.
+
+After confirmed success:
+Notifications → original invitation gone
+Needs You → invitation gone
+Trip Detail → Richard is Going
+
+Trip Detail remains canonical truth.
+
+LATER EVENTS
+
+Resolution of an old notification must NOT suppress future activity.
+
+Example:
+
+Aspen invitation resolved.
+
+Later organizer changes Aspen dates.
+
+That date change is a NEW notification event.
+
+Do not revive or mutate the old invitation notification to represent the change.
+
+NEEDS YOU
+
+Needs You owns unresolved attention.
+
+It is independent of seen/unseen notification state.
+
+An item can therefore be:
+
+- unseen + unresolved
+- seen + unresolved
+- resolved and absent
+
+Do not use badge state as workflow state.
+
+NEEDS YOU ACTION RULE
+
+Use context-sensitive resolution.
+
+SIMPLE / LOW-CONTEXT ACTION
+
+May resolve inline from Needs You when the user has enough information to make the decision safely.
+
+Example:
+
+Straightforward friend request:
+Accept
+Decline
+
+CONTEXT-DEPENDENT ACTION
+
+Navigate to the owning contextual surface before resolution.
+
+Examples:
+
+Trip decisions where dates, roster, participants, trip details, or other meaningful context should reasonably be reviewed.
+
+Do not recreate Trip Detail or Friends inside Home.
+
+FAILED NEEDS YOU ACTIONS
+
+If an inline mutation fails:
+
+- do not remove the item
+- do not imply success
+- restore/retain unresolved state
+- show an explicit error
+- provide Retry where appropriate
+- prevent duplicate mutation/double submission
+- reconcile against authoritative server state
+
+Example:
+
+Sarah wants to connect
+
+Couldn't accept request. Try again.
+
+Retry
+
+The item disappears only after:
+
+- confirmed successful mutation, OR
+- authoritative state says it is no longer pending
+
+FRIENDS BADGE
+
+Friends red badge represents:
+
+NEW / UNSEEN FRIEND-REQUEST ACTIVITY.
+
+It does NOT equal the number of unresolved requests.
+
+Example:
+
+Three requests arrive.
+
+Friends badge = 3.
+
+User opens Friends.
+
+Friends badge = cleared.
+
+The user does nothing.
+
+All three requests remain pending in Friends.
+They may remain in Needs You.
+The red badge stays cleared because the activity has now been seen.
+
+Opening Friends must mark the relevant unseen request activity seen without resolving the requests.
+
+BADGE SEMANTICS
+
+Across BaseLodge:
+
+RED BADGE = new activity I have not seen.
+
+Never:
+
+RED BADGE = work I have not completed.
+
+INFORMATIONAL NOTIFICATION RETENTION
+
+Notifications is recent relevant activity, not a permanent archive.
+
+Purely informational notifications should automatically age out.
+
+Before implementation:
+
+Inspect current notification model/data behavior and existing conventions.
+
+Determine whether a sensible bounded retention policy can be implemented safely with existing state.
+
+Choose the smallest sensible policy consistent with current architecture.
+
+If selecting the retention duration creates meaningful product/data consequences or requires destructive migration/data behavior:
+
+STOP and report the proposed retention period and consequences before implementing it.
+
+Age-out must NEVER alter canonical:
+
+- Trip state
+- friendship state
+- invitations
+- planning state
+- participants
+- RSVP state
+- Availability
+- other product truth
+
+DEEP LINKS
+
+Notifications should deep-link to the meaningful owning destination where one exists.
+
+Examples:
+
+Trip dates changed
+→ Trip Detail
+
+Trip invitation
+→ Trip Detail
+
+Join-request activity
+→ relevant Trip/context
+
+Friend activity
+→ appropriate Friends/profile context supported by current architecture
+
+Do not deep-link to arbitrary generic pages.
+
+CROSS-SURFACE RECONCILIATION
+
+This is critical.
+
+Resolution from ANY valid owning surface must reconcile:
+
+- Notifications
+- Needs You
+- Friends
+- Trips
+- Trip Detail
+- relevant badges
+
+Do not leave stale contradictory UI.
+
+Examples:
+
+Friend request accepted from Needs You:
+Friends updates.
+Needs You item disappears.
+Corresponding actionable Notification disappears.
+Badges remain based on unseen semantics, not pending count.
+
+Trip invitation resolved from Trip Detail:
+Needs You item disappears.
+Actionable notification disappears.
+Trip Detail reflects canonical RSVP state.
+
+Seen state must remain independent.
+
+PSYCHOLOGY / EXPERIENCE
+
+Notifications:
+socially warm, human, informative.
+
+Needs You:
+clear, calm, task-oriented.
+
+Do not use:
+
+- urgency language
+- pressure
+- guilt
+- FOMO
+- engagement tricks
+- arbitrary red indicators
+- wording implying informational activity is an obligation
+
+Warmth should come from real relationships and events.
+
+MIGRATION CHECKPOINT
+
+DO NOT ASSUME WHETHER A MIGRATION IS REQUIRED.
+
+Inspect existing persisted state first.
+
+Specifically determine whether current architecture can represent:
+
+1. unseen Notifications independently from resolution
+2. unseen friend-request activity independently from pending requests
+3. informational notification age-out
+
+If existing architecture supports all required behavior:
+
+Report:
+
+NO MIGRATION REQUIRED
+
+and proceed.
+
+If any schema/data migration is required:
+
+STOP BEFORE CREATING OR RUNNING IT.
+
+Report:
+
+- exact missing persisted state
+- why existing state cannot support the behavior
+- smallest proposed schema change
+- migration/backfill implications
+- privacy implications
+- compatibility implications
+- alternative no-migration approaches considered
+
+Wait for approval.
+
+Do not create migration files.
+
+DENSE STATE REQUIREMENT
+
+Verify behavior for a mature account with approximately:
+
+- 25+ friends
+- multiple pending friend requests
+- 15+ Trips
+- multiple invitations
+- multiple join requests
+- many informational notifications
+- previously seen but unresolved actions
+- newly unseen activity
+- recently resolved actions
+- later events after prior resolution
+
+Avoid unbounded query growth.
+
+Do not create N+1 behavior.
+
+OUT OF SCOPE
+
+Do NOT:
+
+- create a global action center
+- turn Notifications into an inbox
+- turn Home into an action center
+- reopen Home architecture
+- reopen Profile architecture
+- reopen Availability architecture
+- reopen Trip Detail architecture
+- create new RSVP/lifecycle states
+- redesign push delivery
+- implement BL-205
+- implement BL-118
+- expand email/SMS
+- redesign social projections
+- change Availability privacy
+- perform broad visual redesign
+- invent a new notification taxonomy unrelated to this task
+- perform generic messaging-system rewrites
+
+CAPACITOR
+
+BaseLodge is a web application packaged through Capacitor.
+
+Do not create native Swift/Kotlin implementations.
+
+Preserve existing native notification/deep-link behavior.
+
+Do not absorb BL-205.
+
+Verify changed web interactions remain compatible with:
+
+- Capacitor WebView
+- Android back behavior where relevant
+- safe areas
+- same-origin requests
+- CSRF
+- targeted refresh
+- navigation/deep links
+
+TESTING
+
+Add/update focused coverage for at least:
+
+1. Notification badge counts unseen activity only.
+
+2. Opening Notifications clears unseen state.
+
+3. Opening Notifications does not resolve actions.
+
+4. Friends badge counts unseen friend-request activity only.
+
+5. Opening Friends clears its unseen badge.
+
+6. Opening Friends does not resolve friend requests.
+
+7. Seen but unresolved friend request remains in Friends.
+
+8. Seen but unresolved action remains in Needs You.
+
+9. Notifications contain no direct resolution controls.
+
+10. Friend request can resolve inline from Needs You if current context supports it.
+
+11. Successful Needs You resolution removes the item.
+
+12. Failed Needs You resolution retains/restores the item.
+
+13. Failed mutation shows explicit error.
+
+14. Retry works safely.
+
+15. Double submission is prevented.
+
+16. Context-heavy action routes to owning destination.
+
+17. Trip invitation resolution removes corresponding Needs You item.
+
+18. Trip invitation resolution removes corresponding actionable notification.
+
+19. Trip Detail remains canonical after resolution.
+
+20. Resolution from contextual surface reconciles Needs You.
+
+21. Resolution from contextual surface reconciles Notifications.
+
+22. Later meaningful event after resolution creates/displays a new notification.
+
+23. Old notification is not revived for the later event.
+
+24. Informational notifications age out according to implemented bounded policy.
+
+25. Age-out does not mutate canonical product data.
+
+26. Deep links route to meaningful destinations.
+
+27. Notification database failure is distinguishable from true empty state where BL-230 remains applicable.
+
+28. Privacy and authorization remain enforced.
+
+29. CSRF remains enforced for mutations.
+
+30. Dense state remains bounded.
+
+31. Query budgets do not regress materially.
+
+32. Existing RSVP/invitation/join-request/friendship regressions remain green.
+
+RESPONSIVE / INTERACTION VERIFICATION
+
+Verify relevant changed surfaces at:
+
+360px
+390px
+430px
+768px
+1280px
+
+Check:
+
+- long names
+- long trip names
+- multiple simultaneous Needs You items
+- many Notifications
+- error states
+- Retry state
+- loading state
+- empty state
+- database-failure state
+- keyboard navigation
+- focus
+- touch targets
+- screen-reader semantics
+- safe areas
+- Capacitor WebView behavior
+
+Do not install major new browser/tooling dependencies merely for screenshots.
+
+BACKLOG RECONCILIATION
+
+BL-233:
+Determine what remains applicable after direct Notification resolution actions are removed.
+
+Do not implement obsolete Notification-action behavior merely because BL-233 described it.
+
+BL-230:
+Preserve/implement database-failure vs empty-state behavior where still applicable.
+
+BL-205:
+Keep separate.
+
+BL-118:
+Keep separate.
+
+Do not alter Notion tasks.
+
+FINAL REPORT
+
+Return:
+
+# BL-238 Implementation Report
+
+## 1. Summary
+What changed.
+
+## 2. Previous Attention Architecture
+How Notifications, Needs You, badges, and resolution worked before.
+
+## 3. State Model
+Explain seen/unseen vs resolved/unresolved.
+
+## 4. Notifications
+Presentation, badge behavior, removal behavior, deep links, retention.
+
+## 5. Needs You
+Inline vs contextual actions, success, failure, Retry.
+
+## 6. Friends Badge
+Explain unseen-request semantics.
+
+## 7. Cross-Surface Reconciliation
+Explain representative friend request, trip invitation, and join-request journeys.
+
+## 8. Informational Retention
+Exact policy and why it was selected.
+
+## 9. Migration Status
+Either:
+NO MIGRATION REQUIRED
+
+or STOP report explaining proposed migration.
+
+## 10. Backlog Reconciliation
+BL-233
+BL-230
+BL-205
+BL-118
+
+## 11. Files Changed
+File-by-file.
+
+## 12. Tests
+Commands and exact results.
+
+## 13. Responsive / Accessibility / Capacitor Verification
+What was checked.
+
+## 14. Query / Dense-State Verification
+Evidence.
+
+## 15. Deviations / Remaining Issues
+Anything not safely completed.
+
+## 16. Git Diff Summary
+Concise working-tree summary.
+
+Do not publish.
+Do not deploy.
+Do not push Git.
+Do not alter Notion.
+
+Stop after implementation, testing, and the report.
