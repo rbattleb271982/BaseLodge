@@ -14286,12 +14286,37 @@ def _normalize_equipment_primaries(user_id, preferred=None):
     return selected
 
 
+_EQUIPMENT_SETUP_ID_MAX = 2_147_483_647
+
+
+def _parse_equipment_setup_id(value):
+    """Return a positive database-range EquipmentSetup ID, or None."""
+    if not isinstance(value, str) or not value.isascii() or not value.isdigit():
+        return None
+    try:
+        setup_id = int(value)
+    except ValueError:
+        return None
+    if setup_id <= 0 or setup_id > _EQUIPMENT_SETUP_ID_MAX:
+        return None
+    return setup_id
+
+
+def _invalid_equipment_setup_id_response():
+    return jsonify({"error": "Invalid setup_id"}), 400
+
+
 @app.route("/settings/equipment/save", methods=["POST"])
 @login_required
 def settings_equipment_save():
     """Create or update a single equipment setup."""
     validate_csrf_request()
     setup_id = request.form.get("setup_id", "")
+    parsed_setup_id = None
+    if setup_id:
+        parsed_setup_id = _parse_equipment_setup_id(setup_id)
+        if parsed_setup_id is None:
+            return _invalid_equipment_setup_id_response()
     discipline_str = request.form.get("discipline", "")
     label = request.form.get("label", "").strip() or None
     brand = request.form.get("brand", "").strip()
@@ -14335,7 +14360,9 @@ def settings_equipment_save():
 
     if setup_id:
         # Update existing
-        equipment = EquipmentSetup.query.filter_by(id=int(setup_id), user_id=current_user.id).first()
+        equipment = EquipmentSetup.query.filter_by(
+            id=parsed_setup_id, user_id=current_user.id
+        ).first()
         if not equipment:
             return jsonify({"error": "Setup not found"}), 404
         old_discipline = equipment.discipline
@@ -14377,11 +14404,16 @@ def settings_equipment_save():
     return jsonify({"success": True, "setup_id": equipment.id, "is_primary": equipment.is_primary})
 
 
-@app.route("/settings/equipment/get/<int:setup_id>")
+@app.route("/settings/equipment/get/<setup_id>")
 @login_required
 def settings_equipment_get(setup_id):
     """Return JSON data for one equipment setup (used to pre-populate the edit form)."""
-    equipment = EquipmentSetup.query.filter_by(id=setup_id, user_id=current_user.id).first()
+    parsed_setup_id = _parse_equipment_setup_id(setup_id)
+    if parsed_setup_id is None:
+        return _invalid_equipment_setup_id_response()
+    equipment = EquipmentSetup.query.filter_by(
+        id=parsed_setup_id, user_id=current_user.id
+    ).first()
     if not equipment:
         return jsonify({"error": "Not found"}), 404
     return jsonify({
@@ -14411,8 +14443,13 @@ def settings_equipment_make_primary():
     setup_id = request.form.get("setup_id", "")
     if not setup_id:
         return jsonify({"error": "setup_id required"}), 400
+    parsed_setup_id = _parse_equipment_setup_id(setup_id)
+    if parsed_setup_id is None:
+        return _invalid_equipment_setup_id_response()
 
-    equipment = EquipmentSetup.query.filter_by(id=int(setup_id), user_id=current_user.id).first()
+    equipment = EquipmentSetup.query.filter_by(
+        id=parsed_setup_id, user_id=current_user.id
+    ).first()
     if not equipment:
         return jsonify({"error": "Setup not found"}), 404
 
@@ -14434,7 +14471,12 @@ def settings_equipment_delete():
         slot = EquipmentSlot.PRIMARY if slot_str == "primary" else EquipmentSlot.SECONDARY
         equipment = EquipmentSetup.query.filter_by(user_id=current_user.id, slot=slot).first()
     else:
-        equipment = EquipmentSetup.query.filter_by(id=int(setup_id), user_id=current_user.id).first()
+        parsed_setup_id = _parse_equipment_setup_id(setup_id)
+        if parsed_setup_id is None:
+            return _invalid_equipment_setup_id_response()
+        equipment = EquipmentSetup.query.filter_by(
+            id=parsed_setup_id, user_id=current_user.id
+        ).first()
 
     if not equipment:
         return jsonify({"success": True})
