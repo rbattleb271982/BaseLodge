@@ -331,7 +331,7 @@
             {% if messages %}
                 {% for category, message in messages %}
                     {% if category in ['error', 'auth', 'message'] %}
-                    <div class="auth-error">{{ message }}</div>
+                    <div class="auth-error" role="alert">{{ message }}</div>
                     {% endif %}
                 {% endfor %}
             {% endif %}
@@ -374,7 +374,8 @@
                 </label>
             </div>
             <button type="submit" class="auth-btn" id="login-btn">Log in</button>
-            <p id="login-error" style="display:none; color:#9B3B3B; font-size:14px; margin:10px 0 0 0; text-align:center;"></p>
+            <p id="login-error" role="alert" aria-atomic="true"
+               style="display:none; color:#9B3B3B; font-size:14px; margin:10px 0 0 0; text-align:center;"></p>
         </form>
 
         <div class="auth-forgot" id="forgot-wrap">
@@ -418,7 +419,7 @@
                     <span class="pw-crit" id="crit-upper">✓ One uppercase letter</span>
                     <span class="pw-crit" id="crit-num">✓ One number</span>
                 </div>
-                <div class="field-error" id="pw-error">Password must be at least 8 characters</div>
+                <div class="field-error" id="pw-error" role="alert">Password must be at least 8 characters</div>
             </div>
 
             <button type="submit" class="auth-btn" id="signup-btn">Create account</button>
@@ -473,12 +474,20 @@
         const pwError  = document.getElementById('pw-error');
         const signupBtn = document.getElementById('signup-btn');
 
-        pwInput.addEventListener('input', function() {
-            if (this.value.length > 0 && this.value.length < 8) {
+        function setPasswordError(active) {
+            if (active) {
                 pwError.style.display = 'block';
+                pwInput.setAttribute('aria-invalid', 'true');
+                pwInput.setAttribute('aria-describedby', 'pw-error');
             } else {
                 pwError.style.display = 'none';
+                pwInput.removeAttribute('aria-invalid');
+                pwInput.removeAttribute('aria-describedby');
             }
+        }
+
+        pwInput.addEventListener('input', function() {
+            setPasswordError(this.value.length > 0 && this.value.length < 8);
         });
 
         // Live signup criteria
@@ -493,7 +502,7 @@
         document.getElementById('form-signup').addEventListener('submit', function(e) {
             if (pwInput.value.length < 8) {
                 e.preventDefault();
-                pwError.style.display = 'block';
+                setPasswordError(true);
                 pwInput.focus();
             }
         });

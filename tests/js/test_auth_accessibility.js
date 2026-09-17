@@ -20,6 +20,7 @@ function createElement(id, classes = []) {
     },
     setAttribute(name, value) { this.attributes.set(name, String(value)); },
     getAttribute(name) { return this.attributes.get(name); },
+    removeAttribute(name) { this.attributes.delete(name); },
     focus() { this.ownerDocument.activeElement = this; },
   };
 }
@@ -102,4 +103,50 @@ test('initial server-selected signup mode uses the same synchronized switch', ()
     source,
     /if \(formType === 'signup' \|\| \(formType === '' && defaultTab === 'signup'\)\) \{\s+switchTab\('signup'\);/,
   );
+});
+
+test('server and AJAX errors use separate alert surfaces and clean state is empty', () => {
+  assert.match(source, /<div class="auth-error" role="alert">\{\{ message \}\}<\/div>/);
+  assert.match(
+    source,
+    /<p id="login-error" role="alert" aria-atomic="true"\s+style="display:none;[^>]*><\/p>/,
+  );
+  assert.doesNotMatch(source, /class="auth-error"[^>]*aria-live/);
+});
+
+test('each login attempt clears the alert before reporting either existing failure copy', () => {
+  const loginStart = source.indexOf("// Login: AJAX submit");
+  const loginEnd = source.indexOf("document.getElementById('form-signup').addEventListener", loginStart);
+  const loginSource = source.slice(loginStart, loginEnd);
+
+  const clearDisplay = loginSource.indexOf("err.style.display = 'none';");
+  const clearText = loginSource.indexOf("err.textContent = '';");
+  const invalidText = loginSource.indexOf("err.textContent = 'Invalid email or password.';");
+  assert.ok(clearDisplay >= 0);
+  assert.ok(clearText > clearDisplay);
+  assert.ok(invalidText > clearText);
+  assert.match(loginSource, /err\.textContent = 'Something went wrong\. Please try again\.';/);
+  assert.doesNotMatch(loginSource, /err\.focus\s*\(/);
+});
+
+test('password errors toggle field relationship and invalid state without moving focus on input', () => {
+  const passwordStart = source.indexOf('function setPasswordError(active)');
+  const passwordEnd = source.indexOf('// Live signup criteria', passwordStart);
+  const passwordSource = source.slice(passwordStart, passwordEnd);
+
+  assert.match(source, /<div class="field-error" id="pw-error" role="alert">Password must be at least 8 characters<\/div>/);
+  assert.match(passwordSource, /pwInput\.setAttribute\('aria-invalid', 'true'\)/);
+  assert.match(passwordSource, /pwInput\.setAttribute\('aria-describedby', 'pw-error'\)/);
+  assert.match(passwordSource, /pwInput\.removeAttribute\('aria-invalid'\)/);
+  assert.match(passwordSource, /pwInput\.removeAttribute\('aria-describedby'\)/);
+  assert.doesNotMatch(passwordSource, /\.focus\s*\(/);
+  assert.doesNotMatch(source.slice(source.indexOf('function updateCriteria()'), source.indexOf("pwInput.addEventListener('input', updateCriteria)")), /aria-live|role=['"]alert/);
+});
+
+test('blocked short-password submission exposes the error and focuses the affected field', () => {
+  const submitStart = source.indexOf("document.getElementById('form-signup').addEventListener('submit'");
+  const submitEnd = source.indexOf('var signupStartedFired', submitStart);
+  const submitSource = source.slice(submitStart, submitEnd);
+
+  assert.match(submitSource, /e\.preventDefault\(\);\s+setPasswordError\(true\);\s+pwInput\.focus\(\);/);
 });
