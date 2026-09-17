@@ -253,6 +253,39 @@ def test_delete_account_modal_requests_password_only_for_nonfresh_session(
     assert b"remembered session" in nonfresh_response.data
 
 
+def test_delete_account_modal_exposes_accessible_confirmation_contract(
+    client, deletion_setup
+):
+    _login(client, deletion_setup["user_id"])
+    response = client.get("/account")
+
+    assert response.status_code == 200
+    assert b'role="dialog"' in response.data
+    assert b'aria-modal="true"' in response.data
+    assert b'aria-labelledby="delete-title"' in response.data
+    assert b'aria-describedby="delete-description"' in response.data
+    assert b'id="account-cancel"' in response.data
+    assert b'action="/delete-account"' in response.data
+    assert b'name="csrf_token"' in response.data
+
+
+def test_delete_account_failure_is_rendered_as_an_accessible_alert(
+    client, deletion_setup
+):
+    _login(client, deletion_setup["user_id"])
+    redirect = form_post(
+        client,
+        "/delete-account",
+        data={"confirm_email": "wrong@example.test"},
+    )
+    assert redirect.status_code == 302
+    response = client.get("/account")
+
+    assert response.status_code == 200
+    assert b'role="alert"' in response.data
+    assert b'aria-atomic="true"' in response.data
+
+
 @pytest.mark.parametrize("current_password", [None, "", "WrongPass9!"])
 def test_nonfresh_delete_requires_correct_current_password_without_side_effects(
     client, deletion_setup, current_password
