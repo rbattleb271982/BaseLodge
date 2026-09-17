@@ -1,0 +1,517 @@
+BASELODGE TASK BL-237
+PROFILE — Consolidate ski identity and BaseLodge configuration
+
+AGENT LEVEL: Power
+BATCH: ~100% of BL-237
+
+This is an implementation task.
+
+Implement the locked product decisions in BL-237. Do not redesign the broader BaseLodge information architecture.
+
+Before making changes:
+
+1. Inspect the current Profile, Settings, Edit Profile, Equipment, Availability, Wishlist, Trips, Notifications, Security, and Account-related routes/templates.
+2. Inspect existing Profile-related tests and the architecture resulting from review #570.
+3. Produce a short bounded implementation plan.
+4. Then implement the smallest complete solution.
+
+Do not change code until you understand the existing architecture.
+
+BASELODGE CONTEXT
+
+BaseLodge is mobile-first and packaged through Capacitor.
+
+Home and Profile have different jobs:
+
+HOME
+What is happening now.
+
+PROFILE
+Who the user is, what their ski life looks like, and how they configure their personal BaseLodge experience.
+
+Do not turn Profile into another Home/dashboard feed.
+
+LOCKED INFORMATION ARCHITECTURE
+
+There is ONE Profile destination.
+
+Do NOT create a separate Settings hub.
+
+Within Profile, create two clearly differentiated areas:
+
+PROFILE / SKI LIFE
+
+- Identity/name
+- Riding
+- Ability
+- Pass
+- Equipment summary
+- Availability
+- Ski Days summary
+- Mountains Visited summary
+- Wishlist summary
+- Trips summary
+
+SETTINGS
+
+- Notifications
+- Password & Security
+- Account
+- Privacy/other existing personal BaseLodge configuration where appropriate
+
+The visual distinction between Ski Life and Settings should be immediately understandable while remaining one coherent Profile destination.
+
+Do not interpret this structure as permission to invent new product concepts.
+
+EXPERIENCE INTENT
+
+Profile / Ski Life should feel:
+
+- expressive
+- reflective
+- personal
+- identity-reinforcing
+
+It should help the user recognize their actual ski life.
+
+Settings should feel:
+
+- calm
+- functional
+- clear
+- controlled
+- low-emotion
+
+The intended overall feeling is:
+
+"This reflects me as a skier, and I can manage my BaseLodge experience here when I need to."
+
+Do not:
+
+- gamify profile completion
+- add completion percentages
+- add streaks
+- manufacture status
+- pressure users to fill fields
+- make Settings socially performative
+- let Settings visually dominate Ski Life
+
+CONTEXTUAL EDITING
+
+Simple single-value attributes should be editable directly/contextually from Profile through focused interactions.
+
+This includes:
+
+- name/basic identity where appropriate
+- Riding
+- Ability
+- Pass
+
+The normal user journey should NOT require navigating to a generic Edit Profile page to change these values.
+
+Use existing interaction patterns where possible.
+
+Do not create a giant inline editable form.
+
+Each edit should feel focused and reversible until saved.
+
+Preserve:
+
+- validation
+- CSRF
+- authorization
+- canonical storage
+- existing value constraints
+
+GENERIC EDIT PROFILE ROUTE
+
+The generic Edit Profile page should no longer be required in the normal user journey.
+
+Inspect existing dependencies before changing it.
+
+Choose the safest technical treatment:
+
+- retain compatibility if existing routes/deep links depend on it
+- redirect where appropriate
+- remove navigation entry points where appropriate
+
+Do not break old links simply to eliminate the page.
+
+Explain the final treatment in the implementation report.
+
+AVAILABILITY
+
+Availability belongs on BOTH Home and Profile for different reasons.
+
+Home:
+current/contextual opportunity.
+
+Profile:
+personal management/context.
+
+Both MUST use the same canonical Availability.
+
+Preserve all BL-236 semantics.
+
+Do not create:
+- Profile-specific Availability storage
+- duplicate Open to Ski state
+- a second Availability model
+
+Profile should provide an appropriate Availability summary/management entry point.
+
+Do not reopen Availability architecture.
+
+EQUIPMENT
+
+Equipment remains a dedicated management experience.
+
+Profile should show useful Equipment information and a clear management entry point.
+
+Do NOT move full Equipment management into Profile.
+
+Equipment must continue to support its existing dedicated functionality such as:
+
+- multiple setups
+- primary selection
+- measurements
+- create
+- edit
+- delete
+
+BL-200 previously suggested inline gear editing. That conflicts with the locked architecture.
+
+Do NOT silently implement BL-200.
+
+If BL-200 remains open, flag it for backlog reconciliation in the final report.
+
+SKI DAYS VS MOUNTAINS VISITED
+
+These remain separate concepts.
+
+Profile should show distinct summaries/counts for:
+
+SKI DAYS
+and
+MOUNTAINS VISITED
+
+Each should link to its appropriate detailed experience.
+
+Do not merge them into a generic ski-history metric.
+
+WISHLIST
+
+Standardize user-facing terminology as:
+
+Wishlist
+
+Remove user-facing "Want to Go" terminology where it refers to the same canonical Wishlist.
+
+Profile should show only a useful Wishlist summary.
+
+Do NOT render the full Wishlist on Profile.
+
+Provide a clear route into the dedicated Wishlist experience.
+
+TRIPS
+
+Profile should show only a Trips summary.
+
+Do NOT duplicate:
+
+- current Trip cards
+- upcoming Trip feed
+- Trip planning
+- Home Trip presentation
+
+Those belong to Home and Trips.
+
+The Profile summary should reinforce accumulated ski-life context and provide a route into Trips.
+
+NOTIFICATIONS
+
+Notifications remains a dedicated management screen.
+
+Profile provides the entry point.
+
+Do not put the full notification preference matrix inline on Profile.
+
+PASSWORD & SECURITY
+
+Password/security remains a dedicated focused screen.
+
+Profile provides the entry point.
+
+Do not put password fields directly on Profile.
+
+ACCOUNT
+
+Create/use a dedicated Account area accessed through Settings.
+
+Move Delete Account out of the main Profile surface.
+
+Destructive actions must be visually separated from routine account controls.
+
+Delete Account should retain:
+
+- explicit confirmation
+- appropriate destructive styling
+- keyboard accessibility
+- CSRF protection
+- current authorization/security behavior
+
+Do not weaken the existing account-deletion workflow.
+
+PRIVACY / CONFIGURATION
+
+Inspect current Profile/Settings functionality.
+
+Existing personal application configuration that logically belongs under Settings can remain there or be organized there.
+
+Do not use this task to invent new privacy controls or settings.
+
+DENSE ACCOUNT REQUIREMENT
+
+Profile must remain useful for mature users with approximately:
+
+- 25+ friends
+- 15+ Trips
+- multiple Equipment setups
+- substantial ski history
+- many Mountains Visited
+- a large Wishlist
+- multiple Availability ranges
+- years of accumulated activity
+
+Profile summaries should become MORE useful as the user's ski life becomes richer.
+
+Do not solve dense states by rendering every underlying item.
+
+Use summaries and dedicated destinations.
+
+VISUAL / INTERACTION DESIGN
+
+Preserve the BaseLodge Design System.
+
+Apple HIG complements but does not replace BaseLodge's identity.
+
+Use:
+
+BaseLodge Design System
+= visual identity and components
+
+Apple HIG
+= platform behavior, accessibility, interaction quality
+
+BaseLodge Psychology Principles
+= meaning, social context, emotion, attention, agency
+
+Do not perform a broad visual redesign.
+
+The key design challenge is making:
+
+SKI LIFE
+and
+SETTINGS
+
+feel meaningfully different without making Profile feel fragmented.
+
+Mobile-first.
+
+CAPACITOR
+
+Do not create native Swift/Kotlin implementations.
+
+Use the existing web architecture and Capacitor-compatible interaction patterns.
+
+Verify safe areas, focus behavior, scrolling, bottom sheets/modals, back navigation, and touch targets.
+
+OUT OF SCOPE
+
+Do NOT implement:
+
+- separate Settings hub
+- Home/dashboard content on Profile
+- merged Ski Days/Mountains Visited
+- full Wishlist on Profile
+- detailed Trips on Profile
+- full Equipment management inline
+- notification matrix inline
+- password editing inline
+- new Availability semantics
+- Buddy Pass management (BL-226)
+- Favorite Friends (BL-56)
+- Places on profiles (BL-44)
+- private pass history (BL-72)
+- gear completion lifecycle reminders (BL-36)
+- new public/social Profile architecture
+- onboarding redesign
+- native-only functionality
+
+MIGRATIONS
+
+Expected:
+
+NO MIGRATION REQUIRED.
+
+If implementation evidence indicates a migration or schema change is required:
+
+STOP.
+
+Explain:
+- why
+- affected model
+- required migration
+- alternative approaches
+
+Do not create or run the migration without approval.
+
+TESTING
+
+Add/update focused regression coverage for at least:
+
+1. Profile remains one destination.
+
+2. Ski Life and Settings are clearly separated.
+
+3. Home behavior is not duplicated into Profile.
+
+4. Name/basic identity contextual editing works.
+
+5. Riding contextual editing works.
+
+6. Ability contextual editing works.
+
+7. Pass contextual editing works.
+
+8. Invalid contextual edits fail safely.
+
+9. CSRF and ownership remain enforced.
+
+10. Availability summary uses canonical Availability.
+
+11. Profile Availability and Home Availability remain consistent.
+
+12. Equipment summary links to dedicated Equipment management.
+
+13. Multiple Equipment setups remain supported.
+
+14. Ski Days and Mountains Visited remain distinct.
+
+15. Wishlist terminology is standardized.
+
+16. Profile does not render the entire Wishlist.
+
+17. Trips appears only as a summary.
+
+18. Profile does not duplicate current/upcoming Home Trip cards.
+
+19. Notifications launches dedicated management.
+
+20. Password & Security launches dedicated management.
+
+21. Account provides the dedicated account-management destination.
+
+22. Delete Account is removed from the ordinary Profile surface.
+
+23. Delete Account confirmation/security behavior remains intact.
+
+24. Existing Edit Profile compatibility behavior works as intended.
+
+25. Existing privacy and authorization behavior remains intact.
+
+26. Dense-account Profile remains bounded.
+
+27. Existing Profile query-budget protections remain valid.
+
+RESPONSIVE VERIFICATION
+
+Verify affected surfaces at:
+
+360px
+390px
+430px
+768px
+1280px
+
+Check:
+
+- hierarchy
+- wrapping
+- long names
+- long mountain/pass/equipment names
+- summary counts
+- contextual editors
+- bottom sheets/modals
+- keyboard navigation
+- focus restoration
+- Escape/back behavior where applicable
+- destructive confirmation
+- touch targets
+- safe areas
+- scroll behavior
+
+Do not install major new browser/tooling dependencies merely to capture screenshots.
+
+FINAL REPORT
+
+Return:
+
+# BL-237 Implementation Report
+
+## 1. Summary
+What changed.
+
+## 2. Previous Architecture
+How Profile/Settings/Edit Profile worked before.
+
+## 3. Resulting Information Architecture
+Explain Ski Life vs Settings.
+
+## 4. Contextual Editing
+Explain name, Riding, Ability, and Pass behavior.
+
+## 5. Ski Life Summaries
+Availability
+Equipment
+Ski Days
+Mountains Visited
+Wishlist
+Trips
+
+## 6. Settings
+Notifications
+Password & Security
+Account
+other retained configuration
+
+## 7. Delete Account
+Explain its new location and preserved safeguards.
+
+## 8. Edit Profile Compatibility
+Explain what happened to the existing generic route.
+
+## 9. Files Changed
+File-by-file.
+
+## 10. Tests
+Commands and exact results.
+
+## 11. Responsive / Accessibility / Capacitor Verification
+What was checked.
+
+## 12. Backlog Reconciliation
+Especially BL-200 or any newly discovered conflict.
+
+## 13. Deviations / Remaining Issues
+Anything that could not safely be completed.
+
+## 14. Git Diff Summary
+Concise working-tree summary.
+
+Do not publish.
+Do not deploy.
+Do not push Git.
+Do not alter Notion.
+
+Stop after implementation, testing, and the report.

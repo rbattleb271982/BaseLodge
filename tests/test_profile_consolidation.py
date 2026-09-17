@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from werkzeug.security import generate_password_hash
 
 from app import app, db
-from conftest import _login
+from conftest import _login, json_post
 from models import EquipmentDiscipline, EquipmentSetup, User, UserAvailability
 
 
@@ -137,6 +137,95 @@ def test_trip_duration_display(client, logged_in_user):
 
         duration = (trip.end_date - trip.start_date).days + 1
         assert duration == 4, f"Trip should be 4 days, got {duration}"
+
+
+def test_profile_is_single_destination_with_distinct_ski_life_and_settings(
+    client, logged_in_user
+):
+    html = _profile_html(client, logged_in_user.id)
+
+    assert html.count('id="life-heading"') == 1
+    assert html.count('id="settings-heading"') == 1
+    assert 'href="/account"' in html
+    assert 'href="/push-settings"' in html
+    assert 'href="/settings/password"' in html
+    assert 'action="/delete-account"' not in html
+    assert "Current trip" not in html
+    assert "Upcoming trip" not in html
+
+    assert client.get("/settings").status_code == 301
+    assert client.get("/more").status_code == 302
+
+
+def test_profile_contextual_identity_updates_validate_and_persist(
+    client, logged_in_user
+):
+    _login(client, logged_in_user.id)
+
+    assert json_post(client, "/api/profile/update", {
+        "first_name": "Avery",
+        "last_name": "Summit",
+    }).status_code == 200
+    assert json_post(client, "/api/profile/update", {
+        "rider_types": ["Adaptive"],
+    }).status_code == 200
+    assert json_post(client, "/api/profile/update", {
+        "skill_level": "Advanced",
+    }).status_code == 200
+    assert json_post(client, "/api/profile/update", {
+        "pass_type": "indy,epic,ikon",
+    }).status_code == 200
+
+    with app.app_context():
+        user = db.session.get(User, logged_in_user.id)
+        assert (user.first_name, user.last_name) == ("Avery", "Summit")
+        assert user.rider_types == ["Adaptive"]
+        assert user.skill_level == "Advanced"
+        assert user.pass_type == "epic,ikon,indy"
+
+    assert json_post(client, "/api/profile/update", {
+        "rider_types": ["Skier", "Snowboarder"],
+    }).status_code == 400
+    assert json_post(client, "/api/profile/update", {
+        "skill_level": "Legendary",
+    }).status_code == 400
+    assert json_post(client, "/api/profile/update", {
+        "pass_type": "epic,ikon,indy,mountain_collective",
+    }).status_code == 400
+
+
+def test_profile_contextual_update_requires_authentication(client):
+    response = client.post(
+        "/api/profile/update",
+        json={"first_name": "Not", "last_name": "Allowed"},
+        headers={"X-CSRF-Token": "invalid"},
+    )
+    assert response.status_code in {302, 401, 403}
+
+
+def test_account_is_dedicated_delete_destination(client, logged_in_user):
+    _login(client, logged_in_user.id)
+    profile_html = client.get("/profile").get_data(as_text=True)
+    account = client.get("/account")
+    account_html = account.get_data(as_text=True)
+
+    assert account.status_code == 200
+    assert "Delete account" not in profile_html
+    assert 'action="/delete-account"' in account_html
+    assert 'name="csrf_token"' in account_html
+    assert 'name="confirm_email"' in account_html
+
+
+def test_profile_summaries_are_bounded_and_use_wishlist_term(client, logged_in_user):
+    logged_in_user.wish_list_resorts = list(range(1, 101))
+    db.session.commit()
+    html = _profile_html(client, logged_in_user.id)
+
+    assert "Wishlist" in html
+    assert "Want to Go" not in html
+    assert 'href="/settings/wish-list"' in html
+    assert "Mountains visited" in html
+    assert "Ski days" in html
 
 
 def test_profile_shows_joined_month_and_year_without_day_or_time(client, logged_in_user):

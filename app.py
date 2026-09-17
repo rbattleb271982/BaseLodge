@@ -11304,19 +11304,61 @@ def update_profile():
     validate_csrf_request()
     user = current_user
 
-    data = request.get_json()
-    
-    if "first_name" in data:
-        user.first_name = data.get("first_name", "").strip()
-    if "last_name" in data:
-        user.last_name = data.get("last_name", "").strip()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({"success": False, "error": "Invalid profile update."}), 400
+
+    if "first_name" in data or "last_name" in data:
+        first_name = str(data.get("first_name", user.first_name) or "").strip()
+        last_name = str(data.get("last_name", user.last_name) or "").strip()
+        if not first_name or not last_name:
+            return jsonify({
+                "success": False,
+                "error": "Please enter your first and last name.",
+            }), 400
+        if len(first_name) > 100 or len(last_name) > 100:
+            return jsonify({
+                "success": False,
+                "error": "Names must be 100 characters or fewer.",
+            }), 400
+        user.first_name = first_name
+        user.last_name = last_name
+        user.search_first_name = normalize_for_search(first_name)
+        user.search_last_name = normalize_for_search(last_name)
+    if "rider_types" in data:
+        rider_types = data["rider_types"]
+        if (
+            not isinstance(rider_types, list)
+            or len(rider_types) != 1
+            or rider_types[0] not in RIDER_TYPES
+        ):
+            return jsonify({
+                "success": False,
+                "error": "Please select a valid Riding option.",
+            }), 400
+        user.rider_types = rider_types
     if "rider_type" in data:
-        # Update primary_rider_type instead of legacy rider_type
-        user.primary_rider_type = data.get("rider_type", "").strip()
+        rider_type = str(data.get("rider_type") or "").strip()
+        if rider_type not in RIDER_TYPES:
+            return jsonify({"success": False, "error": "Invalid Riding option."}), 400
+        user.rider_types = [rider_type]
     if "primary_rider_type" in data:
-        user.primary_rider_type = data.get("primary_rider_type", "").strip()
+        rider_type = str(data.get("primary_rider_type") or "").strip()
+        if rider_type not in RIDER_TYPES:
+            return jsonify({"success": False, "error": "Invalid Riding option."}), 400
+        user.rider_types = [rider_type]
+    if "skill_level" in data:
+        skill_level = str(data.get("skill_level") or "").strip()
+        if skill_level not in {"Beginner", "Intermediate", "Advanced", "Expert"}:
+            return jsonify({"success": False, "error": "Invalid Ability option."}), 400
+        if (user.rider_types or []) == ["Social"]:
+            return jsonify({
+                "success": False,
+                "error": "Ability does not apply to this Riding option.",
+            }), 400
+        user.skill_level = skill_level
     if "pass_type" in data:
-        _raw_pt = data.get("pass_type", "").strip()
+        _raw_pt = str(data.get("pass_type") or "").strip()
         _norm_pt = normalize_pass_selection(_raw_pt)
         if _raw_pt and not _norm_pt:
             return jsonify({
@@ -11336,6 +11378,9 @@ def update_profile():
             }), 400
         user.discoverable_in_friend_search = data["discoverable_in_friend_search"]
 
+    if (user.rider_types or []) == ["Social"]:
+        user.skill_level = None
+    user.update_lifecycle_stage()
     db.session.commit()
 
     return jsonify({"success": True, "message": "Profile updated"}), 200
@@ -13503,8 +13548,9 @@ def profile():
     _rp_t0 = time.perf_counter()
     mountains_visited_count = current_user.visited_resorts_count
 
-    # Get primary setup in a single query: is_primary rows first, then oldest by created_at.
-    primary_equipment = (
+    # Load equipment once, then derive both the primary and per-discipline
+    # summaries without adding another Profile query.
+    profile_setup_rows = (
         EquipmentSetup.query
         .filter_by(user_id=current_user.id)
         .order_by(
@@ -13512,8 +13558,9 @@ def profile():
             EquipmentSetup.created_at.asc().nullsfirst(),
             EquipmentSetup.id.asc()
         )
-        .first()
+        .all()
     )
+    primary_equipment = profile_setup_rows[0] if profile_setup_rows else None
     has_equipment = primary_equipment is not None
     equipment_summary = ""
     if primary_equipment:
@@ -13539,21 +13586,12 @@ def profile():
 
     profile_gear_by_discipline = {}
     if profile_gear_disciplines:
-        profile_setup_rows = (
-            EquipmentSetup.query
-            .filter(
-                EquipmentSetup.user_id == current_user.id,
-                EquipmentSetup.discipline.in_(profile_gear_disciplines),
-            )
-            .order_by(
-                db.case((EquipmentSetup.is_primary == True, 0), else_=1),
-                EquipmentSetup.created_at.asc().nullsfirst(),
-                EquipmentSetup.id.asc(),
-            )
-            .all()
-        )
         for setup in profile_setup_rows:
-            if setup.discipline and setup.discipline.value not in profile_gear_by_discipline:
+            if (
+                setup.discipline
+                and setup.discipline.value in profile_gear_disciplines
+                and setup.discipline.value not in profile_gear_by_discipline
+            ):
                 profile_gear_by_discipline[setup.discipline.value] = setup
 
     # Wish list data
@@ -13563,11 +13601,8 @@ def profile():
     wish_list_count = len(wish_list_ids)
 
     upcoming_trips_count = get_upcoming_trip_count(current_user)
-    has_availability = (
-        bool(get_available_dates_for_user(current_user))
-        if request.args.get("pass_saved") == "1"
-        else False
-    )
+    profile_availability_dates = get_available_dates_for_user(current_user)
+    has_availability = bool(profile_availability_dates)
 
     if app.debug:
         print(f"[ROUTE_PERF] route=profile total={time.perf_counter()-_rp_t0:.4f}s")
@@ -13581,6 +13616,7 @@ def profile():
                            wish_list_resorts=wish_list_resorts,
                            upcoming_trips_count=upcoming_trips_count,
                            has_availability=has_availability,
+                           availability_count=len(profile_availability_dates),
                            primary_equipment=primary_equipment,
                            profile_gear_disciplines=profile_gear_disciplines,
                            profile_gear_by_discipline=profile_gear_by_discipline,
@@ -13924,6 +13960,15 @@ def activity_heartbeat():
 @login_required
 def settings():
     return redirect(url_for("profile"), code=301)
+
+
+@app.route("/account")
+@login_required
+def account():
+    return render_template(
+        "account.html",
+        delete_requires_reauth=not login_fresh(),
+    )
 
 
 @app.route("/settings/profile", methods=["GET", "POST"])
@@ -18316,11 +18361,11 @@ def delete_account():
 
     if not confirm_email:
         flash("Please type your email address to confirm account deletion.", "error")
-        return redirect(url_for("profile"))
+        return redirect(url_for("account"))
 
     if not confirmation_matched:
         flash("Email address did not match. Account was not deleted.", "error")
-        return redirect(url_for("profile"))
+        return redirect(url_for("account"))
 
     # A remember-cookie restoration is authenticated but non-fresh. Require
     # the currently launched email/password credential before any deletion
@@ -18333,10 +18378,10 @@ def delete_account():
                 "Please sign in again before deleting your account.",
                 "error",
             )
-            return redirect(url_for("profile"))
+            return redirect(url_for("account"))
         if not current_password or not user.check_password(current_password):
             flash("Current password is incorrect.", "error")
-            return redirect(url_for("profile"))
+            return redirect(url_for("account"))
         confirm_login()
 
     try:

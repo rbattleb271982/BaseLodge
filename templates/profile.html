@@ -2,531 +2,126 @@
 {% block title %}BaseLodge — Profile{% endblock %}
 {% block head %}
 <style>
-        /* ── Profile groups ───────────────────────────── */
-        .profile-group {
-            margin-bottom: 24px;
-        }
-        .profile-group-label {
-            font-size: 12px;
-            font-weight: 700;
-            color: var(--bl-color-text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            margin: 0 0 8px 4px;
-        }
-
-        /* ── Profile card container ───────────────────── */
-        .profile-card {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 1px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.05);
-            overflow: hidden;
-        }
-
-        /* ── Main profile rows (navigable) ────────────── */
-        .profile-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            min-height: 52px;
-            padding: 13px 16px;
-            border-bottom: 1px solid var(--bl-color-border-soft);
-            text-decoration: none;
-            color: inherit;
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
-            width: 100%;
-            background: none;
-            border-left: none;
-            border-right: none;
-            border-top: none;
-            cursor: pointer;
-            text-align: left;
-            font-family: inherit;
-            font-size: inherit;
-        }
-        .profile-row:last-child {
-            border-bottom: none;
-        }
-        #bl-logout-form .profile-row {
-            border-bottom: 1px solid var(--bl-color-border-soft);
-        }
-        .profile-row:active {
-            background: rgba(0,0,0,0.03);
-        }
-        .profile-row-left {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-        }
-        .profile-row-label {
-            font-size: 17px;
-            color: var(--bl-color-text);
-            line-height: 1.3;
-        }
-        .profile-row-sub {
-            font-size: 14px;
-            color: var(--bl-color-text-muted);
-            margin-top: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            line-height: 1.35;
-        }
-        .profile-row-right {
-            flex-shrink: 0;
-        }
-        .profile-row-chevron {
-            color: var(--bl-color-text-tertiary);
-            font-size: 1.1rem;
-        }
-        .profile-row--danger .profile-row-label {
-            color: #8B1A1A;
-        }
-
-        /* ── Inline toggle (Friend Discovery row) ─────── */
-        .prof-toggle-wrap {
-            position: relative;
-            width: 51px;
-            height: 31px;
-            flex-shrink: 0;
-        }
-        .prof-toggle-wrap input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-            position: absolute;
-        }
-        .prof-toggle-track {
-            position: absolute;
-            inset: 0;
-            background: #E5E5EA;
-            border-radius: 34px;
-            transition: background 0.2s;
-            cursor: pointer;
-        }
-        .prof-toggle-track::before {
-            content: '';
-            position: absolute;
-            width: 27px;
-            height: 27px;
-            left: 2px;
-            top: 2px;
-            background: #fff;
-            border-radius: 50%;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-            transition: transform 0.2s;
-        }
-        .prof-toggle-wrap input:checked + .prof-toggle-track {
-            background: #34C759;
-        }
-        .prof-toggle-wrap input:checked + .prof-toggle-track::before {
-            transform: translateX(20px);
-        }
-        .hc-identity-row--joined {
-            margin-top: 5px;
-        }
-        .hc-identity-meta {
-            color: var(--bl-color-text-tertiary);
-            font-size: 13px;
-            font-weight: 400;
-            line-height: 1.35;
-        }
-    </style>
+    .profile-page{padding:8px 16px calc(92px + env(safe-area-inset-bottom,0px));max-width:620px;margin:0 auto}
+    .profile-hero{padding:18px 4px 26px}
+    .profile-kicker,.profile-label{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#766f64}
+    .profile-title{font:400 clamp(30px,8vw,44px)/1.05 var(--bl-font-serif,Georgia,serif);color:#1a1a1a;margin:7px 0 8px}
+    .profile-intro{margin:0;color:#6b665a;font-size:15px;line-height:1.5;max-width:410px}
+    .profile-group{margin:0 0 28px}
+    .profile-label{margin:0 0 9px 4px}
+    .profile-card{background:#fff;border:1px solid #e6dfd2;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(92,18,25,.035)}
+    .profile-row{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;min-height:64px;padding:12px 16px;border:0;border-bottom:1px solid #eee9df;background:transparent;color:inherit;text-decoration:none;text-align:left;font:inherit;box-sizing:border-box;cursor:pointer}
+    .profile-row:last-child{border-bottom:0}.profile-row:active{background:#f7f3eb}
+    .profile-row-left{min-width:0;flex:1}.profile-row-label{display:block;font-size:16px;line-height:1.3;color:#211f1b}.profile-row-sub{display:block;color:#81796e;font-size:13px;line-height:1.35;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .profile-chevron{font-size:25px;font-weight:300;line-height:1;color:#aaa094}.profile-value{color:#5c1219;font-size:14px;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .identity-card{background:#5c1219;color:#fff;border-radius:18px;padding:18px 18px 16px;margin-bottom:28px}
+    .identity-name{font:400 25px/1.15 var(--bl-font-serif,Georgia,serif);margin:0 0 15px}.identity-name button{color:#f5e8d9;background:none;border:0;text-decoration:underline;text-underline-offset:3px;font:inherit;cursor:pointer;padding:4px 0}
+    .identity-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid rgba(255,255,255,.22);padding-top:14px}
+    .identity-item{display:flex;flex-direction:column;gap:3px;min-width:0}.identity-item-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#dfc9bd}.identity-item button{min-height:44px;padding:3px 0;text-align:left;background:none;border:0;color:#fff;font:500 15px/1.3 inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+    .identity-meta{margin:13px 0 0;color:#dfc9bd;font-size:12px}.gear-preview{margin-top:15px;padding-top:13px;border-top:1px solid rgba(255,255,255,.22)}.gear-row{display:flex;gap:7px;align-items:baseline;font-size:13px;line-height:1.45;margin:5px 0}.gear-label{color:#dfc9bd}.gear-row a,.gear-preview>a{color:#fff;text-underline-offset:3px}.identity-card>.hc-stat-band{display:none}
+    .summary-row{min-height:72px}.summary-count{font:400 22px/1 var(--bl-font-serif,Georgia,serif);color:#5c1219;min-width:42px;text-align:right}.summary-unit{display:block;font-size:12px;color:#81796e;margin-top:4px}
+    .settings-area{margin-top:34px;padding-top:25px;border-top:1px solid #ded7c9}.settings-area .profile-label{color:#8d8579}.settings-card{background:#f7f4ee;border-color:#e5ded1;box-shadow:none}.settings-card .profile-row{min-height:59px}.settings-card .profile-row-label{font-size:15px}.logout-row{color:#5c1219}
+    .profile-toggle{width:48px;height:28px;border-radius:20px;background:#c9c1b4;position:relative;display:block}.profile-toggle:after{content:"";position:absolute;width:22px;height:22px;top:3px;left:3px;background:#fff;border-radius:50%;box-shadow:0 1px 3px #0003;transition:transform .18s}.profile-toggle input{position:absolute;opacity:0}.profile-toggle:has(input:checked){background:#5c1219}.profile-toggle:has(input:checked):after{transform:translateX(20px)}
+    .editor-backdrop{position:fixed;inset:0;z-index:1000;background:#1a1a1a70;display:none;align-items:flex-end;justify-content:center;padding-top:env(safe-area-inset-top,0px)}.editor-backdrop.open{display:flex}.editor-sheet{background:#f5f1e8;width:100%;max-width:560px;border-radius:20px 20px 0 0;padding:10px 20px calc(22px + env(safe-area-inset-bottom,0px));max-height:90dvh;overflow:auto;box-shadow:0 -10px 35px #1a1a1a25}.editor-handle{width:42px;height:4px;background:#c9c1b4;border-radius:5px;margin:0 auto 18px}.editor-title{font:400 24px/1.2 var(--bl-font-serif,Georgia,serif);margin:0 0 4px}.editor-help{color:#766f64;font-size:13px;margin:0 0 18px}.editor-field{display:block;font-size:13px;font-weight:600;color:#5f594f;margin:0 0 7px}.editor-input,.editor-select{width:100%;box-sizing:border-box;min-height:50px;border:1px solid #d8d0c2;border-radius:12px;background:#fff;padding:12px;font:16px inherit;color:#1a1a1a}.editor-pills{display:flex;flex-wrap:wrap;gap:8px}.editor-pill{min-height:44px;padding:0 14px;border-radius:22px;border:1px solid #cfc5b7;background:transparent;color:#34302a;font:14px inherit;cursor:pointer}.editor-pill.selected{background:#5c1219;color:#fff;border-color:#5c1219}.editor-error{color:#8b1a1a;font-size:13px;min-height:18px;margin:12px 0 0}.editor-actions{display:flex;gap:10px;margin-top:19px}.editor-actions button{min-height:50px;flex:1;border-radius:12px;font:600 15px inherit;cursor:pointer}.editor-cancel{border:1px solid #cfc5b7;background:transparent;color:#5f594f}.editor-save{border:0;background:#5c1219;color:#fff}.editor-actions button:disabled{opacity:.5}
+    @media(min-width:700px){.profile-page{padding-top:22px}.identity-card{padding:24px}.profile-hero{padding-left:8px}}
+</style>
 {% endblock %}
 
 {% block content %}
-    <div class="page-container">
+{% set first = current_user.first_name or '' %}
+{% set last = current_user.last_name or '' %}
+{% set full_name = (first ~ ' ' ~ last).strip() or 'Your profile' %}
+{% set riding = current_user.display_rider_type or ((current_user.rider_types or [])|join(', ')) or 'Add riding' %}
+{% set ability = current_user.skill_level or 'Add ability' %}
+{% set pass = (current_user.pass_type | pass_display) if current_user.pass_type else 'No pass yet' %}
+<main class="profile-page">
+  <header class="profile-hero"><div class="profile-kicker">Your BaseLodge</div><h1 class="profile-title">Ski life</h1><p class="profile-intro">The places, days, and choices that make the mountain yours.</p></header>
 
-        <!-- Identity card — matches Home header style -->
-        <div class="hc-card">
-            {# Identity: rider type · skill · pass — stacked links #}
-            {%- set _rt_val   = current_user.display_rider_type or 'Add rider type' -%}
-            {%- set _sl_val   = current_user.skill_level or 'Add skill level' -%}
-            {%- set _pass_val = (current_user.pass_type | pass_display) if current_user.pass_type else 'No pass yet' -%}
-            {%- set _is_renting   = current_user.equipment_status == 'needs_rentals' -%}
-            <div class="hc-identity">
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">Rider Type:</span>
-                    <a href="{{ url_for('edit_profile') }}" class="hc-identity-link">{{ _rt_val }}</a>
-                </div>
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">Skill Level:</span>
-                    <a href="{{ url_for('edit_profile') }}" class="hc-identity-link">{{ _sl_val }}</a>
-                </div>
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">Pass:</span>
-                    <a href="{{ url_for('select_pass') }}" class="hc-identity-link">{{ _pass_val }}</a>
-                </div>
-                {% if current_user.created_at %}
-                <div class="hc-identity-row hc-identity-row--joined" aria-label="Joined BaseLodge">
-                    <span class="hc-identity-meta">Joined BaseLodge · {{ current_user.created_at.strftime('%B %Y') }}</span>
-                </div>
-                {% endif %}
-                {%- if _is_renting %}
-                <a href="{{ url_for('settings_equipment') }}" class="hc-identity-link">Rental gear</a>
-                {%- elif profile_gear_disciplines %}
-                {%- for discipline in profile_gear_disciplines %}
-                {%- set _setup = profile_gear_by_discipline.get(discipline) -%}
-                {%- set _gear_label = 'Snowboard' if discipline == 'snowboarder' else 'Skis' -%}
-                {%- set _has_gear = _setup and (_setup.brand or _setup.model) -%}
-                {%- set _has_boots = _setup and (_setup.boot_brand or _setup.boot_model) -%}
-                {%- set _has_bindings = _setup and (_setup.binding_brand or _setup.binding_model) -%}
-                {%- if _has_gear -%}
-                {%- set _g = ([_setup.brand, _setup.model] | select | join(' ')) -%}
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">{{ _gear_label }}:</span>
-                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}" class="hc-identity-link">{{ _g }}</a>
-                </div>
-                {%- else -%}
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">{{ _gear_label }}:</span>
-                    <a href="{{ url_for('settings_equipment') }}{% if _setup %}#setup-{{ _setup.id }}{% endif %}" class="hc-profile-cta">Add your gear →</a>
-                </div>
-                {%- endif -%}
-                {%- if _has_boots -%}
-                {%- set _b = ([_setup.boot_brand, _setup.boot_model] | select | join(' ')) -%}
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">Boots:</span>
-                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}" class="hc-identity-link">{{ _b }}</a>
-                </div>
-                {%- endif -%}
-                {%- if _has_bindings -%}
-                {%- set _bn = ([_setup.binding_brand, _setup.binding_model] | select | join(' ')) -%}
-                <div class="hc-identity-row">
-                    <span class="hc-identity-label">Bindings:</span>
-                    <a href="{{ url_for('settings_equipment') }}#setup-{{ _setup.id }}" class="hc-identity-link">{{ _bn }}</a>
-                </div>
-                {%- endif -%}
-                {%- endfor -%}
-                {%- else %}
-                <a href="{{ url_for('settings_equipment') }}" class="hc-profile-cta">Add your gear →</a>
-                {%- endif %}
-            </div>
-
-            {# Stat band #}
-            <div class="hc-stat-band">
-                <a href="{{ url_for('my_trips') }}" class="hc-stat-tile hc-stat-tile--link">
-                    <span class="hc-stat-num">{{ upcoming_trips_count }}</span>
-                    <span class="hc-stat-lbl">Upcoming<br>{{ "Trip" if upcoming_trips_count == 1 else "Trips" }}</span>
-                </a>
-                <div class="hc-stat-div"></div>
-                <a href="{{ url_for('mountains_visited') }}" class="hc-stat-tile hc-stat-tile--link">
-                    <span class="hc-stat-num">{{ mountains_visited_count }}</span>
-                    <span class="hc-stat-lbl">{% if mountains_visited_count == 1 %}Mountain<br>Visited{% else %}Mountains<br>Visited{% endif %}</span>
-                </a>
-                <div class="hc-stat-div"></div>
-                <a href="{{ url_for('settings_wish_list') }}" class="hc-stat-tile hc-stat-tile--link">
-                    <span class="hc-stat-num">{{ wish_list_count }}</span>
-                    <span class="hc-stat-lbl">{% if wish_list_count == 1 %}Wishlist<br>Mountain{% else %}Wishlist<br>Mountains{% endif %}</span>
-                </a>
-            </div>
-        </div>
-
-        {# Availability nudge — fires once after pass save when resolved availability is empty #}
-        {% if request.args.get('pass_saved') == '1' and not has_availability %}
-        <div style="background:#F5F1E8;border:0.5px solid #5C1219;border-radius:10px;padding:16px 18px;margin-bottom:18px;display:flex;align-items:flex-start;gap:14px;">
-            <div style="flex:1;min-width:0;">
-                <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1A1A1A;line-height:1.3;">Pass saved!</p>
-                <p style="margin:0 0 12px;font-size:13px;color:#5A564F;line-height:1.45;">Add your open dates so friends can plan with you.</p>
-                <a href="{{ url_for('add_open_dates') }}" style="display:inline-block;font-size:13px;font-weight:600;color:#5C1219;text-decoration:none;">Add Open Dates →</a>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Profile section -->
-        <div class="profile-group">
-            <h2 class="profile-group-label">Profile</h2>
-            <div class="profile-card">
-                <a href="{{ url_for('edit_profile') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Profile details</span>
-                        <span class="profile-row-sub">Riding preferences, home mountain, terrain</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-
-                <a href="{{ url_for('settings_equipment') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Gear</span>
-                        <span class="profile-row-sub">{% if has_equipment %}{{ equipment_summary }}{% else %}Not added yet{% endif %}</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-
-                <a href="{{ url_for('settings_mountains') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Mountains visited</span>
-                        <span class="profile-row-sub">{{ mountains_visited_count }} mountain{{ 's' if mountains_visited_count != 1 else '' }} on your list</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-
-                <a href="{{ url_for('settings_wish_list') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Wish list</span>
-                        <span class="profile-row-sub">{{ wish_list_count }} mountain{{ 's' if wish_list_count != 1 else '' }}</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-            </div>
-        </div>
-
-        <!-- History section -->
-        <div class="profile-group">
-            <h2 class="profile-group-label">History</h2>
-            <div class="profile-card">
-                <a href="{{ url_for('ski_days') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Ski days</span>
-                        <span class="profile-row-sub">{{ ski_day_count }} logged ski day{{ 's' if ski_day_count != 1 else '' }}</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-            </div>
-        </div>
-
-        <!-- Account section -->
-        <div class="profile-group">
-            <h2 class="profile-group-label">Account</h2>
-            <div class="profile-card">
-                <!-- Friend Discovery toggle -->
-                <label class="profile-row" for="prof-discoverable" style="cursor:pointer;">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Show me in friend search</span>
-                        <span class="profile-row-sub">Allow members to find you by name</span>
-                    </div>
-                    <div class="prof-toggle-wrap">
-                        <input type="checkbox" id="prof-discoverable"
-                               {% if current_user.discoverable_in_friend_search %}checked{% endif %}
-                               onchange="_profToggleDiscoverable(this.checked)">
-                        <span class="prof-toggle-track"></span>
-                    </div>
-                </label>
-                <a href="{{ url_for('push_settings') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Push Notification Settings</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-                <a href="{{ url_for('settings_password') }}" class="profile-row">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Change password</span>
-                    </div>
-                    <div class="profile-row-right">
-                        <span class="profile-row-chevron">›</span>
-                    </div>
-                </a>
-                <form method="POST" action="{{ url_for('logout') }}" id="bl-logout-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="profile-row">
-                        <div class="profile-row-left">
-                            <span class="profile-row-label">Log out</span>
-                        </div>
-                        <div class="profile-row-right">
-                            <span class="profile-row-chevron">›</span>
-                        </div>
-                    </button>
-                </form>
-                <button type="button" class="profile-row profile-row--danger" onclick="document.getElementById('delete-account-modal').style.display='flex'">
-                    <div class="profile-row-left">
-                        <span class="profile-row-label">Delete account</span>
-                    </div>
-                </button>
-            </div>
-        </div>
-
+  <section class="identity-card hc-card" aria-labelledby="identity-heading">
+    <h2 id="identity-heading" class="identity-name"><button type="button" data-editor="name">{{ full_name }}</button></h2>
+    <div class="identity-grid">
+      <div class="identity-item"><span class="identity-item-label">Riding</span><button type="button" data-editor="riding">{{ riding }}</button></div>
+      <div class="identity-item"><span class="identity-item-label">Ability</span><button type="button" data-editor="ability">{{ ability }}</button></div>
+      <div class="identity-item"><span class="identity-item-label">Pass</span><button type="button" data-editor="pass">{{ pass }}</button></div>
+      <div class="identity-item"><span class="identity-item-label">Equipment</span><a href="{{ url_for('settings_equipment') }}" style="color:#fff;font-size:15px;text-decoration:underline;text-underline-offset:3px;padding:3px 0">Manage gear</a></div>
     </div>
+    {% if current_user.created_at %}<p class="identity-meta">Joined BaseLodge · {{ current_user.created_at.strftime('%B %Y') }}</p>{% endif %}
+    <div class="gear-preview"><div class="hc-identity">
+      {% if current_user.equipment_status == 'needs_rentals' %}
+        <a href="{{ url_for('settings_equipment') }}">Rental gear</a>
+      {% elif profile_gear_disciplines %}
+        {% for discipline in profile_gear_disciplines %}
+          {% set setup = profile_gear_by_discipline.get(discipline) %}
+          {% set gear_label = 'Snowboard' if discipline == 'snowboarder' else 'Skis' %}
+          {% set has_gear = setup and (setup.brand or setup.model) %}
+          {% set has_boots = setup and (setup.boot_brand or setup.boot_model) %}
+          {% set has_bindings = setup and (setup.binding_brand or setup.binding_model) %}
+          <div class="gear-row"><span class="gear-label">{{ gear_label }}:</span>{% if has_gear %}<a href="{{ url_for('settings_equipment') }}#setup-{{ setup.id }}">{{ [setup.brand, setup.model]|select|join(' ') }}</a>{% else %}<a href="{{ url_for('settings_equipment') }}{% if setup %}#setup-{{ setup.id }}{% endif %}">Add your gear →</a>{% endif %}</div>
+          {% if has_boots %}<div class="gear-row"><span class="gear-label">Boots:</span><a href="{{ url_for('settings_equipment') }}#setup-{{ setup.id }}">{{ [setup.boot_brand, setup.boot_model]|select|join(' ') }}</a></div>{% endif %}
+          {% if has_bindings %}<div class="gear-row"><span class="gear-label">Bindings:</span><a href="{{ url_for('settings_equipment') }}#setup-{{ setup.id }}">{{ [setup.binding_brand, setup.binding_model]|select|join(' ') }}</a></div>{% endif %}
+        {% endfor %}
+      {% else %}
+        <a href="{{ url_for('settings_equipment') }}">Add your gear →</a>
+      {% endif %}
+    </div></div>
+    <div class="hc-stat-band"></div>
+  </section>
 
-    <!-- Delete Account confirmation modal -->
-    <div id="delete-account-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:16px;">
-        <div style="background:var(--bl-color-surface); border-radius:var(--bl-radius-lg); padding:24px; width:100%; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.18);">
-            <h2 style="font-size:18px; font-weight:600; margin:0 0 8px; display:flex; align-items:center; gap:8px;">⚠️ Delete account?</h2>
-            <div style="background:#FFF5F5; border:1px solid #FECACA; border-radius:10px; padding:14px 16px; margin:16px 0 20px;">
-                <ul style="font-size:14px; color:var(--bl-color-text-muted); line-height:1.6; margin:0; padding-left:20px;">
-                    <li>Your account and profile will be permanently removed</li>
-                    <li>All your trips, friends, and invitations will be deleted</li>
-                    <li>This cannot be undone — there is no way to recover your data</li>
-                </ul>
-            </div>
-            <form method="POST" action="{{ url_for('delete_account') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <label style="display:block; font-size:13px; font-weight:500; margin-bottom:6px;">
-                    Type your email address to confirm
-                </label>
-                <input
-                    id="delete-confirm-email"
-                    type="text"
-                    inputmode="email"
-                    name="confirm_email"
-                    placeholder="Enter your email address"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="none"
-                    spellcheck="false"
-                    required
-                    data-expected="{{ current_user.email | lower }}"
-                    style="width:100%; padding:12px; border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; background:var(--bl-color-surface); color:var(--bl-color-text); box-sizing:border-box; margin-bottom:16px;"
-                >
-                {% if delete_requires_reauth %}
-                <label for="delete-current-password" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px;">
-                    Enter your current password
-                </label>
-                <p style="font-size:13px; color:var(--bl-color-text-muted); line-height:1.4; margin:0 0 10px;">
-                    For your security, please confirm your password because you signed in using a remembered session.
-                </p>
-                <input
-                    id="delete-current-password"
-                    type="password"
-                    name="current_password"
-                    placeholder="Current password"
-                    autocomplete="current-password"
-                    required
-                    style="width:100%; padding:12px; border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; background:var(--bl-color-surface); color:var(--bl-color-text); box-sizing:border-box; margin-bottom:16px;"
-                >
-                {% endif %}
-                <button
-                    id="delete-confirm-btn"
-                    type="submit"
-                    disabled
-                    style="width:100%; padding:14px; background:var(--bl-color-primary); color:#fff; border:none; border-radius:var(--bl-radius-md); font-size:15px; font-weight:600; font-family:inherit; cursor:not-allowed; opacity:0.45; margin-bottom:10px;"
-                >
-                    Delete my account
-                </button>
-            </form>
-            <button
-                type="button"
-                onclick="document.getElementById('delete-account-modal').style.display='none'"
-                style="width:100%; padding:14px; background:transparent; color:var(--bl-color-text-muted); border:1px solid var(--bl-color-border); border-radius:var(--bl-radius-md); font-size:15px; font-family:inherit; cursor:pointer;"
-            >
-                Cancel
-            </button>
-        </div>
-    </div>
+  {% if request.args.get('pass_saved') == '1' and not has_availability %}
+  <aside class="profile-card" style="padding:16px 18px;margin-bottom:24px;border-color:#5c1219">
+    <strong style="display:block;margin-bottom:4px">Pass saved!</strong>
+    <span class="profile-row-sub" style="white-space:normal">Add your open dates so friends can plan with you.</span>
+    <a href="{{ url_for('add_open_dates') }}" style="display:inline-block;margin-top:10px;color:#5c1219;font-weight:600">Add open dates →</a>
+  </aside>
+  {% endif %}
 
-    <p style="text-align:center; font-size:12px; color:var(--bl-color-text-muted); padding:12px 0 8px;">
-        <a href="/termsandconditions" style="color:var(--bl-color-text-muted); text-decoration:none;">Terms</a>
-        &middot;
-        <a href="/privacypolicy" style="color:var(--bl-color-text-muted); text-decoration:none;">Privacy</a>
-    </p>
+  <section class="profile-group" aria-labelledby="life-heading"><h2 id="life-heading" class="profile-label">Ski life</h2><div class="profile-card">
+    <a class="profile-row summary-row" href="{{ url_for('add_open_dates') }}"><div class="profile-row-left"><span class="profile-row-label">Availability</span><span class="profile-row-sub">{% if has_availability %}{{ availability_count }} open {{ 'date' if availability_count == 1 else 'dates' }} ready to share{% else %}Add the dates you can get out{% endif %}</span></div><span class="profile-chevron">›</span></a>
+    <a class="profile-row summary-row" href="{{ url_for('settings_equipment') }}"><div class="profile-row-left"><span class="profile-row-label">Equipment</span><span class="profile-row-sub">{% if has_equipment %}{{ equipment_summary }}{% else %}No setups added yet{% endif %}</span></div><span class="profile-chevron">›</span></a>
+    <a class="profile-row summary-row" href="{{ url_for('ski_days') }}"><div class="profile-row-left"><span class="profile-row-label">Ski days</span><span class="profile-row-sub">Days logged in your ski life</span></div><span class="summary-count">{{ ski_day_count }}<span class="summary-unit">days</span></span></a>
+    <a class="profile-row summary-row" href="{{ url_for('mountains_visited') }}"><div class="profile-row-left"><span class="profile-row-label">Mountains visited</span><span class="profile-row-sub">Your mountain map, growing over time</span></div><span class="summary-count">{{ mountains_visited_count }}<span class="summary-unit">mountains</span></span></a>
+    <a class="profile-row summary-row" href="{{ url_for('settings_wish_list') }}"><div class="profile-row-left"><span class="profile-row-label">Wishlist</span><span class="profile-row-sub">Mountains you want to experience</span></div><span class="summary-count">{{ wish_list_count }}<span class="summary-unit">saved</span></span></a>
+    <a class="profile-row summary-row" href="{{ url_for('my_trips') }}"><div class="profile-row-left"><span class="profile-row-label">Trips</span><span class="profile-row-sub">Your upcoming and past mountain plans</span></div><span class="summary-count">{{ upcoming_trips_count }}<span class="summary-unit">upcoming</span></span></a>
+  </div></section>
 
-    {% endblock %}
+  <section class="settings-area" aria-labelledby="settings-heading"><h2 id="settings-heading" class="profile-label">Settings</h2><div class="profile-card settings-card">
+    <a class="profile-row" href="{{ url_for('push_settings') }}"><div class="profile-row-left"><span class="profile-row-label">Notifications</span><span class="profile-row-sub" id="prof-push-status">{% if current_user.push_notifications_enabled %}Push notifications on{% else %}Push notifications off{% endif %}</span></div><span class="profile-chevron">›</span></a>
+    <a class="profile-row" href="{{ url_for('settings_password') }}"><div class="profile-row-left"><span class="profile-row-label">Password &amp; Security</span><span class="profile-row-sub">Manage sign-in and security</span></div><span class="profile-chevron">›</span></a>
+    <a class="profile-row" href="{{ url_for('account') }}"><div class="profile-row-left"><span class="profile-row-label">Account</span><span class="profile-row-sub">Personal account controls</span></div><span class="profile-chevron">›</span></a>
+    <label class="profile-row" for="prof-discoverable"><div class="profile-row-left"><span class="profile-row-label">Show me in friend search</span><span class="profile-row-sub">Allow members to find you by name</span></div><span class="profile-toggle"><input id="prof-discoverable" type="checkbox" {% if current_user.discoverable_in_friend_search %}checked{% endif %} onchange="_profToggleDiscoverable(this.checked)"></span></label>
+    <form method="POST" action="{{ url_for('logout') }}" id="bl-logout-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="profile-row logout-row" type="submit"><div class="profile-row-left"><span class="profile-row-label">Log out</span></div><span class="profile-chevron">›</span></button></form>
+  </div></section>
+  <p style="text-align:center;font-size:12px;color:#81796e;padding:6px 0 8px"><a href="/termsandconditions" style="color:inherit">Terms</a> · <a href="/privacypolicy" style="color:inherit">Privacy</a></p>
+</main>
+
+<div class="editor-backdrop" id="profile-editor" role="presentation" aria-hidden="true"><section class="editor-sheet" role="dialog" aria-modal="true" aria-labelledby="editor-title"><div class="editor-handle" aria-hidden="true"></div><h2 class="editor-title" id="editor-title"></h2><p class="editor-help" id="editor-help"></p><div id="editor-content"></div><p class="editor-error" id="editor-error" role="alert"></p><div class="editor-actions"><button type="button" class="editor-cancel" id="editor-cancel">Cancel</button><button type="button" class="editor-save" id="editor-save">Save</button></div></section></div>
+{% endblock %}
 
 {% block scripts %}
-    <script>
-    (function () {
-        if (!window.location.hash) return;
-
-        window.setTimeout(function () {
-            window.requestAnimationFrame(function () {
-                var target = document.querySelector(window.location.hash);
-                if (!target) return;
-
-                var offset = 140;
-                var targetTop = target.getBoundingClientRect().top + window.pageYOffset;
-                var scrollToY = Math.max(targetTop - offset, 0);
-
-                window.scrollTo({
-                    top: scrollToY,
-                    behavior: "smooth"
-                });
-            });
-        }, 300);
-    })();
-
-    // ── Delete account: submit-gate ───────────────────────────────────
-    // The submit button starts disabled. It only becomes active once the
-    // user has typed their exact email address (case-insensitive match).
-    (function() {
-        var input  = document.getElementById('delete-confirm-email');
-        var btn    = document.getElementById('delete-confirm-btn');
-        if (!input || !btn) return;
-        var expected = (input.getAttribute('data-expected') || '').toLowerCase();
-        function check() {
-            var matches = input.value.trim().toLowerCase() === expected;
-            btn.disabled = !matches;
-            btn.style.opacity  = matches ? '1'            : '0.45';
-            btn.style.cursor   = matches ? 'pointer'      : 'not-allowed';
-        }
-        input.addEventListener('input', check);
-        // Also reset the field when the modal is opened so a re-open starts clean.
-        var openBtn = document.querySelector('[onclick*="delete-account-modal"]');
-        if (openBtn) {
-            openBtn.addEventListener('click', function() {
-                input.value = '';
-                check();
-            });
-        }
-    })();
-
-    // ── Friend Discovery toggle ───────────────────────────────────────
-    function _profToggleDiscoverable(checked) {
-        var csrfMeta = document.querySelector('meta[name="csrf-token"]');
-        var csrf = csrfMeta ? csrfMeta.content : '';
-        window.blFetch('/api/profile/update', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrf},
-            credentials: 'same-origin',
-            body: JSON.stringify({discoverable_in_friend_search: checked}),
-        }).catch(function() {
-            // Revert checkbox on network failure
-            document.getElementById('prof-discoverable').checked = !checked;
-        });
-    }
-
-    // ── OneSignal identity logout (native shell only) ─────────────────
-    // Intercepts the Log out form. If blOSLogout is available (registered
-    // only inside the Capacitor native shell by analytics_head.html), calls
-    // OS.logout() to clear the external_id before submitting. Falls back to
-    // normal form submission if the helper is absent.
-    (function() {
-        var _form = document.getElementById('bl-logout-form');
-        if (!_form) return;
-        _form.addEventListener('submit', function(e) {
-            if (typeof window.blOSLogout !== 'function') return;
-            e.preventDefault();
-            window.blOSLogout().then(function() {
-                _form.submit();
-            }).catch(function() {
-                _form.submit();
-            });
-        });
-    })();
-
-    // ── Refine push status with OS permission (native only) ───────────
-    // blOnOSPermReady is defined only in the Capacitor native shell.
-    // The typeof guard makes this a strict no-op in the browser.
-    (function() {
-        var appEnabled = {{ 'true' if current_user.push_notifications_enabled else 'false' }};
-        var el = document.getElementById('prof-push-status');
-        if (!el) return;
-        if (typeof window.blOnOSPermReady !== 'function') return;
-        window.blOnOSPermReady(function(osPerm) {
-            var st = osPerm && osPerm.status;
-            if (!appEnabled) {
-                el.textContent = 'Push notifications off in BaseLodge';
-            } else if (st === 'denied') {
-                el.textContent = 'Notifications blocked at device level';
-            } else if (st === 'not_determined') {
-                el.textContent = 'Permission not yet granted';
-            } else {
-                el.textContent = 'Push notifications on';
-            }
-        });
-    })();
-    </script>
+<script>
+(function(){
+  var modal=document.getElementById('profile-editor'), content=document.getElementById('editor-content'), title=document.getElementById('editor-title'), help=document.getElementById('editor-help'), error=document.getElementById('editor-error'), save=document.getElementById('editor-save'), cancel=document.getElementById('editor-cancel'), lastFocus=null, kind=null, editorHistory=false;
+  var csrf={{ csrf_token()|tojson }};
+  var configs={
+    name:{title:'Your name',help:'Keep it recognizable to the people you ski with.',field:'name',build:function(){return '<div style="display:flex;gap:10px"><div style="flex:1"><label class="editor-field" for="ed-first">First name</label><input class="editor-input" id="ed-first" value="'+esc({{ (current_user.first_name or '')|tojson }})+'" maxlength="100" autocomplete="given-name"></div><div style="flex:1"><label class="editor-field" for="ed-last">Last name</label><input class="editor-input" id="ed-last" value="'+esc({{ (current_user.last_name or '')|tojson }})+'" maxlength="100" autocomplete="family-name"></div></div>';},focus:'#ed-first'},
+    riding:{title:'Riding',help:'Choose the way you show up on snow.',field:'riding',build:function(){return pills('ed-riding',['Skier','Snowboarder','Telemark','Cross-Country','Adaptive','Interested','Social'],{{ (current_user.rider_types or [])|tojson }});},focus:'.editor-pill'},
+    ability:{title:'Ability',help:'A useful signal for planning days together.',field:'ability',build:function(){return pills('ed-ability',['Beginner','Intermediate','Advanced','Expert'],[{{ current_user.skill_level|tojson }}]);},focus:'.editor-pill'},
+    pass:{title:'Pass',help:'Choose up to three passes.',field:'pass',build:passPills,focus:'.editor-pill'}
+  };
+  function esc(v){return String(v||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;')}
+  function pills(id,items,selected){return '<div class="editor-pills" id="'+id+'" role="group">'+items.map(function(v){var on=selected.indexOf(v)>=0;return '<button type="button" class="editor-pill '+(on?'selected':'')+'" aria-pressed="'+on+'" data-value="'+esc(v)+'">'+esc(v==='Social'?'None of the Above':v)+'</button>'}).join('')+'</div>'}
+  function passPills(){var selected=({{ (current_user.pass_type or '')|tojson }}).split(',');var items=[['no_pass','No pass'],['no_pass_yet','Not sure yet'],['epic','Epic'],['ikon','Ikon'],['indy','Indy'],['mountain_collective','Mountain Collective'],['powder_alliance','Powder Alliance'],['freedom','Freedom Pass'],['ski_california','Ski California'],['other','Other pass']];return '<div class="editor-pills" id="ed-pass" role="group" aria-label="Passes">'+items.map(function(x){var on=selected.indexOf(x[0])>=0;return '<button type="button" class="editor-pill '+(on?'selected':'')+'" aria-pressed="'+on+'" data-value="'+x[0]+'" '+(x[0].indexOf('no_pass')===0?'data-exclusive="1"':'')+'>'+x[1]+'</button>'}).join('')+'</div><p class="editor-help" id="pass-limit-help" style="margin-top:10px;margin-bottom:0">Up to 3 passes</p>'}
+  function updatePassLimit(){var selected=content.querySelectorAll('#ed-pass .editor-pill.selected:not([data-exclusive])').length,atCap=selected>=3;content.querySelectorAll('#ed-pass .editor-pill:not([data-exclusive])').forEach(function(b){b.disabled=atCap&&!b.classList.contains('selected')})}
+  function syncPressed(){content.querySelectorAll('.editor-pill').forEach(function(x){x.setAttribute('aria-pressed',String(x.classList.contains('selected')))})}
+  function openEditor(which){kind=which;lastFocus=document.activeElement;var c=configs[which];title.textContent=c.title;help.textContent=c.help;error.textContent='';content.innerHTML=c.build();content.querySelectorAll('.editor-pill').forEach(function(b){b.addEventListener('click',function(){if(which==='pass'){if(b.dataset.exclusive){content.querySelectorAll('.editor-pill').forEach(function(x){x.classList.remove('selected')});b.classList.add('selected')}else{content.querySelectorAll('.editor-pill[data-exclusive]').forEach(function(x){x.classList.remove('selected')});b.classList.toggle('selected')}updatePassLimit()}else{content.querySelectorAll('.editor-pill').forEach(function(x){x.classList.remove('selected')});b.classList.add('selected')}syncPressed()})});if(which==='pass')updatePassLimit();modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.style.overflow='hidden';if(window.history&&window.history.pushState){window.history.pushState({profileEditor:true},'',window.location.href);editorHistory=true}setTimeout(function(){var f=content.querySelector(c.focus);if(f)f.focus()},30)}
+  function closeEditor(fromHistory){modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.style.overflow='';if(lastFocus)lastFocus.focus();if(editorHistory&&!fromHistory){editorHistory=false;window.history.back()}else{editorHistory=false}}
+  document.querySelectorAll('[data-editor]').forEach(function(b){b.addEventListener('click',function(){openEditor(b.dataset.editor)})});cancel.addEventListener('click',function(){closeEditor(false)});modal.addEventListener('click',function(e){if(e.target===modal)closeEditor(false)});window.addEventListener('popstate',function(){if(modal.classList.contains('open'))closeEditor(true)});document.addEventListener('keydown',function(e){if(!modal.classList.contains('open'))return;if(e.key==='Escape'){e.preventDefault();closeEditor(false)}if(e.key==='Tab'){var f=modal.querySelectorAll('button,input,select');if(!f.length)return;var first=f[0],last=f[f.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}});
+  save.addEventListener('click',function(){var payload={};if(kind==='name'){payload.first_name=document.getElementById('ed-first').value.trim();payload.last_name=document.getElementById('ed-last').value.trim();if(!payload.first_name||!payload.last_name){error.textContent='Please enter your first and last name.';return}}else if(kind==='riding'){payload.rider_types=Array.from(document.querySelectorAll('#ed-riding .selected')).map(function(x){return x.dataset.value})}else if(kind==='ability'){payload.skill_level=(document.querySelector('#ed-ability .selected')||{}).dataset?.value||''}else{payload.pass_type=Array.from(document.querySelectorAll('#ed-pass .selected')).map(function(x){return x.dataset.value}).join(',');if(!payload.pass_type){error.textContent='Please choose a pass option.';return}}save.disabled=true;fetch('/api/profile/update',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:JSON.stringify(payload)}).then(function(r){return r.json().catch(function(){return {}}).then(function(d){if(!r.ok||d.success===false)throw new Error(d.error||'Could not save this change.');return d})}).then(function(){window.location.reload()}).catch(function(e){error.textContent=e.message;save.disabled=false})});
+  function _profToggleDiscoverable(checked){var csrfMeta=document.querySelector('meta[name="csrf-token"]');var csrf=csrfMeta?csrfMeta.content:'';window.blFetch('/api/profile/update',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-Token': csrf},body:JSON.stringify({discoverable_in_friend_search:checked})}).then(function(r){if(!r.ok)throw 0}).catch(function(){document.getElementById('prof-discoverable').checked=!checked})}
+  window._profToggleDiscoverable=_profToggleDiscoverable;
+  // ── OneSignal identity logout (native shell only) ─────────────────
+  (function(){var _form=document.getElementById('bl-logout-form');if(!_form)return;_form.addEventListener('submit',function(e){if(typeof window.blOSLogout!=='function')return;e.preventDefault();window.blOSLogout().then(function(){_form.submit();}).catch(function(){_form.submit();})})})();
+  var pushStatus=document.getElementById('prof-push-status');if(pushStatus&&typeof window.blOnOSPermReady==='function'){window.blOnOSPermReady(function(osPerm){var st=osPerm&&osPerm.status,appEnabled={{ 'true' if current_user.push_notifications_enabled else 'false' }};if(!appEnabled)pushStatus.textContent='Push notifications off in BaseLodge';else if(st==='denied')pushStatus.textContent='Notifications blocked at device level';else if(st==='not_determined')pushStatus.textContent='Permission not yet granted';else pushStatus.textContent='Push notifications on'})}
+})();
+</script>
 {% endblock %}

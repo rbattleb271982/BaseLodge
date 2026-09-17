@@ -181,13 +181,13 @@ def test_delete_account_modal_requests_password_only_for_nonfresh_session(
     s = deletion_setup
     _login(client, s["user_id"])
 
-    fresh_response = client.get("/profile")
+    fresh_response = client.get("/account")
     assert fresh_response.status_code == 200
     assert b'name="current_password"' not in fresh_response.data
 
     with client.session_transaction() as session:
         session["_fresh"] = False
-    nonfresh_response = client.get("/profile")
+    nonfresh_response = client.get("/account")
     assert nonfresh_response.status_code == 200
     assert b'name="current_password"' in nonfresh_response.data
     assert b"remembered session" in nonfresh_response.data
