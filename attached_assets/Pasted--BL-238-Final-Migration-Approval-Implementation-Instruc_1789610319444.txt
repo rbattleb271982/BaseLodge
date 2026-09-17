@@ -1,0 +1,632 @@
+# BL-238 — Final Migration Approval & Implementation Instructions
+
+**Replit Agent level:** Power
+**Batch:** ~100% of remaining BL-238 implementation
+
+Proceed with BL-238. The schema migration is approved **only to the minimum extent required to support the locked attention architecture below**.
+
+Build on the current working tree, including the completed BL-236 and BL-237 work. Do not regress or redesign those implementations.
+
+## 1. Architecture that remains authoritative
+
+Keep canonical workflow resolution where it already belongs:
+
+* Friend and join requests → `Invitation.status`
+* Trip invitation / RSVP decisions → participant or guest status
+* Needs You → derived from unresolved canonical workflow records
+* Trip Detail, Friends, and other owning surfaces → canonical state
+
+Do **not** duplicate canonical resolution state into Activity.
+
+The attention architecture must preserve two independent concepts:
+
+**Seen / unseen**
+
+> Has the recipient meaningfully encountered this activity?
+
+**Resolved / unresolved**
+
+> Does the underlying canonical workflow still require action?
+
+The implementation must support combinations such as **seen + unresolved** across sessions and devices.
+
+---
+
+# 2. Approved schema direction
+
+The proposed architecture is approved in principle:
+
+### Activity acknowledgement
+
+Add durable recipient-private acknowledgement state to Activity, such as:
+
+`seen_at`
+
+Activity already belongs to one `recipient_user_id`, so do not introduce a separate receipt table unless investigation proves it is technically necessary.
+
+### Friend-request activity
+
+Add recipient-specific Activity evidence for a newly received friend request.
+
+It must link to the exact underlying request.
+
+This activity may drive:
+
+* Notifications presentation
+* Notifications unseen state
+* Friends unseen-request badge
+
+The underlying Invitation remains canonical for whether the friend request is unresolved.
+
+### Stable actionable linkage
+
+Add stable linkage between actionable Activity and the exact canonical workflow record that produced it.
+
+The proposed direction is:
+
+`subject_type`
+`subject_id`
+
+Examples:
+
+* `invitation / <Invitation.id>`
+* `trip_guest / <TripGuest.id>`
+* `ski_trip_participant / <SkiTripParticipant.id>`
+
+Do not rely only on activity type + trip/user ID where that could ambiguously match multiple lifecycle events.
+
+Do not infer ambiguous historical linkage.
+
+### Important validation before migration
+
+The product decisions below introduce per-item exposure semantics and consolidation of repeated activity.
+
+Before creating the migration, verify that `seen_at` plus the proposed linkage can safely support those semantics.
+
+If an additional schema field or materially different schema design is required, **STOP again before creating/running the migration**, explain the minimum additional requirement, and wait for approval.
+
+Do not expand the schema merely for implementation convenience.
+
+---
+
+# 3. Backfill behavior
+
+Existing Activity records should be treated as **seen** at migration time so existing users do not receive historical badge bursts.
+
+For existing pending friend requests requiring Activity evidence:
+
+* create the necessary recipient-specific Activity record
+* mark it already seen
+* preserve the underlying unresolved friend request
+
+For historical actionable Activity without reliable workflow linkage:
+
+* do not guess
+* mark it seen
+* preserve it only as informational legacy activity where safe
+
+Do not mutate canonical workflow state as part of this backfill.
+
+---
+
+# 4. Meaningfully seen behavior
+
+Opening Notifications does **not** automatically mark everything seen.
+
+An individual notification becomes seen only after the user has had a **meaningful opportunity to perceive it**.
+
+Target behavior:
+
+* notification is substantially/meaningfully visible
+* for approximately 1 second
+* fast scrolling past an item should not count
+* implementation should avoid fragile pixel-perfect behavior
+
+Determine the safest implementation mechanism for web + Capacitor.
+
+Persist acknowledgement so seen state survives sessions and devices.
+
+Batch acknowledgement requests where appropriate rather than generating unnecessary request volume.
+
+---
+
+# 5. Notifications badge while viewing Notifications
+
+While the user is actively inside Notifications:
+
+**Hide the Notifications badge.**
+
+Do not show a counter decrementing as notifications become seen.
+
+As individual items satisfy the meaningful-exposure rule, persist their seen state.
+
+When the user leaves Notifications, the badge should again reflect the authoritative remaining unseen count.
+
+---
+
+# 6. New activity while Notifications is open
+
+Do not insert new activity at the top in a way that moves content while the user is reading.
+
+Instead show a subtle:
+
+**New activity**
+
+indicator.
+
+The user's current scroll position should remain stable.
+
+When the user chooses to reveal/load the new activity, those notifications remain unseen until they independently satisfy the normal meaningful-exposure rule.
+
+---
+
+# 7. Actionable notification resolution
+
+Notifications answers:
+
+**What happened?**
+
+Needs You answers:
+
+**What do I still need to deal with?**
+
+Notifications must not contain workflow-resolution controls.
+
+No:
+
+* Accept / Decline
+* Going / Interested / Decline
+* Approve / Reject
+
+Actionable Notifications may deep-link to the appropriate owning surface.
+
+When the underlying workflow is successfully resolved anywhere in BaseLodge:
+
+* remove the corresponding actionable item from Needs You
+* remove the corresponding actionable notification
+* remove it even if that notification was still unseen
+* update unseen badge state accordingly
+
+Do not require the user to acknowledge obsolete information.
+
+Canonical state remains on the owning surface.
+
+---
+
+# 8. Declines and withdrawals
+
+If the recipient declines a request or invitation:
+
+* remove the corresponding actionable item everywhere
+* do not create an informational “You declined…” notification
+
+If the sender withdraws/cancels a pending request or invitation before the recipient responds:
+
+* remove the corresponding actionable item everywhere
+* do not create a replacement “X withdrew…” notification
+
+The disappearance is sufficient.
+
+Do not turn Notifications into workflow history.
+
+---
+
+# 9. Friend requests
+
+A newly received friend request should be represented in:
+
+* Notifications
+* Friends
+* Needs You
+
+But the surfaces have different purposes.
+
+### Notifications
+
+Awareness only.
+
+Example:
+
+“Richard sent you a friend request.”
+
+No Accept/Decline controls.
+
+It may deep-link to the appropriate Friends context.
+
+### Friends
+
+Canonical friend-request management surface.
+
+### Needs You
+
+Represents the still-unresolved action.
+
+A straightforward friend request may be resolved inline from Needs You if the existing architecture safely supports it.
+
+Opening Notifications or Friends may change seen state but **must not resolve the friend request**.
+
+---
+
+# 10. Friends badge
+
+The Friends red badge represents:
+
+**unseen friend-request activity**
+
+It does NOT represent the total number of pending friend requests.
+
+Opening Friends does not automatically mark every request seen merely because the page loaded.
+
+Apply the same meaningful-exposure principle where technically appropriate: the user should have a reasonable opportunity to perceive the request.
+
+Seen friend requests can remain unresolved in Friends and Needs You without contributing to the red badge.
+
+---
+
+# 11. Repeated changes and consolidation
+
+Do not stack multiple unseen intermediate changes to the same underlying thing when the user only needs to understand the current meaningful change.
+
+Example:
+
+Trip dates change:
+
+Jan 10 → Jan 12
+Jan 12 → Jan 14
+Jan 14 → Jan 15
+
+If those changes remain unseen, Notifications should consolidate them into one relevant current notification rather than showing three redundant unseen entries.
+
+Trip Detail remains canonical.
+
+### Important
+
+Do not implement consolidation using loose trip/user matching that could accidentally merge distinct meaningful lifecycle events.
+
+The architecture must preserve the distinction between:
+
+* repeated updates that should consolidate
+* genuinely distinct later events that should create a new notification
+
+For example, after an invitation has been resolved, a later meaningful trip-date change is a **new event**. Do not revive or mutate the old invitation notification.
+
+---
+
+# 12. Informational retention
+
+Notifications is recent relevant activity, not permanent history.
+
+### Informational notifications
+
+Age out after:
+
+**90 days**
+
+This applies whether they are seen or unseen.
+
+When an unseen informational notification ages out, it also stops contributing to the unseen badge.
+
+Implement retention as **query filtering**, not physical deletion.
+
+Do not create destructive cleanup behavior in BL-238.
+
+### 50-item limit
+
+The existing 50-item cap should apply to **seen informational notifications**.
+
+Unseen informational notifications should not disappear merely because 50 newer records exist.
+
+Therefore the rendered dataset may temporarily exceed 50 when necessary to preserve unseen activity.
+
+Unseen informational notifications still age out normally after 90 days.
+
+### Unresolved actionable activity
+
+Must never disappear solely because it is older than 90 days.
+
+Canonical unresolved workflow state remains authoritative.
+
+Retention must never mutate:
+
+* Trips
+* invitations
+* friendships
+* participants
+* RSVP
+* Availability
+* planning state
+* other canonical product state
+
+---
+
+# 13. Needs You ordering
+
+Needs You is not a chronological activity feed.
+
+Order unresolved items by:
+
+**consequence first, then recency within the same consequence level.**
+
+Do not invent an arbitrary hierarchy before inspecting the actual Needs You action types.
+
+First inventory the current action types and propose the smallest sensible consequence hierarchy based on how much the action affects coordination or other people.
+
+Examples likely to rank above low-context social actions include decisions blocking or materially affecting trip coordination.
+
+Friend requests are generally lower consequence than coordination-dependent trip actions.
+
+Do not manufacture urgency.
+
+If the exact hierarchy presents a meaningful product ambiguity after inspection, report it before locking it into code.
+
+---
+
+# 14. Needs You interaction behavior
+
+Simple, low-context actions may resolve inline where appropriate.
+
+Example:
+
+* straightforward friend request
+
+Context-heavy actions should navigate to their owning surface first.
+
+Examples:
+
+* trip invitations requiring trip context
+* join requests where roster/dates/participants matter
+* other decisions where the user should understand context before acting
+
+Do not recreate Trip Detail or Friends inside Home.
+
+### Failure behavior
+
+If a Needs You action fails:
+
+* do not make it disappear as if successful
+* keep or restore the unresolved item
+* show explicit failure feedback
+* offer Retry where appropriate
+* prevent duplicate submissions
+* remove the item only after confirmed success or authoritative state proves it is no longer pending
+
+---
+
+# 15. Attention proportional to consequence
+
+Informational notifications do not all need identical visual emphasis.
+
+Meaningful coordination changes may receive **subtly stronger treatment**.
+
+Examples:
+
+* trip dates changed
+* trip canceled
+* destination/mountain materially changed
+
+Lower-consequence social activity can remain visually quieter.
+
+Do not use:
+
+* manufactured urgency
+* alarmist treatment
+* red warning styling merely because something is important
+* engagement/FOMO mechanics
+
+The goal is simply to make consequential coordination changes easier to notice.
+
+Stay within the existing BaseLodge Design System.
+
+---
+
+# 16. Cross-surface reconciliation
+
+Verify reliable reconciliation among:
+
+* Notifications
+* Needs You
+* Friends
+* Home
+* Trips
+* Trip Detail
+* badges
+
+A state change on one surface must reconcile correctly on the others through the existing targeted-refresh architecture or the smallest appropriate extension of it.
+
+Do not create duplicate canonical state.
+
+Do not allow duplicate mutations.
+
+Preserve authorization, privacy, CSRF, lifecycle, RSVP, invitation, join-request, friendship, Availability, and Trip Detail behavior.
+
+---
+
+# 17. Capacitor
+
+BaseLodge is a web application delivered through Capacitor.
+
+Do not introduce native Swift/Kotlin work for BL-238.
+
+Preserve existing native push registration and notification/deep-link behavior.
+
+BL-205 remains separate unless a direct dependency is discovered.
+
+If a direct dependency on BL-205 prevents correct BL-238 behavior, report it rather than silently expanding scope.
+
+---
+
+# 18. Existing backlog reconciliation
+
+Inspect but do not silently close or rewrite:
+
+### BL-233
+
+NOTIFICATIONS — Add explicit loading and failure states to actions
+
+Some or all of this may now be superseded because direct actions are being removed from Notifications and failure/retry behavior belongs in Needs You.
+
+Report what remains applicable.
+
+### BL-230
+
+NOTIFICATIONS — Distinguish database failure from empty inbox
+
+Still relevant unless current evidence establishes that it has already been resolved.
+
+### BL-205
+
+Native push registration / notification taps
+
+Separate unless direct dependency exists.
+
+### BL-118
+
+Notification/lifecycle/outbound analytics
+
+Out of scope except that existing analytics behavior must not be broken.
+
+---
+
+# 19. Verification
+
+Add focused regression coverage for at least:
+
+* seen vs unresolved independence
+* durable seen state across requests/sessions
+* meaningful-exposure acknowledgement
+* fast scroll does not immediately acknowledge everything
+* batched acknowledgement behavior
+* Notifications badge unseen-only
+* badge hidden while inside Notifications
+* remaining unseen count correct after leaving
+* New activity behavior while Notifications is open
+* new activity does not shift user's current reading position
+* Friends badge unseen-request-only
+* Friends request remains unresolved after becoming seen
+* friend request appears in Notifications + Friends + Needs You
+* Notifications has no direct resolution controls
+* successful resolution anywhere removes corresponding actionable Notification + Needs You item
+* unseen actionable notification disappears when underlying workflow is resolved
+* decline produces no history notification
+* sender withdrawal produces no replacement notification
+* Needs You success behavior
+* Needs You failure / Retry behavior
+* duplicate-submission prevention
+* context-heavy actions route to owning surface
+* repeated unseen changes consolidate safely
+* distinct later lifecycle events remain distinct
+* 90-day informational filtering
+* unseen informational items also age out at 90 days
+* 50 seen-item cap
+* unseen items can safely exceed the 50-item cap
+* unresolved canonical workflows do not age out
+* consequence-first Needs You ordering
+* consequential notification emphasis
+* DB failure vs empty-state behavior where BL-230 applies
+* authorization
+* privacy
+* CSRF
+* bounded query behavior
+* dense-state behavior
+
+Use a dense disposable scenario around:
+
+* 25+ friends
+* 15+ trips
+* multiple simultaneous friend requests
+* trip invitations
+* join requests
+* seen + unresolved items
+* unseen + unresolved items
+* informational notifications
+* repeated trip changes
+* resolved activity
+* later distinct events
+
+Verify responsive behavior at:
+
+* 360
+* 390
+* 430
+* 768
+* 1280
+
+Also verify:
+
+* long names
+* long trip names
+* scrolling
+* loading
+* empty
+* error
+* Retry
+* keyboard
+* focus
+* touch
+* screen-reader semantics
+* safe areas
+* Capacitor behavior
+
+Run focused tests plus the appropriate broader regression suite.
+
+---
+
+# 20. Scope controls
+
+Do not:
+
+* redesign Home
+* redesign Profile
+* reopen BL-236 Availability architecture
+* reopen BL-237 Profile architecture
+* create a global action center
+* turn Notifications into an inbox
+* turn Home into an action center
+* redesign push notifications broadly
+* create new RSVP/lifecycle states
+* redesign unrelated notification taxonomy
+* add email/SMS expansion
+* change Availability privacy
+* introduce unrelated visual redesign
+* deploy
+* publish
+* push Git
+* modify Notion
+
+Create and run only the minimum approved migration required for this architecture.
+
+If implementation evidence shows the approved schema cannot safely support these locked semantics, **STOP before expanding the schema** and report the blocker.
+
+---
+
+# 21. Final report
+
+When complete, return:
+
+# BL-238 Implementation Report
+
+1. Summary
+2. Previous Attention Architecture
+3. Migration & Backfill
+4. State Model
+5. Meaningful Exposure / Seen Behavior
+6. Notifications
+7. Notifications Badge
+8. New Activity While Viewing
+9. Friends & Friend-Request Badge
+10. Needs You
+11. Needs You Ordering
+12. Resolution & Withdrawal Reconciliation
+13. Activity Consolidation
+14. Informational Retention
+15. Attention / Visual Hierarchy
+16. Cross-Surface Reconciliation
+17. Backlog Reconciliation
+18. Files Changed
+19. Tests
+20. Responsive / Accessibility / Capacitor Verification
+21. Query / Dense-State Verification
+22. Deviations / Remaining Issues
+23. Git Diff Summary
+
+Do not deploy, publish, push Git, or modify Notion.

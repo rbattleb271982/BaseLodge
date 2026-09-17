@@ -1068,27 +1068,120 @@ def inject_availability_trip_overlap_prompt():
 
 
 _NOTIF_TYPES = [
+    'trip_created', 'trip_updated',
     'join_request_received', 'join_request_accepted', 'join_request_declined',
     'connection_accepted', 'trip_invite_received', 'trip_invite_accepted', 'trip_invite_declined',
+    'friend_request_received',
     'trip_location_changed', 'trip_pass_changed', 'friend_suggestions_received',
 ]
+
+_ACTIONABLE_ACTIVITY_TYPES = (
+    'friend_request_received', 'trip_invite_received', 'join_request_received',
+)
+
+
+def _attention_activity_query(recipient_id, *, seen=None, include_trip_workflows=True):
+    """Return only eligible attention rows, with expiry enforced in SQL.
+
+    Actionable rows must carry an exact workflow subject; their current
+    workflow state is checked through correlated EXISTS predicates.  This
+    keeps legacy ambiguous rows and resolved requests out of badges while
+    allowing an unresolved request to remain actionable indefinitely.
+    """
+    cutoff = datetime.utcnow() - timedelta(days=90)
+    friend_request_live = sa.exists().where(db.and_(
+        Invitation.id == Activity.subject_id,
+        Activity.subject_type == 'invitation',
+        Invitation.sender_id == Activity.actor_user_id,
+        Invitation.receiver_id == recipient_id,
+        Invitation.status == 'pending',
+        Invitation.trip_id.is_(None),
+        Invitation.invite_type == InviteType.OUTBOUND,
+    ))
+    join_request_live = sa.exists().where(db.and_(
+        Invitation.id == Activity.subject_id,
+        Activity.subject_type == 'invitation',
+        Invitation.sender_id == Activity.actor_user_id,
+        Invitation.receiver_id == recipient_id,
+        Invitation.trip_id == Activity.object_id,
+        Invitation.status == 'pending',
+        Invitation.invite_type == InviteType.REQUEST,
+    ))
+    trip_invite_live = sa.exists().where(db.and_(
+        SkiTripParticipant.id == Activity.subject_id,
+        Activity.subject_type.in_(('participant', 'ski_trip_participant')),
+        SkiTripParticipant.user_id == recipient_id,
+        SkiTripParticipant.trip_id == Activity.object_id,
+        SkiTripParticipant.status == GuestStatus.PENDING,
+    ))
+    trip_live = sa.exists().where(db.and_(
+        SkiTrip.id == Activity.object_id,
+        active_or_legacy_trip_predicate(),
+    ))
+    actionable = db.and_(
+        Activity.type == 'friend_request_received',
+        Activity.object_type == 'user',
+        friend_request_live,
+    )
+    if include_trip_workflows:
+        actionable = db.or_(
+            actionable,
+            db.and_(
+                Activity.type == 'join_request_received',
+                Activity.object_type == 'trip',
+                join_request_live,
+                trip_live,
+            ),
+            db.and_(
+                Activity.type == 'trip_invite_received',
+                Activity.object_type == 'trip',
+                trip_invite_live,
+                trip_live,
+            ),
+        )
+    informational = db.and_(
+        ~Activity.type.in_(_ACTIONABLE_ACTIVITY_TYPES),
+        Activity.created_at >= cutoff,
+        db.or_(Activity.object_type != 'trip', trip_live),
+    )
+    query = Activity.query.filter(
+        Activity.recipient_user_id == recipient_id,
+        Activity.type.in_(_NOTIF_TYPES),
+        db.or_(actionable, informational),
+    )
+    if seen is True:
+        query = query.filter(Activity.seen_at.isnot(None))
+    elif seen is False:
+        query = query.filter(Activity.seen_at.is_(None))
+    return query
 
 
 @app.context_processor
 def inject_pending_friend_count():
-    """Inject pending friend-request count into every app-shell template for the nav badge."""
+    """Inject unseen friend-request activity, never unresolved request count."""
     if not current_user.is_authenticated:
-        return {'pending_friend_count': 0}
+        return {'pending_friend_count': 0, 'unseen_notification_count': 0}
     try:
-        count = Invitation.query.filter(
-            Invitation.receiver_id == current_user.id,
-            Invitation.status == 'pending',
-            Invitation.trip_id.is_(None),
-            Invitation.invite_type == InviteType.OUTBOUND,
-        ).count()
-        return {'pending_friend_count': count}
+        counts = _attention_activity_query(
+            current_user.id, seen=False
+        ).with_entities(
+            func.count(Activity.id),
+            func.sum(
+                db.case(
+                    (
+                        Activity.type == ActivityType.FRIEND_REQUEST_RECEIVED.value,
+                        1,
+                    ),
+                    else_=0,
+                )
+            ),
+        ).one()
+        return {
+            'pending_friend_count': int(counts[1] or 0),
+            'unseen_notification_count': int(counts[0] or 0),
+        }
     except Exception:
-        return {'pending_friend_count': 0}
+        return {'pending_friend_count': 0, 'unseen_notification_count': 0}
 
 
 # Helper to normalize country code
@@ -1941,18 +2034,44 @@ def get_friend_ids(user_id):
     ]
 
 
-def create_activity(actor_user_id, recipient_user_id, activity_type, object_type, object_id, extra_data=None):
-    """Create an activity record."""
+def create_activity(actor_user_id, recipient_user_id, activity_type, object_type,
+                    object_id, extra_data=None, subject_type=None, subject_id=None):
+    """Create an activity record, consolidating only the same unseen subject stream."""
     if actor_user_id == recipient_user_id:
         return
+    type_value = activity_type.value if hasattr(activity_type, 'value') else activity_type
+    # Repeated unseen updates to the same typed subject represent one current
+    # change. Resolved workflow subjects use their exact row and never collide
+    # with later lifecycle events.
+    if subject_type and subject_id and type_value in {
+        ActivityType.TRIP_UPDATED.value,
+        ActivityType.TRIP_LOCATION_CHANGED.value,
+        ActivityType.TRIP_PASS_CHANGED.value,
+    }:
+        prior = Activity.query.filter(
+            Activity.recipient_user_id == recipient_user_id,
+            Activity.type == type_value,
+            Activity.subject_type == subject_type,
+            Activity.subject_id == subject_id,
+            Activity.seen_at.is_(None),
+        ).order_by(Activity.created_at.desc()).first()
+        if prior:
+            prior.actor_user_id = actor_user_id
+            prior.object_type = object_type
+            prior.object_id = object_id
+            prior.created_at = datetime.utcnow()
+            prior.extra_data = extra_data or None
+            return prior
     activity = Activity(
         actor_user_id=actor_user_id,
         recipient_user_id=recipient_user_id,
-        type=activity_type.value if hasattr(activity_type, 'value') else activity_type,
+        type=type_value,
         object_type=object_type,
         object_id=object_id,
         created_at=datetime.utcnow(),
         extra_data=extra_data or None,
+        subject_type=subject_type,
+        subject_id=subject_id,
     )
     db.session.add(activity)
 
@@ -1967,6 +2086,7 @@ def emit_trip_created_activities(trip, actor_user_id):
             activity_type=ActivityType.TRIP_CREATED,
             object_type='trip',
             object_id=trip.id
+            , subject_type='trip', subject_id=trip.id
         )
     check_and_emit_trip_overlap_activities(trip, actor_user_id)
     emit_availability_overlap_activities_for_trip(trip)
@@ -1984,6 +2104,7 @@ def emit_trip_updated_activities(trip, actor_user_id, dates_changed=False):
             activity_type=ActivityType.TRIP_UPDATED,
             object_type='trip',
             object_id=trip.id
+            , subject_type='trip', subject_id=trip.id
         )
     check_and_emit_trip_overlap_activities(trip, actor_user_id)
     emit_availability_overlap_activities_for_trip(trip)
@@ -2005,6 +2126,7 @@ def emit_trip_location_changed_activities(trip, actor_user_id, resort_name):
             object_type='trip',
             object_id=trip.id,
             extra_data={'resort_name': resort_name},
+            subject_type='trip', subject_id=trip.id,
         )
     check_and_emit_trip_overlap_activities(trip, actor_user_id)
     emit_availability_overlap_activities_for_trip(trip)
@@ -2025,6 +2147,7 @@ def emit_trip_pass_changed_activities(trip, actor_user_id, pass_display):
             activity_type=ActivityType.TRIP_PASS_CHANGED,
             object_type='trip',
             object_id=trip.id,
+            subject_type='trip', subject_id=trip.id,
             extra_data={'pass_display': pass_display},
         )
 
@@ -2099,12 +2222,24 @@ def emit_trip_invite_accepted_activity(trip, acceptor_user_id, trip_owner_id):
 
 def emit_trip_invite_received_activity(trip, inviter_user_id, invitee_user_id):
     """Create TRIP_INVITE_RECEIVED activity for the invited user."""
+    participant = SkiTripParticipant.query.filter_by(
+        trip_id=trip.id, user_id=invitee_user_id
+    ).first()
+    if participant:
+        Activity.query.filter(
+            Activity.recipient_user_id == invitee_user_id,
+            Activity.type == ActivityType.TRIP_INVITE_RECEIVED.value,
+            Activity.subject_type.in_(('participant', 'ski_trip_participant')),
+            Activity.subject_id == participant.id,
+        ).delete(synchronize_session=False)
     create_activity(
         actor_user_id=inviter_user_id,
         recipient_user_id=invitee_user_id,
         activity_type=ActivityType.TRIP_INVITE_RECEIVED,
         object_type='trip',
-        object_id=trip.id
+        object_id=trip.id,
+        subject_type='participant',
+        subject_id=participant.id if participant else None,
     )
 
 
@@ -7921,6 +8056,25 @@ def create_friend_request(actor_id, target_id):
         return {'ok': False, 'code': 'COOLDOWN', 'invitation_id': None}
 
     try:
+        # A re-invite gets a new durable subject.  Remove stale actionable
+        # evidence for this exact pair so an old invitation can never revive
+        # the new request's attention state.
+        prior_ids = [
+            row.id for row in Invitation.query.filter(
+                Invitation.sender_id == actor_id,
+                Invitation.receiver_id == target_id,
+                Invitation.trip_id.is_(None),
+                Invitation.invite_type == InviteType.OUTBOUND,
+                Invitation.status != 'pending',
+            ).all()
+        ]
+        if prior_ids:
+            Activity.query.filter(
+                Activity.type == ActivityType.FRIEND_REQUEST_RECEIVED.value,
+                Activity.subject_type == 'invitation',
+                Activity.subject_id.in_(prior_ids),
+                Activity.recipient_user_id == target_id,
+            ).delete(synchronize_session=False)
         invitation = Invitation(
             sender_id=actor_id,
             receiver_id=target_id,
@@ -7946,6 +8100,15 @@ def create_friend_request(actor_id, target_id):
         }
         _friend_request_uses_outbox = _stage_route_messaging_events(
             _friend_request_intent
+        )
+        create_activity(
+            actor_user_id=actor_id,
+            recipient_user_id=target_id,
+            activity_type=ActivityType.FRIEND_REQUEST_RECEIVED,
+            object_type='user',
+            object_id=actor_id,
+            subject_type='invitation',
+            subject_id=invitation.id,
         )
         db.session.commit()
         _finish_route_messaging_events(
@@ -10563,6 +10726,18 @@ def _render_bounded_friends():
     } if sender_ids else {}
     for invitation in pending_incoming:
         invitation._sender = senders.get(invitation.sender_id)
+    request_activities = {
+        row.subject_id: row
+        for row in Activity.query.filter(
+            Activity.recipient_user_id == user.id,
+            Activity.type == ActivityType.FRIEND_REQUEST_RECEIVED.value,
+            Activity.subject_id.in_([i.id for i in pending_incoming]) if pending_incoming else db.false(),
+        ).all()
+    }
+    for invitation in pending_incoming:
+        activity = request_activities.get(invitation.id)
+        invitation._activity_id = activity.id if activity else None
+        invitation._activity_seen = activity is None or activity.seen_at is not None
     outgoing_page = load_outgoing_requests_page(user.id)
 
     from services.pass_utils import (
@@ -12583,6 +12758,7 @@ def _build_home_needs_you(*, user_id, today):
             "resort": trip.resort,
             "person_name": _person_name(trip.user_id),
             "going_count": int(going_counts.get(trip.id, 0)),
+            "_created_at": participation.created_at or datetime.min,
         })
     for invitation, trip in join_requests:
         rows.append({
@@ -12593,6 +12769,7 @@ def _build_home_needs_you(*, user_id, today):
             "resort": trip.resort,
             "person_name": _person_name(invitation.sender_id),
             "going_count": int(going_counts.get(trip.id, 0)),
+            "_created_at": invitation.created_at or datetime.min,
         })
     for invitation in friend_requests:
         rows.append({
@@ -12600,7 +12777,14 @@ def _build_home_needs_you(*, user_id, today):
             "type": "friend_request",
             "id": invitation.id,
             "person_name": _person_name(invitation.sender_id),
+            "_created_at": invitation.created_at or datetime.min,
         })
+    consequence_rank = {"trip_invitation": 0, "join_request": 0, "friend_request": 1}
+    rows.sort(key=lambda row: (
+        consequence_rank.get(row["type"], 9),
+        -row["_created_at"].timestamp(),
+        -row["id"],
+    ))
     return rows[:HOME_NEEDS_YOU_RENDER_CAP]
 
 
@@ -13764,54 +13948,79 @@ def ski_day_delete(ski_day_id):
 def notifications():
     """Lightweight in-app notification center using Activity records + pending connect invites."""
     _rp_t0 = time.perf_counter()
-    # --- Pending incoming connection requests (not Activity — from Invitation model) ---
+    # Friend requests are represented by Activity; canonical pending state is
+    # checked below so resolved/withdrawn requests disappear everywhere.
     _t = time.perf_counter()
     pending_connects = []
-    try:
-        connects = Invitation.query.filter_by(
-            receiver_id=current_user.id,
-            status='pending'
-        ).filter(
-            Invitation.trip_id.is_(None),
-            Invitation.invite_type == InviteType.OUTBOUND,
-        ).order_by(Invitation.created_at.desc()).all()
-        if connects:
-            # Bulk-load all sender Users in one query instead of one per invite.
-            sender_ids = list({inv.sender_id for inv in connects})
-            senders_map = {
-                u.id: u
-                for u in User.query.filter(User.id.in_(sender_ids)).all()
-            }
-            for inv in connects:
-                sender = senders_map.get(inv.sender_id)
-                if sender:
-                    sender_name = f"{sender.first_name or ''} {sender.last_name or ''}".strip() or 'Someone'
-                    pending_connects.append({
-                        'invitation_id': inv.id,
-                        'sender_name': sender_name,
-                        'sender_id': sender.id,
-                    })
-    except Exception:
-        db.session.rollback()
     if app.debug:
         print(f"[ROUTE_PERF] notifications.pending_connects={time.perf_counter()-_t:.4f}s invite_count={len(pending_connects)}")
 
     # --- Activity-based notifications ---
     _t = time.perf_counter()
     raw_activities = []
+    notifications_db_error = False
     try:
         # joinedload(Activity.actor) fetches all actor Users in a single JOIN,
         # replacing the previous lazy per-activity SELECT when act.actor is accessed.
-        raw_activities = Activity.query.filter(
-            Activity.recipient_user_id == current_user.id,
-            Activity.type.in_(_NOTIF_TYPES)
+        unseen_activities = _attention_activity_query(
+            current_user.id, seen=False
         ).options(
             joinedload(Activity.actor)
+        ).order_by(Activity.created_at.desc()).all()
+        seen_actionable = _attention_activity_query(
+            current_user.id, seen=True
+        ).options(
+            joinedload(Activity.actor)
+        ).filter(
+            Activity.type.in_(_ACTIONABLE_ACTIVITY_TYPES),
+        ).order_by(Activity.created_at.desc()).all()
+        seen_informational = _attention_activity_query(
+            current_user.id, seen=True
+        ).options(
+            joinedload(Activity.actor)
+        ).filter(
+            ~Activity.type.in_(_ACTIONABLE_ACTIVITY_TYPES),
         ).order_by(Activity.created_at.desc()).limit(50).all()
+        raw_activities = sorted(
+            unseen_activities + seen_actionable + seen_informational,
+            key=lambda activity: (activity.created_at, activity.id),
+            reverse=True,
+        )
     except Exception:
         db.session.rollback()
+        notifications_db_error = True
     if app.debug:
         print(f"[ROUTE_PERF] notifications.raw_activities={time.perf_counter()-_t:.4f}s count={len(raw_activities)}")
+
+    # Resolve workflow subjects in bounded bulk queries. Informational activity
+    # is retained for 90 days; actionable activity is never aged out.
+    invitation_ids = {
+        a.subject_id for a in raw_activities
+        if a.subject_type == 'invitation' and a.subject_id
+    }
+    participant_ids = {
+        a.subject_id for a in raw_activities
+        if a.subject_type in ('participant', 'ski_trip_participant') and a.subject_id
+    }
+    invitation_map, participant_map = {}, {}
+    if not notifications_db_error:
+        try:
+            invitation_map = {
+                row.id: row
+                for row in Invitation.query.filter(
+                    Invitation.id.in_(invitation_ids)
+                ).all()
+            } if invitation_ids else {}
+            participant_map = {
+                row.id: row
+                for row in SkiTripParticipant.query.filter(
+                    SkiTripParticipant.id.in_(participant_ids)
+                ).all()
+            } if participant_ids else {}
+        except SQLAlchemyError:
+            db.session.rollback()
+            notifications_db_error = True
+            raw_activities = []
 
     # --- Pre-load all SkiTrip records referenced by this notification batch ---
     # Collects every distinct trip ID needed by the rendering loop and fetches
@@ -13826,24 +14035,45 @@ def notifications():
         if act.object_type == 'trip' and act.object_id is not None
     }
     _trips_map: dict = {}
-    if _trip_ids:
-        _trip_rows = (
-            SkiTrip.query
-            .options(joinedload(SkiTrip.resort))
-            .filter(
-                SkiTrip.id.in_(_trip_ids),
-                active_or_legacy_trip_predicate(),
+    if _trip_ids and not notifications_db_error:
+        try:
+            _trip_rows = (
+                SkiTrip.query
+                .options(joinedload(SkiTrip.resort))
+                .filter(
+                    SkiTrip.id.in_(_trip_ids),
+                    active_or_legacy_trip_predicate(),
+                )
+                .all()
             )
-            .all()
-        )
-        _trips_map = {t.id: t for t in _trip_rows}
+            _trips_map = {t.id: t for t in _trip_rows}
+        except SQLAlchemyError:
+            db.session.rollback()
+            notifications_db_error = True
+            raw_activities = []
     if app.debug:
         print(f"[ROUTE_PERF] notifications.trip_prefetch={time.perf_counter()-_t:.4f}s ids={len(_trip_ids)} loaded={len(_trips_map)}")
 
     _t = time.perf_counter()
     notifs = []
     today = datetime.utcnow()
+    cutoff = datetime.utcnow() - timedelta(days=90)
     for act in raw_activities:
+        actionable = act.type in {
+            'friend_request_received', 'trip_invite_received', 'join_request_received'
+        }
+        legacy_actionable = actionable and not act.subject_type
+        actionable = actionable and not legacy_actionable
+        if not actionable and act.created_at < cutoff:
+            continue
+        if act.subject_type == 'invitation':
+            invitation = invitation_map.get(act.subject_id)
+            if not invitation or invitation.status != 'pending':
+                continue
+        if act.subject_type in ('participant', 'ski_trip_participant'):
+            participant = participant_map.get(act.subject_id)
+            if not participant or participant.status != GuestStatus.PENDING:
+                continue
         # A trip-backed activity is a live notification only while its trip
         # still exists and is active. Never turn terminal/deleted references
         # into generic text or a stale Trip Detail action.
@@ -13885,6 +14115,9 @@ def notifications():
         elif act.type == 'connection_accepted':
             text = f"{actor_first} accepted your connection request"
             action_url = url_for('friend_profile', friend_id=act.actor_user_id) if actor else None
+        elif act.type == 'friend_request_received':
+            text = f"{actor_name} sent you a friend request"
+            action_url = url_for('friends')
         elif act.type == 'trip_location_changed':
             extra = act.extra_data or {}
             changed_resort = extra.get('resort_name') or trip_name or 'a new location'
@@ -13897,6 +14130,8 @@ def notifications():
             action_url = url_for('trip_detail', trip_id=act.object_id) if act.object_type == 'trip' else None
         else:
             text = f"Update from {actor_first}"
+            action_url = None
+        if legacy_actionable:
             action_url = None
 
         # Relative time
@@ -13916,6 +14151,9 @@ def notifications():
             rel_time = act.created_at.strftime("%-d %b")
 
         notifs.append({
+            'id': act.id,
+            'seen': act.seen_at is not None,
+            'actionable': actionable,
             'text': text,
             'action_url': action_url,
             'rel_time': rel_time,
@@ -13928,15 +14166,44 @@ def notifications():
         print(f"[ROUTE_PERF] route=notifications total={time.perf_counter()-_rp_t0:.4f}s")
     return render_template('notifications.html',
                            pending_connects=pending_connects,
-                           notifs=notifs)
+                           notifs=notifs,
+                           notifications_db_error=notifications_db_error)
 
 
 @app.route("/api/notifications/viewed", methods=["POST"])
 @login_required
 def acknowledge_notifications_viewed():
-    """Idempotently record that the notification center was displayed."""
+    """Persist only items that had a meaningful exposure opportunity."""
+    validate_csrf_request()
     session["notif_last_viewed_at"] = datetime.utcnow().isoformat()
-    return jsonify({"success": True})
+    ids = request.get_json(silent=True) or {}
+    ids = ids.get("activity_ids", []) if isinstance(ids, dict) else []
+    ids = [int(i) for i in ids if str(i).isdigit()][:100]
+    if ids:
+        Activity.query.filter(
+            Activity.id.in_(ids),
+            Activity.recipient_user_id == current_user.id,
+            Activity.seen_at.is_(None),
+        ).update({"seen_at": datetime.utcnow()}, synchronize_session=False)
+        db.session.commit()
+    return jsonify({"success": True, "acknowledged": len(ids)})
+
+
+@app.route("/api/friends/requests/viewed", methods=["POST"])
+@login_required
+def acknowledge_friend_requests_viewed():
+    validate_csrf_request()
+    payload = request.get_json(silent=True) or {}
+    ids = [int(i) for i in payload.get("activity_ids", []) if str(i).isdigit()][:100]
+    if ids:
+        Activity.query.filter(
+            Activity.id.in_(ids),
+            Activity.recipient_user_id == current_user.id,
+            Activity.type == ActivityType.FRIEND_REQUEST_RECEIVED.value,
+            Activity.seen_at.is_(None),
+        ).update({"seen_at": datetime.utcnow()}, synchronize_session=False)
+        db.session.commit()
+    return jsonify({"success": True, "acknowledged": len(ids)})
 
 
 @app.route("/api/activity/heartbeat", methods=["POST"])
@@ -17230,9 +17497,12 @@ def request_to_join_trip(trip_id):
         status='pending'
     )
     db.session.add(join_request)
-    # Notify the trip owner (activity feed record)
-    create_activity(current_user.id, trip.user_id, ActivityType.JOIN_REQUEST_RECEIVED, 'trip', trip.id)
     db.session.flush()
+    # Notify the trip owner (activity feed record)
+    create_activity(
+        current_user.id, trip.user_id, ActivityType.JOIN_REQUEST_RECEIVED,
+        'trip', trip.id, subject_type='invitation', subject_id=join_request.id,
+    )
     _jrq_resort = (
         trip.resort.name if trip.resort
         else trip.mountain if trip.mountain

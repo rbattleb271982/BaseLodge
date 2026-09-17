@@ -1825,6 +1825,7 @@ class ActivityType(PyEnum):
     TRIP_LOCATION_CHANGED = "trip_location_changed"
     TRIP_PASS_CHANGED = "trip_pass_changed"
     FRIEND_SUGGESTIONS_RECEIVED = "friend_suggestions_received"
+    FRIEND_REQUEST_RECEIVED = "friend_request_received"
 
 
 class Activity(db.Model):
@@ -1838,6 +1839,9 @@ class Activity(db.Model):
     object_type = db.Column(db.String(20), nullable=False)  # "trip" | "user"
     object_id = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    seen_at = db.Column(db.DateTime, nullable=True)
+    subject_type = db.Column(db.String(40), nullable=True)
+    subject_id = db.Column(db.Integer, nullable=True)
     extra_data = db.Column(db.JSON, nullable=True)  # For grouped updates (friend_ids, trip_ids, dates, etc.)
     
     actor = db.relationship('User', foreign_keys=[actor_user_id], backref='activities_performed')

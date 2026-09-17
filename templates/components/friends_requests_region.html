@@ -2,7 +2,9 @@
 <div class="fr-requests-section" id="fr-requests-section">
     <p class="fr-requests-header">Friend Requests</p>
     {% for inv in pending_incoming %}
-    <div class="fr-request-row" id="fr-req-{{ inv.id }}">
+     <div class="fr-request-row" id="fr-req-{{ inv.id }}"
+          data-friend-activity-id="{{ inv._activity_id or '' }}"
+           data-friend-seen="{{ 'true' if inv._activity_seen else 'false' }}">
         <div class="fr-request-info">
             <p class="fr-request-name">
                 {% if inv._sender %}

@@ -20,11 +20,9 @@
                 </p>
                 <div class="home-needs-you__actions">
                     {% if item.type == 'trip_invitation' %}
-                    <button type="button" data-needs-url="{{ url_for('respond_to_trip_invite', trip_id=item.id) }}" data-needs-payload='{"response":"declined"}'>Decline</button>
-                    <button type="button" class="is-primary" data-needs-url="{{ url_for('respond_to_trip_invite', trip_id=item.id) }}" data-needs-payload='{"response":"going"}'>Accept</button>
+                    <a class="is-primary" href="{{ url_for('trip_detail', trip_id=item.id) }}">Review trip</a>
                     {% elif item.type == 'join_request' %}
-                    <button type="button" data-needs-url="{{ url_for('respond_to_join_request', request_id=item.id) }}" data-needs-payload='{"action":"decline"}'>No</button>
-                    <button type="button" class="is-primary" data-needs-url="{{ url_for('respond_to_join_request', request_id=item.id) }}" data-needs-payload='{"action":"accept"}'>Approve</button>
+                    <a class="is-primary" href="{{ url_for('trip_detail', trip_id=item.trip.id) }}">Review trip</a>
                     {% else %}
                     <button type="button" data-needs-url="{{ url_for('decline_invitation', invitation_id=item.id) }}" data-needs-payload='{}'>Decline</button>
                     <button type="button" class="is-primary" data-needs-url="{{ url_for('accept_invitation', invitation_id=item.id) }}" data-needs-payload='{}'>Accept</button>

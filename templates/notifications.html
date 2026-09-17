@@ -68,35 +68,9 @@
             padding-top: 2px;
         }
 
-        /* Pending connect row */
-        .nf-connect-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 0;
-            border-bottom: 1px solid #E5DFD0;
-            gap: 12px;
-        }
-        .nf-connect-name {
-            font-size: 14.5px;
-            color: #1A1A1A;
-            flex: 1;
-            min-width: 0;
-        }
-        .nf-connect-btn {
-            flex-shrink: 0;
-            background: #1A1A1A;
-            color: #F5F2EC;
-            border: none;
-            border-radius: 20px;
-            padding: 7px 16px;
-            font-size: 13px;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-        .nf-connect-btn:active { opacity: 0.75; }
+        .nf-new-activity { display:none; margin: 0 0 12px; font-size:13px; }
+        .nf-new-activity.is-visible { display:block; }
+        .nf-row[data-seen="false"] { background: rgba(229,223,208,.25); }
 
         .nf-empty {
             padding: 32px 0;
@@ -110,23 +84,14 @@
 {% block content %}
     <div class="page-container">
 
-        {% if pending_connects %}
-        <p class="nf-section-label">Connection requests</p>
-        {% for conn in pending_connects %}
-        <div class="nf-connect-row" id="connect-row-{{ conn.invitation_id }}">
-            <span class="nf-connect-name">{{ conn.sender_name }} wants to connect</span>
-            <button class="nf-connect-btn" onclick="acceptConnect({{ conn.invitation_id }})">Accept</button>
-        </div>
-        {% endfor %}
-        {% endif %}
+        <p class="nf-new-activity" id="nf-new-activity"><a href="{{ url_for('notifications') }}">New activity</a></p>
 
         {% if notifs %}
-        {% if pending_connects %}<p class="nf-section-label" style="margin-top: 24px;">Recent</p>{% endif %}
         {% for n in notifs %}
             {% if n.action_url %}
-            <a href="{{ n.action_url }}" class="nf-row">
+            <a href="{{ n.action_url }}" class="nf-row" data-activity-id="{{ n.id }}" data-seen="{{ 'true' if n.seen else 'false' }}">
             {% else %}
-            <div class="nf-row">
+            <div class="nf-row" data-activity-id="{{ n.id }}" data-seen="{{ 'true' if n.seen else 'false' }}">
             {% endif %}
                 <div class="nf-row-body">
                     <p class="nf-row-text">{{ n.text }}</p>
@@ -138,7 +103,9 @@
             </div>
             {% endif %}
         {% endfor %}
-        {% elif not pending_connects %}
+        {% elif notifications_db_error %}
+        <p class="nf-empty">Notifications couldn’t be loaded. Please try again.</p>
+        {% else %}
         <p class="nf-empty">No notifications yet.</p>
         {% endif %}
 
@@ -149,35 +116,65 @@
 {% block scripts %}
 
     <script>
-    window.blFetch('/api/notifications/viewed', { method: 'POST' }).catch(function() {});
-
-    function acceptConnect(invitationId) {
-        var row = document.getElementById('connect-row-' + invitationId);
-        if (row) {
-            row.style.opacity = '0.5';
-            row.style.pointerEvents = 'none';
+    (function () {
+      var pending = [], timer, retryTimer;
+      function scheduleRetry() {
+        clearTimeout(retryTimer);
+        retryTimer = setTimeout(flush, 2000);
+      }
+      function flush() {
+        if (!pending.length) return Promise.resolve();
+        var batches = [];
+        while (pending.length) batches.push(pending.splice(0, 100));
+        function send(batch) {
+          return window.blFetch('/api/notifications/viewed', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({activity_ids:batch.map(function(item){return item.id;})}), keepalive:true
+          }).then(function (response) {
+            if (!response.ok) throw new Error('Acknowledgement failed');
+            return response.json();
+          }).then(function (data) {
+            if (!data.success) throw new Error('Acknowledgement failed');
+            batch.forEach(function(item){
+              item.el.dataset.seen='true';
+              delete item.el.dataset.seenQueued;
+            });
+          }).catch(function () {
+            pending = batch.concat(pending);
+            scheduleRetry();
+          });
         }
-        fetch('/api/friends/invite/' + invitationId + '/accept', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.success) {
-                if (row) row.style.display = 'none';
-            } else {
-                if (row) {
-                    row.style.opacity = '1';
-                    row.style.pointerEvents = '';
-                }
+        return batches.reduce(function (chain, batch) {
+          return chain.then(function () { return send(batch); });
+        }, Promise.resolve());
+      }
+      function expose(entry) {
+        var el=entry.target;
+        if (entry.isIntersecting && entry.intersectionRatio >= .5) {
+          clearTimeout(el._blSeenTimer);
+          el._blSeenTimer=setTimeout(function(){
+            if (el.dataset.seen === 'false' && el.dataset.seenQueued !== 'true') {
+              el.dataset.seenQueued='true';
+              pending.push({id:el.dataset.activityId,el:el});
+              clearTimeout(timer); timer=setTimeout(flush,300);
             }
-        })
-        .catch(function() {
-            if (row) {
-                row.style.opacity = '1';
-                row.style.pointerEvents = '';
-            }
-        });
-    }
+          },1000);
+        } else clearTimeout(el._blSeenTimer);
+      }
+      var observer=new IntersectionObserver(expose,{threshold:[.5]});
+      document.querySelectorAll('[data-activity-id]').forEach(function(el){observer.observe(el);});
+      setInterval(function(){
+        fetch('/notifications',{headers:{'X-BL-Targeted-Refresh':'notifications'},cache:'no-store'})
+          .then(function(r){return r.text();}).then(function(html){
+            var doc=new DOMParser().parseFromString(html,'text/html');
+            var ids=Array.prototype.map.call(doc.querySelectorAll('[data-activity-id]'),function(el){return el.dataset.activityId;});
+            var current={};
+            document.querySelectorAll('[data-activity-id]').forEach(function(el){current[el.dataset.activityId]=true;});
+            if(ids.some(function(id){return !current[id];})) document.getElementById('nf-new-activity').classList.add('is-visible');
+          }).catch(function(){});
+      },30000);
+       document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden') flush();});
+       window.addEventListener('pagehide',function(){ flush(); });
+    }());
     </script>
 {% endblock %}

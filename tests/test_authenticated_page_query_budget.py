@@ -9,6 +9,8 @@ from sqlalchemy import event
 import app as app_module
 from app import app
 from models import (
+    Activity,
+    ActivityType,
     Friend,
     GuestStatus,
     Invitation,
@@ -127,7 +129,7 @@ def test_representative_app_shell_routes_skip_unused_activity_query(client):
             if statement.startswith("select count(")
             and " from activity " in f" {statement} "
         ]
-        assert activity_selects == [], path
+        assert len(activity_selects) == 1, path
 
 
 def test_profile_query_budget_is_seven_with_or_without_owned_trip(client):
@@ -145,7 +147,7 @@ def test_profile_query_budget_is_seven_with_or_without_owned_trip(client):
             client, user_id, "/profile"
         )
         assert len(statements) == 7
-        assert _table_select_count(statements, "activity") == 0
+        assert _table_select_count(statements, "activity") == 1
         assert _table_select_count(statements, "invitation") == 1
 
 
@@ -177,7 +179,7 @@ def test_navigation_gates_still_protect_verification_and_onboarding(client):
     assert "/auth" in anonymous_response.headers["Location"]
 
 
-def test_pending_friend_badge_preserves_zero_one_and_nine_plus(client):
+def test_unseen_friend_activity_badge_preserves_zero_one_and_nine_plus(client):
     with app.app_context():
         viewer = _make_user("pending-badge-viewer")
         senders = [
@@ -192,38 +194,58 @@ def test_pending_friend_badge_preserves_zero_one_and_nine_plus(client):
     zero_response, zero_statements = _measured_get(client, "/profile")
     zero_html = zero_response.get_data(as_text=True)
     assert 'class="bl-nav-badge"' not in zero_html
-    assert _table_select_count(zero_statements, "invitation") == 1
+    assert _table_select_count(zero_statements, "activity") == 1
 
     with app.app_context():
-        db.session.add(Invitation(
+        invitation = Invitation(
             sender_id=sender_ids[0],
             receiver_id=viewer_id,
             status="pending",
+        )
+        db.session.add(invitation)
+        db.session.flush()
+        db.session.add(Activity(
+            actor_user_id=sender_ids[0],
+            recipient_user_id=viewer_id,
+            type=ActivityType.FRIEND_REQUEST_RECEIVED.value,
+            object_type="user",
+            object_id=sender_ids[0],
+            subject_type="invitation",
+            subject_id=invitation.id,
         ))
         db.session.commit()
 
     one_response, one_statements = _measured_get(client, "/profile")
     one_html = one_response.get_data(as_text=True)
-    assert 'aria-label="1 pending friend request"' in one_html
+    assert 'aria-label="1 unseen friend request"' in one_html
     assert ">1</span>" in one_html
-    assert _table_select_count(one_statements, "invitation") == 1
+    assert _table_select_count(one_statements, "activity") == 1
 
     with app.app_context():
-        db.session.add_all([
-            Invitation(
+        for sender_id in sender_ids[1:]:
+            invitation = Invitation(
                 sender_id=sender_id,
                 receiver_id=viewer_id,
                 status="pending",
             )
-            for sender_id in sender_ids[1:]
-        ])
+            db.session.add(invitation)
+            db.session.flush()
+            db.session.add(Activity(
+                actor_user_id=sender_id,
+                recipient_user_id=viewer_id,
+                type=ActivityType.FRIEND_REQUEST_RECEIVED.value,
+                object_type="user",
+                object_id=sender_id,
+                subject_type="invitation",
+                subject_id=invitation.id,
+            ))
         db.session.commit()
 
     many_response, many_statements = _measured_get(client, "/profile")
     many_html = many_response.get_data(as_text=True)
-    assert 'aria-label="10 pending friend requests"' in many_html
+    assert 'aria-label="10 unseen friend requests"' in many_html
     assert ">9+</span>" in many_html
-    assert _table_select_count(many_statements, "invitation") == 1
+    assert _table_select_count(many_statements, "activity") == 1
 
 
 def test_trip_idea_participant_queries_are_bounded_for_1_5_20(client):
@@ -429,13 +451,16 @@ def test_mountain_detail_core_route_skips_social_graph_queries(client):
     assert response.status_code == 200
     normalized = [" ".join(statement.lower().split()) for statement in statements]
     assert not any(" from friend " in f" {statement} " for statement in normalized)
-    assert not any(
-        " from ski_trip " in f" {statement} " for statement in normalized
-    )
-    assert not any(
-        " from ski_trip_participant " in f" {statement} "
-        for statement in normalized
-    )
+    workflow_statements = [
+        statement for statement in normalized
+        if any(
+            f" from {table} " in f" {statement} "
+            for table in ("ski_trip", "ski_trip_participant", "invitation")
+        )
+    ]
+    assert len(workflow_statements) == 1
+    assert " from activity " in f" {workflow_statements[0]} "
+    assert "exists (select" in workflow_statements[0]
     assert not any(
         " from user_availability " in f" {statement} "
         for statement in normalized

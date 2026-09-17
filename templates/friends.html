@@ -2695,5 +2695,65 @@
         });
     }
 
+    (function () {
+        var pending = [], timer, retryTimer;
+        function scheduleRetry() {
+            clearTimeout(retryTimer);
+            retryTimer = setTimeout(flush, 2000);
+        }
+        function flush() {
+            if (!pending.length) return Promise.resolve();
+            var batches = [];
+            while (pending.length) batches.push(pending.splice(0, 100));
+            return batches.reduce(function (chain, batch) {
+                return chain.then(function () {
+                    return window.blFetch('/api/friends/requests/viewed', {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({
+                            activity_ids: batch.map(function(item){ return item.id; })
+                        }),
+                        keepalive: true
+                    }).then(function (response) {
+                        if (!response.ok) throw new Error('Acknowledgement failed');
+                        return response.json();
+                    }).then(function (data) {
+                        if (!data.success) throw new Error('Acknowledgement failed');
+                        batch.forEach(function(item) {
+                            item.el.dataset.friendSeen = 'true';
+                            delete item.el.dataset.friendSeenQueued;
+                        });
+                    }).catch(function () {
+                        pending = batch.concat(pending);
+                        scheduleRetry();
+                    });
+                });
+            }, Promise.resolve());
+        }
+        function seen(entry) {
+            var el = entry.target;
+            if (entry.isIntersecting && entry.intersectionRatio >= .5) {
+                clearTimeout(el._blSeenTimer);
+                el._blSeenTimer = setTimeout(function () {
+                    if (el.dataset.friendSeen === 'false'
+                            && el.dataset.friendActivityId
+                            && el.dataset.friendSeenQueued !== 'true') {
+                        el.dataset.friendSeenQueued = 'true';
+                        pending.push({id:el.dataset.friendActivityId, el:el});
+                        clearTimeout(timer); timer = setTimeout(flush, 300);
+                    }
+                }, 1000);
+            } else clearTimeout(el._blSeenTimer);
+        }
+        var observer = new IntersectionObserver(seen, {threshold:[.5]});
+        document.querySelectorAll('[data-friend-activity-id]').forEach(function (el) {
+            observer.observe(el);
+        });
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') flush();
+        });
+        window.addEventListener('pagehide', function () { flush(); });
+    }());
+
     </script>
 {% endblock %}
