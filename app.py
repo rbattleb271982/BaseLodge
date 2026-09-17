@@ -18800,6 +18800,23 @@ def delete_account():
             db.or_(Friend.user_id == user_id, Friend.friend_id == user_id)
         ).delete(synchronize_session=False)
 
+        # 11a. Friend suggestions and their delivery cooldowns are private,
+        # derived relationship state. Every user FK is non-nullable and has no
+        # database ON DELETE action, so remove rows for all possible roles.
+        FriendSuggestion.query.filter(
+            db.or_(
+                FriendSuggestion.suggester_id == user_id,
+                FriendSuggestion.recipient_id == user_id,
+                FriendSuggestion.suggested_user_id == user_id,
+            )
+        ).delete(synchronize_session=False)
+        SuggestionPushCooldown.query.filter(
+            db.or_(
+                SuggestionPushCooldown.suggester_id == user_id,
+                SuggestionPushCooldown.recipient_id == user_id,
+            )
+        ).delete(synchronize_session=False)
+
         # 11b. Planning posts authored by this user on any trip (including trips
         #      owned by others).  Must be removed before the user row is deleted
         #      because ski_trip_planning_post.user_id has a non-nullable FK to
@@ -18813,6 +18830,12 @@ def delete_account():
         #     every child table with a trip_id FK must be cleaned up explicitly.
         owned_trip_ids = [r[0] for r in db.session.query(SkiTrip.id).filter_by(user_id=user_id).all()]
         if owned_trip_ids:
+            # Trip-scoped invitations belong to the owned trip even when both
+            # endpoints are surviving users. The FK has no ON DELETE action;
+            # deleting the rows also avoids turning them into tripless invites.
+            Invitation.query.filter(
+                Invitation.trip_id.in_(owned_trip_ids)
+            ).delete(synchronize_session=False)
             # Planning posts on owned trips authored by other users (posts
             # authored by the deleting user were already removed in step 10b).
             SkiTripPlanningPost.query.filter(

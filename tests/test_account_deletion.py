@@ -7,14 +7,15 @@ Setup context is CLOSED before yield; assertions use their own
 import logging
 import secrets
 import time
-from datetime import date
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 import pytest
 from app import app
 from models import (
     db, User, SkiTrip, SkiDay, SkiTripParticipant, SkiTripPlanningPost,
     SkiTripRsvpTransition, TripInviteToken, Invitation, Friend, GuestStatus,
-    FriendConnectionEvent, WishlistResortEvent,
+    FriendConnectionEvent, WishlistResortEvent, FriendSuggestion,
+    SuggestionPushCooldown,
 )
 from tests.conftest import (
     _make_user, _make_resort, _make_trip, _add_participant,
@@ -46,6 +47,12 @@ def deletion_setup(client):
         db.session.add(Invitation(
             sender_id=user.id, receiver_id=other.id, status="pending",
         ))
+        surviving_endpoints_trip_invitation = Invitation(
+            sender_id=unrelated_a.id,
+            receiver_id=unrelated_b.id,
+            trip_id=owned_trip.id,
+            status="pending",
+        )
         db.session.add(Friend(user_id=user.id,  friend_id=other.id))
         db.session.add(Friend(user_id=other.id, friend_id=user.id))
         pair_connection_event = FriendConnectionEvent(
@@ -89,10 +96,58 @@ def deletion_setup(client):
             actor_user_id=user.id,
             source="invite_response",
         )
+        expires_at = datetime.utcnow() + timedelta(days=30)
+        suggestion_as_suggester = FriendSuggestion(
+            suggester_id=user.id,
+            recipient_id=other.id,
+            suggested_user_id=unrelated_a.id,
+            expires_at=expires_at,
+        )
+        suggestion_as_recipient = FriendSuggestion(
+            suggester_id=other.id,
+            recipient_id=user.id,
+            suggested_user_id=unrelated_a.id,
+            expires_at=expires_at,
+        )
+        suggestion_as_suggested = FriendSuggestion(
+            suggester_id=other.id,
+            recipient_id=unrelated_a.id,
+            suggested_user_id=user.id,
+            expires_at=expires_at,
+        )
+        unrelated_suggestion = FriendSuggestion(
+            suggester_id=other.id,
+            recipient_id=unrelated_a.id,
+            suggested_user_id=unrelated_b.id,
+            expires_at=expires_at,
+        )
+        cooldown_as_suggester = SuggestionPushCooldown(
+            suggester_id=user.id,
+            recipient_id=other.id,
+            last_sent_at=datetime.utcnow(),
+        )
+        cooldown_as_recipient = SuggestionPushCooldown(
+            suggester_id=other.id,
+            recipient_id=user.id,
+            last_sent_at=datetime.utcnow(),
+        )
+        unrelated_cooldown = SuggestionPushCooldown(
+            suggester_id=other.id,
+            recipient_id=unrelated_a.id,
+            last_sent_at=datetime.utcnow(),
+        )
         db.session.add_all([
             subject_history,
             surviving_actor_history,
             owned_trip_history,
+            surviving_endpoints_trip_invitation,
+            suggestion_as_suggester,
+            suggestion_as_recipient,
+            suggestion_as_suggested,
+            unrelated_suggestion,
+            cooldown_as_suggester,
+            cooldown_as_recipient,
+            unrelated_cooldown,
             pair_connection_event,
             actor_only_connection_event,
             WishlistResortEvent(
@@ -136,6 +191,11 @@ def deletion_setup(client):
             "subject_history_id": subject_history.id,
             "surviving_actor_history_id": surviving_actor_history.id,
             "owned_trip_history_id": owned_trip_history.id,
+            "surviving_endpoints_trip_invitation_id": (
+                surviving_endpoints_trip_invitation.id
+            ),
+            "unrelated_suggestion_id": unrelated_suggestion.id,
+            "unrelated_cooldown_id": unrelated_cooldown.id,
             "pair_connection_event_id": pair_connection_event.id,
             "actor_only_connection_event_id": actor_only_connection_event.id,
         }
@@ -417,6 +477,58 @@ def test_delete_account_removes_participant_rows_on_others_trips(client, deletio
 
     with app.app_context():
         assert SkiTripParticipant.query.filter_by(user_id=s["user_id"]).count() == 0
+
+
+def test_delete_account_removes_all_friend_suggestion_references(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert FriendSuggestion.query.filter(
+            db.or_(
+                FriendSuggestion.suggester_id == s["user_id"],
+                FriendSuggestion.recipient_id == s["user_id"],
+                FriendSuggestion.suggested_user_id == s["user_id"],
+            )
+        ).count() == 0
+        assert db.session.get(
+            FriendSuggestion, s["unrelated_suggestion_id"]
+        ) is not None
+
+
+def test_delete_account_removes_all_suggestion_push_cooldown_references(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert SuggestionPushCooldown.query.filter(
+            db.or_(
+                SuggestionPushCooldown.suggester_id == s["user_id"],
+                SuggestionPushCooldown.recipient_id == s["user_id"],
+            )
+        ).count() == 0
+        assert db.session.get(
+            SuggestionPushCooldown, s["unrelated_cooldown_id"]
+        ) is not None
+
+
+def test_delete_account_removes_owned_trip_invites_between_surviving_users(
+    client, deletion_setup
+):
+    s = deletion_setup
+    _login(client, s["user_id"])
+    form_post(client, "/delete-account", data={"confirm_email": s["user_email"]})
+
+    with app.app_context():
+        assert db.session.get(
+            Invitation, s["surviving_endpoints_trip_invitation_id"]
+        ) is None
 
 
 def test_delete_account_other_users_data_survives(client, deletion_setup):
