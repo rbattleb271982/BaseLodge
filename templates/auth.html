@@ -93,8 +93,11 @@
             text-align: center;
             padding: 10px 0;
             font-size: 16px;
+            font-family: inherit;
             font-weight: 500;
             border-radius: 999px;
+            border: 0;
+            background: transparent;
             cursor: pointer;
             color: var(--bl-color-text-muted);
             transition: background 0.18s, color 0.18s;
@@ -105,6 +108,11 @@
             background: #fff;
             color: #1A1A1A;
             font-weight: 600;
+        }
+
+        .auth-tab:focus-visible {
+            outline: 3px solid #1A1A1A;
+            outline-offset: 2px;
         }
 
         /* Flash messages */
@@ -329,9 +337,11 @@
             {% endif %}
         {% endwith %}
 
-        <div class="auth-tabs">
-            <div class="auth-tab active" id="tab-login" onclick="switchTab('login')">Log in</div>
-            <div class="auth-tab" id="tab-signup" onclick="switchTab('signup')">Create account</div>
+        <div class="auth-tabs" aria-label="Authentication mode">
+            <button type="button" class="auth-tab active" id="tab-login"
+                    aria-pressed="true" onclick="switchTab('login')">Log in</button>
+            <button type="button" class="auth-tab" id="tab-signup"
+                    aria-pressed="false" onclick="switchTab('signup')">Create account</button>
         </div>
 
         <!-- LOGIN FORM -->
@@ -434,12 +444,16 @@
                 signupForm.classList.add('hidden');
                 tabLogin.classList.add('active');
                 tabSignup.classList.remove('active');
+                tabLogin.setAttribute('aria-pressed', 'true');
+                tabSignup.setAttribute('aria-pressed', 'false');
             } else {
                 signupForm.classList.remove('hidden');
                 loginForm.classList.add('hidden');
                 forgotWrap.classList.add('hidden');
                 tabSignup.classList.add('active');
                 tabLogin.classList.remove('active');
+                tabSignup.setAttribute('aria-pressed', 'true');
+                tabLogin.setAttribute('aria-pressed', 'false');
             }
         }
 
