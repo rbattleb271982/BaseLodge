@@ -198,6 +198,34 @@
             font-weight: 600;
         }
 
+        .ob-pill[data-grp="pass"]::after {
+            content: "";
+            width: 18px;
+            height: 18px;
+            margin-left: auto;
+            border: 1.5px solid #C8BFB1;
+            border-radius: 50%;
+            flex: 0 0 18px;
+        }
+
+        .ob-pill[data-grp="pass"].sel::after {
+            content: "✓";
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-color: currentColor;
+            color: currentColor;
+            font-size: 12px;
+            line-height: 1;
+        }
+
+        .ob-pill:focus-visible,
+        .ob-back:focus-visible,
+        .ob-btn:focus-visible {
+            outline: 3px solid #1A1A1A;
+            outline-offset: 3px;
+        }
+
         .ob-hint {
             margin-left: auto;
             font-size: 12px;
@@ -207,12 +235,36 @@
 
         .ob-pill.sel .ob-hint { color: rgba(255,255,255,0.75); }
 
-        /* Section divider in pass list */
-        .ob-divider {
-            height: 1px;
-            background: #DED6CA;
-            margin: 3px 0;
+        /* Semantic groups in pass list */
+        .ob-pass-group {
+            min-width: 0;
+            border: 1px solid #DED6CA;
+            border-radius: 14px;
+            padding: 9px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
             flex-shrink: 0;
+        }
+
+        .ob-pass-group + .ob-pass-group {
+            margin-top: 4px;
+        }
+
+        .ob-pass-group-title {
+            padding: 0 5px;
+            color: #6F655A;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            line-height: 1.4;
+        }
+
+        .ob-pass-group-note {
+            padding: 0 5px 2px;
+            color: #8F8477;
+            font-size: 12px;
+            line-height: 1.4;
         }
 
         /* Pass cap helper text */
@@ -389,8 +441,13 @@
         #ob-step-2 .ob-title      { margin-bottom: 5px; }
         #ob-step-2 .ob-options    { padding: 10px 28px 4px; gap: 5px; }
         #ob-step-2 .ob-pill       { min-height: 44px; padding: 9px 16px; }
-        #ob-step-2 .ob-divider    { margin: 1px 0; }
         #ob-step-2 .ob-footer     { padding: 8px 28px 30px; }
+
+        @media (max-width: 380px) {
+            #ob-step-2 .ob-header,
+            #ob-step-2 .ob-options,
+            #ob-step-2 .ob-footer { padding-left: 20px; padding-right: 20px; }
+        }
     </style>
 </head>
 <body>
@@ -466,20 +523,28 @@
                             <h1 class="ob-title">Do you have a ski pass?</h1>
                             <p class="ob-subtitle">Choose what applies — or skip for now.</p>
                         </div>
-                        <div class="ob-options">
-                            <p class="ob-pass-cap-hint" id="pass-cap-hint">You've reached the 3-pass limit.</p>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass_yet" data-target="h-pass">No pass yet</button>
-                            <button type="button" class="ob-pill ob-pill--exclusive" data-grp="pass" data-val="no_pass"     data-target="h-pass">No pass</button>
-                            <div class="ob-divider"></div>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="epic" data-target="h-pass">Epic</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ikon" data-target="h-pass">Ikon</button>
-                            <div class="ob-divider"></div>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="indy"               data-target="h-pass">Indy</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="powder_alliance"    data-target="h-pass">Powder Alliance</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="freedom"            data-target="h-pass">Freedom Pass</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="ski_california"     data-target="h-pass">Ski California</button>
-                            <button type="button" class="ob-pill" data-grp="pass" data-val="other"              data-target="h-pass">Other pass</button>
+                        <div class="ob-options" aria-describedby="pass-cap-hint">
+                            <p class="ob-pass-cap-hint" id="pass-cap-hint" aria-live="polite">You've reached the 3-pass limit.</p>
+                            <fieldset class="ob-pass-group" id="pass-group-no-pass-yet">
+                                <legend class="ob-pass-group-title">No Pass Yet</legend>
+                                <p class="ob-pass-group-note">A valid choice if you have not picked one yet.</p>
+                                <button type="button" class="ob-pill ob-pill--exclusive" aria-pressed="false" data-grp="pass" data-val="no_pass_yet" data-target="h-pass">No pass yet</button>
+                            </fieldset>
+                            <fieldset class="ob-pass-group" id="pass-group-epic-ikon">
+                                <legend class="ob-pass-group-title">Epic and Ikon</legend>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="epic" data-target="h-pass">Epic</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="ikon" data-target="h-pass">Ikon</button>
+                            </fieldset>
+                            <fieldset class="ob-pass-group" id="pass-group-other">
+                                <legend class="ob-pass-group-title">More pass options</legend>
+                                <button type="button" class="ob-pill ob-pill--exclusive" aria-pressed="false" data-grp="pass" data-val="no_pass" data-target="h-pass">No pass</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="indy"               data-target="h-pass">Indy</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="mountain_collective" data-target="h-pass">Mountain Collective</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="powder_alliance"    data-target="h-pass">Powder Alliance</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="freedom"            data-target="h-pass">Freedom Pass</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="ski_california"     data-target="h-pass">Ski California</button>
+                                <button type="button" class="ob-pill" aria-pressed="false" data-grp="pass" data-val="other"              data-target="h-pass">Other pass</button>
+                            </fieldset>
                         </div>
                         <div class="ob-footer">
                             <button type="button" class="ob-btn" id="cta-2" disabled onclick="goNext(2)">Continue</button>
@@ -615,6 +680,13 @@
         if (hint) hint.style.display = atCap ? '' : 'none';
     }
 
+    function setObPillSelected(pill, selected) {
+        pill.classList.toggle('sel', selected);
+        if (pill.dataset.grp === 'pass') {
+            pill.setAttribute('aria-pressed', selected ? 'true' : 'false');
+        }
+    }
+
     document.querySelectorAll('.ob-pill').forEach(function(pill) {
         pill.addEventListener('click', function() {
             var grp = this.dataset.grp;
@@ -625,10 +697,10 @@
                 var alreadySel = this.classList.contains('sel');
                 /* Radio behavior — deselect all, then select this one (or deselect if same) */
                 document.querySelectorAll('.ob-pill[data-grp="rider"]').forEach(function(p) {
-                    p.classList.remove('sel');
+                    setObPillSelected(p, false);
                 });
                 if (!alreadySel) {
-                    this.classList.add('sel');
+                    setObPillSelected(this, true);
                 }
                 var selPill = document.querySelector('.ob-pill[data-grp="rider"].sel');
                 document.getElementById(targetId).value = selPill ? selPill.dataset.val : '';
@@ -638,22 +710,22 @@
             } else if (grp === 'pass') {
                 var alreadySel = this.classList.contains('sel');
                 if (alreadySel) {
-                    this.classList.remove('sel');
+                    setObPillSelected(this, false);
                 } else {
                     if (isExclusive) {
                         document.querySelectorAll('.ob-pill[data-grp="pass"]').forEach(function(p) {
-                            p.classList.remove('sel');
+                            setObPillSelected(p, false);
                             p.disabled = false;
                         });
                     } else {
                         document.querySelectorAll('.ob-pill[data-grp="pass"].ob-pill--exclusive').forEach(function(p) {
-                            p.classList.remove('sel');
+                            setObPillSelected(p, false);
                         });
                         if (obPassRealCount() >= PASS_REAL_MAX) {
                             return;
                         }
                     }
-                    this.classList.add('sel');
+                    setObPillSelected(this, true);
                 }
                 var passSelected = [];
                 document.querySelectorAll('.ob-pill[data-grp="pass"].sel').forEach(function(p) {
@@ -666,9 +738,9 @@
             } else {
                 /* skill — single select */
                 document.querySelectorAll('.ob-pill[data-grp="' + grp + '"]').forEach(function(p) {
-                    p.classList.remove('sel');
+                    setObPillSelected(p, false);
                 });
-                this.classList.add('sel');
+                setObPillSelected(this, true);
                 document.getElementById(targetId).value = this.dataset.val;
                 if (grp === 'skill') { updateCta1(); }
             }
