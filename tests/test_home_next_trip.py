@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from flask import render_template
 from unittest.mock import patch
 
-from app import _count_home_next_trip_friends_going, app
+from app import _count_home_next_trip_friends_going, app, format_trip_dates
 from models import Friend, GuestStatus, ParticipantRole, SkiTripParticipant, db
 from tests.conftest import _add_participant, _login, _make_trip, _make_user
 
@@ -179,6 +179,7 @@ def test_private_guest_trip_uses_effective_attendance_window_and_connected_owner
         db.session.commit()
         viewer_id = viewer.id
         trip_id = trip.id
+        expected_dates = format_trip_dates(trip, guest_start, guest_end)
 
     response = _home_response(client, viewer_id)
     html = response.get_data(as_text=True)
@@ -186,7 +187,7 @@ def test_private_guest_trip_uses_effective_attendance_window_and_connected_owner
     assert response.status_code == 200
     assert 'id="your-next-trip"' in html
     assert "Private Peak" in html
-    assert f"{guest_start.strftime('%b %-d')}–{guest_end.strftime('%-d')}" in html
+    assert expected_dates in html
     assert "2 nights" in html
     assert "+1 other" in html
     assert "In 10 days" in html
