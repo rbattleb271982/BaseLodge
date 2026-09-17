@@ -1,5 +1,5 @@
 {% extends "base_app.html" %}
-{% block title %}BaseLodge — Open Dates{% endblock %}
+{% block title %}BaseLodge — Availability{% endblock %}
 {% block topbar_left %}<a href="{{ url_for('home') }}" class="bl-top-bar-back" aria-label="Back">‹</a>{% endblock %}
 {% block topbar_title %}Edit availability{% endblock %}
 {% block head %}
@@ -454,7 +454,7 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
             <div class="hiw-row-text">
-                <p class="hiw-row-title">Share when you're free</p>
+                <p class="hiw-row-title">Add your availability</p>
                 <p class="hiw-row-body">Select any start date and end date. You can add multiple ranges throughout the season.</p>
             </div>
         </div>
@@ -475,7 +475,7 @@
             </div>
             <div class="hiw-row-text">
                 <p class="hiw-row-title">Coordinate with friends</p>
-                <p class="hiw-row-body">See when your friends are available so it's easier to plan trips together.</p>
+                <p class="hiw-row-body">Eligible friends may see when your dates overlap, making it easier to plan together.</p>
             </div>
         </div>
 
@@ -494,8 +494,8 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
             <div>
-                <p class="hiw-privacy-title">Only you can see your availability</p>
-                <p class="hiw-privacy-body">Your availability is private and only used to improve your experience.</p>
+                <p class="hiw-privacy-title">Your availability stays private</p>
+                <p class="hiw-privacy-body">Friends never see your full calendar. Eligible friends may see derived context when your dates overlap.</p>
             </div>
         </div>
     </div>
@@ -590,13 +590,13 @@
         }
 
         function formatRange(start, end) {
-            if (start === end) return fmtShort(start) + ' · day trip';
+            if (start === end) return fmtShort(start);
             const lo = parseDate(start);
             const hi = parseDate(end);
             if (lo.getMonth() === hi.getMonth() && lo.getFullYear() === hi.getFullYear()) {
                 return SHORT_MONTHS[lo.getMonth()] + ' ' + lo.getDate() + '–' + hi.getDate();
             }
-            return fmtShort(start) + ' – ' + fmtShort(end);
+            return fmtShort(start) + '–' + fmtShort(end);
         }
 
         // ── Convert flat date list to range objects ─────────────────────

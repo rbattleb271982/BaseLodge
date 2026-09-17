@@ -1,0 +1,353 @@
+BASELODGE TASK BL-236
+AVAILABILITY — Align Open to Ski, trip overlap, privacy, and date presentation
+
+AGENT LEVEL: Power
+BATCH: ~100% of BL-236
+
+This is an implementation task.
+
+Implement the existing locked product decisions in BL-236. Do not reinterpret or redesign the Availability architecture.
+
+Before making changes, inspect the current implementation and existing tests. Reuse existing architecture wherever possible and make the smallest complete set of changes necessary.
+
+BaseLodge is mobile-first and packaged through Capacitor. This is not a native Swift/Kotlin implementation.
+
+PRODUCT MODEL
+
+Availability is canonical.
+
+When a user adds Availability, they are saying:
+
+- they are available
+- they want to ski or snowboard
+- they are open to making a plan
+
+"Open to Ski" is the first-person social presentation of canonical Availability.
+
+It is NOT:
+- a second data model
+- a separate persistence state
+- a Trip
+- a commitment
+
+LOCKED TERMINOLOGY
+
+Use "Availability" for setup and management language.
+
+Examples:
+- Add availability
+- Edit availability
+- Your availability
+
+Use "Open to Ski" when presenting the user's availability socially in first person.
+
+When referring to another person, use normal availability language.
+
+Example:
+"Richard is available Jan 15–18"
+
+Do not awkwardly describe another user as "Open to Ski."
+
+MOUNTAIN SEMANTICS
+
+A mountain attached to Availability means:
+
+"The user is interested in skiing this mountain during these dates."
+
+It does NOT mean:
+- they have a Trip there
+- they have committed to the destination
+- they are definitely going there
+
+Availability without a mountain means the destination is undecided.
+
+DATE-FIRST MATCHING
+
+Dates are the primary matching signal.
+
+Two eligible friends may have a meaningful Availability overlap even if:
+
+- their mountain interests differ
+- only one selected a mountain
+- neither selected a mountain
+
+Do not require matching mountain IDs for a date overlap to exist.
+
+Preserve existing reciprocal-friend/privacy eligibility rules.
+
+TRIPS REMAIN SEPARATE
+
+Do not merge Trips and Availability.
+
+Do not make Trips own Availability.
+
+Do not automatically synchronize them.
+
+However:
+
+When a user CREATES or JOINS a Trip whose dates overlap their existing canonical Availability, ask whether they want to remove the overlapping dates from Availability.
+
+This must be an explicit user choice.
+
+NEVER automatically remove Availability.
+
+If they choose KEEP:
+- make no Availability mutation
+- existing canonical Availability remains unchanged
+- matching continues to use those dates
+
+If they choose REMOVE:
+- remove only the Availability dates overlapping the Trip
+- preserve any non-overlapping Availability
+- subsequent matching must reflect the canonical change
+
+Example:
+
+Availability:
+Jan 10–20
+
+Trip:
+Jan 15–18
+
+If user removes the overlap, preserve:
+Jan 10–14
+Jan 19–20
+
+Do not delete the entire Availability range merely because part overlaps.
+
+Investigate existing UserAvailability representation before implementing this. Handle splitting/range behavior consistently with the current data model and transaction patterns.
+
+If multiple Availability ranges overlap the Trip, handle all relevant overlapping portions correctly.
+
+The prompt should happen only after the Trip create/join action has actually succeeded.
+
+Do not optimistically mutate Availability based on an unconfirmed Trip action.
+
+PRIVACY EXPLANATION
+
+The Availability editor should clearly explain the existing privacy model.
+
+The user should understand:
+
+- their raw Availability is private
+- BaseLodge does not expose their complete Availability calendar to friends
+- eligible friends may see derived overlap/context when their dates intersect
+
+Keep this explanation concise and calm.
+
+Do not introduce alarming privacy language.
+
+Do not change the privacy architecture.
+
+DATE PRESENTATION
+
+Audit the current Availability/Open to Ski surfaces and standardize date formatting.
+
+The underlying convention should be consistent while allowing layout-specific presentation where necessary.
+
+Avoid situations where the same Availability appears with unnecessarily different date semantics across:
+
+- Availability management
+- Home/Open to Ski
+- friend/social overlap
+- Mountain Detail overlap
+- Trip-overlap prompt
+- other current contextual Availability surfaces
+
+Reuse an existing shared formatter if one exists.
+
+If formatting logic is currently duplicated, consolidate only where doing so is bounded and safe.
+
+Do not turn this into a broad date/time architecture rewrite.
+
+EXPERIENCE INTENT
+
+For social overlap, the user should immediately understand:
+
+1. WHO they overlap with
+2. WHEN the overlap exists
+3. WHY it is relevant
+
+The feeling should be:
+
+"Hey, we could actually ski together."
+
+Not:
+
+"We are expected to make a Trip."
+
+Overlap represents POSSIBILITY, not commitment.
+
+Do not introduce:
+
+- countdowns
+- urgency
+- scarcity
+- FOMO language
+- pressure to create a Trip
+- gamification
+- engagement mechanics
+
+The natural next action may be exploring the overlap or making a plan, but action must remain optional.
+
+DENSE STATES
+
+Validate behavior for mature accounts, including approximately:
+
+- 25+ friends
+- 15+ Trips
+- multiple Availability ranges
+- several simultaneous overlaps
+- differing mountain interests
+- years of accumulated activity/history
+
+Do not solve dense states by exposing raw Availability.
+
+Do not assume only one overlap exists.
+
+IMPLEMENTATION BOUNDARIES
+
+DO NOT use BL-236 to implement or decide:
+
+- a permanent Profile Availability section
+- new canonical-editor navigation
+- Trip creation prefill from Availability
+- Mountain Detail plan-from-overlap actions
+- Activities/Ideas consolidation
+- broader Ideas/planning architecture
+- recipient/response-based Open to Ski
+- a broad visual redesign
+- buddy-pass functionality
+- lifecycle reminders
+
+Those remain separate tasks.
+
+ARCHITECTURE
+
+Preserve canonical UserAvailability architecture unless repository evidence demonstrates that a small bounded change is necessary.
+
+Prefer:
+- existing models
+- existing endpoints
+- existing transaction patterns
+- existing components/templates
+- existing modal/bottom-sheet patterns
+- shared date utilities
+- targeted updates
+
+Avoid:
+- schema changes
+- migrations
+- new persistence models
+- duplicate Availability state
+
+If you discover that a schema/migration change appears necessary, STOP and explain why before implementing it.
+
+TESTING
+
+Add or update focused regression coverage for at least:
+
+1. Canonical Availability remains authoritative.
+
+2. Open to Ski derives from canonical Availability.
+
+3. Raw Availability remains private.
+
+4. Eligible reciprocal friends can receive the existing derived overlap/context.
+
+5. Date overlap works when both users have the same mountain interest.
+
+6. Date overlap still works when mountain interests differ.
+
+7. Date overlap works when one or both users have no selected mountain.
+
+8. Creating a non-overlapping Trip does not trigger Availability removal behavior.
+
+9. Creating an overlapping Trip presents the keep/remove choice.
+
+10. Joining an overlapping Trip presents the keep/remove choice.
+
+11. Choosing KEEP performs no Availability mutation.
+
+12. Choosing REMOVE removes exactly the overlapping dates.
+
+13. Partial overlap correctly splits/preserves remaining dates.
+
+14. Multiple overlapping Availability ranges are handled correctly.
+
+15. Failed Trip create/join does not mutate Availability.
+
+16. Terminology follows the Availability/Open to Ski rules.
+
+17. Relevant Availability/Open to Ski surfaces use consistent date formatting.
+
+18. Existing Trip/RSVP/attendance behavior remains intact.
+
+19. Existing Mountain overlap behavior remains intact.
+
+20. Existing privacy/authorization tests remain passing.
+
+Run the smallest relevant test suites first, then the broader appropriate regression suite.
+
+MOBILE / CAPACITOR
+
+Verify affected UI at BaseLodge's supported mobile/tablet widths.
+
+Pay particular attention to:
+
+- bottom sheets/modals
+- date ranges
+- long mountain names
+- multiple overlap states
+- Trip-overlap keep/remove prompt
+- touch targets
+- safe areas
+- scrolling
+
+Do not create separate native implementations.
+
+FINAL REPORT
+
+When finished, return:
+
+# BL-236 Implementation Report
+
+## 1. Summary
+What changed.
+
+## 2. Repository Evidence
+What the implementation looked like before changes and any important discoveries.
+
+## 3. Product Behavior
+Explain the resulting Availability/Open to Ski behavior.
+
+## 4. Trip Overlap Behavior
+Explain create/join + keep/remove behavior, including partial ranges.
+
+## 5. Privacy
+Confirm what remains private and what derived information friends can see.
+
+## 6. Terminology & Date Formatting
+List affected surfaces and conventions.
+
+## 7. Files Changed
+File-by-file summary.
+
+## 8. Tests
+Commands run and exact results.
+
+## 9. Mobile / Capacitor Verification
+What was checked.
+
+## 10. Deviations or Remaining Issues
+Anything BL-236 could not safely complete.
+
+## 11. Git Diff Summary
+Concise description of the final working-tree changes.
+
+Do not publish.
+Do not deploy.
+Do not alter Notion.
+Do not push to Git unless explicitly instructed.
+
+Stop after implementation, testing, and the report.

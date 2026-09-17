@@ -20,6 +20,7 @@ from models import db, Resort, SkiTrip, SkiTripParticipant
 from services.trip_attendance import effective_attendance_dates, set_effective_attendance_dates
 from services.visibility import issue_availability_idea_capability
 from services.log_privacy import privacy_safe_print as print
+from services.date_display import format_date_range
 
 from services.pass_utils import normalize_pass as _norm_pass_val, display_pass_label, passes_match as _passes_match
 
@@ -681,13 +682,7 @@ def apply_diversity_selection(candidates, max_cards=5):
 
 def _fmt_date_range_short(start, end):
     """Format a date range as 'Apr 20', 'Apr 20–24', or 'May 31–Jun 4'."""
-    if not start:
-        return ""
-    if not end or start == end:
-        return start.strftime("%b %-d")
-    if start.month == end.month:
-        return f"{start.strftime('%b %-d')}\u2013{end.strftime('%-d')}"
-    return f"{start.strftime('%b %-d')}\u2013{end.strftime('%b %-d')}"
+    return format_date_range(start, end)
 
 
 def _fmt_social_names(names, suffix):

@@ -128,11 +128,16 @@ from services.trip_attendance import (
     set_effective_attendance_dates,
 )
 from services.search_utils import normalize_for_search, build_name_search_clauses
+from services.date_display import format_date_range
 from services.open_dates import (
     OpenDateValidationError,
+    availability_dates_overlapping_ranges,
+    contiguous_availability_ranges,
     get_available_dates_for_user,
     get_available_dates_for_users,
     get_open_date_matches,
+    remove_availability_dates,
+    remove_availability_overlapping_ranges,
     replace_current_availability,
 )
 from services.open_to_ski import (
@@ -222,6 +227,54 @@ def non_cancelled_trip_predicate():
         SkiTrip.lifecycle_state.is_(None),
         SkiTrip.lifecycle_state.in_(("active", "completed")),
     )
+
+
+_AVAILABILITY_TRIP_PROMPT_SESSION_KEY = "availability_trip_overlap_prompt"
+
+
+def _format_availability_range(start, end):
+    return format_date_range(start, end, include_year=True)
+
+
+def _queue_availability_trip_overlap_prompt(*trips):
+    """Queue one post-success choice derived from current canonical Availability."""
+    try:
+        existing = session.get(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY) or {}
+        existing_ids = existing.get("trip_ids") or []
+        requested_ids = [trip.id for trip in trips if trip]
+        all_ids = list(dict.fromkeys([*existing_ids, *requested_ids]))
+        valid_trips = SkiTrip.query.filter(SkiTrip.id.in_(all_ids)).all()
+        overlap = availability_dates_overlapping_ranges(
+            current_user,
+            [(trip.start_date, trip.end_date) for trip in valid_trips],
+        )
+        if not overlap:
+            return existing or None
+        overlap_trips = [
+            trip for trip in valid_trips
+            if any(
+                trip.start_date <= value <= trip.end_date
+                for value in overlap
+            )
+        ]
+        ranges = contiguous_availability_ranges(overlap)
+        payload = {
+            "trip_ids": [trip.id for trip in overlap_trips],
+            "overlap_dates": sorted(value.isoformat() for value in overlap),
+            "dates": ", ".join(
+                _format_availability_range(start, end) for start, end in ranges
+            ),
+            "trip_label": (
+                overlap_trips[0].mountain or "this trip"
+                if len(overlap_trips) == 1 else
+                f"{len(overlap_trips)} new trips"
+            ),
+        }
+        session[_AVAILABILITY_TRIP_PROMPT_SESSION_KEY] = payload
+        return payload
+    except Exception:
+        app.logger.exception("Failed to prepare Availability overlap choice")
+        return session.get(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY)
 
 
 def is_terminal_trip(trip):
@@ -352,6 +405,7 @@ RELEASE_IDENTITY = resolve_release_identity(
 )
 
 app = Flask(__name__)
+app.jinja_env.globals["format_date_range"] = format_date_range
 
 
 @app.route("/static/vendor/html2canvas.min.js")
@@ -999,6 +1053,18 @@ from utils.countries import COUNTRIES, STATE_ABBR_MAP
 @app.context_processor
 def inject_countries():
     return {'COUNTRIES': COUNTRIES}
+
+
+@app.context_processor
+def inject_availability_trip_overlap_prompt():
+    if not current_user.is_authenticated:
+        return {"availability_trip_overlap_prompt": None}
+    return {
+        "availability_trip_overlap_prompt": session.get(
+            _AVAILABILITY_TRIP_PROMPT_SESSION_KEY
+        ),
+        "format_date_range": format_date_range,
+    }
 
 
 _NOTIF_TYPES = [
@@ -7022,6 +7088,7 @@ def create_trip():
         })
     _create_trip_uses_outbox = _stage_route_messaging_events(*_create_trip_intents)
     db.session.commit()
+    availability_prompt = _queue_availability_trip_overlap_prompt(trip)
     _finish_route_messaging_events(_create_trip_uses_outbox, *_create_trip_intents)
 
     # Emit trip_created event
@@ -7052,7 +7119,8 @@ def create_trip():
             "end_date": trip.end_date.isoformat() if trip.end_date else None,
             "pass_type": trip.pass_type,
             "is_public": trip.is_public
-        }
+        },
+        "availability_overlap_prompt": availability_prompt,
     })
 
 @app.route("/api/trip/<int:trip_id>/update-dates", methods=["POST"])
@@ -11811,17 +11879,10 @@ def format_availability_ranges(ranges):
     if not ranges:
         return None, 0
     
-    formatted = []
-    for r in ranges[:3]:  # Only display first 3
-        start_str = r["start_date"].strftime('%b %d').replace(' 0', ' ')
-        end_str = r["end_date"].strftime('%d').lstrip('0')
-        
-        # If same month, just show "Dec 14–19"
-        if r["start_date"].month == r["end_date"].month:
-            formatted.append(f"{start_str}–{end_str}")
-        else:
-            end_full = r["end_date"].strftime('%b %d').replace(' 0', ' ')
-            formatted.append(f"{start_str}–{end_full}")
+    formatted = [
+        format_date_range(r["start_date"], r["end_date"])
+        for r in ranges[:3]
+    ]
     
     remaining_count = max(0, len(ranges) - 3)
     return ' · '.join(formatted), remaining_count
@@ -14939,6 +15000,73 @@ def add_open_dates():
     )
 
 
+@app.route("/api/availability/trip-overlap", methods=["POST"])
+@login_required
+def resolve_availability_trip_overlap():
+    """Apply the explicit keep/remove choice after a successful Trip action."""
+    validate_csrf_request()
+    payload = session.get(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY)
+    if not payload:
+        return jsonify({
+            "success": False,
+            "error": "This Availability choice is no longer active.",
+        }), 409
+
+    data = request.get_json(silent=True) or {}
+    action = data.get("action")
+    if action not in {"keep", "remove"}:
+        return jsonify({"success": False, "error": "Choose Keep or Remove."}), 400
+
+    trip_ids = payload.get("trip_ids") or []
+    trips = SkiTrip.query.filter(SkiTrip.id.in_(trip_ids)).all()
+    if len(trips) != len(set(trip_ids)):
+        session.pop(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY, None)
+        return jsonify({"success": True, "action": "stale", "removed_count": 0})
+
+    participant_rows = SkiTripParticipant.query.filter(
+        SkiTripParticipant.trip_id.in_(trip_ids),
+        SkiTripParticipant.user_id == current_user.id,
+        SkiTripParticipant.active_status_filter(),
+    ).all()
+    active_trip_ids = {row.trip_id for row in participant_rows}
+    if any(
+        trip.user_id != current_user.id and trip.id not in active_trip_ids
+        for trip in trips
+    ):
+        session.pop(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY, None)
+        return jsonify({"success": True, "action": "stale", "removed_count": 0})
+
+    removed = set()
+    if action == "remove":
+        result = remove_availability_dates(
+            current_user,
+            payload.get("overlap_dates") or [],
+        )
+        removed = result["removed"]
+
+    session.pop(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY, None)
+    existing_resolutions = {
+        row.card_key for row in DismissedInsightCard.query.filter(
+            DismissedInsightCard.user_id == current_user.id,
+            DismissedInsightCard.card_type == "availability_trip_overlap",
+            DismissedInsightCard.card_key.in_([str(trip_id) for trip_id in trip_ids]),
+        ).all()
+    }
+    for trip_id in trip_ids:
+        if str(trip_id) not in existing_resolutions:
+            db.session.add(DismissedInsightCard(
+                user_id=current_user.id,
+                card_type="availability_trip_overlap",
+                card_key=str(trip_id),
+            ))
+    db.session.commit()
+    return jsonify({
+        "success": True,
+        "action": action,
+        "removed_count": len(removed),
+    })
+
+
 _OPEN_TO_SKI_REVIEW_SESSION_KEY = "open_to_ski_review_fingerprint"
 _OPEN_TO_SKI_ANALYTICS_PROPERTIES = {
     "availability_share_opened": set(),
@@ -15269,6 +15397,7 @@ def add_trip():
                     _trip.add_owner_as_participant()
                     emit_trip_created_activities(_trip, current_user.id)
                 db.session.commit()
+                _queue_availability_trip_overlap_prompt(*_created)
                 _n = len(_created)
                 if _skipped_count:
                     flash(
@@ -15436,6 +15565,7 @@ def add_trip():
                 }
                 uses_outbox = _stage_route_messaging_events(invite_intent)
             db.session.commit()
+            _queue_availability_trip_overlap_prompt(trip)
 
             # ── B5: trip.invite.created (add_trip form) — centralized dispatch ──
             if invite_intent is not None:
@@ -15655,6 +15785,29 @@ def trip_detail(trip_id):
     # explicitly reinvites them.
     if not capability.allowed:
         abort(404)
+
+    # An organizer accepts a join request in a different browser session. Use
+    # the existing private RSVP audit row to surface the same post-success
+    # Availability choice when the new participant next opens this trip.
+    if (
+        is_guest
+        and not session.get(_AVAILABILITY_TRIP_PROMPT_SESSION_KEY)
+        and DismissedInsightCard.query.filter_by(
+            user_id=current_user.id,
+            card_type="availability_trip_overlap",
+            card_key=str(trip.id),
+        ).first() is None
+        and SkiTripRsvpTransition.query.filter_by(
+            trip_id=trip.id,
+            user_id=current_user.id,
+            source="join_request_accept",
+        ).filter(
+            SkiTripRsvpTransition.new_status.in_(
+                [GuestStatus.INTERESTED.value, GuestStatus.GOING.value]
+            )
+        ).first() is not None
+    ):
+        _queue_availability_trip_overlap_prompt(trip)
     
     # Load all RSVP rows once, then provide explicit UI groups. Removed is
     # intentionally excluded from every visible group.
@@ -16829,6 +16982,8 @@ def trip_invite_token_accept(token):
     _finish_route_messaging_events(
         _token_uses_outbox, *_token_message_intents
     )
+    if target_status in ACTIVE_RSVP_STATUSES and transition_result.changed:
+        _queue_availability_trip_overlap_prompt(trip)
 
     # Clean up session key if present
     session.pop("trip_invite_token", None)
@@ -17320,10 +17475,22 @@ def respond_to_trip_invite(trip_id):
     _finish_route_messaging_events(
         _invite_response_uses_outbox, *_invite_response_intents
     )
+    availability_prompt = None
+    if (
+        target_status in ACTIVE_RSVP_STATUSES
+        and current_status == GuestStatus.PENDING
+        and transition_result.changed
+    ):
+        availability_prompt = _queue_availability_trip_overlap_prompt(trip)
 
     message = _rsvp_confirmation_message(target_status)
     if request.is_json:
-        return jsonify({"success": True, "message": message, "status": target_status.value})
+        return jsonify({
+            "success": True,
+            "message": message,
+            "status": target_status.value,
+            "availability_overlap_prompt": availability_prompt,
+        })
     flash(message, "success" if target_status in ACTIVE_RSVP_STATUSES else "info")
     return redirect(url_for("trip_detail", trip_id=trip_id) if target_status in ACTIVE_RSVP_STATUSES else url_for("my_trips"))
 

@@ -15,7 +15,7 @@ This is the foundation for:
 """
 
 import re
-from datetime import date as date_cls
+from datetime import date as date_cls, timedelta
 
 import sqlalchemy as sa
 
@@ -140,6 +140,86 @@ def replace_current_availability(user, selected_values, today=None):
     mirrored_values = sorted(value.isoformat() for value in selected_dates)
     locked_user.open_dates = mirrored_values
     return set(mirrored_values)
+
+
+def availability_dates_overlapping_ranges(user, date_ranges):
+    """Return canonical availability dates inside any inclusive date range."""
+    ranges = [
+        (start, end)
+        for start, end in date_ranges
+        if start is not None and end is not None and start <= end
+    ]
+    if not ranges:
+        return set()
+    available = {
+        date_cls.fromisoformat(value)
+        for value in get_available_dates_for_user(user)
+    }
+    return {
+        value
+        for value in available
+        if any(start <= value <= end for start, end in ranges)
+    }
+
+
+def remove_availability_dates(user, selected_values, today=None):
+    """Remove only the submitted dates that are still canonically available."""
+    today = today or date_cls.today()
+    locked_user = (
+        db.session.query(User)
+        .filter(User.id == user.id)
+        .populate_existing()
+        .with_for_update()
+        .one()
+    )
+    rows = UserAvailability.query.filter_by(user_id=locked_user.id).all()
+    current = {
+        date_cls.fromisoformat(value)
+        for value in _resolve_current_dates(rows, locked_user.open_dates, today)
+    }
+    selected_dates = _parse_submitted_current_dates(selected_values, today)
+    overlapping = current.intersection(selected_dates)
+    remaining = sorted(
+        value.isoformat()
+        for value in current
+        if value >= today and value not in overlapping
+    )
+    replace_current_availability(locked_user, remaining, today=today)
+    return {
+        "removed": {value.isoformat() for value in overlapping},
+        "remaining": set(remaining),
+    }
+
+
+def remove_availability_overlapping_ranges(user, date_ranges, today=None):
+    """Remove only canonical availability dates inside inclusive ranges."""
+    today = today or date_cls.today()
+    overlapping = availability_dates_overlapping_ranges(user, date_ranges)
+    return remove_availability_dates(
+        user,
+        [value.isoformat() for value in overlapping],
+        today=today,
+    )
+
+
+def contiguous_availability_ranges(values):
+    """Coalesce ISO/date values into inclusive contiguous ranges."""
+    parsed = sorted({
+        value if isinstance(value, date_cls) else date_cls.fromisoformat(value)
+        for value in values
+    })
+    if not parsed:
+        return []
+    ranges = []
+    start = end = parsed[0]
+    for value in parsed[1:]:
+        if value == end + timedelta(days=1):
+            end = value
+            continue
+        ranges.append((start, end))
+        start = end = value
+    ranges.append((start, end))
+    return ranges
 
 
 def get_available_dates_for_users(users):

@@ -6,6 +6,18 @@
     <meta name="color-scheme" content="light">
     <style>html{background:#F5F1E8}
 #bl-page-loader{position:fixed;top:env(safe-area-inset-top,0px);left:0;width:0;height:2px;background:#5C1219;z-index:99998;opacity:0;pointer-events:none;}
+.bl-availability-trip-overlay{position:fixed;inset:0;z-index:100000;display:none;align-items:flex-end;justify-content:center;background:rgba(26,26,26,.46);padding-top:env(safe-area-inset-top,0px)}
+.bl-availability-trip-overlay.is-open{display:flex}
+.bl-availability-trip-sheet{width:100%;max-width:520px;max-height:calc(100vh - 32px - env(safe-area-inset-top,0px));overflow:auto;background:#F5F1E8;border-radius:18px 18px 0 0;padding:10px 20px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:0 -12px 40px rgba(26,26,26,.2)}
+.bl-availability-trip-handle{width:42px;height:4px;border-radius:4px;background:#C9C1B4;margin:0 auto 18px}
+.bl-availability-trip-sheet h2{font:500 25px/1.15 var(--bl-font-serif,Georgia,serif);margin:0 0 10px;color:#1A1A1A}
+.bl-availability-trip-sheet p{font-size:15px;line-height:1.5;color:#5F5A52;margin:0 0 10px}
+.bl-availability-trip-dates{font-weight:650;color:#1A1A1A}
+.bl-availability-trip-actions{display:grid;gap:10px;margin-top:20px}
+.bl-availability-trip-actions button{min-height:48px;border-radius:12px;font:600 15px/1 inherit;cursor:pointer}
+.bl-availability-trip-remove{border:0;background:#5C1219;color:#fff}
+.bl-availability-trip-keep{border:1px solid #5C1219;background:transparent;color:#5C1219}
+.bl-availability-trip-actions button:disabled{opacity:.55;cursor:wait}
 </style>
     <title>{% block title %}BaseLodge{% endblock %}</title>
     <meta property="og:image" content="https://app.baselodgeapp.com/static/images/og/BaseLodge-logo-primary-1200x630.png">
@@ -47,6 +59,22 @@
     {% block content %}{% endblock %}
     {% block bottom_nav %}{% include 'components/bottom_nav.html' %}{% endblock %}
 </div>
+{% if availability_trip_overlap_prompt %}
+<div class="bl-availability-trip-overlay is-open" id="bl-availability-trip-overlay">
+  <section class="bl-availability-trip-sheet" role="dialog" aria-modal="true" aria-labelledby="bl-availability-trip-title">
+    <div class="bl-availability-trip-handle" aria-hidden="true"></div>
+    <h2 id="bl-availability-trip-title">Update your availability?</h2>
+    <p>You now have {{ availability_trip_overlap_prompt.trip_label }} during dates you marked as available.</p>
+    <p class="bl-availability-trip-dates">{{ availability_trip_overlap_prompt.dates }}</p>
+    <p>Keep them if you’re still open to other plans, or remove only the dates that overlap.</p>
+    <p id="bl-availability-trip-error" role="alert" hidden></p>
+    <div class="bl-availability-trip-actions">
+      <button type="button" class="bl-availability-trip-remove" data-availability-choice="remove">Remove overlapping dates</button>
+      <button type="button" class="bl-availability-trip-keep" data-availability-choice="keep">Keep my availability</button>
+    </div>
+  </section>
+</div>
+{% endif %}
 <script>
 /* ── blToast — shared inline notification utility
    Replaces browser alert() dialogs with a native-feeling overlay toast.
@@ -64,6 +92,72 @@ function blToast(msg) {
         setTimeout(function() { if (t.parentNode) t.remove(); }, 260);
     }, 3000);
 }
+{% if availability_trip_overlap_prompt %}
+(function() {
+    var overlay = document.getElementById('bl-availability-trip-overlay');
+    if (!overlay) return;
+    var appShell = document.querySelector('.app-shell');
+    var buttons = overlay.querySelectorAll('[data-availability-choice]');
+    var error = document.getElementById('bl-availability-trip-error');
+    var firstButton = overlay.querySelector('[data-availability-choice]');
+    if (appShell) appShell.setAttribute('inert', '');
+    overlay.addEventListener('keydown', function(event) {
+        if (event.key !== 'Tab') return;
+        var focusable = Array.from(buttons).filter(function(item) {
+            return !item.disabled;
+        });
+        if (!focusable.length) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    });
+    buttons.forEach(function(button) {
+        button.addEventListener('click', async function() {
+            buttons.forEach(function(item) { item.disabled = true; });
+            error.hidden = true;
+            try {
+                var response = await fetch('/api/availability/trip-overlap', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': {{ csrf_token() | tojson }}
+                    },
+                    body: JSON.stringify({ action: button.dataset.availabilityChoice })
+                });
+                var data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Could not update Availability.');
+                }
+                overlay.classList.remove('is-open');
+                if (appShell) appShell.removeAttribute('inert');
+                document.body.style.overflow = '';
+                if (window.blToast) {
+                    window.blToast(
+                        data.action === 'remove'
+                            ? (data.removed_count === 1 ? '1 Availability date removed.' : data.removed_count + ' Availability dates removed.')
+                            : (data.action === 'keep' ? 'Availability kept.' : 'Availability choice closed.')
+                    );
+                }
+            } catch (exception) {
+                error.textContent = exception.message || 'Could not update Availability.';
+                error.hidden = false;
+                buttons.forEach(function(item) { item.disabled = false; });
+            }
+        });
+    });
+    document.body.style.overflow = 'hidden';
+    window.requestAnimationFrame(function() {
+        if (firstButton) firstButton.focus();
+    });
+}());
+{% endif %}
 document.addEventListener('DOMContentLoaded', function() {
     var flashWrap = document.querySelector('.bl-flash-wrap');
     if (!flashWrap) return;

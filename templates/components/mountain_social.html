@@ -1,15 +1,5 @@
 {% macro social_trip_row(row, status, secondary=false) %}
-    {%- set s = row.start_date -%}
-    {%- set e = row.end_date -%}
-    {%- if s == e -%}
-        {%- set date_str = s.strftime('%b %-d') -%}
-    {%- elif s.month == e.month and s.year == e.year -%}
-        {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%-d') -%}
-    {%- elif s.year == e.year -%}
-        {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d') -%}
-    {%- else -%}
-        {%- set date_str = s.strftime('%b %-d') ~ '–' ~ e.strftime('%b %-d, %Y') -%}
-    {%- endif -%}
+    {%- set date_str = format_date_range(row.start_date, row.end_date) -%}
     <a href="{{ url_for('friend_profile', friend_id=row.user_id) }}" class="md-row{% if secondary %} md-row--interested{% endif %}">
         <div class="md-row-left">
             <div class="md-row-line1">
@@ -53,17 +43,7 @@
             {% else %}
                 {{ summary.count }} friend{{ 's' if summary.count != 1 else '' }} {{ 'are' if summary.count != 1 else 'is' }} free during your
             {% endif %}
-            {% set s = summary.start_date %}
-            {% set e = summary.end_date %}
-            {% if s == e %}
-                {{ s.strftime('%b %-d') }}
-            {% elif s.month == e.month and s.year == e.year %}
-                {{ s.strftime('%b %-d') }}–{{ e.strftime('%-d') }}
-            {% elif s.year == e.year %}
-                {{ s.strftime('%b %-d') }}–{{ e.strftime('%b %-d') }}
-            {% else %}
-                {{ s.strftime('%b %-d, %Y') }}–{{ e.strftime('%b %-d, %Y') }}
-            {% endif %} trip
+            {{ format_date_range(summary.start_date, summary.end_date) }} trip
         </p>
         {% if not (summary.count == 1 and summary.preview|length == 1 and not summary.remaining_count) and (summary.preview or summary.remaining_count) %}
         <p class="md-social-summary-names">

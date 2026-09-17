@@ -174,6 +174,10 @@
                         if (!data.success) {
                             throw new Error(data.error || config.errorMessage);
                         }
+                        if (data.availability_overlap_prompt) {
+                            navigate(window.location.href);
+                            return;
+                        }
                         await refresh(regions);
                         if (data.message && window.blToast) {
                             window.blToast(data.message);
