@@ -1,0 +1,914 @@
+Replit Agent level: Plan
+Batch: approximately 100% of this investigation
+
+BASELODGE THREE-YEAR TECHNICAL PRE-MORTEM
+
+This is a READ-ONLY INVESTIGATION.
+
+Do not implement fixes.
+Do not modify application code.
+Do not modify tests.
+Do not modify the database or migrations.
+Do not change infrastructure or configuration.
+Do not deploy or publish anything.
+Do not refactor anything.
+Do not create implementation commits.
+
+Your job is to investigate the actual BaseLodge repository and produce an evidence-based technical pre-mortem.
+
+==================================================
+PRE-MORTEM PREMISE
+==================================================
+
+Imagine it is September 2029.
+
+BaseLodge had genuine user demand, but despite that demand it ultimately failed to become a durable product.
+
+Assume that at least some of the reasons for that failure were already latent in the technology, architecture, product model, operational practices, or engineering decisions visible in September 2026.
+
+Work backward from that hypothetical failure.
+
+The central question is:
+
+"If BaseLodge had real user demand but was nevertheless unsuccessful three years from now, what technological, architectural, security, data, product-system, reliability, performance, or operational weaknesses that exist today would most plausibly have caused or materially contributed to that outcome?"
+
+This is not a generic startup pre-mortem.
+
+It must be grounded in the BaseLodge system that actually exists.
+
+==================================================
+GROWTH ASSUMPTIONS
+==================================================
+
+Evaluate BaseLodge against this approximate trajectory:
+
+2026: ~1,000 users
+2027: ~10,000 users
+2028: ~50,000 users
+2029: mature system with approximately three additional years of product and data history
+
+Also evaluate a growth-shock scenario in which BaseLodge moves from approximately 1,000 users toward 10,000 users substantially faster than planned.
+
+Do not assume that a problem matters simply because user count increases.
+
+Determine what actually scales with:
+- registered users
+- active users
+- concurrent users
+- friendships/social-graph density
+- trips
+- trip participants
+- Availability records
+- Ski Days
+- mountains
+- notifications/activity
+- messages or delivery records
+- historical data
+- database queries
+- background work
+- API requests
+- native app usage
+- any other dimensions you discover
+
+Where possible, identify the actual scaling characteristic rather than using total user count as a proxy.
+
+==================================================
+IMPORTANT: NOTHING IS SACRED
+==================================================
+
+Do not assume the current architecture must remain.
+
+You may challenge any current technical decision if evidence supports doing so, including:
+
+- Replit
+- hosting/deployment architecture
+- Flask
+- server-rendered architecture
+- client-side JavaScript architecture
+- PostgreSQL/database architecture
+- Supabase or other database/platform dependencies
+- Capacitor
+- native wrapper strategy
+- authentication/session architecture
+- caching
+- prefetching
+- background processing
+- notification architecture
+- push infrastructure
+- email infrastructure
+- analytics
+- static asset delivery
+- third-party services
+- data models
+- testing strategy
+- CI
+- deployment process
+- observability
+- operational practices
+- application boundaries
+- any other architectural decision you discover
+
+However:
+
+DO NOT recommend replacing technology simply because another technology is newer, more fashionable, or theoretically more scalable.
+
+Every architectural criticism must identify a concrete limitation, risk, or future constraint supported by evidence.
+
+"Rewrite this in X" is not an acceptable recommendation without evidence explaining why the existing approach becomes materially inadequate.
+
+==================================================
+REPLIT ITSELF MUST BE EVALUATED
+==================================================
+
+Do not assume BaseLodge should remain entirely on Replit.
+
+Explicitly investigate whether Replit remains an appropriate platform as BaseLodge progresses through:
+
+~1K users
+~10K users
+~50K users
+
+Possible conclusions are allowed to include:
+
+- Keep everything on Replit.
+- Keep BaseLodge on Replit but move a particular workload/component elsewhere.
+- Move database-related infrastructure.
+- Move background processing.
+- Move static assets or another subsystem.
+- Change deployment architecture.
+- Eventually migrate the application itself away from Replit.
+- Do nothing until a specific measurable trigger occurs.
+
+Do NOT recommend migration merely because BaseLodge grows.
+
+Identify concrete migration triggers.
+
+Examples may include, if actually relevant:
+
+- latency
+- concurrency
+- connection limits
+- worker requirements
+- deployment behavior
+- failure isolation
+- geographic performance
+- observability limitations
+- operational control
+- networking constraints
+- runtime constraints
+- scaling characteristics
+- platform dependency
+- portability
+- another evidenced limitation
+
+Infrastructure cost optimization is NOT a primary objective of this investigation.
+
+If cost creates a genuine technical or operational constraint, note it, but do not turn this into an infrastructure economics exercise.
+
+==================================================
+PERFORMANCE AND SPEED
+==================================================
+
+Performance is a major part of this pre-mortem.
+
+Investigate how BaseLodge could become perceptibly or operationally slow as usage, social density, historical data, and feature complexity increase.
+
+Do not limit this to HTTP response time.
+
+Consider where relevant:
+
+- app launch
+- authentication
+- Home
+- Friends
+- Trips
+- Trip Detail
+- Mountain Detail
+- Profile
+- Notifications
+- Needs You
+- Availability/Open to Ski
+- Suggested Friends
+- queries
+- N+1 behavior
+- repeated calculations
+- social projections
+- derived state
+- payload size
+- HTML size
+- JavaScript
+- assets
+- client rendering
+- server rendering
+- database indexes
+- pagination
+- progressive loading
+- caching
+- cache invalidation
+- prefetching
+- background work
+- network conditions
+- Capacitor cold launch
+- Capacitor warm launch
+- resume
+- mobile network behavior
+- concurrency
+- seasonal traffic concentration
+- any other bottleneck evidenced by the repository
+
+Distinguish:
+
+1. Problems that exist now.
+2. Problems likely to emerge around 10K users.
+3. Problems likely to emerge around 50K users.
+4. Things that merely look theoretically inefficient but are unlikely to matter.
+5. Things that cannot be evaluated without real measurements.
+
+Do not manufacture scalability problems.
+
+==================================================
+SECURITY AND PRIVACY PRE-MORTEM
+==================================================
+
+Run a dedicated adversarial security/privacy pre-mortem inside the larger investigation.
+
+Assume that by 2029 BaseLodge has become valuable enough to be a meaningful target.
+
+Ask:
+
+"If BaseLodge suffered a serious security or privacy incident in 2029, what weakness visible in the 2026 architecture most plausibly enabled it?"
+
+Investigate where relevant:
+
+- authentication
+- sessions
+- authorization
+- object-level authorization / IDOR risk
+- friendship authorization
+- private Availability
+- derived social information
+- Trips
+- trip membership
+- invitations
+- Suggested Friends
+- notifications
+- messaging
+- account deletion
+- data retention
+- stale authorization
+- caching of private information
+- speculative/prefetched private information
+- CSRF
+- rate limiting
+- abuse prevention
+- account takeover
+- password/security flows
+- secrets
+- environment/configuration
+- database permissions
+- external providers
+- logs
+- analytics
+- push notifications
+- email
+- native app/WebView boundaries
+- APIs
+- dependency risk
+- operator/admin access
+- backup data
+- restored data
+- any other meaningful attack or privacy surface
+
+Authentication and current authorization must remain authoritative.
+
+Pay special attention to cases where private social information could accidentally survive after the authorization relationship changes.
+
+Do not perform offensive actions against production systems or real users.
+
+Use repository evidence and safe local/static investigation only.
+
+==================================================
+DATABASE AND LONG-TERM DATA INTEGRITY
+==================================================
+
+Treat data architecture as a major independent investigation area.
+
+Do not merely ask whether PostgreSQL can handle 50K users.
+
+Investigate the long-term lifecycle of BaseLodge data.
+
+Where relevant examine:
+
+- schema design
+- foreign keys
+- delete behavior
+- cascades
+- SET NULL behavior
+- explicit cleanup
+- orphan risks
+- canonical vs derived state
+- duplicate state
+- denormalized state
+- synchronization between representations
+- migrations
+- migration history
+- migration safety
+- indexes
+- query patterns
+- uniqueness constraints
+- concurrency
+- race conditions
+- transactions
+- rollback behavior
+- historical-data growth
+- retention
+- backup assumptions
+- restoration
+- referential integrity
+- application-enforced integrity
+- database-enforced integrity
+- stale records
+- soft vs hard deletion
+- account deletion
+- trip deletion
+- friendship changes
+- notification/activity lifecycle
+- social graph evolution
+- any other relevant lifecycle
+
+Look specifically for states that are technically valid to PostgreSQL but logically impossible or contradictory in the BaseLodge product.
+
+Ask whether today's data model will still be understandable and safely evolvable after three additional years of features and historical records.
+
+==================================================
+PRODUCT MODEL AS TECHNICAL ARCHITECTURE
+==================================================
+
+Evaluate the BaseLodge domain model itself.
+
+A product can become technologically unsustainable even if its infrastructure scales.
+
+Look for concepts that are:
+
+- duplicated
+- ambiguously defined
+- excessively coupled
+- represented differently in multiple places
+- dependent on fragile derived state
+- difficult to reconcile
+- increasingly expensive to change
+- likely to cause contradictory states
+- creating cascading feature complexity
+
+Relevant BaseLodge concepts include, but are not limited to:
+
+- friendships
+- Favorite Friends
+- friend requests
+- Suggested Friends
+- trips
+- trip participants
+- Availability
+- Open to Ski
+- Ski Days
+- mountains
+- Wishlist
+- passes
+- equipment
+- buddy passes
+- Notifications
+- Needs You
+- activity
+- reminders
+- social overlap
+- social projections
+- messaging
+- profile/configuration
+
+Do not criticize complexity merely because the domain is rich.
+
+Identify complexity that creates actual engineering risk.
+
+==================================================
+KNOWN PRODUCT / ARCHITECTURE DIRECTION
+==================================================
+
+Use the repository as the primary evidence source.
+
+The following are established BaseLodge product boundaries that may not all be fully represented in the current code yet.
+
+Use them only to evaluate whether the existing architecture can safely support documented future direction.
+
+Do not invent additional roadmap features.
+
+Core architecture:
+
+- Home = what is happening now.
+- Profile = who the user is plus personal BaseLodge configuration.
+- Notifications = what happened.
+- Needs You = what still requires attention.
+- Seen/unseen and resolved/unresolved are separate concepts.
+- Red badges represent unseen activity, not unresolved-work totals.
+- Availability is canonical and private.
+- Open to Ski is first-person presentation of Availability.
+- Open to Ski overlap represents possibility, not commitment.
+- Trips remain separate from Availability.
+- Creating or joining an overlapping Trip may offer to remove overlapping Availability but must never silently mutate it.
+- Buddy passes are personal inventory with selective social utility.
+- Wishlist represents future interest, not unfinished work.
+- Trip participant follow-up is coordination-first, not accountability or nagging.
+
+Favorite Friends direction:
+
+- Favorite Friends are private and one-way.
+- No reciprocal state.
+- No limit.
+- Favorite state ends permanently if the friendship ends.
+- Favorite prioritization stops at the direct friend and does not propagate through second-degree relationships.
+- Favorites may sort first in people-oriented contexts.
+- Favorites do not change Suggested Friends.
+- Favorites do not create notification eligibility.
+- Favorites do not alter push timing or delivery.
+- Overlap summaries remain simple rather than exposing separate Favorite counts.
+
+Attention architecture:
+
+- Notifications contain relevant recent activity and answer "What happened?"
+- Notifications are not the canonical pending-action destination.
+- Needs You contains unresolved attention.
+- Resolution actions live in appropriate context.
+- Seen does not mean resolved.
+- Resolving something elsewhere reconciles the corresponding attention state.
+- Informational notifications age out.
+- Deep links should go to the owning destination.
+- Native badge should reflect unseen Notifications, not Needs You.
+
+Native direction:
+
+- Capacitor remains the current mobile architecture.
+- Push taps should deep-link to current authorized state.
+- Authentication should preserve intended push destination.
+- Stale push payloads should recover safely.
+- Foreground suppression should occur only when the exact owning context is already visible.
+- Native badge should reconcile against server-authoritative unseen Notification state.
+
+Messaging/email direction:
+
+- Email infrastructure is being hardened before BaseLodge intentionally designs user-facing email programs.
+- Do not assume currently named preference fields represent approved future email categories.
+
+Performance direction:
+
+- BaseLodge already has some intent-based route prefetching.
+- Static assets use long-lived immutable caching.
+- Privacy-sensitive projections remain server-authorized.
+- Do not broaden speculative loading of private/mutable data merely for speed.
+- Real-world measurement should precede major optimization.
+- Capacitor cold/warm/resume/network behavior must be considered separately from ordinary web navigation.
+
+Design/product philosophy:
+
+BaseLodge should optimize for better real-world skiing, coordination, relationships, and memories.
+
+It should not optimize for screen time, manufactured urgency, engagement for its own sake, FOMO, or social pressure.
+
+This matters to the technical pre-mortem when architecture begins forcing product behavior in undesirable directions.
+
+==================================================
+OPERABILITY AND SAFE CHANGE
+==================================================
+
+Treat the ability to safely operate and evolve BaseLodge as a first-class failure mode.
+
+Investigate where relevant:
+
+- automated testing
+- test architecture
+- test reliability
+- integration tests
+- PostgreSQL-backed tests
+- JavaScript tests
+- native testing
+- CI
+- protected branches
+- migration verification
+- production parity
+- deployment
+- rollback
+- release process
+- observability
+- metrics
+- logging
+- tracing
+- alerting
+- health checks
+- failure diagnosis
+- background workers
+- retries
+- idempotency
+- backups
+- restore procedures
+- disaster recovery
+- dependency upgrades
+- operational documentation
+- manual procedures
+- environment drift
+- development vs production differences
+
+Ask:
+
+"Could BaseLodge remain functional but become increasingly unsafe to change?"
+
+If yes, explain exactly how.
+
+==================================================
+BUS FACTOR / KNOWLEDGE CONCENTRATION
+==================================================
+
+Evaluate whether the system is becoming dangerously dependent on one person's accumulated knowledge.
+
+Ask:
+
+"If another capable engineer had to take over BaseLodge tomorrow, which parts of the system would be unusually difficult or dangerous for them to understand, operate, debug, recover, or change?"
+
+Consider:
+
+- undocumented architecture
+- hidden assumptions
+- manual processes
+- tribal knowledge
+- inconsistent patterns
+- duplicated implementations
+- unusual deployment behavior
+- unclear data ownership
+- undocumented recovery procedures
+- too many unrelated technologies
+- complex feature coupling
+- missing runbooks
+- implicit invariants
+
+Do not treat ordinary learning curve as a failure.
+
+Look for genuine knowledge concentration risk.
+
+==================================================
+THIRD-PARTY AND VENDOR DEPENDENCY
+==================================================
+
+Inspect actual dependencies.
+
+For important external systems ask:
+
+- What happens if this provider disappears?
+- What happens if its API changes?
+- What happens during an outage?
+- What data is trapped there?
+- What functionality is trapped there?
+- Can BaseLodge migrate?
+- Is there a viable exit path?
+- Is the dependency a single point of failure?
+- Is BaseLodge depending on undocumented/provider-specific behavior?
+- Is there sufficient abstraction where abstraction is actually useful?
+
+This includes Replit itself and may include, depending on what the repository actually uses:
+
+- database providers
+- push providers
+- email providers
+- analytics
+- Capacitor/plugins
+- package dependencies
+- external APIs
+- identity/authentication dependencies
+- build tooling
+- hosting/deployment infrastructure
+
+Do not recommend abstraction for abstraction's sake.
+
+==================================================
+GROWTH-SHOCK SCENARIO
+==================================================
+
+Run a separate scenario:
+
+BaseLodge has approximately 1,000 users and suddenly begins growing toward 10,000 much faster than planned.
+
+Assume demand is real.
+
+What breaks first?
+
+Investigate likely first-order pressure on:
+
+- request concurrency
+- database connections
+- expensive queries
+- social graph calculations
+- background work
+- notification generation
+- push
+- rate limiting
+- abuse controls
+- third-party limits
+- deployment capacity
+- caching
+- operational visibility
+- supportability
+- data growth
+- any other relevant bottleneck
+
+Identify what BaseLodge should have in place BEFORE such a spike and what can safely be handled reactively.
+
+==================================================
+EVIDENCE STANDARD
+==================================================
+
+This report must clearly distinguish:
+
+KNOWN DEFECT
+A problem directly demonstrated by current code, tests, configuration, schema, or reproducible behavior.
+
+EVIDENCED RISK
+Not necessarily broken today, but repository evidence shows a credible path to failure.
+
+PLAUSIBLE RISK
+Technically possible and relevant, but current evidence is insufficient to say it is likely.
+
+UNKNOWN / UNPROVEN ASSUMPTION
+Something important that cannot be determined from the repository or available environment.
+
+NOT ACTUALLY A PROBLEM
+An area investigated because it appeared risky, but the current architecture is appropriate or sufficiently protected.
+
+Do not convert uncertainty into certainty.
+
+If you do not know, say so.
+
+For unknowns, explain exactly what measurement, load test, production telemetry, restore drill, security review, or other evidence would resolve the uncertainty.
+
+==================================================
+SEVERITY / STRATEGIC CLASSIFICATION
+==================================================
+
+Classify material findings as:
+
+EXISTENTIAL
+Could plausibly contribute to BaseLodge failing as a durable product, suffering a serious security/privacy incident, losing/corrupting important data, or requiring an emergency architectural migration.
+
+STRUCTURAL
+Not likely to kill BaseLodge immediately, but becomes increasingly dangerous or limiting as BaseLodge moves toward 10K/50K users and three more years of development.
+
+MANAGEABLE DEBT
+A legitimate engineering issue that should eventually be addressed but should not distract from larger risks.
+
+NOT ACTUALLY A PROBLEM
+Investigated and found to be acceptable.
+
+Do not inflate severity.
+
+A long list of "critical" findings is not useful.
+
+==================================================
+TIMING
+==================================================
+
+Every material recommendation must have a timing classification:
+
+NOW / ~1K USERS
+Address in the current stage.
+
+BEFORE ~10K USERS
+Not necessarily worth changing today, but should be addressed before the 2027 scale.
+
+BEFORE ~50K USERS
+Larger change that should occur before the 2028 scale.
+
+TRIGGER-BASED
+Do not change it based merely on calendar/user count. Specify the measurable trigger that should cause reevaluation or migration.
+
+LEAVE ALONE
+The current approach is appropriate. Do not spend engineering time changing it without new evidence.
+
+"Do nothing right now" is a valid and desirable recommendation when appropriate.
+
+==================================================
+DO NOT CONFUSE THEORETICAL SCALE WITH REAL SCALE
+==================================================
+
+BaseLodge is not being designed for hundreds of millions of users.
+
+The relevant trajectory is approximately:
+
+1K -> 10K -> 50K.
+
+Do not propose distributed systems, microservices, Kubernetes, exotic caching layers, event buses, service decomposition, database sharding, or other infrastructure merely because those technologies exist.
+
+Recommend complexity only when BaseLodge has an evidenced need for it.
+
+Simplicity is a feature.
+
+==================================================
+INVESTIGATION METHOD
+==================================================
+
+Inspect the repository broadly before reaching conclusions.
+
+Build an architectural map first.
+
+Trace important user/data lifecycles rather than reviewing isolated files.
+
+Examples:
+
+- authentication -> session -> authorization -> protected request
+- friendship creation -> social visibility -> friendship removal
+- Availability -> overlap projection -> Trip creation/join -> reconciliation
+- Trip creation -> participation -> modification -> deletion
+- Notification creation -> unseen -> seen -> resolution -> retention
+- Suggested Friend -> request -> withdrawal/acceptance -> cleanup
+- account creation -> years of activity -> account deletion
+- push generation -> delivery -> tap -> authorization -> destination
+- schema migration -> deployment -> rollback/recovery
+- app launch -> authentication -> Home -> subsequent navigation
+- native cold launch -> warm launch -> resume
+- failure -> detection -> diagnosis -> rollback/restore
+
+Use code, tests, migrations, configuration, documentation, dependency manifests, workflows, and other repository evidence.
+
+Where useful, inspect Git history for architectural context, but do not treat old/dead code as current behavior without verifying it.
+
+Do not access or modify real user data.
+
+==================================================
+FINAL DELIVERABLE
+==================================================
+
+Produce ONE self-contained report.
+
+PART 1 — THE 2029 PRE-MORTEM
+
+Write the concise retrospective as though BaseLodge has already failed.
+
+Example framing:
+
+"It is September 2029. BaseLodge found real user demand, but the product did not become technically durable..."
+
+Explain the most plausible chain of technical/product-system events that led to failure.
+
+This should be causal, not dramatic.
+
+Do not invent unsupported incidents.
+
+Where uncertainty exists, make that explicit.
+
+PART 2 — EXECUTIVE FINDINGS
+
+Identify the small number of findings that matter most.
+
+Do not bury the major risks in dozens of minor observations.
+
+For each include:
+
+- finding
+- evidence classification
+- severity classification
+- timing
+- concise explanation
+
+PART 3 — ARCHITECTURE MAP
+
+Explain the current BaseLodge architecture and major system boundaries sufficiently for another engineer to understand the report.
+
+PART 4 — DEEP ANALYSIS
+
+Cover at minimum:
+
+1. Application architecture
+2. Performance and speed
+3. Replit/platform suitability
+4. Database and long-term data integrity
+5. Security and privacy
+6. Authentication/authorization
+7. Product/domain-model complexity
+8. Social graph scaling
+9. Notifications / Needs You / activity
+10. Availability / Trips / Ski Days lifecycle
+11. Native/Capacitor architecture
+12. Push
+13. Messaging/email infrastructure
+14. Caching/prefetching/state preservation
+15. Testing and CI
+16. Deployment and rollback
+17. Observability and diagnostics
+18. Backup / restore / disaster recovery
+19. Third-party dependencies and portability
+20. Maintainability / development velocity
+21. Bus factor / documentation / operational knowledge
+
+Add categories if the repository reveals important areas not listed here.
+
+PART 5 — GROWTH-SHOCK ANALYSIS
+
+Explain what is most likely to fail first if BaseLodge grows from approximately 1K toward 10K users much faster than expected.
+
+PART 6 — EVIDENCE GAPS
+
+List important things we currently cannot prove.
+
+For each explain:
+
+- why it matters
+- what evidence is missing
+- how to obtain that evidence
+- when we need that evidence
+
+PART 7 — WHAT WE SHOULD NOT CHANGE
+
+Explicitly identify architecture or systems you investigated that are currently appropriate.
+
+Explain why.
+
+This section is important.
+
+Prevent unnecessary rewrites.
+
+PART 8 — REPLIT DECISION FRAMEWORK
+
+Give a specific recommendation for BaseLodge's use of Replit at:
+
+- ~1K users
+- ~10K users
+- ~50K users
+
+Do not force a migration recommendation.
+
+For every component you believe may eventually need to leave Replit, provide the trigger that would justify moving it.
+
+If you believe the application itself should eventually leave Replit, identify:
+
+- why
+- when
+- measurable trigger
+- what capability is missing
+- what happens if we wait too long
+
+If there is no evidence that BaseLodge needs to leave Replit, say so.
+
+PART 9 — PREVENTATIVE ROADMAP
+
+Create a staged technical prevention roadmap:
+
+NOW / ~1K
+BEFORE ~10K
+BEFORE ~50K
+TRIGGER-BASED
+LEAVE ALONE
+
+Prioritize ruthlessly.
+
+Do not turn every observation into a task.
+
+PART 10 — TOP 10 "IF WE IGNORE THIS" RISKS
+
+Choose no more than ten.
+
+For each:
+
+- risk
+- evidence
+- plausible failure path
+- earliest warning signal
+- recommended intervention
+- timing
+
+PART 11 — FINAL ANSWER
+
+End by answering these questions directly:
+
+1. If BaseLodge fails technologically by September 2029 despite having genuine user demand, what are the three most plausible reasons why?
+
+2. What is the single most important technical thing BaseLodge should address now?
+
+3. What is the most important thing we should deliberately NOT change yet?
+
+4. What should we measure now so that we are not guessing later?
+
+5. At what point, if any, should BaseLodge move part or all of its architecture away from Replit?
+
+6. Is there anything in the current architecture that could become substantially harder to fix if we wait until 10K or 50K users?
+
+7. What technical decision being made today has the greatest chance of looking like an obvious mistake in hindsight in September 2029?
+
+==================================================
+FINAL RULE
+==================================================
+
+This is a pre-mortem, not a refactoring exercise.
+
+Do not fix anything.
+
+Do not optimize anything.
+
+Do not create implementation tasks unless the report itself uses them illustratively.
+
+Do not change BaseLodge.
+
+Investigate deeply, distinguish evidence from speculation, challenge existing assumptions when justified, defend existing architecture when justified, and tell us what would most plausibly cause a product with real demand to fail technologically over the next three years.
