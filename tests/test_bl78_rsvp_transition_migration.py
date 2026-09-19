@@ -75,9 +75,12 @@ def test_revision_precedes_deferred_bl70_in_single_linear_graph():
     assert bl79.down_revision == "bl78_rsvp_transition"
     assert bl80.down_revision == "bl79_friend_history"
     bl87 = script.get_revision("bl87_wishlist_history")
+    bl83 = script.get_revision("bl83_rsvp_deadline")
+    bl238 = script.get_revision("bl238_attention_state")
     assert bl87.down_revision == "bl80_trip_lifecycle"
     assert deferred_bl70.down_revision == bl87.revision
-    assert script.get_heads() == ["bl83_rsvp_deadline"]
+    assert bl238.down_revision == bl83.revision
+    assert script.get_heads() == ["bl238_attention_state"]
 
 
 def test_upgrade_creates_only_history_schema_with_constraints_indexes_and_fks():
